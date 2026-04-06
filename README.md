@@ -68,33 +68,6 @@ SwiftShare is a browser-based temporary file sharing platform that allows users 
 * **QR Code Generator**
 * **Framer Motion**
 
-> According to the project abstract, SwiftShare uses React + Tailwind on the frontend and communicates with a Node.js + Socket.io backend for real-time transfer updates. 
-
----
-
-## 📄 Pages / Routes
-
-| Page              | Description               |
-| ----------------- | ------------------------- |
-| `/`               | Upload / Home page        |
-| `/send`           | Sender dashboard          |
-| `/get`            | Enter code / Receive file |
-| `/download/:code` | Download page             |
-| `/expired`        | Expired transfer page     |
-| `/about`          | Project & architecture    |
-
----
-
-## 🔌 API Endpoints Used (Backend)
-
-| Method | Endpoint          | Purpose           |
-| ------ | ----------------- | ----------------- |
-| POST   | `/upload`         | Upload file       |
-| GET    | `/file/:code`     | Get file metadata |
-| GET    | `/download/:code` | Download file     |
-| GET    | `/nearby`         | Nearby devices    |
-| WS     | Socket.io         | Progress + timer  |
-
 ---
 
 ## 🧠 How It Works
@@ -105,25 +78,6 @@ SwiftShare is a browser-based temporary file sharing platform that allows users 
 4. Receiver enters code or scans QR
 5. File downloaded
 6. File auto-deletes
-
----
-
-## 🏗️ Run Frontend Locally
-
-```bash
-git clone https://github.com/yourusername/swiftshare-frontend
-cd swiftshare-frontend
-npm install
-npm run dev
-```
-
----
-
-## 🌍 Deployment
-
-* Frontend: **Vercel**
-* Backend: **Render**
-* AI: **Gemini API**
 
 ---
 
