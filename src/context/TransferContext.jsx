@@ -2,67 +2,48 @@ import React, { createContext, useContext, useState, useCallback } from 'react'
 
 const TransferContext = createContext(null)
 
-export function TransferProvider({ children }) {
-  const [uploadState, setUploadState] = useState('idle') // idle | uploading | complete | error
-  const [uploadData, setUploadDataState] = useState(null)
-  const [downloadState, setDownloadState] = useState('idle')
-  const [activeCode, setActiveCode] = useState(null)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [uploadSpeed, setUploadSpeed] = useState(0)
+const INITIAL_STATE = {
+  status: 'idle', // idle | uploading | complete | error
+  percent: 0,
+  speed: 0,
+  error: null,
+}
 
-  const setUploadData = useCallback((data) => {
-    setUploadDataState(data)
-    setActiveCode(data?.code || null)
-    setUploadState('complete')
+export function TransferProvider({ children }) {
+  const [uploadState, setUploadState] = useState(INITIAL_STATE)
+  const [uploadData, setUploadData] = useState(null)
+  const [aiData, setAiData] = useState(null)
+
+  const startUpload = useCallback(() => {
+    setUploadState({ ...INITIAL_STATE, status: 'uploading' })
+  }, [])
+
+  const setUploadProgress = useCallback((percent, speed) => {
+    setUploadState(prev => ({ ...prev, percent, speed }))
+  }, [])
+
+  const setError = useCallback((error) => {
+    setUploadState(prev => ({ ...prev, status: 'error', error }))
   }, [])
 
   const clearTransfer = useCallback(() => {
-    setUploadDataState(null)
-    setActiveCode(null)
-    setUploadState('idle')
-    setUploadProgress(0)
-    setUploadSpeed(0)
-  }, [])
-
-  const setAiData = useCallback((ai) => {
-    setUploadDataState((prev) => prev ? { ...prev, ai } : prev)
-  }, [])
-
-  const startUpload = useCallback(() => {
-    setUploadState('uploading')
-    setUploadProgress(0)
-  }, [])
-
-  const setError = useCallback(() => {
-    setUploadState('error')
+    setUploadState(INITIAL_STATE)
+    setUploadData(null)
+    setAiData(null)
   }, [])
 
   return (
-    <TransferContext.Provider value={{
-      uploadState,
-      uploadData,
-      downloadState,
-      activeCode,
-      uploadProgress,
-      uploadSpeed,
-      setUploadData,
-      clearTransfer,
-      setAiData,
-      startUpload,
-      setError,
-      setUploadProgress,
-      setUploadSpeed,
-      setDownloadState,
-    }}>
+    <TransferContext.Provider
+      value={{
+        uploadState, uploadData, setUploadData, aiData, setAiData,
+        startUpload, setUploadProgress, setError, clearTransfer,
+      }}
+    >
       {children}
     </TransferContext.Provider>
   )
 }
 
-export const useTransfer = () => {
-  const ctx = useContext(TransferContext)
-  if (!ctx) throw new Error('useTransfer must be used inside TransferProvider')
-  return ctx
+export function useTransfer() {
+  return useContext(TransferContext) || {}
 }
-
-export default TransferContext

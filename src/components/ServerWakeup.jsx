@@ -1,39 +1,43 @@
 import React, { useEffect, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Zap, Loader2 } from 'lucide-react'
 import { pingServer } from '../services/api'
 
 export default function ServerWakeup() {
-  const [checking, setChecking] = useState(false)
-  const [latency, setLatency] = useState(null)
-
-  const check = async () => {
-    setChecking(true)
-    const res = await pingServer()
-    setLatency(res?.latencyMs ?? null)
-    setChecking(false)
-    if (res?.ok) {
-      window.location.reload()
-    }
-  }
+  const [dots, setDots] = useState(0)
 
   useEffect(() => {
-    const id = setInterval(check, 5000)
-    return () => clearInterval(id)
+    const iv = setInterval(() => setDots(d => (d + 1) % 4), 500)
+    return () => clearInterval(iv)
   }, [])
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
-      <div className="card p-8 max-w-md w-full text-center">
-        <div className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.12)' }}>
-          <RefreshCw size={20} style={{ color: '#818CF8' }} className={checking ? 'animate-spin' : ''} />
+      <motion.div
+        className="surface-card p-8 text-center max-w-sm w-full"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+      >
+        <motion.div
+          className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center"
+          style={{ background: 'var(--warning-soft)', border: '1px solid var(--warning)' }}
+          animate={{ rotate: [0, 10, -10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          <Zap size={24} style={{ color: 'var(--warning)' }} />
+        </motion.div>
+        <h2 className="font-display font-bold text-lg mb-2" style={{ color: 'var(--text)' }}>
+          Waking up the server{'.'.repeat(dots)}
+        </h2>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-3)' }}>
+          Free tier servers sleep after inactivity. This takes about 30 seconds on first load.
+        </p>
+        <div className="flex items-center justify-center gap-2" style={{ color: 'var(--text-4)' }}>
+          <Loader2 size={14} className="animate-spin" />
+          <span className="text-xs font-medium">Connecting...</span>
         </div>
-        <h2 className="font-heading text-xl mb-2" style={{ color: 'var(--text)' }}>Waking server</h2>
-        <p className="text-sm mb-4" style={{ color: 'var(--text-2)' }}>The backend may take a little time on cold start.</p>
-        <button className="btn-primary" onClick={check} disabled={checking}>
-          {checking ? 'Checking...' : 'Check again'}
-        </button>
-        {latency !== null ? <p className="text-xs mt-3" style={{ color: 'var(--text-3)' }}>Last ping: {latency} ms</p> : null}
-      </div>
+      </motion.div>
     </div>
   )
 }

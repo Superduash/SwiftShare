@@ -1,136 +1,146 @@
 import axios from 'axios'
 
-const baseUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)
+const rawBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const baseURL = rawBaseURL.replace(/\/+$/, '')
 
-const api = axios.create({
-  baseURL: baseUrl,
+const API = axios.create({
+  baseURL,
   timeout: 30000,
 })
 
-function createApiError(err) {
-  const error = new Error(err.response?.data?.error?.message || err.message)
-  error.status = err.response?.status
-  error.code = err.response?.data?.error?.code
-  error.isNetworkError = !err.response
-  return error
+function unwrapResponse(payload) {
+  if (payload && typeof payload === 'object' && payload.success === true && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+    return payload.data
+  }
+
+  return payload
 }
 
-export const pingServer = async () => {
+function normalizeCode(code) {
+  return encodeURIComponent(String(code || '').trim().toUpperCase())
+}
+
+function buildBackendUrl(path) {
+  return `${baseURL}${path}`
+}
+
+function toDataUrl(base64OrDataUrl, mimeType = 'image/png') {
+  if (typeof base64OrDataUrl !== 'string' || !base64OrDataUrl) {
+    return ''
+  }
+
+  if (base64OrDataUrl.startsWith('data:')) {
+    return base64OrDataUrl
+  }
+
+  return `data:${mimeType};base64,${base64OrDataUrl}`
+}
+
+// ── Health ──────────────────────────────────
+export async function pingServer() {
   const start = Date.now()
   try {
-    await api.get('/api/ping', { timeout: 8000 })
+    await API.get('/api/ping')
     return { ok: true, latencyMs: Date.now() - start }
   } catch {
     return { ok: false, latencyMs: Date.now() - start }
   }
 }
 
-export const uploadFiles = async (formData) => {
-  try {
-    const res = await api.post('/api/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
-    })
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
+// ── Upload ──────────────────────────────────
+export async function uploadFiles(formData) {
+  if (formData?.get && !formData.get('senderSocketId') && formData.get('socketId')) {
+    formData.append('senderSocketId', formData.get('socketId'))
   }
+
+  const { data } = await API.post('/api/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  })
+  return unwrapResponse(data)
 }
 
-export const uploadClipboard = async (imageBase64, burnAfterDownload, senderSocketId) => {
-  try {
-    const res = await api.post('/api/upload/clipboard', {
-      imageBase64,
-      burnAfterDownload,
-      senderSocketId,
-    })
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
+export async function uploadClipboard(imageBase64, burnAfterDownload, senderSocketId, options = {}) {
+  const payload = {
+    imageBase64: toDataUrl(imageBase64, options.mimeType || 'image/png'),
+    burnAfterDownload: Boolean(burnAfterDownload),
+    senderSocketId: typeof senderSocketId === 'string' ? senderSocketId : '',
   }
-}
 
-export const getFileMetadata = async (code) => {
-  try {
-    const res = await api.get(`/api/file/${code}`)
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
+  if (typeof options.passwordProtected === 'boolean') {
+    payload.passwordProtected = options.passwordProtected
   }
-}
 
-export const getTransferStatus = async (code) => {
-  try {
-    const res = await api.get(`/api/transfer/${code}/status`)
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
+  if (typeof options.password === 'string' && options.password.trim()) {
+    payload.password = options.password
   }
-}
 
-export const getTransferActivity = async (code) => {
-  try {
-    const res = await api.get(`/api/transfer/${code}/activity`)
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
+  if (Number.isFinite(Number(options.expiryMinutes)) && Number(options.expiryMinutes) > 0) {
+    payload.expiryMinutes = Number(options.expiryMinutes)
   }
+
+  const { data } = await API.post('/api/upload/clipboard', payload)
+  return unwrapResponse(data)
 }
 
-export const extendTransfer = async (code) => {
-  try {
-    const res = await api.post(`/api/transfer/${code}/extend`)
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
-  }
+// ── Metadata & Status ───────────────────────
+export async function getFileMetadata(code) {
+  const { data } = await API.get(`/api/file/${normalizeCode(code)}`)
+  return unwrapResponse(data)
 }
 
-export const deleteTransfer = async (code) => {
-  try {
-    const res = await api.delete(`/api/transfer/${code}`)
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
-  }
+export async function getTransferStatus(code) {
+  const { data } = await API.get(`/api/transfer/${normalizeCode(code)}/status`)
+  return unwrapResponse(data)
 }
 
-export const getNearbyDevices = async () => {
-  try {
-    const res = await api.get('/api/nearby')
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
-  }
+export async function getTransferActivity(code) {
+  const { data } = await API.get(`/api/transfer/${normalizeCode(code)}/activity`)
+  return unwrapResponse(data)
 }
 
-export const getStats = async () => {
-  try {
-    const res = await api.get('/api/stats')
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
-  }
+// ── Actions ─────────────────────────────────
+export async function extendTransfer(code) {
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/extend`)
+  return unwrapResponse(data)
 }
 
-export const getHealth = async () => {
-  try {
-    const res = await api.get('/api/health')
-    return res.data.data || res.data
-  } catch (err) {
-    throw createApiError(err)
-  }
+export async function deleteTransfer(code) {
+  const { data } = await API.delete(`/api/transfer/${normalizeCode(code)}`)
+  return unwrapResponse(data)
 }
 
-export const downloadFile = (code) => {
-  window.location.href = `${baseUrl}/api/download/${code}`
+// ── Nearby ──────────────────────────────────
+export async function getNearbyDevices() {
+  const { data } = await API.get('/api/nearby')
+  return unwrapResponse(data)
 }
 
-export const downloadSingleFile = (code, index) => {
-  window.location.href = `${baseUrl}/api/download/${code}/single/${index}`
+// ── Stats ───────────────────────────────────
+export async function getStats() {
+  const { data } = await API.get('/api/stats')
+  return unwrapResponse(data)
 }
 
-export const previewUrl = (code, index) =>
-  `${baseUrl}/api/file/${code}/preview/${index}`
+// ── Download ────────────────────────────────
+export function getDownloadUrl(code) {
+  return buildBackendUrl(`/api/download/${normalizeCode(code)}`)
+}
 
-export default api
+export function getSingleDownloadUrl(code, index) {
+  const safeIndex = Number(index)
+  return buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+}
+
+export function downloadFile(code) {
+  window.location.href = getDownloadUrl(code)
+}
+
+export function downloadSingleFile(code, index) {
+  window.location.href = getSingleDownloadUrl(code, index)
+}
+
+export function previewUrl(code, index) {
+  const safeIndex = Number(index)
+  return buildBackendUrl(`/api/file/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+}

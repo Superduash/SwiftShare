@@ -1,426 +1,286 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import React, { useEffect, useRef, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import toast from 'react-hot-toast'
+import { Download, Loader2, CheckCircle2, Image as ImageIcon } from 'lucide-react'
 import confetti from 'canvas-confetti'
-import { ArrowLeft, Download, Zap, AlertTriangle, Check, FileText } from 'lucide-react'
-import { getFileMetadata, downloadFile, downloadSingleFile, previewUrl } from '../services/api'
+import toast from 'react-hot-toast'
+
 import { useSocket } from '../context/SocketContext'
+import { getFileMetadata, previewUrl } from '../services/api'
+import { smartDownload } from '../utils/download'
+import { saveTransfer } from '../utils/storage'
+import { formatBytes } from '../utils/format'
+import { extractErrorCode } from '../utils/errors'
+import Navbar from '../components/Navbar'
+import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
 import AISummaryCard from '../components/AISummaryCard'
-import CountdownRing from '../components/CountdownRing'
 import ProgressBar from '../components/ProgressBar'
-
-function formatBytes(bytes) {
-  if (!bytes || bytes <= 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`
-}
-
-function fireConfetti() {
-  confetti({ particleCount: 80, spread: 70, origin: { x: 0.2, y: 0.6 }, colors: ['#22D3EE', '#8B5CF6', '#10B981'] })
-  setTimeout(() => {
-    confetti({ particleCount: 80, spread: 70, origin: { x: 0.8, y: 0.6 }, colors: ['#22D3EE', '#F59E0B', '#10B981'] })
-  }, 200)
-}
+import TransferReceipt from '../components/TransferReceipt'
 
 export default function DownloadPage() {
   const { code } = useParams()
-  const location = useLocation()
   const navigate = useNavigate()
-  const { socket, joinRoom, isConnected } = useSocket()
+  const { socket, joinRoom, leaveRoom } = useSocket()
 
-  const [fileData, setFileData] = useState(location.state?.fileData || null)
-  const [secondsRemaining, setSecondsRemaining] = useState(null)
-  const [expired, setExpired] = useState(false)
+  const [meta, setMeta] = useState(null)
+  const [ai, setAi] = useState(null)
+  const [aiLoading, setAiLoading] = useState(true)
+  const [secondsRemaining, setSecondsRemaining] = useState(0)
+  const [totalSeconds, setTotalSeconds] = useState(600)
+  const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
-  const [startingDownload, setStartingDownload] = useState(false)
-  const [showSocketWarning, setShowSocketWarning] = useState(false)
-  const [loading, setLoading] = useState(!fileData)
-  const [previewError, setPreviewError] = useState(false)
-  const [showReceiptModal, setShowReceiptModal] = useState(false)
-  const [receipt, setReceipt] = useState(null)
-  const downloadedRef = useRef(false)
-  const downloadTimerRef = useRef(null)
+  const [previewSrc, setPreviewSrc] = useState(null)
+  const downloadingRef = useRef(false)
 
-  const files = fileData?.files || []
-  const isSingleFile = files.length === 1
-  const firstFile = files[0]
-  const isImage = firstFile?.type?.startsWith('image/')
-  const isPdf = firstFile?.type?.includes('pdf') || firstFile?.icon === 'pdf'
-
-  // Fetch metadata if not in state
   useEffect(() => {
-    if (!fileData) {
-      getFileMetadata(code)
-        .then(data => {
-          setFileData(data)
-          if (data.secondsRemaining != null) setSecondsRemaining(data.secondsRemaining)
-          setLoading(false)
-        })
-        .catch(err => {
-          const status = err?.status
-          const errorCode = err?.code
+    downloadingRef.current = downloading
+  }, [downloading])
 
-          if (err?.isNetworkError) {
-            toast.error('Network error. Please check your connection and try again.')
-          }
+  // Title
+  useEffect(() => {
+    if (meta?.files?.[0]?.name) {
+      document.title = `${meta.files[0].name} · SwiftShare`
+    }
+  }, [meta])
 
-          if (status === 404) {
-            navigate('/expired', { state: { reason: 'notfound' } })
-            return
-          }
+  // Fetch metadata
+  useEffect(() => {
+    if (!code) return
+    async function load() {
+      try {
+        const data = await getFileMetadata(code)
+        setMeta(data)
+        setSecondsRemaining(data.secondsRemaining || 0)
+        setTotalSeconds(data.secondsRemaining || 600)
+        if (data.ai) { setAi(data.ai); setAiLoading(false) }
 
-          if (status === 410 && errorCode === 'TRANSFER_EXPIRED') {
-            navigate('/expired', { state: { reason: 'expired' } })
-            return
-          }
+        // Preview for images
+        const firstFile = data?.files?.[0]
+        const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
+        if (firstFile && firstFileType.startsWith('image/')) {
+          setPreviewSrc(previewUrl(code, 0))
+        }
 
-          if (status === 410 && errorCode === 'ALREADY_DOWNLOADED') {
-            navigate('/expired', { state: { reason: 'burned' } })
-            return
-          }
-
-          navigate('/expired', { state: { reason: 'notfound' } })
-        })
-    } else {
-      if (fileData.secondsRemaining != null) setSecondsRemaining(fileData.secondsRemaining)
+        saveTransfer({ code, filename: firstFile?.name || code, isSender: false })
+      } catch (err) {
+        const errCode = extractErrorCode(err)
+        if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
+        else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
+        else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
+        else toast.error('Failed to load transfer')
+      }
       setLoading(false)
     }
-  }, [code])
-
-  useEffect(() => {
-    return () => {
-      if (downloadTimerRef.current) {
-        clearTimeout(downloadTimerRef.current)
-      }
-    }
-  }, [])
+    load()
+  }, [code, navigate])
 
   // Socket
   useEffect(() => {
-    if (!code) return
-    joinRoom(code)
-  }, [code, joinRoom])
+    if (!socket || !code) return
 
-  useEffect(() => {
-    if (!socket) return
-    const onCountdown = ({ secondsRemaining: s }) => setSecondsRemaining(s)
-    const onExpired = () => {
-      setExpired(true)
-      toast.error('Transfer expired')
+    const connectRoom = () => {
+      joinRoom(code)
     }
-    const onProgress = ({ percent }) => {
+
+    connectRoom()
+
+    const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
+    const onExpired = () => navigate('/expired?reason=expired', { replace: true })
+    const onAi = (data) => { setAi(data); setAiLoading(false) }
+    const onDownProg = ({ percent }) => {
+      if (!downloadingRef.current) return
       setDownloadPercent(percent || 0)
-      if (percent >= 100 && !downloadedRef.current) {
-        downloadedRef.current = true
-        setDownloaded(true)
-        setReceipt({
-          code,
-          filename: isSingleFile ? (firstFile?.name || 'File') : `${files.length} files (ZIP)`,
-          senderDevice: fileData?.senderDeviceName || 'Unknown Device',
-          fileSize: formatBytes(fileData?.totalSize || 0),
-        })
-        setShowReceiptModal(true)
-        fireConfetti()
-        toast.success('Transfer complete! 🎉')
-      }
+    }
+    const onDownComplete = () => {
+      if (!downloadingRef.current) return
+      setDownloadPercent(100)
+      setDownloading(false)
+      setDownloaded(true)
     }
 
-    socket.on('countdown-tick', onCountdown)
+    socket.on('connect', connectRoom)
+    socket.on('countdown-tick', onTick)
     socket.on('transfer-expired', onExpired)
-    socket.on('download-progress', onProgress)
+    socket.on('ai-ready', onAi)
+    socket.on('download-progress', onDownProg)
+    socket.on('download-complete', onDownComplete)
 
     return () => {
-      socket.off('countdown-tick', onCountdown)
+      socket.off('connect', connectRoom)
+      socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)
-      socket.off('download-progress', onProgress)
+      socket.off('ai-ready', onAi)
+      socket.off('download-progress', onDownProg)
+      socket.off('download-complete', onDownComplete)
+      leaveRoom(code)
     }
-  }, [socket, code, fileData, files.length, firstFile?.name, isSingleFile])
+  }, [socket, code, joinRoom, leaveRoom, navigate])
 
-  useEffect(() => {
-    let timer = null
+  // Download
+  async function handleDownload() {
+    if (downloading || downloaded) return
+    setDownloading(true)
+    try {
+      await smartDownload(code, {
+        aiName: ai?.suggestedName,
+        originalName: meta?.files?.[0]?.name,
+      })
+      setDownloaded(true)
+      setDownloading(false)
 
-    if (!isConnected) {
-      timer = setTimeout(() => {
-        setShowSocketWarning(true)
-      }, 5000)
-    } else {
-      setShowSocketWarning(false)
+      // Confetti!
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#E8634A', '#FFB88A', '#FF9A5C', '#16A34A', '#0891B2'],
+      })
+    } catch {
+      setDownloading(false)
+      toast.error('Download failed')
     }
-
-    return () => {
-      if (timer) clearTimeout(timer)
-    }
-  }, [isConnected])
-
-  const handleDownload = () => {
-    if (expired || startingDownload || downloaded) return
-    setStartingDownload(true)
-    setDownloadPercent((prev) => Math.max(prev, 5))
-
-    downloadTimerRef.current = setTimeout(() => {
-      downloadFile(code)
-      setStartingDownload(false)
-    }, 450)
-  }
-
-  const handleDownloadSingle = (idx) => {
-    if (expired || startingDownload || downloaded) return
-    setStartingDownload(true)
-    setDownloadPercent((prev) => Math.max(prev, 5))
-
-    downloadTimerRef.current = setTimeout(() => {
-      downloadSingleFile(code, idx)
-      setStartingDownload(false)
-    }, 450)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-16 h-16 rounded-2xl skeleton mx-auto" />
-          <div className="w-48 h-4 skeleton rounded mx-auto" />
-          <div className="w-32 h-3 skeleton rounded mx-auto" />
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <Navbar />
+        <div className="pt-20 max-w-lg mx-auto px-4 space-y-4">
+          <div className="shimmer-block h-8 w-48" />
+          <div className="shimmer-block h-32 w-full" />
+          <div className="shimmer-block h-14 w-full" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary">
-      <div className="fixed inset-0 grid-bg opacity-20 pointer-events-none" />
-      <div className="blob-cyan fixed bottom-0 right-0 translate-x-1/3 translate-y-1/3 pointer-events-none" />
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <Navbar />
 
-      <div className="relative max-w-xl mx-auto px-4 py-10">
+      <main className="pt-14">
+        <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12">
 
-        {/* Nav */}
-        <motion.div
-          className="flex items-center justify-between mb-8"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <button className="btn-ghost flex items-center gap-2 text-sm py-2 px-3" onClick={() => navigate('/join')}>
-            <ArrowLeft size={14} />
-            Back
-          </button>
-          <div className="flex items-center gap-2">
-            <Zap size={14} className="text-accent-cyan" />
-            <span className="text-text-primary font-bold text-sm">Swift<span className="text-accent-cyan">Share</span></span>
-          </div>
-        </motion.div>
-
-        {/* Expired banner */}
-        <AnimatePresence>
-          {expired && (
-            <motion.div className="expired-banner flex items-center gap-2 mb-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <AlertTriangle size={14} />
-              This transfer has expired.
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showSocketWarning && !expired && (
-            <motion.div
-              className="mb-5 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2"
-              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.24)', color: '#FBBF24' }}
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-            >
-              <AlertTriangle size={14} />
-              Live connection is unstable. Progress updates may be delayed.
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Success state */}
-        <AnimatePresence>
-          {downloaded && (
-            <motion.div
-              className="glass-card p-5 mb-5 text-center"
-              style={{ borderColor: 'rgba(16,185,129,0.3)' }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-            >
-              <div className="w-12 h-12 rounded-2xl bg-accent-green/10 border border-accent-green/25 flex items-center justify-center mx-auto mb-3">
-                <Check size={22} className="text-accent-green" />
-              </div>
-              <h3 className="text-text-primary font-bold text-lg">Transfer Complete!</h3>
-              <p className="text-text-muted text-sm mt-1">File received successfully</p>
-              {fileData?.senderDeviceName && (
-                <p className="text-text-dim text-xs mt-2">Sent from: {fileData.senderDeviceName}</p>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* File preview */}
-        {isSingleFile && isImage && !previewError && (
-          <motion.div
-            className="glass-card p-3 mb-5 overflow-hidden"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <img
-              src={previewUrl(code, 0)}
-              alt={firstFile.name}
-              className="w-full rounded-xl object-cover max-h-64"
-              onError={() => setPreviewError(true)}
-            />
-          </motion.div>
-        )}
-
-        {isSingleFile && isPdf && (
-          <motion.div
-            className="glass-card p-4 mb-5 flex items-center gap-3"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-              <FileText size={18} className="text-red-400" />
-            </div>
-            <div>
-              <p className="text-text-primary font-semibold text-sm">{firstFile.name}</p>
-              <p className="text-text-muted text-xs">PDF · {formatBytes(firstFile.size)}</p>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Main card */}
-        <motion.div
-          className="glass-card p-6 mb-5"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
           {/* Header */}
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-text-primary font-bold text-lg">
-                {isSingleFile ? firstFile?.name : `${files.length} files`}
-              </h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-text-muted text-sm">{formatBytes(fileData?.totalSize)}</span>
-                {fileData?.senderDeviceName && (
-                  <>
-                    <span className="text-text-dim">·</span>
-                    <span className="text-text-dim text-xs">From {fileData.senderDeviceName}</span>
-                  </>
-                )}
-              </div>
-            </div>
-            {secondsRemaining !== null && (
-              <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={600} size={80} />
-            )}
-          </div>
-
-          {/* Multi file list */}
-          {!isSingleFile && (
-            <div className="space-y-2 mb-5">
-              {files.map((file, i) => (
-                <FileCard
-                  key={i}
-                  file={file}
-                  index={i}
-                  onPreview={() => window.open(previewUrl(code, i), '_blank')}
-                  onDownloadSingle={() => handleDownloadSingle(i)}
-                  showDownload
-                  disableDownload={expired || startingDownload}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Download progress */}
-          {downloadPercent > 0 && !downloaded && (
-            <ProgressBar
-              percent={downloadPercent}
-              label="Downloading..."
-              color="#22D3EE"
-              className="mb-5"
-            />
-          )}
-
-          {/* Download button */}
-          {!downloaded && (
-            <motion.button
-              className="btn-primary w-full flex items-center justify-center gap-2 text-base"
-              onClick={handleDownload}
-              disabled={expired || startingDownload}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-            >
-              <Download size={18} />
-              {startingDownload
-                ? 'Preparing download...'
-                : isSingleFile
-                  ? `Download ${firstFile?.name || 'File'}`
-                  : 'Download All (ZIP)'}
-            </motion.button>
-          )}
-
-          {/* Burn notice */}
-          {fileData?.burnAfterDownload && !downloaded && (
-            <p className="text-center text-accent-red text-xs mt-3 flex items-center justify-center gap-1">
-              🔥 One-time only — file deletes after download
-            </p>
-          )}
-
-          {/* New transfer button after download */}
-          {downloaded && (
-            <button className="btn-primary w-full flex items-center justify-center gap-2" onClick={() => navigate('/')}>
-              <Zap size={16} />
-              Send Your Own File
-            </button>
-          )}
-        </motion.div>
-
-        {/* AI summary */}
-        {fileData?.ai && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            className="text-center mb-8"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
           >
-            <AISummaryCard ai={fileData.ai} />
+            <h1 className="font-display font-extrabold text-2xl sm:text-3xl mb-1" style={{ color: 'var(--text)' }}>
+              {downloaded ? 'Download complete!' : 'Ready to download'}
+            </h1>
+            <p className="text-sm" style={{ color: 'var(--text-3)' }}>
+              {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${code}`}
+            </p>
           </motion.div>
-        )}
 
-        <AnimatePresence>
-          {showReceiptModal && receipt && (
-            <motion.button
-              type="button"
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm px-4"
+          {/* Image preview */}
+          {previewSrc && (
+            <motion.div
+              className="mb-6 rounded-2xl overflow-hidden"
+              style={{ border: '1px solid var(--border)' }}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <img
+                src={previewSrc}
+                alt="Preview"
+                className="w-full max-h-64 object-contain"
+                style={{ background: 'var(--bg-sunken)' }}
+                loading="lazy"
+              />
+            </motion.div>
+          )}
+
+          {/* File cards */}
+          <motion.div
+            className="space-y-2 mb-6"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            {(meta?.files || []).map((f, i) => (
+              <FileCard key={i} file={f} index={i} />
+            ))}
+            {meta?.totalSize > 0 && (
+              <p className="text-xs text-center" style={{ color: 'var(--text-4)' }}>
+                {meta.files?.length || 0} file{(meta.files?.length || 0) !== 1 ? 's' : ''} · {formatBytes(meta.totalSize)}
+              </p>
+            )}
+          </motion.div>
+
+          {/* Burn badge */}
+          {meta?.burnAfterDownload && !downloaded && (
+            <motion.div
+              className="mb-4 p-3 rounded-xl text-center"
+              style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowReceiptModal(false)}
             >
-              <motion.div
-                className="max-w-sm w-full mx-auto mt-24 glass-card p-5 text-left"
-                initial={{ opacity: 0, y: 20, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.98 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h3 className="text-text-primary font-bold text-base mb-3">Transfer Receipt</h3>
-                <div className="space-y-2 text-sm">
-                  <p className="text-text-muted">Code: <span className="text-text-primary font-mono">{receipt.code}</span></p>
-                  <p className="text-text-muted">Filename: <span className="text-text-primary">{receipt.filename}</span></p>
-                  <p className="text-text-muted">Sender device: <span className="text-text-primary">{receipt.senderDevice}</span></p>
-                  <p className="text-text-muted">File size: <span className="text-text-primary">{receipt.fileSize}</span></p>
-                </div>
-                <p className="text-text-dim text-xs mt-4">Click anywhere to dismiss</p>
-              </motion.div>
-            </motion.button>
+              <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
+                🔥 One-time download — this file will be deleted after you download it
+              </p>
+            </motion.div>
           )}
-        </AnimatePresence>
-      </div>
+
+          {/* Countdown */}
+          {!downloaded && (
+            <div className="flex justify-center mb-6">
+              <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={100} />
+            </div>
+          )}
+
+          {/* Download / Progress */}
+          <AnimatePresence mode="wait">
+            {!downloaded ? (
+              <motion.div key="download" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                {downloading ? (
+                  <div className="surface-card p-5 mb-6">
+                    <ProgressBar percent={downloadPercent} label="Downloading..." showSpeed={false} />
+                  </div>
+                ) : (
+                  <button className="btn-primary w-full text-base mb-6" onClick={handleDownload}>
+                    <Download size={18} />
+                    Download {meta?.files?.length > 1 ? `${meta.files.length} files` : 'file'}
+                  </button>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div key="done" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="text-center mb-6">
+                  <motion.div
+                    className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center"
+                    style={{ background: 'var(--success-soft)' }}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', damping: 12, delay: 0.2 }}
+                  >
+                    <CheckCircle2 size={32} style={{ color: 'var(--success)' }} />
+                  </motion.div>
+                </div>
+
+                <TransferReceipt
+                  code={code}
+                  files={meta?.files}
+                  senderDevice={meta?.senderDeviceName}
+                  totalSize={meta?.totalSize}
+                  burnAfterDownload={meta?.burnAfterDownload}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* AI Summary */}
+          <div className="mt-6">
+            <AISummaryCard ai={ai} loading={aiLoading} />
+          </div>
+        </div>
+      </main>
     </div>
   )
 }

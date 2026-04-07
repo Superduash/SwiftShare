@@ -1,5 +1,5 @@
-c Frontend export
-Generated: 2026-04-07T12:19:44Z
+# Frontend export
+Generated: 2026-04-07T13:05:58Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (118 bytes) =====
@@ -7,7 +7,7 @@ VITE_API_URL=http://localhost:3001
 VITE_SOCKET_URL=http://localhost:3001
 VITE_SHARE_BASE_URL=http://localhost:5173
 
-===== FILE: index.html (1101 bytes) =====
+===== FILE: index.html (1122 bytes) =====
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -30,7 +30,7 @@ VITE_SHARE_BASE_URL=http://localhost:5173
   </body>
 </html>
 
-===== FILE: package.json (733 bytes) =====
+===== FILE: package.json (764 bytes) =====
 {
   "name": "swiftshare-frontend",
   "version": "1.0.0",
@@ -63,7 +63,7 @@ VITE_SHARE_BASE_URL=http://localhost:5173
   }
 }
 
-===== FILE: postcss.config.js (80 bytes) =====
+===== FILE: postcss.config.js (86 bytes) =====
 export default {
   plugins: {
     tailwindcss: {},
@@ -71,7 +71,7 @@ export default {
   },
 }
 
-===== FILE: src/App.jsx (4875 bytes) =====
+===== FILE: src/App.jsx (5288 bytes) =====
 import React, { Suspense, lazy, useEffect, useState } from 'react'
 import {
   BrowserRouter,
@@ -79,6 +79,7 @@ import {
   Route,
   Navigate,
   useLocation,
+  useParams,
 } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
@@ -123,6 +124,11 @@ function PageWrapper({ children }) {
   )
 }
 
+function LegacyShareRedirect() {
+  const { code } = useParams()
+  return <Navigate to={`/join?code=${encodeURIComponent(code || '')}`} replace />
+}
+
 // ── Animated route tree ───────────────────────────────────────────────
 function AnimatedRoutes() {
   const location = useLocation()
@@ -135,6 +141,7 @@ function AnimatedRoutes() {
             <Route path="/"               element={<PageWrapper><HomePage /></PageWrapper>} />
             <Route path="/sender/:code"   element={<PageWrapper><SenderPage /></PageWrapper>} />
             <Route path="/join"           element={<PageWrapper><JoinPage /></PageWrapper>} />
+            <Route path="/g/:code"        element={<PageWrapper><LegacyShareRedirect /></PageWrapper>} />
             <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
             <Route path="/expired"        element={<PageWrapper><ExpiredPage /></PageWrapper>} />
             <Route path="*"               element={<Navigate to="/" replace />} />
@@ -211,7 +218,327 @@ export default function App() {
   )
 }
 
-===== FILE: src/context/SocketContext.jsx (2327 bytes) =====
+===== FILE: src/components/AISummaryCard.jsx (1475 bytes) =====
+import React from 'react'
+import { Sparkles } from 'lucide-react'
+
+export default function AISummaryCard({ ai, loading = false }) {
+  return (
+    <div className="glass-card p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles size={15} style={{ color: '#818CF8' }} />
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>AI Summary</h3>
+      </div>
+
+      {loading ? (
+        <p className="text-sm" style={{ color: 'var(--text-2)' }}>Analyzing files...</p>
+      ) : ai ? (
+        <>
+          {ai.category ? (
+            <p className="text-xs mb-2" style={{ color: 'var(--text-3)' }}>Category: <span style={{ color: 'var(--text-2)' }}>{ai.category}</span></p>
+          ) : null}
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>{ai.summary || 'No summary available yet.'}</p>
+          {ai.imageDescription ? (
+            <p className="text-xs mt-2" style={{ color: 'var(--text-3)' }}>Visual: <span style={{ color: 'var(--text-2)' }}>{ai.imageDescription}</span></p>
+          ) : null}
+          {ai.suggestedName ? (
+            <p className="text-xs mt-3" style={{ color: 'var(--text-3)' }}>Suggested name: <span style={{ color: 'var(--text-2)' }}>{ai.suggestedName}</span></p>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-sm" style={{ color: 'var(--text-3)' }}>AI summary will appear here.</p>
+      )}
+    </div>
+  )
+}
+
+===== FILE: src/components/ActivityLog.jsx (1283 bytes) =====
+import React from 'react'
+import { History } from 'lucide-react'
+
+function formatTimestamp(ts) {
+  if (!ts) return 'just now'
+  const date = new Date(ts)
+  if (Number.isNaN(date.getTime())) return 'just now'
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+export default function ActivityLog({ activity = [] }) {
+  return (
+    <div className="glass-card p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <History size={15} style={{ color: '#22D3EE' }} />
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Activity</h3>
+      </div>
+
+      {!activity.length ? (
+        <p className="text-sm" style={{ color: 'var(--text-3)' }}>No activity yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {activity.slice(0, 8).map((item, idx) => (
+            <div key={idx} className="card-elevated px-3 py-2 text-sm flex items-center justify-between gap-3">
+              <span style={{ color: 'var(--text-2)' }}>{item.message || item.event || 'Event'}</span>
+              <span className="text-xs" style={{ color: 'var(--text-3)' }}>{formatTimestamp(item.timestamp || item.createdAt)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+===== FILE: src/components/CountdownRing.jsx (1756 bytes) =====
+import React from 'react'
+
+function formatTime(totalSeconds) {
+  const s = Math.max(0, totalSeconds)
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+}
+
+export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600, size = 120 }) {
+  const safeRemaining = Math.max(0, Number(secondsRemaining) || 0)
+  const safeTotal = Math.max(1, Number(totalSeconds) || 600)
+  const progress = Math.max(0, Math.min(1, safeRemaining / safeTotal))
+
+  const stroke = 8
+  const radius = (size - stroke) / 2
+  const circumference = 2 * Math.PI * radius
+  const dashOffset = circumference * (1 - progress)
+
+  const color = safeRemaining < 30 ? '#F87171' : safeRemaining < 120 ? '#FBBF24' : '#22D3EE'
+
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(74,78,101,0.35)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: 'stroke-dashoffset 0.5s ease, stroke 0.3s ease' }}
+        />
+      </svg>
+      <div className="absolute text-center">
+        <div className="font-mono text-sm" style={{ color: 'var(--text)' }}>{formatTime(safeRemaining)}</div>
+      </div>
+    </div>
+  )
+}
+
+===== FILE: src/components/FileCard.jsx (1769 bytes) =====
+import React from 'react'
+import { Download, Eye, FileText } from 'lucide-react'
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+export default function FileCard({
+  file,
+  index,
+  onPreview,
+  onDownloadSingle,
+  showDownload = false,
+  disableDownload = false,
+}) {
+  return (
+    <div className="card-elevated p-3 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.12)' }}>
+          <FileText size={15} style={{ color: '#818CF8' }} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }} title={file?.name || `File ${index + 1}`}>
+            {file?.name || `File ${index + 1}`}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-3)' }}>{formatBytes(file?.size || 0)}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0">
+        <button className="btn-icon" type="button" onClick={onPreview} aria-label="Preview file">
+          <Eye size={14} />
+        </button>
+        {showDownload ? (
+          <button
+            className="btn-icon"
+            type="button"
+            onClick={onDownloadSingle}
+            disabled={disableDownload}
+            aria-label="Download file"
+          >
+            <Download size={14} />
+          </button>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+===== FILE: src/components/LoadingScreen.jsx (1109 bytes) =====
+import React from 'react'
+import { motion } from 'framer-motion'
+import { Zap } from 'lucide-react'
+
+export default function LoadingScreen({ message = 'Loading...' }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
+      <motion.div
+        className="card p-8 text-center max-w-md w-full"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <motion.div
+          className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-4"
+          style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)' }}
+          animate={{ rotate: [0, 8, -8, 0] }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <Zap size={22} style={{ color: '#818CF8' }} />
+        </motion.div>
+        <p style={{ color: 'var(--text)', fontWeight: 600 }}>{message}</p>
+        <p className="mt-2 text-sm" style={{ color: 'var(--text-2)' }}>Please wait a moment</p>
+      </motion.div>
+    </div>
+  )
+}
+
+===== FILE: src/components/NearbyDevices.jsx (1555 bytes) =====
+import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Wifi } from 'lucide-react'
+import { getNearbyDevices } from '../services/api'
+
+export default function NearbyDevices() {
+  const [devices, setDevices] = useState([])
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    let active = true
+
+    const fetchDevices = async () => {
+      try {
+        const res = await getNearbyDevices()
+        if (active) {
+          setDevices(Array.isArray(res?.devices) ? res.devices : [])
+        }
+      } catch {
+        if (active) setDevices([])
+      }
+    }
+
+    fetchDevices()
+    const id = setInterval(fetchDevices, 12000)
+    return () => {
+      active = false
+      clearInterval(id)
+    }
+  }, [])
+
+  if (!devices.length) return null
+
+  return (
+    <div className="glass-card p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Wifi size={14} style={{ color: '#22D3EE' }} />
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Nearby Devices</h3>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {devices.slice(0, 6).map((d, i) => (
+          <button
+            key={`${d.code || 'device'}-${i}`}
+            onClick={() => d.code && navigate(`/join?code=${d.code}`)}
+            className="btn-ghost py-1.5 px-2.5 text-xs"
+          >
+            {(d.deviceName || 'Device')} {d.fileCount ? `(${d.fileCount})` : ''}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+===== FILE: src/components/ProgressBar.jsx (917 bytes) =====
+import React from 'react'
+
+export default function ProgressBar({ percent = 0, label = 'Progress', speed = null, color = '#6366F1', className = '' }) {
+  const safe = Math.max(0, Math.min(100, Number(percent) || 0))
+
+  return (
+    <div className={`card-elevated p-3 ${className}`.trim()}>
+      <div className="flex items-center justify-between text-xs mb-2" style={{ color: 'var(--text-2)' }}>
+        <span>{label}</span>
+        <span>{safe.toFixed(0)}%</span>
+      </div>
+      <div className="w-full h-2 rounded-full" style={{ background: 'rgba(74,78,101,0.35)' }}>
+        <div
+          className="h-2 rounded-full transition-all duration-300"
+          style={{ width: `${safe}%`, background: color }}
+        />
+      </div>
+      {speed ? (
+        <div className="mt-2 text-xs" style={{ color: 'var(--text-3)' }}>
+          {speed}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+===== FILE: src/components/ServerWakeup.jsx (1606 bytes) =====
+import React, { useEffect, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
+import { pingServer } from '../services/api'
+
+export default function ServerWakeup() {
+  const [checking, setChecking] = useState(false)
+  const [latency, setLatency] = useState(null)
+
+  const check = async () => {
+    setChecking(true)
+    const res = await pingServer()
+    setLatency(res?.latencyMs ?? null)
+    setChecking(false)
+    if (res?.ok) {
+      window.location.reload()
+    }
+  }
+
+  useEffect(() => {
+    const id = setInterval(check, 5000)
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
+      <div className="card p-8 max-w-md w-full text-center">
+        <div className="w-12 h-12 rounded-xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'rgba(99,102,241,0.12)' }}>
+          <RefreshCw size={20} style={{ color: '#818CF8' }} className={checking ? 'animate-spin' : ''} />
+        </div>
+        <h2 className="font-heading text-xl mb-2" style={{ color: 'var(--text)' }}>Waking server</h2>
+        <p className="text-sm mb-4" style={{ color: 'var(--text-2)' }}>The backend may take a little time on cold start.</p>
+        <button className="btn-primary" onClick={check} disabled={checking}>
+          {checking ? 'Checking...' : 'Check again'}
+        </button>
+        {latency !== null ? <p className="text-xs mt-3" style={{ color: 'var(--text-3)' }}>Last ping: {latency} ms</p> : null}
+      </div>
+    </div>
+  )
+}
+
+===== FILE: src/context/SocketContext.jsx (2420 bytes) =====
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
 
@@ -306,7 +633,7 @@ export const useSocket = () => {
 
 export default SocketContext
 
-===== FILE: src/context/TransferContext.jsx (1793 bytes) =====
+===== FILE: src/context/TransferContext.jsx (1861 bytes) =====
 import React, { createContext, useContext, useState, useCallback } from 'react'
 
 const TransferContext = createContext(null)
@@ -376,7 +703,7 @@ export const useTransfer = () => {
 
 export default TransferContext
 
-===== FILE: src/index.css (13587 bytes) =====
+===== FILE: src/index.css (13956 bytes) =====
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -747,7 +1074,7 @@ body {
   .btn-icon { width: 44px; height: 44px; }
 }
 
-===== FILE: src/main.jsx (234 bytes) =====
+===== FILE: src/main.jsx (244 bytes) =====
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
@@ -759,7 +1086,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (15784 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (16210 bytes) =====
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -1187,7 +1514,7 @@ export default function DownloadPage() {
   )
 }
 
-===== FILE: src/pages/ExpiredPage.jsx (2647 bytes) =====
+===== FILE: src/pages/ExpiredPage.jsx (2720 bytes) =====
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -1262,8 +1589,8 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (24523 bytes) =====
-import React, { useState, useEffect, useCallback } from 'react'
+===== FILE: src/pages/HomePage.jsx (25579 bytes) =====
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
@@ -1358,6 +1685,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { socket, socketId, isConnected } = useSocket()
   const { startUpload, setUploadData, setError } = useTransfer()
+  const uploadCompletedRef = useRef(false)
 
   const [files, setFiles] = useState([])
   const [burn, setBurn] = useState(false)
@@ -1373,6 +1701,17 @@ export default function HomePage() {
     totalDownloads: 0,
     totalUsers: 0,
   })
+
+  const completeUpload = useCallback((data) => {
+    if (!data?.code || uploadCompletedRef.current) return
+
+    uploadCompletedRef.current = true
+    setUploading(false)
+    setPct((prev) => Math.max(prev, 100))
+    setFiles([])
+    setUploadData(data)
+    navigate(`/sender/${data.code}`, { state: { transferData: data } })
+  }, [navigate, setUploadData])
 
   useEffect(() => {
     let cancelled = false
@@ -1462,11 +1801,11 @@ export default function HomePage() {
   useEffect(() => {
     if (!socket) return
     const onProg  = ({ percent, speed }) => { setPct(percent||0); if(speed) setSpeedTxt(`${speed} MB/s`) }
-    const onDone  = (data) => { setUploadData(data); navigate(`/sender/${data.code}`, { state:{ transferData:data }}) }
+    const onDone  = (data) => completeUpload(data)
     socket.on('upload-progress', onProg)
     socket.on('upload-complete', onDone)
     return () => { socket.off('upload-progress', onProg); socket.off('upload-complete', onDone) }
-  }, [socket, navigate, setUploadData])
+  }, [socket, completeUpload])
 
   // Clipboard paste
   useEffect(() => {
@@ -1478,9 +1817,10 @@ export default function HomePage() {
           const reader = new FileReader()
           reader.onload = async (ev) => {
             try {
+              uploadCompletedRef.current = false
               setUploading(true); startUpload()
               const r = await uploadClipboard(ev.target.result, burn, socketId||'')
-              setUploadData(r); navigate(`/sender/${r.code}`, { state:{ transferData:r }})
+              completeUpload(r)
             } catch(err) { toast.error(getApiErrorMessage(err)); setError() } finally { setUploading(false) }
           }
           reader.readAsDataURL(f)
@@ -1490,7 +1830,7 @@ export default function HomePage() {
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-  }, [burn, socketId])
+  }, [burn, socketId, completeUpload, setError, startUpload])
 
   const onDrop = useCallback((accepted) => {
     const bad = accepted.filter(isBlocked)
@@ -1502,13 +1842,15 @@ export default function HomePage() {
 
   const handleSend = async () => {
     if (!files.length || uploading) return
+    uploadCompletedRef.current = false
     setUploading(true); setPct(0); startUpload()
     try {
       const fd = new FormData()
       files.forEach(f => fd.append('files', f))
       fd.append('burnAfterDownload', String(burn))
       fd.append('senderSocketId', socketId||'')
-      await uploadFiles(fd)
+      const response = await uploadFiles(fd)
+      completeUpload(response)
     } catch(err) {
       toast.error(getApiErrorMessage(err)); setError(); setUploading(false); setPct(0)
     }
@@ -1858,7 +2200,7 @@ export default function HomePage() {
   )
 }
 
-===== FILE: src/pages/JoinPage.jsx (8644 bytes) =====
+===== FILE: src/pages/JoinPage.jsx (8859 bytes) =====
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -2075,7 +2417,7 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (16466 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (17142 bytes) =====
 import React, { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -2133,10 +2475,12 @@ export default function SenderPage() {
 
   // Load transfer data if not in state
   useEffect(() => {
-    if (!transfer) {
+    const shouldFetchTransfer = !transfer || !Array.isArray(transfer.files) || transfer.files.length === 0
+
+    if (shouldFetchTransfer) {
       getFileMetadata(code)
         .then(data => {
-          setTransfer(data)
+          setTransfer((prev) => ({ ...prev, ...data }))
           setAi(data.ai || null)
           setExtendedOnce(Boolean(data?.extendedOnce))
           setTotalSeconds(getTotalCountdownSeconds(data))
@@ -2175,7 +2519,12 @@ export default function SenderPage() {
     if (!socket) return
 
     const onAiReady = (data) => {
-      const aiData = { summary: data.summary, category: data.category, suggestedName: data.suggestedName }
+      const aiData = {
+        summary: data.summary,
+        category: data.category,
+        suggestedName: data.suggestedName,
+        imageDescription: data.imageDescription || null,
+      }
       setAi(aiData)
       setAiData(aiData)
       setAiLoading(false)
@@ -2512,7 +2861,7 @@ export default function SenderPage() {
   )
 }
 
-===== FILE: src/services/api.js (3289 bytes) =====
+===== FILE: src/services/api.js (3425 bytes) =====
 import axios from 'axios'
 
 const baseUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)
@@ -2650,7 +2999,7 @@ export const previewUrl = (code, index) =>
 
 export default api
 
-===== FILE: tailwind.config.js (1478 bytes) =====
+===== FILE: tailwind.config.js (1526 bytes) =====
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
@@ -2700,12 +3049,12 @@ export default {
   plugins: [],
 }
 
-===== FILE: vercel.json (72 bytes) =====
+===== FILE: vercel.json (75 bytes) =====
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
 
-===== FILE: vite.config.js (467 bytes) =====
+===== FILE: vite.config.js (490 bytes) =====
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -2731,6 +3080,6 @@ export default defineConfig({
 })
 
 ===== SUMMARY =====
-Included files: 18
+Included files: 26
 Skipped (too large): 0
-Total source bytes included: 98218
+Total source bytes included: 113355
