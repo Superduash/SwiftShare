@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Sun, Moon, Flame, Clock, Trash2, Info } from 'lucide-react'
+import { X, Flame, Clock, Trash2, Info, Check } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, clearTransfers } from '../utils/storage'
 import toast from 'react-hot-toast'
@@ -11,8 +11,15 @@ const EXPIRY_OPTIONS = [
   { value: 300, label: '5 hours' },
 ]
 
+const THEME_OPTIONS = [
+  { value: 'terracotta', label: 'Terracotta', color: '#E06D53' },
+  { value: 'dark', label: 'Dark', color: '#FFFFFF' },
+  { value: 'light', label: 'Light', color: '#000000' },
+  { value: 'ocean', label: 'Ocean', color: '#2B6CB0' },
+]
+
 export default function SettingsPanel({ open, onClose }) {
-  const { theme, toggleTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const [settings, setSettings] = useState(getSettings)
 
   useEffect(() => {
@@ -75,25 +82,43 @@ export default function SettingsPanel({ open, onClose }) {
               {/* Theme */}
               <div className="mb-8">
                 <label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: 'var(--text-3)' }}>
-                  Appearance
+                  Theme
                 </label>
-                <div className="flex gap-2">
-                  {[
-                    { value: 'light', label: 'Light', icon: Sun },
-                    { value: 'dark', label: 'Dark', icon: Moon },
-                  ].map(opt => (
+                <div className="grid grid-cols-4 gap-3">
+                  {THEME_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all"
+                      className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
                       style={{
                         background: theme === opt.value ? 'var(--accent-soft)' : 'transparent',
-                        color: theme === opt.value ? 'var(--accent)' : 'var(--text-3)',
-                        border: `1px solid ${theme === opt.value ? 'var(--accent)' : 'var(--border)'}`,
+                        border: `2px solid ${theme === opt.value ? 'var(--accent)' : 'var(--border)'}`,
                       }}
-                      onClick={() => { if (theme !== opt.value) toggleTheme() }}
+                      onClick={() => setTheme(opt.value)}
+                      aria-label={`Switch to ${opt.label} theme`}
                     >
-                      <opt.icon size={16} />
-                      {opt.label}
+                      <div className="relative">
+                        <div
+                          className="w-10 h-10 rounded-full transition-all"
+                          style={{
+                            background: opt.color,
+                            boxShadow: theme === opt.value ? `0 0 0 3px var(--accent-soft)` : 'none',
+                          }}
+                        />
+                        {theme === opt.value && (
+                          <div
+                            className="absolute inset-0 flex items-center justify-center"
+                            style={{ color: opt.value === 'dark' ? '#0F1014' : '#FFFFFF' }}
+                          >
+                            <Check size={18} strokeWidth={3} />
+                          </div>
+                        )}
+                      </div>
+                      <span
+                        className="text-xs font-medium"
+                        style={{ color: theme === opt.value ? 'var(--accent)' : 'var(--text-3)' }}
+                      >
+                        {opt.label}
+                      </span>
                     </button>
                   ))}
                 </div>

@@ -126,8 +126,9 @@ export default function DownloadPage() {
     }
     const onDeleted = ({ reason } = {}) => {
       setTransferStatus('DELETED')
-      if (reason === 'burn' && !downloaded) {
-        toast.error('This file was just burned after being downloaded')
+      // Only show error if user hasn't downloaded and isn't currently downloading
+      if (reason === 'burn' && !downloaded && !downloadingRef.current) {
+        toast.error('This file was burned after being downloaded by someone else')
       }
     }
     const onReceipt = (data) => setReceipt(data)

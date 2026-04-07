@@ -52,7 +52,7 @@ export function saveSettings(patch) {
 
 // ── Theme ──────────────────────────────────
 export function getTheme() {
-  return safeGet(KEYS.THEME, 'light')
+  return safeGet(KEYS.THEME, 'terracotta')
 }
 export function saveTheme(theme) {
   safeSet(KEYS.THEME, theme)

@@ -274,6 +274,24 @@ export default function SenderPage() {
     }
     
     try {
+      // Resolve CSS variables to actual colors
+      const computedStyle = getComputedStyle(document.documentElement)
+      const bgColor = computedStyle.getPropertyValue('--qr-bg').trim() || '#ffffff'
+      const fgColor = computedStyle.getPropertyValue('--qr-fg').trim() || '#000000'
+      
+      // Clone SVG and replace CSS vars with resolved values
+      const clonedSvg = svg.cloneNode(true)
+      clonedSvg.querySelectorAll('path').forEach(path => {
+        const fill = path.getAttribute('fill')
+        if (fill === 'var(--qr-fg)') path.setAttribute('fill', fgColor)
+        if (fill === 'var(--qr-bg)') path.setAttribute('fill', bgColor)
+      })
+      clonedSvg.querySelectorAll('rect').forEach(rect => {
+        const fill = rect.getAttribute('fill')
+        if (fill === 'var(--qr-fg)') rect.setAttribute('fill', fgColor)
+        if (fill === 'var(--qr-bg)') rect.setAttribute('fill', bgColor)
+      })
+      
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
       
@@ -285,12 +303,12 @@ export default function SenderPage() {
       canvas.width = totalSize
       canvas.height = totalSize
       
-      // White background
-      ctx.fillStyle = '#ffffff'
+      // Use resolved background color
+      ctx.fillStyle = bgColor
       ctx.fillRect(0, 0, totalSize, totalSize)
       
-      // Serialize SVG
-      const svgData = new XMLSerializer().serializeToString(svg)
+      // Serialize cloned SVG
+      const svgData = new XMLSerializer().serializeToString(clonedSvg)
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
       const url = URL.createObjectURL(svgBlob)
       
