@@ -9,6 +9,7 @@ import Navbar from '../components/Navbar'
 import NearbyDevices from '../components/NearbyDevices'
 import ErrorState from '../components/ErrorState'
 import { extractErrorCode } from '../utils/errors'
+import { playError } from '../utils/sound'
 
 const CODE_LENGTH = 6
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
@@ -107,6 +108,7 @@ export default function JoinPage() {
       } else {
         setError(errCode)
         setLoading(false)
+        playError()
         // Shake animation
         const el = document.getElementById('code-input-row')
         if (el) { el.classList.add('animate-shake'); setTimeout(() => el.classList.remove('animate-shake'), 500) }

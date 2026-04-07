@@ -6,7 +6,7 @@ const ThemeContext = createContext({
   setTheme: () => {} 
 })
 
-const VALID_THEMES = ['terracotta', 'dark', 'light', 'ocean']
+const VALID_THEMES = ['terracotta', 'dark', 'light', 'ocean', 'sakura', 'emerald', 'cyber', 'amber']
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {

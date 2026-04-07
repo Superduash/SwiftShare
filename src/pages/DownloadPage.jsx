@@ -8,9 +8,10 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import { getFileMetadata, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
 import { smartDownload } from '../utils/download'
-import { saveTransfer } from '../utils/storage'
+import { saveTransfer, getSettings } from '../utils/storage'
 import { formatBytes } from '../utils/format'
 import { extractErrorCode } from '../utils/errors'
+import { playSuccess, playError } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
@@ -88,7 +89,10 @@ export default function DownloadPage() {
         if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
         else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
         else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-        else toast.error('Failed to load transfer')
+        else {
+          toast.error('Failed to load transfer')
+          playError()
+        }
       }
       setLoading(false)
     }
@@ -129,6 +133,7 @@ export default function DownloadPage() {
       // Only show error if user hasn't downloaded and isn't currently downloading
       if (reason === 'burn' && !downloaded && !downloadingRef.current) {
         toast.error('This file was burned after being downloaded by someone else')
+        playError()
       }
     }
     const onReceipt = (data) => setReceipt(data)
@@ -207,9 +212,16 @@ export default function DownloadPage() {
         origin: { y: 0.6 },
         colors: ['#E8634A', '#FFB88A', '#FF9A5C', '#16A34A', '#0891B2'],
       })
+
+      // Success sound
+      const currentSettings = getSettings()
+      if (currentSettings.soundEnabled) {
+        playSuccess()
+      }
     } catch {
       setDownloading(false)
       toast.error('Download failed')
+      playError()
     }
   }
 
