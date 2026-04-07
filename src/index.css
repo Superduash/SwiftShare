@@ -20,6 +20,7 @@
   --text-3: #8A7F7A;
   --text-4: #B5ADA2;
   --accent: #E06D53;
+  --accent-contrast: #FFFFFF;
   --accent-hover: #C95A42;
   --accent-soft: rgba(224,109,83,0.08);
   --accent-medium: rgba(224,109,83,0.15);
@@ -80,6 +81,7 @@
   --text-3: #9CA3AF;
   --text-4: #6B7280;
   --accent: #FFFFFF;
+  --accent-contrast: #0F1014;
   --accent-hover: #E2E2E2;
   --accent-soft: rgba(255,255,255,0.08);
   --accent-medium: rgba(255,255,255,0.15);
@@ -140,6 +142,7 @@
   --text-3: #6B7280;
   --text-4: #9CA3AF;
   --accent: #000000;
+  --accent-contrast: #FFFFFF;
   --accent-hover: #333333;
   --accent-soft: rgba(0,0,0,0.05);
   --accent-medium: rgba(0,0,0,0.1);
@@ -200,6 +203,7 @@
   --text-3: #4A5568;
   --text-4: #718096;
   --accent: #2B6CB0;
+  --accent-contrast: #FFFFFF;
   --accent-hover: #2C5282;
   --accent-soft: rgba(43,108,176,0.08);
   --accent-medium: rgba(43,108,176,0.15);
@@ -260,6 +264,7 @@
   --text-3: #A4133C;
   --text-4: #C9184A;
   --accent: #FF4D6D;
+  --accent-contrast: #FFFFFF;
   --accent-hover: #C9184A;
   --accent-soft: rgba(255,77,109,0.08);
   --accent-medium: rgba(255,77,109,0.15);
@@ -320,6 +325,7 @@
   --text-3: #047857;
   --text-4: #059669;
   --accent: #10B981;
+  --accent-contrast: #FFFFFF;
   --accent-hover: #059669;
   --accent-soft: rgba(16,185,129,0.08);
   --accent-medium: rgba(16,185,129,0.15);
@@ -380,6 +386,7 @@
   --text-3: #A1A1AA;
   --text-4: #71717A;
   --accent: #A855F7;
+  --accent-contrast: #FFFFFF;
   --accent-hover: #9333EA;
   --accent-soft: rgba(168,85,247,0.08);
   --accent-medium: rgba(168,85,247,0.15);
@@ -440,6 +447,7 @@
   --text-3: #B45309;
   --text-4: #D97706;
   --accent: #F59E0B;
+  --accent-contrast: #111827;
   --accent-hover: #D97706;
   --accent-soft: rgba(245,158,11,0.08);
   --accent-medium: rgba(245,158,11,0.15);
@@ -526,7 +534,7 @@ a { color: inherit; text-decoration: none; }
     gap: 8px;
     padding: 12px 24px;
     background: var(--accent);
-    color: #FFFFFF;
+    color: var(--accent-contrast, #FFFFFF);
     font-weight: 600;
     font-size: 15px;
     border-radius: 12px;
@@ -648,9 +656,8 @@ a { color: inherit; text-decoration: none; }
 body.reduce-motion *,
 body.reduce-motion *::before,
 body.reduce-motion *::after {
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
+  animation: none !important;
+  transition: none !important;
   scroll-behavior: auto !important;
 }
 

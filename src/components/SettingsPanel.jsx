@@ -13,8 +13,8 @@ const EXPIRY_OPTIONS = [
 
 const THEME_OPTIONS = [
   { value: 'terracotta', label: 'Terracotta', color: '#E06D53' },
-  { value: 'dark', label: 'Dark', color: '#FFFFFF' },
-  { value: 'light', label: 'Light', color: '#000000' },
+  { value: 'dark', label: 'Dark', color: '#0F1014' },
+  { value: 'light', label: 'Light', color: '#F8F9FA' },
   { value: 'ocean', label: 'Ocean', color: '#2B6CB0' },
   { value: 'sakura', label: 'Sakura', color: '#FF4D6D' },
   { value: 'emerald', label: 'Emerald', color: '#10B981' },
@@ -25,6 +25,13 @@ const THEME_OPTIONS = [
 export default function SettingsPanel({ open, onClose }) {
   const { theme, setTheme } = useTheme()
   const [settings, setSettings] = useState(getSettings)
+
+  useEffect(() => {
+    const syncSettings = () => setSettings(getSettings())
+    window.addEventListener('swiftshare:settings-changed', syncSettings)
+    if (open) syncSettings()
+    return () => window.removeEventListener('swiftshare:settings-changed', syncSettings)
+  }, [open])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -100,8 +107,7 @@ export default function SettingsPanel({ open, onClose }) {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {THEME_OPTIONS.map(opt => {
                     const isActive = theme === opt.value
-                    const isDarkTheme = opt.value === 'dark' || opt.value === 'cyber'
-                    const checkmarkColor = isDarkTheme ? '#09090B' : '#FFFFFF'
+                    const checkmarkColor = opt.value === 'light' ? '#111827' : '#FFFFFF'
                     
                     return (
                       <button
@@ -119,6 +125,7 @@ export default function SettingsPanel({ open, onClose }) {
                             className="w-12 h-12 rounded-full transition-all"
                             style={{
                               backgroundColor: opt.color,
+                              border: '1px solid var(--border-strong)',
                               boxShadow: isActive ? `0 0 0 3px var(--accent-soft)` : 'none',
                             }}
                           />

@@ -201,16 +201,19 @@ export default function DownloadPage() {
       setDownloaded(true)
       setDownloading(false)
 
+      const currentSettings = getSettings()
+
       // Confetti!
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#E8634A', '#FFB88A', '#FF9A5C', '#16A34A', '#0891B2'],
-      })
+      if (!currentSettings.reducedMotion) {
+        confetti({
+          particleCount: 72,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#E8634A', '#FFB88A', '#FF9A5C', '#16A34A', '#0891B2'],
+        })
+      }
 
       // Success sound
-      const currentSettings = getSettings()
       if (currentSettings.soundEnabled) {
         playDownloadSuccess()
       }

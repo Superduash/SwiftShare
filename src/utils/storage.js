@@ -49,7 +49,11 @@ export function getSettings() {
   return { ...DEFAULT_SETTINGS, ...safeGet(KEYS.SETTINGS, {}) }
 }
 export function saveSettings(patch) {
-  safeSet(KEYS.SETTINGS, { ...getSettings(), ...patch })
+  const next = { ...getSettings(), ...patch }
+  safeSet(KEYS.SETTINGS, next)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('swiftshare:settings-changed', { detail: next }))
+  }
 }
 
 // ── Theme ──────────────────────────────────
