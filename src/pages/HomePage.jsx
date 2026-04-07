@@ -53,6 +53,22 @@ export default function HomePage() {
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
 
+  // Password strength calculation
+  function getPasswordStrength(pwd) {
+    if (!pwd) return null
+    let score = 0
+    if (pwd.length >= 8) score++
+    if (/[A-Z]/.test(pwd)) score++
+    if (/[0-9]/.test(pwd)) score++
+    if (/[^A-Za-z0-9]/.test(pwd)) score++
+    
+    if (score <= 1) return { level: 'weak', label: 'Not recommended', color: 'var(--danger)' }
+    if (score === 2 || score === 3) return { level: 'medium', label: 'Okay', color: 'var(--warning)' }
+    return { level: 'strong', label: 'Strong password', color: 'var(--success)' }
+  }
+
+  const passwordStrength = getPasswordStrength(password)
+
   const handleUploadSuccess = useCallback((payload) => {
     const transferCode = payload?.code
     if (!transferCode || uploadHandledRef.current) {
@@ -410,6 +426,39 @@ export default function HomePage() {
                                 }
                               </button>
                             </div>
+
+                            {/* Password strength indicator */}
+                            {passwordStrength && (
+                              <motion.div
+                                className="mt-2 px-1"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                {/* Progress bar */}
+                                <div className="h-1 rounded-full mb-1.5" style={{ background: 'var(--border)' }}>
+                                  <div
+                                    className="h-full rounded-full transition-all duration-300"
+                                    style={{
+                                      width: passwordStrength.level === 'weak' ? '33%' : passwordStrength.level === 'medium' ? '66%' : '100%',
+                                      background: passwordStrength.color,
+                                    }}
+                                  />
+                                </div>
+                                {/* Label */}
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs transition-colors duration-300" style={{ color: passwordStrength.color }}>
+                                    {passwordStrength.label}
+                                  </p>
+                                  {/* Suggestion for large files */}
+                                  {passwordStrength.level === 'weak' && totalSize() > 10 * 1024 * 1024 && (
+                                    <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
+                                      Consider stronger for large files
+                                    </p>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
