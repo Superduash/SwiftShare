@@ -1,43 +1,25 @@
 import React from 'react'
-import { motion } from 'framer-motion'
 
-export default function ProgressBar({
-  percent = 0,
-  label = '',
-  speed = null,
-  color = '#22D3EE',
-  className = '',
-}) {
-  const safePercent = Math.max(0, Math.min(100, percent))
+export default function ProgressBar({ percent = 0, label = 'Progress', speed = null, color = '#6366F1', className = '' }) {
+  const safe = Math.max(0, Math.min(100, Number(percent) || 0))
 
   return (
-    <div className={`w-full ${className}`}>
-      {(label || speed !== null) && (
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-text-muted text-xs font-medium">{label}</span>
-          <div className="flex items-center gap-3">
-            {speed !== null && (
-              <span className="text-text-dim text-xs font-mono">{speed}</span>
-            )}
-            <span className="text-xs font-bold" style={{ color }}>
-              {safePercent}%
-            </span>
-          </div>
-        </div>
-      )}
-      <div className="w-full h-2 bg-bg-elevated rounded-full overflow-hidden border border-border-color">
-        <motion.div
-          className="h-full rounded-full"
-          style={{
-            backgroundColor: color,
-            boxShadow: `0 0 12px ${color}60`,
-            width: `${safePercent}%`,
-          }}
-          initial={{ width: 0 }}
-          animate={{ width: `${safePercent}%` }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
+    <div className={`card-elevated p-3 ${className}`.trim()}>
+      <div className="flex items-center justify-between text-xs mb-2" style={{ color: 'var(--text-2)' }}>
+        <span>{label}</span>
+        <span>{safe.toFixed(0)}%</span>
+      </div>
+      <div className="w-full h-2 rounded-full" style={{ background: 'rgba(74,78,101,0.35)' }}>
+        <div
+          className="h-2 rounded-full transition-all duration-300"
+          style={{ width: `${safe}%`, background: color }}
         />
       </div>
+      {speed ? (
+        <div className="mt-2 text-xs" style={{ color: 'var(--text-3)' }}>
+          {speed}
+        </div>
+      ) : null}
     </div>
   )
 }

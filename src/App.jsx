@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
   useLocation,
+  useParams,
 } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
@@ -49,6 +50,11 @@ function PageWrapper({ children }) {
   )
 }
 
+function LegacyShareRedirect() {
+  const { code } = useParams()
+  return <Navigate to={`/join?code=${encodeURIComponent(code || '')}`} replace />
+}
+
 // ── Animated route tree ───────────────────────────────────────────────
 function AnimatedRoutes() {
   const location = useLocation()
@@ -61,6 +67,7 @@ function AnimatedRoutes() {
             <Route path="/"               element={<PageWrapper><HomePage /></PageWrapper>} />
             <Route path="/sender/:code"   element={<PageWrapper><SenderPage /></PageWrapper>} />
             <Route path="/join"           element={<PageWrapper><JoinPage /></PageWrapper>} />
+            <Route path="/g/:code"        element={<PageWrapper><LegacyShareRedirect /></PageWrapper>} />
             <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
             <Route path="/expired"        element={<PageWrapper><ExpiredPage /></PageWrapper>} />
             <Route path="*"               element={<Navigate to="/" replace />} />
