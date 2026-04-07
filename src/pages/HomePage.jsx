@@ -14,14 +14,13 @@ import { uploadFiles, uploadClipboard } from '../services/api'
 import { getSettings } from '../utils/storage'
 import { saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
-import { playSuccess, playError } from '../utils/sound'
+import { playUploadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import FileCard from '../components/FileCard'
 import ExpirySelector from '../components/ExpirySelector'
 import ProgressBar from '../components/ProgressBar'
 import RecentTransfers from '../components/RecentTransfers'
 import NearbyDevices from '../components/NearbyDevices'
-import { APP_MOTTO } from '../utils/constants'
 
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
 const MAX_SIZE = 100 * 1024 * 1024 // 100MB
@@ -69,7 +68,7 @@ export default function HomePage() {
     // Play success sound if enabled
     const currentSettings = getSettings()
     if (currentSettings.soundEnabled) {
-      playSuccess()
+      playUploadSuccess()
     }
     
     navigate(`/sender/${transferCode}`)
@@ -120,7 +119,6 @@ export default function HomePage() {
             } catch (err) {
               setUploading(false)
               toast.error('Failed to upload clipboard image')
-              playError()
             }
           }
           reader.readAsDataURL(blob)
@@ -145,7 +143,6 @@ export default function HomePage() {
     const errors = combined.map(validateFile).filter(Boolean)
     if (errors.length) {
       errors.forEach(e => toast.error(e))
-      playError()
       return
     }
     setFiles(combined)
@@ -166,16 +163,8 @@ export default function HomePage() {
   }
 
   async function handleUpload() {
-    if (!files.length) {
-      toast.error('Select at least one file')
-      playError()
-      return
-    }
-    if (!isConnected) {
-      toast.error('Not connected to server')
-      playError()
-      return
-    }
+    if (!files.length) return toast.error('Select at least one file')
+    if (!isConnected) return toast.error('Not connected to server')
     setUploading(true)
     setUploadPercent(0)
     uploadHandledRef.current = false
@@ -195,7 +184,6 @@ export default function HomePage() {
       setUploading(false)
       const msg = err?.response?.data?.error?.message || 'Upload failed'
       toast.error(msg)
-      playError()
     }
   }
 
@@ -235,7 +223,9 @@ export default function HomePage() {
                     WebkitTextFillColor: 'transparent',
                   }}
                 >
-                    {APP_MOTTO}
+                  Simple, yet too effective.
+                </p>
+              </motion.div>
 
               {/* Drop zone */}
               <motion.div

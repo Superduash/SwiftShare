@@ -4,7 +4,6 @@ import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2 } from 'lucide-
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, clearTransfers } from '../utils/storage'
 import toast from 'react-hot-toast'
-import { APP_MOTTO } from '../utils/constants'
 
 const EXPIRY_OPTIONS = [
   { value: 10, label: '10 min' },
@@ -32,6 +31,15 @@ export default function SettingsPanel({ open, onClose }) {
     if (open) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  // Apply reduce motion class to body
+  useEffect(() => {
+    if (settings.reducedMotion) {
+      document.body.classList.add('reduce-motion')
+    } else {
+      document.body.classList.remove('reduce-motion')
+    }
+  }, [settings.reducedMotion])
 
   const [confirmClear, setConfirmClear] = useState(false)
 
@@ -289,7 +297,7 @@ export default function SettingsPanel({ open, onClose }) {
                   <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>About SwiftShare</span>
                 </div>
                 <p className="text-xs italic font-semibold mb-2" style={{ color: 'var(--text-2)' }}>
-                  &quot;{APP_MOTTO}&quot;
+                  "Simple, yet too effective."
                 </p>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
                   Zero-login temporary file sharing. Files are stored securely and auto-delete after your chosen expiry.
