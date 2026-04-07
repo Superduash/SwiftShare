@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
 import {
   Upload, Plus, X, Flame, Shield, Zap, Clock, Cpu, QrCode,
-  ArrowRight, Clipboard, AlertTriangle, FileText
+  ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -46,6 +46,9 @@ export default function HomePage() {
   const [uploading, setUploading] = useState(false)
   const [uploadPercent, setUploadPercent] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState(0)
+  const [passwordProtected, setPasswordProtected] = useState(false)
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
 
@@ -98,7 +101,12 @@ export default function HomePage() {
               setUploading(true)
               uploadHandledRef.current = false
               const imageDataUrl = typeof reader.result === 'string' ? reader.result : ''
-              const response = await uploadClipboard(imageDataUrl, burn, socketId)
+              const clipOpts = {}
+              if (passwordProtected && password.trim()) {
+                clipOpts.passwordProtected = true
+                clipOpts.password = password
+              }
+              const response = await uploadClipboard(imageDataUrl, burn, socketId, clipOpts)
               handleUploadSuccess(response)
             } catch (err) {
               setUploading(false)
@@ -112,7 +120,7 @@ export default function HomePage() {
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)
-  }, [burn, socketId])
+  }, [burn, socketId, passwordProtected, password])
 
   // Validation
   function validateFile(file) {
@@ -157,6 +165,10 @@ export default function HomePage() {
       files.forEach(f => formData.append('files', f))
       formData.append('expiryMinutes', expiry)
       formData.append('burnAfterDownload', burn)
+      if (passwordProtected && password.trim()) {
+        formData.append('passwordProtected', 'true')
+        formData.append('password', password)
+      }
       if (socketId) formData.append('socketId', socketId)
       const response = await uploadFiles(formData)
       handleUploadSuccess(response)
@@ -310,8 +322,87 @@ export default function HomePage() {
                       </div>
                     </button>
 
+                    {/* Password protection toggle */}
+                    <div>
+                      <button
+                        type="button"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                        style={{
+                          background: passwordProtected ? 'var(--accent-soft)' : 'transparent',
+                          border: `1.5px solid ${passwordProtected ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
+                        onClick={() => {
+                          setPasswordProtected(!passwordProtected)
+                          if (passwordProtected) { setPassword(''); setShowPassword(false) }
+                        }}
+                      >
+                        <Lock size={18} style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-4)' }} />
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-semibold" style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-2)' }}>
+                            Password protect
+                          </p>
+                          <p className="text-xs" style={{ color: 'var(--text-4)' }}>Require a password to download</p>
+                        </div>
+                        <div
+                          className="w-10 h-6 rounded-full relative transition-all"
+                          style={{ background: passwordProtected ? 'var(--accent)' : 'var(--border-strong)' }}
+                        >
+                          <div
+                            className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                            style={{ background: '#fff', left: passwordProtected ? '22px' : '4px' }}
+                          />
+                        </div>
+                      </button>
+
+                      {/* Password input field */}
+                      <AnimatePresence>
+                        {passwordProtected && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="relative mt-2">
+                              <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Enter a password..."
+                                maxLength={64}
+                                className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
+                                style={{
+                                  background: 'var(--bg-sunken)',
+                                  border: '1.5px solid var(--border)',
+                                  color: 'var(--text)',
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                              />
+                              <button
+                                type="button"
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
+                                onClick={() => setShowPassword(!showPassword)}
+                                tabIndex={-1}
+                              >
+                                {showPassword
+                                  ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
+                                  : <Eye size={16} style={{ color: 'var(--text-4)' }} />
+                                }
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
                     {/* Upload button */}
-                    <button className="btn-primary w-full text-base" onClick={handleUpload}>
+                    <button
+                      className="btn-primary w-full text-base"
+                      onClick={handleUpload}
+                      disabled={passwordProtected && !password.trim()}
+                    >
                       <Upload size={18} />
                       Share {files.length} file{files.length !== 1 ? 's' : ''}
                     </button>
