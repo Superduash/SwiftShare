@@ -257,39 +257,72 @@ export default function SenderPage() {
 
   function handleDownloadQR() {
     const svg = document.querySelector('#sender-qr-code')
-    if (!svg) return
-    
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
-    const size = 1024
-    const padding = 80
-    
-    canvas.width = size + (padding * 2)
-    canvas.height = size + (padding * 2)
-    
-    // White background with padding
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    const svgData = new XMLSerializer().serializeToString(svg)
-    const img = new Image()
-    
-    img.onload = () => {
-      // Draw QR centered with padding
-      ctx.drawImage(img, padding, padding, size, size)
-      
-      const link = document.createElement('a')
-      link.download = `swiftshare-${code}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
-      toast.success('QR code downloaded')
+    if (!svg) {
+      toast.error('QR code not found')
+      return
     }
     
-    img.onerror = () => {
+    try {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      
+      // High resolution with proper padding
+      const qrSize = 1024
+      const padding = 80
+      const totalSize = qrSize + (padding * 2)
+      
+      canvas.width = totalSize
+      canvas.height = totalSize
+      
+      // White background
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, totalSize, totalSize)
+      
+      // Serialize SVG
+      const svgData = new XMLSerializer().serializeToString(svg)
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(svgBlob)
+      
+      const img = new Image()
+      
+      img.onload = () => {
+        try {
+          // Draw QR centered with padding
+          ctx.drawImage(img, padding, padding, qrSize, qrSize)
+          
+          // Convert to PNG and download
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              toast.error('Failed to generate QR image')
+              return
+            }
+            
+            const link = document.createElement('a')
+            link.download = `swiftshare-qr-${code}.png`
+            link.href = URL.createObjectURL(blob)
+            link.click()
+            
+            // Cleanup
+            URL.revokeObjectURL(link.href)
+            toast.success('QR code downloaded')
+          }, 'image/png', 1.0)
+          
+          URL.revokeObjectURL(url)
+        } catch (err) {
+          URL.revokeObjectURL(url)
+          toast.error('Failed to export QR code')
+        }
+      }
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        toast.error('Failed to load QR code')
+      }
+      
+      img.src = url
+    } catch (err) {
       toast.error('Failed to download QR code')
     }
-    
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
   }
 
   if (loading) {
