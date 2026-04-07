@@ -37,6 +37,11 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const type = getPreviewType(file)
   const src = previewUrl(code, fileIndex)
 
+  function openInNewTab() {
+    if (!src) return
+    window.open(src, '_blank', 'noopener,noreferrer')
+  }
+
   return (
     <AnimatePresence>
       {open && (
@@ -97,6 +102,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                       <Download size={14} /> Download instead
                     </button>
                   )}
+                  <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
+                    Open in new tab
+                  </button>
                 </div>
               ) : type === 'image' ? (
                 <div className="flex items-center justify-center min-h-[200px] relative">
@@ -160,6 +168,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                       <Download size={14} /> Download to view
                     </button>
                   )}
+                  <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
+                    Open in new tab
+                  </button>
                 </div>
               )}
             </div>
