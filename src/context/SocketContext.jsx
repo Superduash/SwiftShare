@@ -9,7 +9,7 @@ export function SocketProvider({ children }) {
   const [socketId, setSocketId] = useState(null)
 
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)
     let socket = socketRef.current
 
     if (!socket) {
