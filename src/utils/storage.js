@@ -42,12 +42,15 @@ export function clearTransfers() {
 const DEFAULT_SETTINGS = {
   defaultExpiry: 60,
   defaultBurn: false,
+  reducedMotion: false,
+  soundEnabled: true,
 }
 export function getSettings() {
   return { ...DEFAULT_SETTINGS, ...safeGet(KEYS.SETTINGS, {}) }
 }
 export function saveSettings(patch) {
   safeSet(KEYS.SETTINGS, { ...getSettings(), ...patch })
+  window.dispatchEvent(new Event('swiftshare-settings-updated'))
 }
 
 // ── Theme ──────────────────────────────────

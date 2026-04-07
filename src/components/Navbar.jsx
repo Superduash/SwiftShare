@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Sun, Moon, Settings, Zap, ArrowLeft } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Settings, Zap, ArrowLeft } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useSocket } from '../context/SocketContext'
 import SettingsPanel from './SettingsPanel'
 
 export default function Navbar() {
-  const { theme, toggleTheme } = useTheme()
+  const { theme } = useTheme()
   const { isConnected } = useSocket()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
@@ -32,7 +32,7 @@ export default function Navbar() {
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
                 style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(232,99,74,0.25)' }}
               >
-                <Zap size={16} color="#fff" strokeWidth={2.5} />
+                <Zap size={16} color={theme === 'dark' ? '#0F1014' : '#fff'} strokeWidth={2.5} />
               </div>
               <span className="font-display font-bold text-lg hidden sm:inline" style={{ color: 'var(--text)' }}>
                 SwiftShare
@@ -55,26 +55,6 @@ export default function Navbar() {
                 {isConnected ? 'Connected' : 'Connecting'}
               </span>
             </div>
-
-            {/* Theme toggle */}
-            <motion.button
-              className="btn-icon"
-              onClick={toggleTheme}
-              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              whileTap={{ scale: 0.9 }}
-            >
-              <AnimatePresence mode="wait">
-                {theme === 'light' ? (
-                  <motion.div key="sun" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Sun size={18} />
-                  </motion.div>
-                ) : (
-                  <motion.div key="moon" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Moon size={18} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.button>
 
             {/* Settings */}
             <button className="btn-icon" onClick={() => setSettingsOpen(true)} aria-label="Settings">
