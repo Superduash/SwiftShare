@@ -52,7 +52,9 @@ export default function SenderPage() {
   const mountedRef = useRef(true)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
 
-  const shareLink = `${import.meta.env.VITE_SHARE_BASE_URL || window.location.origin}/g/${code}`
+  const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+  const shareLink = `${baseShareUrl}/g/${code}`
+  const canUseWebShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   // Title
   useEffect(() => {
@@ -255,7 +257,7 @@ export default function SenderPage() {
 
   // Share helpers
   function handleWebShare() {
-    if (navigator.share) {
+    if (canUseWebShare) {
       navigator.share({
         title: 'SwiftShare',
         text: `Download my file: ${code}`,
@@ -294,6 +296,10 @@ export default function SenderPage() {
       
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        toast.error('Canvas is not supported on this device')
+        return
+      }
       
       // High resolution with proper padding
       const qrSize = 1024
@@ -535,7 +541,7 @@ export default function SenderPage() {
                     </button>
                     <button className="btn-ghost justify-center col-span-2" onClick={handleWebShare}>
                       <Share2 size={14} />
-                      {navigator.share ? 'Share…' : 'Copy link'}
+                      {canUseWebShare ? 'Share...' : 'Copy link'}
                     </button>
                   </div>
                 </div>

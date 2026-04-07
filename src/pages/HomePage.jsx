@@ -80,14 +80,17 @@ export default function HomePage() {
 
     const fname = files[0]?.name || 'file'
     saveTransfer({ code: transferCode, filename: fname, isSender: true })
-    
-    // Play success sound if enabled
-    const currentSettings = getSettings()
-    if (currentSettings.soundEnabled) {
-      playUploadSuccess()
-    }
-    
+
+    // Navigate first to avoid any transient audio API issues blocking route transition.
     navigate(`/sender/${transferCode}`)
+
+    // Play success sound after navigation commit.
+    window.setTimeout(() => {
+      const currentSettings = getSettings()
+      if (currentSettings.soundEnabled) {
+        playUploadSuccess()
+      }
+    }, 0)
   }, [files, navigate])
 
   // Title
