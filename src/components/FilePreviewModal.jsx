@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Download, FileText, AlertTriangle } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { previewUrl } from '../services/api'
 
 function getPreviewType(file) {
@@ -38,8 +39,18 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const src = previewUrl(code, fileIndex)
 
   function openInNewTab() {
-    if (!src) return
-    window.open(src, '_blank', 'noopener,noreferrer')
+    if (!src) {
+      toast.error('Preview URL not available')
+      return
+    }
+    try {
+      const newWindow = window.open(src, '_blank', 'noopener,noreferrer')
+      if (!newWindow) {
+        toast.error('Pop-up blocked. Please allow pop-ups for this site.')
+      }
+    } catch (err) {
+      toast.error('Failed to open file in new tab')
+    }
   }
 
   return (
@@ -120,7 +131,11 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     style={{ display: loading ? 'none' : 'block' }}
                     loading="lazy"
                     onLoad={() => setLoading(false)}
-                    onError={() => { setLoading(false); setError(true) }}
+                    onError={() => { 
+                      setLoading(false)
+                      setError(true)
+                      toast.error('Image preview failed')
+                    }}
                   />
                 </div>
               ) : type === 'pdf' ? (
@@ -131,22 +146,33 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     </div>
                   )}
                   <iframe
-                    src={src}
+                    src={`${src}#view=FitH`}
                     className="w-full h-full rounded-xl"
                     style={{ border: 'none', display: loading ? 'none' : 'block' }}
                     title={file.name || 'PDF Preview'}
                     onLoad={() => setLoading(false)}
-                    onError={() => { setLoading(false); setError(true) }}
+                    onError={() => { 
+                      setLoading(false)
+                      setError(true)
+                      toast.error('PDF preview failed')
+                    }}
                   />
                 </div>
               ) : type === 'video' ? (
                 <div className="flex items-center justify-center">
+                  {loading && (
+                    <div className="shimmer-block w-full h-64 rounded-xl" />
+                  )}
                   <video
                     controls
                     className="max-w-full max-h-[65vh] rounded-xl"
-                    style={{ background: '#000' }}
+                    style={{ background: '#000', display: loading ? 'none' : 'block' }}
                     onLoadedData={() => setLoading(false)}
-                    onError={() => { setLoading(false); setError(true) }}
+                    onError={() => { 
+                      setLoading(false)
+                      setError(true)
+                      toast.error('Video preview failed')
+                    }}
                   >
                     <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
                     Your browser does not support video playback.
@@ -186,21 +212,34 @@ function CodePreview({ src, onError, onLoad }) {
   const [loading, setLoading] = useState(true)
 
   React.useEffect(() => {
-    if (!src) return
-    fetch(src)
+    if (!src) {
+      onError?.()
+      return
+    }
+    
+    const controller = new AbortController()
+    
+    fetch(src, { signal: controller.signal })
       .then(r => {
-        if (!r.ok) throw new Error('Failed')
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.text()
       })
       .then(text => {
-        setContent(text.slice(0, 50000)) // limit preview
-        setLoading(false)
-        onLoad?.()
+        if (!controller.signal.aborted) {
+          setContent(text.slice(0, 50000)) // limit preview to 50KB
+          setLoading(false)
+          onLoad?.()
+        }
       })
-      .catch(() => {
-        setLoading(false)
-        onError?.()
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          onError?.()
+          toast.error('Failed to load code preview')
+        }
       })
+    
+    return () => controller.abort()
   }, [src, onError, onLoad])
 
   if (loading) {
