@@ -55,10 +55,12 @@ export default function SenderPage() {
 
   // Load transfer data if not in state
   useEffect(() => {
-    if (!transfer) {
+    const shouldFetchTransfer = !transfer || !Array.isArray(transfer.files) || transfer.files.length === 0
+
+    if (shouldFetchTransfer) {
       getFileMetadata(code)
         .then(data => {
-          setTransfer(data)
+          setTransfer((prev) => ({ ...prev, ...data }))
           setAi(data.ai || null)
           setExtendedOnce(Boolean(data?.extendedOnce))
           setTotalSeconds(getTotalCountdownSeconds(data))
@@ -97,7 +99,12 @@ export default function SenderPage() {
     if (!socket) return
 
     const onAiReady = (data) => {
-      const aiData = { summary: data.summary, category: data.category, suggestedName: data.suggestedName }
+      const aiData = {
+        summary: data.summary,
+        category: data.category,
+        suggestedName: data.suggestedName,
+        imageDescription: data.imageDescription || null,
+      }
       setAi(aiData)
       setAiData(aiData)
       setAiLoading(false)

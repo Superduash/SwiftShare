@@ -1,0 +1,2736 @@
+c Frontend export
+Generated: 2026-04-07T12:19:44Z
+Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
+
+===== FILE: .env (118 bytes) =====
+VITE_API_URL=http://localhost:3001
+VITE_SOCKET_URL=http://localhost:3001
+VITE_SHARE_BASE_URL=http://localhost:5173
+
+===== FILE: index.html (1101 bytes) =====
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="theme-color" content="#08090D" />
+    <meta name="description" content="SwiftShare — Zero-login instant file transfer. Drop, share, done." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>SwiftShare</title>
+    <link rel="preconnect" href="https://api.fontshare.com" />
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,800,900&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+===== FILE: package.json (733 bytes) =====
+{
+  "name": "swiftshare-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "axios": "^1.7.7",
+    "socket.io-client": "^4.8.0",
+    "framer-motion": "^11.3.31",
+    "react-hot-toast": "^2.4.1",
+    "lucide-react": "^0.447.0",
+    "react-qr-code": "^2.0.15",
+    "canvas-confetti": "^1.9.3",
+    "react-dropzone": "^14.2.10"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.2",
+    "vite": "^5.4.8",
+    "tailwindcss": "^3.4.13",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47"
+  }
+}
+
+===== FILE: postcss.config.js (80 bytes) =====
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+===== FILE: src/App.jsx (4875 bytes) =====
+import React, { Suspense, lazy, useEffect, useState } from 'react'
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Toaster } from 'react-hot-toast'
+
+import { SocketProvider } from './context/SocketContext'
+import { TransferProvider } from './context/TransferContext'
+import { pingServer } from './services/api'
+
+import LoadingScreen from './components/LoadingScreen'
+import ServerWakeup from './components/ServerWakeup'
+
+// Eager — critical path
+import HomePage from './pages/HomePage'
+import JoinPage from './pages/JoinPage'
+import ExpiredPage from './pages/ExpiredPage'
+
+// Lazy — heavier pages
+const SenderPage = lazy(() => import('./pages/SenderPage'))
+const DownloadPage = lazy(() => import('./pages/DownloadPage'))
+
+// ── Scroll to top on every route change ──────────────────────────────
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [pathname])
+  return null
+}
+
+// ── Per-page fade + slide transition ─────────────────────────────────
+const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+  exit:    { opacity: 0, y: -8, transition: { duration: 0.15, ease: 'easeIn' } },
+}
+
+function PageWrapper({ children }) {
+  return (
+    <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
+      {children}
+    </motion.div>
+  )
+}
+
+// ── Animated route tree ───────────────────────────────────────────────
+function AnimatedRoutes() {
+  const location = useLocation()
+  return (
+    <>
+      <ScrollToTop />
+      <AnimatePresence mode="wait">
+        <Suspense fallback={<LoadingScreen message="Loading..." />}>
+          <Routes location={location} key={location.pathname}>
+            <Route path="/"               element={<PageWrapper><HomePage /></PageWrapper>} />
+            <Route path="/sender/:code"   element={<PageWrapper><SenderPage /></PageWrapper>} />
+            <Route path="/join"           element={<PageWrapper><JoinPage /></PageWrapper>} />
+            <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
+            <Route path="/expired"        element={<PageWrapper><ExpiredPage /></PageWrapper>} />
+            <Route path="*"               element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </AnimatePresence>
+    </>
+  )
+}
+
+// ── Server health shell ───────────────────────────────────────────────
+// null  = still checking → LoadingScreen
+// false = cold start      → ServerWakeup (retries every 4s)
+// true  = live            → render app
+function ServerShell() {
+  const [serverReady, setServerReady] = useState(null)
+
+  useEffect(() => {
+    let timer = null
+    const tryPing = async () => {
+      const { ok, latencyMs } = await pingServer()
+      if (ok && latencyMs < 5000) {
+        setServerReady(true)
+      } else {
+        setServerReady(false)
+        timer = setTimeout(tryPing, 4000)
+      }
+    }
+    tryPing()
+    return () => { if (timer) clearTimeout(timer) }
+  }, [])
+
+  if (serverReady === null) return <LoadingScreen message="Connecting to SwiftShare..." />
+  if (serverReady === false) return <ServerWakeup />
+
+  return (
+    <BrowserRouter>
+      <AnimatedRoutes />
+    </BrowserRouter>
+  )
+}
+
+// ── Root ──────────────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <SocketProvider>
+      <TransferProvider>
+
+        <ServerShell />
+
+        <Toaster
+          position="top-right"
+          gutter={8}
+          toastOptions={{
+            duration: 3500,
+            style: {
+              background: '#0D0F18',
+              color: '#F1F5F9',
+              border: '1px solid #1C1E2E',
+              borderRadius: '12px',
+              fontFamily: "'Inter', sans-serif",
+              fontSize: '13px',
+              fontWeight: '600',
+              maxWidth: '360px',
+            },
+            success: { iconTheme: { primary: '#10B981', secondary: '#111827' } },
+            error:   { iconTheme: { primary: '#EF4444', secondary: '#111827' } },
+            loading: { iconTheme: { primary: '#818CF8', secondary: '#111827' } },
+          }}
+        />
+
+      </TransferProvider>
+    </SocketProvider>
+  )
+}
+
+===== FILE: src/context/SocketContext.jsx (2327 bytes) =====
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
+import { io } from 'socket.io-client'
+
+const SocketContext = createContext(null)
+
+export function SocketProvider({ children }) {
+  const socketRef = useRef(null)
+  const [isConnected, setIsConnected] = useState(false)
+  const [socketId, setSocketId] = useState(null)
+
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)
+    let socket = socketRef.current
+
+    if (!socket) {
+      socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+      })
+      socketRef.current = socket
+    } else if (!socket.connected) {
+      socket.connect()
+    }
+
+    socket.on('connect', () => {
+      setIsConnected(true)
+      setSocketId(socket.id)
+    })
+
+    socket.on('disconnect', () => {
+      setIsConnected(false)
+      setSocketId(null)
+    })
+
+    if (socket.connected) {
+      setIsConnected(true)
+      setSocketId(socket.id)
+    }
+
+    return () => {
+      socket.off('connect')
+      socket.off('disconnect')
+      socket.disconnect()
+    }
+  }, [])
+
+  const joinRoom = useCallback((code) => {
+    if (socketRef.current?.connected && code) {
+      socketRef.current.emit('join-room', { code })
+    }
+  }, [])
+
+  const leaveRoom = useCallback((code) => {
+    if (socketRef.current?.connected && code) {
+      socketRef.current.emit('leave-room', { code })
+    }
+  }, [])
+
+  const registerSender = useCallback((code) => {
+    if (socketRef.current?.connected && code) {
+      socketRef.current.emit('register-sender', { code })
+    }
+  }, [])
+
+  const rejoinRoom = useCallback((code) => {
+    if (socketRef.current?.connected && code) {
+      socketRef.current.emit('rejoin-room', { code })
+    }
+  }, [])
+
+  return (
+    <SocketContext.Provider value={{
+      socket: socketRef.current,
+      isConnected,
+      socketId,
+      joinRoom,
+      leaveRoom,
+      registerSender,
+      rejoinRoom,
+    }}>
+      {children}
+    </SocketContext.Provider>
+  )
+}
+
+export const useSocket = () => {
+  const ctx = useContext(SocketContext)
+  if (!ctx) throw new Error('useSocket must be used inside SocketProvider')
+  return ctx
+}
+
+export default SocketContext
+
+===== FILE: src/context/TransferContext.jsx (1793 bytes) =====
+import React, { createContext, useContext, useState, useCallback } from 'react'
+
+const TransferContext = createContext(null)
+
+export function TransferProvider({ children }) {
+  const [uploadState, setUploadState] = useState('idle') // idle | uploading | complete | error
+  const [uploadData, setUploadDataState] = useState(null)
+  const [downloadState, setDownloadState] = useState('idle')
+  const [activeCode, setActiveCode] = useState(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadSpeed, setUploadSpeed] = useState(0)
+
+  const setUploadData = useCallback((data) => {
+    setUploadDataState(data)
+    setActiveCode(data?.code || null)
+    setUploadState('complete')
+  }, [])
+
+  const clearTransfer = useCallback(() => {
+    setUploadDataState(null)
+    setActiveCode(null)
+    setUploadState('idle')
+    setUploadProgress(0)
+    setUploadSpeed(0)
+  }, [])
+
+  const setAiData = useCallback((ai) => {
+    setUploadDataState((prev) => prev ? { ...prev, ai } : prev)
+  }, [])
+
+  const startUpload = useCallback(() => {
+    setUploadState('uploading')
+    setUploadProgress(0)
+  }, [])
+
+  const setError = useCallback(() => {
+    setUploadState('error')
+  }, [])
+
+  return (
+    <TransferContext.Provider value={{
+      uploadState,
+      uploadData,
+      downloadState,
+      activeCode,
+      uploadProgress,
+      uploadSpeed,
+      setUploadData,
+      clearTransfer,
+      setAiData,
+      startUpload,
+      setError,
+      setUploadProgress,
+      setUploadSpeed,
+      setDownloadState,
+    }}>
+      {children}
+    </TransferContext.Provider>
+  )
+}
+
+export const useTransfer = () => {
+  const ctx = useContext(TransferContext)
+  if (!ctx) throw new Error('useTransfer must be used inside TransferProvider')
+  return ctx
+}
+
+export default TransferContext
+
+===== FILE: src/index.css (13587 bytes) =====
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── New palette: near-black base + electric indigo accent ─────────── */
+:root {
+  --bg:            #08090D;
+  --bg-card:       #0D0F18;
+  --bg-elevated:   #12141F;
+  --bg-hover:      #161824;
+
+  --accent:        #6366F1;       /* indigo — replaces cyan as primary */
+  --accent-bright: #818CF8;       /* lighter indigo for hover/glow */
+  --accent-glow:   rgba(99,102,241,0.18);
+  --accent-glow-s: rgba(99,102,241,0.35);
+
+  --cyan:          #22D3EE;       /* kept as secondary/utility */
+  --green:         #34D399;
+  --red:           #F87171;
+  --amber:         #FBBF24;
+  --orange:        #FB923C;
+  --rose:          #FB7185;
+
+  --text:          #ECEEF5;
+  --text-2:        #8B90AA;
+  --text-3:        #4A4E65;
+
+  --border:        #1C1E2E;
+  --border-subtle: #141626;
+  --border-glow:   rgba(99,102,241,0.3);
+
+  --radius-sm:  8px;
+  --radius:     12px;
+  --radius-lg:  18px;
+  --radius-xl:  24px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::selection { background: rgba(99,102,241,0.25); color: var(--text); }
+
+/* ─── Typography helpers ─────────────────────────────────────────────── */
+.font-display {
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.font-heading {
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Gradient text ──────────────────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(135deg, #818CF8 0%, #6366F1 40%, #22D3EE 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.text-gradient-warm {
+  background: linear-gradient(135deg, #FBBF24 0%, #FB923C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Cards ──────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Legacy alias — keeps existing components working */
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.glass-card-elevated {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ─── Glow shadows ───────────────────────────────────────────────────── */
+.glow        { box-shadow: 0 0 24px var(--accent-glow); }
+.glow-strong { box-shadow: 0 0 48px var(--accent-glow-s); }
+.glow-cyan   { box-shadow: 0 0 24px rgba(34,211,238,0.12); }
+.glow-cyan-strong { box-shadow: 0 0 40px rgba(34,211,238,0.25); }
+.glow-green  { box-shadow: 0 0 20px rgba(52,211,153,0.2); }
+.glow-red    { box-shadow: 0 0 20px rgba(248,113,113,0.2); }
+
+/* ─── Upload zone ────────────────────────────────────────────────────── */
+.upload-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.upload-zone:hover,
+.upload-zone.dragging {
+  border-color: var(--accent);
+  background: rgba(99,102,241,0.03);
+  box-shadow: 0 0 40px rgba(99,102,241,0.1);
+}
+.upload-zone.dragging {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 60px rgba(99,102,241,0.18);
+  transform: scale(1.005);
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  padding: 13px 28px;
+  font-size: 15px;
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+}
+.btn-primary:hover {
+  background: var(--accent-bright);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(99,102,241,0.35);
+}
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  padding: 11px 20px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-ghost:hover {
+  border-color: rgba(99,102,241,0.4);
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.btn-danger {
+  background: rgba(248,113,113,0.08);
+  color: var(--red);
+  border: 1px solid rgba(248,113,113,0.2);
+  padding: 11px 20px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-danger:hover {
+  background: rgba(248,113,113,0.14);
+  border-color: rgba(248,113,113,0.4);
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  color: var(--text-3);
+}
+.btn-icon:hover {
+  border-color: rgba(99,102,241,0.4);
+  color: var(--accent-bright);
+  background: rgba(99,102,241,0.06);
+}
+
+/* ─── Code / OTP boxes ───────────────────────────────────────────────── */
+.code-char {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 64px;
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent-bright);
+  transition: all 0.15s ease;
+}
+.code-char.filled {
+  border-color: var(--accent);
+  background: rgba(99,102,241,0.06);
+  box-shadow: 0 0 16px rgba(99,102,241,0.15);
+}
+.code-char input {
+  width: 100%; height: 100%;
+  background: transparent; border: none; outline: none;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px; font-weight: 700;
+  color: var(--accent-bright);
+  caret-color: var(--accent);
+}
+
+/* ─── Badge ──────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+
+/* Category badges */
+.cat-notes        { background: rgba(99,102,241,0.1); color: var(--accent-bright); border: 1px solid rgba(99,102,241,0.2); }
+.cat-assignment   { background: rgba(52,211,153,0.1); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+.cat-invoice      { background: rgba(251,191,36,0.1); color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+.cat-report       { background: rgba(251,146,60,0.1); color: var(--orange); border: 1px solid rgba(251,146,60,0.2); }
+.cat-code         { background: rgba(34,211,238,0.1); color: var(--cyan); border: 1px solid rgba(34,211,238,0.2); }
+.cat-image        { background: rgba(52,211,153,0.1); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+.cat-video        { background: rgba(139,92,246,0.1); color: #A78BFA; border: 1px solid rgba(139,92,246,0.2); }
+.cat-audio        { background: rgba(251,113,133,0.1); color: var(--rose); border: 1px solid rgba(251,113,133,0.2); }
+.cat-presentation { background: rgba(251,146,60,0.1); color: var(--orange); border: 1px solid rgba(251,146,60,0.2); }
+.cat-spreadsheet  { background: rgba(52,211,153,0.1); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+.cat-other        { background: rgba(74,78,101,0.15); color: var(--text-2); border: 1px solid var(--border); }
+
+/* File type icons */
+.file-icon-pdf   { color: var(--red);    background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.15); }
+.file-icon-image { color: var(--green);  background: rgba(52,211,153,0.08);  border: 1px solid rgba(52,211,153,0.15); }
+.file-icon-video { color: #A78BFA;       background: rgba(139,92,246,0.08);  border: 1px solid rgba(139,92,246,0.15); }
+.file-icon-zip   { color: var(--orange); background: rgba(251,146,60,0.08);  border: 1px solid rgba(251,146,60,0.15); }
+.file-icon-doc   { color: #60A5FA;       background: rgba(96,165,250,0.08);  border: 1px solid rgba(96,165,250,0.15); }
+.file-icon-code  { color: var(--cyan);   background: rgba(34,211,238,0.08);  border: 1px solid rgba(34,211,238,0.15); }
+.file-icon-other { color: var(--text-2); background: rgba(74,78,101,0.1);    border: 1px solid var(--border); }
+
+/* ─── Toggle ─────────────────────────────────────────────────────────── */
+.toggle { position: relative; width: 44px; height: 24px; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--border); border-radius: 12px;
+  transition: all 0.2s ease;
+}
+.toggle-slider::before {
+  content: ''; position: absolute;
+  width: 18px; height: 18px; left: 3px; top: 3px;
+  background: var(--text-3); border-radius: 50%;
+  transition: all 0.2s ease;
+}
+.toggle input:checked + .toggle-slider {
+  background: rgba(99,102,241,0.25);
+  border: 1px solid var(--accent);
+}
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+  background: var(--accent-bright);
+  box-shadow: 0 0 8px rgba(99,102,241,0.5);
+}
+
+/* ─── Skeleton ───────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg,
+    var(--bg-elevated) 25%,
+    rgba(28,30,46,0.6) 50%,
+    var(--bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.6s infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton-shine {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Misc ───────────────────────────────────────────────────────────── */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(99,102,241,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,102,241,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.divider { height: 1px; background: var(--border); }
+.divider-glow { height: 1px; background: linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent); }
+
+.expired-banner {
+  background: rgba(248,113,113,0.06);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  color: var(--red);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.event-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%; flex-shrink: 0; margin-top: 5px;
+}
+
+.scroll-container { overflow-y: auto; scrollbar-width: thin; }
+
+/* ─── Mobile ─────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px !important; }
+  .code-char input { font-size: clamp(16px, 4.5vw, 26px) !important; }
+  .btn-primary, .btn-ghost, .btn-danger { min-height: 48px; }
+  .btn-icon { width: 44px; height: 44px; }
+}
+
+===== FILE: src/main.jsx (234 bytes) =====
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+
+===== FILE: src/pages/DownloadPage.jsx (15784 bytes) =====
+import React, { useState, useEffect, useRef } from 'react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
+import confetti from 'canvas-confetti'
+import { ArrowLeft, Download, Zap, AlertTriangle, Check, FileText } from 'lucide-react'
+import { getFileMetadata, downloadFile, downloadSingleFile, previewUrl } from '../services/api'
+import { useSocket } from '../context/SocketContext'
+import FileCard from '../components/FileCard'
+import AISummaryCard from '../components/AISummaryCard'
+import CountdownRing from '../components/CountdownRing'
+import ProgressBar from '../components/ProgressBar'
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(1024))
+  return `${(bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+function fireConfetti() {
+  confetti({ particleCount: 80, spread: 70, origin: { x: 0.2, y: 0.6 }, colors: ['#22D3EE', '#8B5CF6', '#10B981'] })
+  setTimeout(() => {
+    confetti({ particleCount: 80, spread: 70, origin: { x: 0.8, y: 0.6 }, colors: ['#22D3EE', '#F59E0B', '#10B981'] })
+  }, 200)
+}
+
+export default function DownloadPage() {
+  const { code } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { socket, joinRoom, isConnected } = useSocket()
+
+  const [fileData, setFileData] = useState(location.state?.fileData || null)
+  const [secondsRemaining, setSecondsRemaining] = useState(null)
+  const [expired, setExpired] = useState(false)
+  const [downloadPercent, setDownloadPercent] = useState(0)
+  const [downloaded, setDownloaded] = useState(false)
+  const [startingDownload, setStartingDownload] = useState(false)
+  const [showSocketWarning, setShowSocketWarning] = useState(false)
+  const [loading, setLoading] = useState(!fileData)
+  const [previewError, setPreviewError] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [receipt, setReceipt] = useState(null)
+  const downloadedRef = useRef(false)
+  const downloadTimerRef = useRef(null)
+
+  const files = fileData?.files || []
+  const isSingleFile = files.length === 1
+  const firstFile = files[0]
+  const isImage = firstFile?.type?.startsWith('image/')
+  const isPdf = firstFile?.type?.includes('pdf') || firstFile?.icon === 'pdf'
+
+  // Fetch metadata if not in state
+  useEffect(() => {
+    if (!fileData) {
+      getFileMetadata(code)
+        .then(data => {
+          setFileData(data)
+          if (data.secondsRemaining != null) setSecondsRemaining(data.secondsRemaining)
+          setLoading(false)
+        })
+        .catch(err => {
+          const status = err?.status
+          const errorCode = err?.code
+
+          if (err?.isNetworkError) {
+            toast.error('Network error. Please check your connection and try again.')
+          }
+
+          if (status === 404) {
+            navigate('/expired', { state: { reason: 'notfound' } })
+            return
+          }
+
+          if (status === 410 && errorCode === 'TRANSFER_EXPIRED') {
+            navigate('/expired', { state: { reason: 'expired' } })
+            return
+          }
+
+          if (status === 410 && errorCode === 'ALREADY_DOWNLOADED') {
+            navigate('/expired', { state: { reason: 'burned' } })
+            return
+          }
+
+          navigate('/expired', { state: { reason: 'notfound' } })
+        })
+    } else {
+      if (fileData.secondsRemaining != null) setSecondsRemaining(fileData.secondsRemaining)
+      setLoading(false)
+    }
+  }, [code])
+
+  useEffect(() => {
+    return () => {
+      if (downloadTimerRef.current) {
+        clearTimeout(downloadTimerRef.current)
+      }
+    }
+  }, [])
+
+  // Socket
+  useEffect(() => {
+    if (!code) return
+    joinRoom(code)
+  }, [code, joinRoom])
+
+  useEffect(() => {
+    if (!socket) return
+    const onCountdown = ({ secondsRemaining: s }) => setSecondsRemaining(s)
+    const onExpired = () => {
+      setExpired(true)
+      toast.error('Transfer expired')
+    }
+    const onProgress = ({ percent }) => {
+      setDownloadPercent(percent || 0)
+      if (percent >= 100 && !downloadedRef.current) {
+        downloadedRef.current = true
+        setDownloaded(true)
+        setReceipt({
+          code,
+          filename: isSingleFile ? (firstFile?.name || 'File') : `${files.length} files (ZIP)`,
+          senderDevice: fileData?.senderDeviceName || 'Unknown Device',
+          fileSize: formatBytes(fileData?.totalSize || 0),
+        })
+        setShowReceiptModal(true)
+        fireConfetti()
+        toast.success('Transfer complete! 🎉')
+      }
+    }
+
+    socket.on('countdown-tick', onCountdown)
+    socket.on('transfer-expired', onExpired)
+    socket.on('download-progress', onProgress)
+
+    return () => {
+      socket.off('countdown-tick', onCountdown)
+      socket.off('transfer-expired', onExpired)
+      socket.off('download-progress', onProgress)
+    }
+  }, [socket, code, fileData, files.length, firstFile?.name, isSingleFile])
+
+  useEffect(() => {
+    let timer = null
+
+    if (!isConnected) {
+      timer = setTimeout(() => {
+        setShowSocketWarning(true)
+      }, 5000)
+    } else {
+      setShowSocketWarning(false)
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [isConnected])
+
+  const handleDownload = () => {
+    if (expired || startingDownload || downloaded) return
+    setStartingDownload(true)
+    setDownloadPercent((prev) => Math.max(prev, 5))
+
+    downloadTimerRef.current = setTimeout(() => {
+      downloadFile(code)
+      setStartingDownload(false)
+    }, 450)
+  }
+
+  const handleDownloadSingle = (idx) => {
+    if (expired || startingDownload || downloaded) return
+    setStartingDownload(true)
+    setDownloadPercent((prev) => Math.max(prev, 5))
+
+    downloadTimerRef.current = setTimeout(() => {
+      downloadSingleFile(code, idx)
+      setStartingDownload(false)
+    }, 450)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 rounded-2xl skeleton mx-auto" />
+          <div className="w-48 h-4 skeleton rounded mx-auto" />
+          <div className="w-32 h-3 skeleton rounded mx-auto" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-bg-primary">
+      <div className="fixed inset-0 grid-bg opacity-20 pointer-events-none" />
+      <div className="blob-cyan fixed bottom-0 right-0 translate-x-1/3 translate-y-1/3 pointer-events-none" />
+
+      <div className="relative max-w-xl mx-auto px-4 py-10">
+
+        {/* Nav */}
+        <motion.div
+          className="flex items-center justify-between mb-8"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <button className="btn-ghost flex items-center gap-2 text-sm py-2 px-3" onClick={() => navigate('/join')}>
+            <ArrowLeft size={14} />
+            Back
+          </button>
+          <div className="flex items-center gap-2">
+            <Zap size={14} className="text-accent-cyan" />
+            <span className="text-text-primary font-bold text-sm">Swift<span className="text-accent-cyan">Share</span></span>
+          </div>
+        </motion.div>
+
+        {/* Expired banner */}
+        <AnimatePresence>
+          {expired && (
+            <motion.div className="expired-banner flex items-center gap-2 mb-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <AlertTriangle size={14} />
+              This transfer has expired.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showSocketWarning && !expired && (
+            <motion.div
+              className="mb-5 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2"
+              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.24)', color: '#FBBF24' }}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <AlertTriangle size={14} />
+              Live connection is unstable. Progress updates may be delayed.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Success state */}
+        <AnimatePresence>
+          {downloaded && (
+            <motion.div
+              className="glass-card p-5 mb-5 text-center"
+              style={{ borderColor: 'rgba(16,185,129,0.3)' }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <div className="w-12 h-12 rounded-2xl bg-accent-green/10 border border-accent-green/25 flex items-center justify-center mx-auto mb-3">
+                <Check size={22} className="text-accent-green" />
+              </div>
+              <h3 className="text-text-primary font-bold text-lg">Transfer Complete!</h3>
+              <p className="text-text-muted text-sm mt-1">File received successfully</p>
+              {fileData?.senderDeviceName && (
+                <p className="text-text-dim text-xs mt-2">Sent from: {fileData.senderDeviceName}</p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* File preview */}
+        {isSingleFile && isImage && !previewError && (
+          <motion.div
+            className="glass-card p-3 mb-5 overflow-hidden"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <img
+              src={previewUrl(code, 0)}
+              alt={firstFile.name}
+              className="w-full rounded-xl object-cover max-h-64"
+              onError={() => setPreviewError(true)}
+            />
+          </motion.div>
+        )}
+
+        {isSingleFile && isPdf && (
+          <motion.div
+            className="glass-card p-4 mb-5 flex items-center gap-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+              <FileText size={18} className="text-red-400" />
+            </div>
+            <div>
+              <p className="text-text-primary font-semibold text-sm">{firstFile.name}</p>
+              <p className="text-text-muted text-xs">PDF · {formatBytes(firstFile.size)}</p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Main card */}
+        <motion.div
+          className="glass-card p-6 mb-5"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-text-primary font-bold text-lg">
+                {isSingleFile ? firstFile?.name : `${files.length} files`}
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-text-muted text-sm">{formatBytes(fileData?.totalSize)}</span>
+                {fileData?.senderDeviceName && (
+                  <>
+                    <span className="text-text-dim">·</span>
+                    <span className="text-text-dim text-xs">From {fileData.senderDeviceName}</span>
+                  </>
+                )}
+              </div>
+            </div>
+            {secondsRemaining !== null && (
+              <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={600} size={80} />
+            )}
+          </div>
+
+          {/* Multi file list */}
+          {!isSingleFile && (
+            <div className="space-y-2 mb-5">
+              {files.map((file, i) => (
+                <FileCard
+                  key={i}
+                  file={file}
+                  index={i}
+                  onPreview={() => window.open(previewUrl(code, i), '_blank')}
+                  onDownloadSingle={() => handleDownloadSingle(i)}
+                  showDownload
+                  disableDownload={expired || startingDownload}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Download progress */}
+          {downloadPercent > 0 && !downloaded && (
+            <ProgressBar
+              percent={downloadPercent}
+              label="Downloading..."
+              color="#22D3EE"
+              className="mb-5"
+            />
+          )}
+
+          {/* Download button */}
+          {!downloaded && (
+            <motion.button
+              className="btn-primary w-full flex items-center justify-center gap-2 text-base"
+              onClick={handleDownload}
+              disabled={expired || startingDownload}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+            >
+              <Download size={18} />
+              {startingDownload
+                ? 'Preparing download...'
+                : isSingleFile
+                  ? `Download ${firstFile?.name || 'File'}`
+                  : 'Download All (ZIP)'}
+            </motion.button>
+          )}
+
+          {/* Burn notice */}
+          {fileData?.burnAfterDownload && !downloaded && (
+            <p className="text-center text-accent-red text-xs mt-3 flex items-center justify-center gap-1">
+              🔥 One-time only — file deletes after download
+            </p>
+          )}
+
+          {/* New transfer button after download */}
+          {downloaded && (
+            <button className="btn-primary w-full flex items-center justify-center gap-2" onClick={() => navigate('/')}>
+              <Zap size={16} />
+              Send Your Own File
+            </button>
+          )}
+        </motion.div>
+
+        {/* AI summary */}
+        {fileData?.ai && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <AISummaryCard ai={fileData.ai} />
+          </motion.div>
+        )}
+
+        <AnimatePresence>
+          {showReceiptModal && receipt && (
+            <motion.button
+              type="button"
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm px-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowReceiptModal(false)}
+            >
+              <motion.div
+                className="max-w-sm w-full mx-auto mt-24 glass-card p-5 text-left"
+                initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-text-primary font-bold text-base mb-3">Transfer Receipt</h3>
+                <div className="space-y-2 text-sm">
+                  <p className="text-text-muted">Code: <span className="text-text-primary font-mono">{receipt.code}</span></p>
+                  <p className="text-text-muted">Filename: <span className="text-text-primary">{receipt.filename}</span></p>
+                  <p className="text-text-muted">Sender device: <span className="text-text-primary">{receipt.senderDevice}</span></p>
+                  <p className="text-text-muted">File size: <span className="text-text-primary">{receipt.fileSize}</span></p>
+                </div>
+                <p className="text-text-dim text-xs mt-4">Click anywhere to dismiss</p>
+              </motion.div>
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+
+===== FILE: src/pages/ExpiredPage.jsx (2647 bytes) =====
+import React from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Clock, Flame, Search, ArrowRight, Zap } from 'lucide-react'
+
+const REASONS = {
+  expired: {
+    icon: Clock,
+    color: '#FBBF24',
+    title: 'Transfer expired',
+    desc: 'SwiftShare sessions auto-delete after 10 minutes to protect your privacy. Ask the sender to share again.',
+  },
+  burned: {
+    icon: Flame,
+    color: '#F87171',
+    title: 'Already downloaded',
+    desc: 'This was a one-time transfer. The file was downloaded and permanently deleted.',
+  },
+  notfound: {
+    icon: Search,
+    color: '#8B90AA',
+    title: 'Not found',
+    desc: 'This code doesn\'t exist. Double-check with the sender — codes expire after 10 minutes.',
+  },
+}
+
+export default function ExpiredPage() {
+  const { state } = useLocation()
+  const navigate = useNavigate()
+  const reason = state?.reason || 'notfound'
+  const { icon: Icon, color, title, desc } = REASONS[reason] || REASONS.notfound
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background:'var(--bg)' }}>
+      <div className="fixed inset-0 grid-bg opacity-100 pointer-events-none"/>
+
+      <motion.div
+        className="relative max-w-sm w-full text-center"
+        initial={{ opacity:0, y:24 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.45 }}
+      >
+        {/* Icon */}
+        <motion.div
+          className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8"
+          style={{ background:`${color}0D`, border:`1px solid ${color}22` }}
+          animate={{ scale:[1,1.04,1] }}
+          transition={{ duration:3, repeat:Infinity }}
+        >
+          <Icon size={36} style={{ color }}/>
+        </motion.div>
+
+        <h1 className="font-display text-3xl mb-3" style={{ color:'var(--text)', letterSpacing:'-0.03em' }}>
+          {title}
+        </h1>
+        <p style={{ color:'var(--text-2)', fontSize:'15px', lineHeight:'1.6', marginBottom:'32px' }}>
+          {desc}
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button className="btn-primary justify-center" onClick={()=>navigate('/')}>
+            <Zap size={15}/> Send a file <ArrowRight size={14}/>
+          </button>
+          <button className="btn-ghost justify-center" onClick={()=>navigate('/join')}>
+            Try another code
+          </button>
+        </div>
+
+        <p style={{ color:'var(--text-3)', fontSize:'11px', marginTop:'40px' }}>
+          SwiftShare · Files auto-delete after 10 minutes
+        </p>
+      </motion.div>
+    </div>
+  )
+}
+
+===== FILE: src/pages/HomePage.jsx (24523 bytes) =====
+import React, { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useDropzone } from 'react-dropzone'
+import toast from 'react-hot-toast'
+import {
+  Upload, X, Send, ArrowRight, Zap,
+  Flame, FileText, Image,
+  Video, Archive, File, RefreshCw
+} from 'lucide-react'
+import { uploadFiles, uploadClipboard, getNearbyDevices, getStats, pingServer } from '../services/api'
+import { useSocket } from '../context/SocketContext'
+import { useTransfer } from '../context/TransferContext'
+import ProgressBar from '../components/ProgressBar'
+import LoadingScreen from '../components/LoadingScreen'
+
+function formatBytes(b) {
+  if (!b) return '0 B'
+  const u = ['B','KB','MB','GB'], i = Math.floor(Math.log(b)/Math.log(1024))
+  return `${(b/Math.pow(1024,i)).toFixed(i?1:0)} ${u[i]}`
+}
+
+function getFileIcon(type='') {
+  if (type.includes('pdf'))       return { Icon: FileText, color: '#F87171' }
+  if (type.startsWith('image/'))  return { Icon: Image,    color: '#34D399' }
+  if (type.startsWith('video/'))  return { Icon: Video,    color: '#A78BFA' }
+  if (type.includes('zip'))       return { Icon: Archive,  color: '#FB923C' }
+  return                                 { Icon: File,     color: '#8B90AA' }
+}
+
+function getApiErrorMessage(err, fallback = 'Something went wrong. Please try again.') {
+  if (!err) return fallback
+  if (err.isNetworkError) return 'Network error. Check your connection and try again.'
+
+  if (err.code === 'FILE_TOO_LARGE') {
+    return 'This file is too large. Maximum size is 50MB.'
+  }
+
+  if (err.code === 'TOO_MANY_FILES') {
+    return 'Too many files selected. You can upload up to 10 files.'
+  }
+
+  if (err.code === 'INVALID_FILE_TYPE') {
+    return 'One or more selected files are not allowed.'
+  }
+
+  if (err.code === 'RATE_LIMIT_EXCEEDED') {
+    return 'Too many requests. Please wait a moment and try again.'
+  }
+
+  return err.message || fallback
+}
+
+const BLOCKED = ['.exe','.bat','.sh','.cmd','.msi','.scr','.vbs','.ps1']
+const isBlocked = f => BLOCKED.includes('.'+f.name.split('.').pop().toLowerCase())
+
+// ── Nearby pill ─────────────────────────────────────────────────────────
+function NearbyPill() {
+  const [devices, setDevices] = useState([])
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    getNearbyDevices().then(d => setDevices(d?.devices || [])).catch(()=>{})
+    const t = setInterval(() => getNearbyDevices().then(d => setDevices(d?.devices||[])).catch(()=>{}), 12000)
+    return () => clearInterval(t)
+  }, [])
+
+  if (!devices.length) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-2 flex-wrap justify-center"
+    >
+      {devices.slice(0,3).map((d,i) => (
+        <button
+          key={i}
+          onClick={() => navigate(`/join?code=${d.code}`)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
+          style={{ background:'rgba(99,102,241,0.08)', border:'1px solid rgba(99,102,241,0.2)', color:'#818CF8' }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+          {d.deviceName} · {d.fileCount} file{d.fileCount!==1?'s':''}
+        </button>
+      ))}
+      <span className="text-xs" style={{ color:'var(--text-3)' }}>nearby on your WiFi</span>
+    </motion.div>
+  )
+}
+
+export default function HomePage() {
+  const navigate = useNavigate()
+  const { socket, socketId, isConnected } = useSocket()
+  const { startUpload, setUploadData, setError } = useTransfer()
+
+  const [files, setFiles] = useState([])
+  const [burn, setBurn] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [pct, setPct] = useState(0)
+  const [speedTxt, setSpeedTxt] = useState('')
+  const [isWakingServer, setIsWakingServer] = useState(false)
+  const [stats, setStats] = useState(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [animatedStats, setAnimatedStats] = useState({
+    totalTransfers: 0,
+    totalFiles: 0,
+    totalDownloads: 0,
+    totalUsers: 0,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    let retryId = null
+
+    const checkServer = async () => {
+      const { ok, latencyMs } = await pingServer()
+      if (cancelled) return
+
+      if (ok && latencyMs <= 3000) {
+        setIsWakingServer(false)
+        return
+      }
+
+      setIsWakingServer(true)
+      retryId = setTimeout(checkServer, 3000)
+    }
+
+    checkServer()
+
+    return () => {
+      cancelled = true
+      if (retryId) clearTimeout(retryId)
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    const startedAt = Date.now()
+
+    const finishLoading = () => {
+      const remaining = Math.max(0, 1000 - (Date.now() - startedAt))
+      setTimeout(() => {
+        if (active) {
+          setStatsLoading(false)
+        }
+      }, remaining)
+    }
+
+    getStats()
+      .then((data) => {
+        if (!active) return
+        setStats(data)
+      })
+      .catch((err) => {
+        if (!active) return
+        toast.error(getApiErrorMessage(err, 'Unable to load live stats right now.'), { id: 'stats-error' })
+      })
+      .finally(finishLoading)
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!stats) return
+
+    const targets = {
+      totalTransfers: Number(stats.totalTransfers || 0),
+      totalFiles: Number(stats.totalFiles || 0),
+      totalDownloads: Number(stats.totalDownloads || 0),
+      totalUsers: Number(stats.totalUsers || 0),
+    }
+
+    const start = Date.now()
+    const duration = 1500
+    const interval = setInterval(() => {
+      const progress = Math.min(1, (Date.now() - start) / duration)
+
+      setAnimatedStats({
+        totalTransfers: Math.floor(targets.totalTransfers * progress),
+        totalFiles: Math.floor(targets.totalFiles * progress),
+        totalDownloads: Math.floor(targets.totalDownloads * progress),
+        totalUsers: Math.floor(targets.totalUsers * progress),
+      })
+
+      if (progress >= 1) {
+        clearInterval(interval)
+      }
+    }, 30)
+
+    return () => clearInterval(interval)
+  }, [stats])
+
+  // Socket: progress
+  useEffect(() => {
+    if (!socket) return
+    const onProg  = ({ percent, speed }) => { setPct(percent||0); if(speed) setSpeedTxt(`${speed} MB/s`) }
+    const onDone  = (data) => { setUploadData(data); navigate(`/sender/${data.code}`, { state:{ transferData:data }}) }
+    socket.on('upload-progress', onProg)
+    socket.on('upload-complete', onDone)
+    return () => { socket.off('upload-progress', onProg); socket.off('upload-complete', onDone) }
+  }, [socket, navigate, setUploadData])
+
+  // Clipboard paste
+  useEffect(() => {
+    const onPaste = async (e) => {
+      for (const item of e.clipboardData?.items||[]) {
+        if (item.type.startsWith('image/')) {
+          const f = item.getAsFile()
+          if (!f) return
+          const reader = new FileReader()
+          reader.onload = async (ev) => {
+            try {
+              setUploading(true); startUpload()
+              const r = await uploadClipboard(ev.target.result, burn, socketId||'')
+              setUploadData(r); navigate(`/sender/${r.code}`, { state:{ transferData:r }})
+            } catch(err) { toast.error(getApiErrorMessage(err)); setError() } finally { setUploading(false) }
+          }
+          reader.readAsDataURL(f)
+          toast('📋 Image pasted — uploading...')
+        }
+      }
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [burn, socketId])
+
+  const onDrop = useCallback((accepted) => {
+    const bad = accepted.filter(isBlocked)
+    if (bad.length) { toast.error(`Blocked: ${bad.map(f=>f.name).join(', ')}`); return }
+    setFiles(prev => [...prev, ...accepted])
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, multiple: true })
+
+  const handleSend = async () => {
+    if (!files.length || uploading) return
+    setUploading(true); setPct(0); startUpload()
+    try {
+      const fd = new FormData()
+      files.forEach(f => fd.append('files', f))
+      fd.append('burnAfterDownload', String(burn))
+      fd.append('senderSocketId', socketId||'')
+      await uploadFiles(fd)
+    } catch(err) {
+      toast.error(getApiErrorMessage(err)); setError(); setUploading(false); setPct(0)
+    }
+  }
+
+  const removeFile = (i) => setFiles(prev => prev.filter((_,idx)=>idx!==i))
+
+  if (isWakingServer) {
+    return (
+      <LoadingScreen message="Waking up server... this takes ~30 seconds on first load" />
+    )
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background:'var(--bg)' }}>
+      {/* Grid texture */}
+      <div className="fixed inset-0 grid-bg opacity-100 pointer-events-none" />
+
+      {/* Ambient glows */}
+      <div className="fixed pointer-events-none" style={{
+        top:'-20%', right:'-10%', width:'500px', height:'500px', borderRadius:'50%',
+        background:'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 65%)',
+        filter:'blur(40px)'
+      }}/>
+      <div className="fixed pointer-events-none" style={{
+        bottom:'-15%', left:'-10%', width:'400px', height:'400px', borderRadius:'50%',
+        background:'radial-gradient(circle, rgba(34,211,238,0.05) 0%, transparent 65%)',
+        filter:'blur(40px)'
+      }}/>
+
+      <div className="relative max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+
+        {/* ── NAV ── */}
+        <motion.nav
+          className="flex items-center justify-between mb-16 sm:mb-20"
+          initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.35 }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background:'rgba(99,102,241,0.15)', border:'1px solid rgba(99,102,241,0.3)' }}>
+              <Zap size={14} style={{ color:'#818CF8' }}/>
+            </div>
+            <span className="font-heading text-lg" style={{ color:'var(--text)', letterSpacing:'-0.02em' }}>
+              Swift<span style={{ color:'#818CF8' }}>Share</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+              style={isConnected
+                ? { background:'rgba(52,211,153,0.08)', color:'#34D399', border:'1px solid rgba(52,211,153,0.15)' }
+                : { background:'rgba(248,113,113,0.08)', color:'var(--red)', border:'1px solid rgba(248,113,113,0.15)' }
+              }>
+              <span className="w-1.5 h-1.5 rounded-full"
+                style={{ background: isConnected ? '#34D399' : 'var(--red)',
+                  boxShadow: isConnected ? '0 0 6px #34D399' : 'none' }}/>
+              {isConnected ? 'Live' : 'Offline'}
+            </div>
+            <button className="btn-ghost text-sm py-2 px-4" onClick={() => navigate('/join')}>
+              Receive File
+            </button>
+          </div>
+        </motion.nav>
+
+        {/* ── HERO ── */}
+        <motion.div
+          className="mb-10 sm:mb-12"
+          initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.45, delay:0.05 }}
+        >
+          <h1 className="font-display mb-4 leading-none"
+            style={{ fontSize:'clamp(44px, 9vw, 72px)', letterSpacing:'-0.04em', lineHeight:'1.0' }}>
+            <span style={{ color:'var(--text)' }}>Transfer</span>
+            <br />
+            <span className="text-gradient">anything.</span>
+          </h1>
+          <p style={{ color:'var(--text-2)', fontSize:'16px', lineHeight:'1.6', fontFamily:"'Inter', sans-serif" }}>
+            No login. No install. Files auto-delete after delivery.
+          </p>
+        </motion.div>
+
+        {/* ── UPLOAD AREA ── */}
+        <motion.div
+          className="mb-5"
+          initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.45, delay:0.1 }}
+        >
+          {!uploading && !files.length ? (
+            /* ── Empty zone ── */
+            <div
+              {...getRootProps()}
+              className={`upload-zone w-full py-12 sm:py-16 px-8 text-center ${isDragActive?'dragging':''}`}
+            >
+              <input {...getInputProps()} />
+              <AnimatePresence mode="wait">
+                {isDragActive ? (
+                  <motion.div
+                    key="drag"
+                    initial={{ opacity:0, scale:0.96 }}
+                    animate={{ opacity:1, scale:1 }}
+                    exit={{ opacity:0 }}
+                    className="flex flex-col items-center gap-4"
+                  >
+                    <motion.div
+                      className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                      style={{ background:'rgba(99,102,241,0.15)', border:'1px solid rgba(99,102,241,0.3)' }}
+                      animate={{ scale:[1,1.08,1] }}
+                      transition={{ duration:0.6, repeat:Infinity }}
+                    >
+                      <Upload size={28} style={{ color:'#818CF8' }}/>
+                    </motion.div>
+                    <div>
+                      <p className="font-heading text-xl" style={{ color:'#818CF8' }}>Drop to upload</p>
+                      <p style={{ color:'var(--text-3)', fontSize:'13px', marginTop:'4px' }}>Release to start</p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="idle"
+                    initial={{ opacity:0 }}
+                    animate={{ opacity:1 }}
+                    exit={{ opacity:0 }}
+                    className="flex flex-col items-center gap-5"
+                  >
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                      style={{ background:'var(--bg-elevated)', border:'1px solid var(--border)' }}>
+                      <Upload size={22} style={{ color:'var(--text-3)' }}/>
+                    </div>
+
+                    <div>
+                      <p className="font-heading text-xl mb-1" style={{ color:'var(--text)' }}>
+                        Drop files here
+                      </p>
+                      <p style={{ color:'var(--text-3)', fontSize:'13px' }}>
+                        or click anywhere to browse
+                      </p>
+                    </div>
+
+                    {/* The explicit CTA button */}
+                    <div
+                      className="flex items-center gap-2 px-7 py-3 rounded-xl pointer-events-none font-heading text-sm"
+                      style={{ background:'var(--accent)', color:'#fff', letterSpacing:'-0.01em' }}
+                    >
+                      <Upload size={15}/>
+                      Choose Files
+                    </div>
+
+                    <p style={{ color:'var(--text-3)', fontSize:'12px' }}>
+                      All types · 100MB max · Up to 10 files · Ctrl+V to paste
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+          ) : uploading ? (
+            /* ── Upload in progress ── */
+            <div className="card p-8 text-center">
+              <motion.div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+                style={{ background:'rgba(99,102,241,0.1)', border:'1px solid rgba(99,102,241,0.2)' }}
+                animate={{ rotate:360 }}
+                transition={{ duration:2, repeat:Infinity, ease:'linear' }}
+              >
+                <RefreshCw size={22} style={{ color:'#818CF8' }}/>
+              </motion.div>
+              <p className="font-heading text-lg mb-1" style={{ color:'var(--text)' }}>Uploading…</p>
+              <p style={{ color:'var(--text-2)', fontSize:'13px', marginBottom:'24px' }}>
+                {files.length} file{files.length!==1?'s':''} · {formatBytes(files.reduce((s,f)=>s+f.size,0))}
+              </p>
+              <ProgressBar percent={pct} label="Progress" speed={speedTxt||null} color="#6366F1" />
+              <p style={{ color:'var(--text-3)', fontSize:'12px', marginTop:'16px' }}>
+                AI analyzing content in background…
+              </p>
+            </div>
+
+          ) : (
+            /* ── Files queued ── */
+            <div className="card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-heading text-base" style={{ color:'var(--text)', letterSpacing:'-0.01em' }}>
+                  {files.length} file{files.length!==1?'s':''} ready
+                </span>
+                <button
+                  onClick={()=>setFiles([])}
+                  style={{ color:'var(--text-3)', fontSize:'12px', background:'none', border:'none', cursor:'pointer' }}
+                  onMouseEnter={e=>e.target.style.color='var(--red)'}
+                  onMouseLeave={e=>e.target.style.color='var(--text-3)'}
+                >
+                  Clear all
+                </button>
+              </div>
+
+              {/* File list */}
+              <div className="space-y-2 mb-4 max-h-52 overflow-y-auto scroll-container">
+                <AnimatePresence>
+                  {files.map((f,i) => {
+                    const { Icon, color } = getFileIcon(f.type)
+                    return (
+                      <motion.div
+                        key={`${f.name}-${i}`}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 group"
+                        style={{ background:'var(--bg-elevated)' }}
+                        initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }}
+                        exit={{ opacity:0, x:8 }} transition={{ delay:i*0.04 }}
+                      >
+                        <Icon size={15} style={{ color, flexShrink:0 }}/>
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm font-medium" style={{ color:'var(--text)' }}>{f.name}</p>
+                          <p style={{ color:'var(--text-3)', fontSize:'11px' }}>{formatBytes(f.size)}</p>
+                        </div>
+                        <button className="btn-icon w-7 h-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={()=>removeFile(i)}>
+                          <X size={11}/>
+                        </button>
+                      </motion.div>
+                    )
+                  })}
+                </AnimatePresence>
+              </div>
+
+              {/* Add more */}
+              <div {...getRootProps()} className="rounded-xl px-4 py-3 text-center cursor-pointer mb-4 transition-colors"
+                style={{ border:'1px dashed var(--border)' }}
+                onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(99,102,241,0.35)'}
+                onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}
+              >
+                <input {...getInputProps()}/>
+                <p style={{ color:'var(--text-3)', fontSize:'12px' }}>+ Add more files</p>
+              </div>
+
+              {/* Total */}
+              <div className="flex justify-between text-xs mb-5" style={{ color:'var(--text-2)' }}>
+                <span>Total</span>
+                <span style={{ fontFamily:"'JetBrains Mono', monospace" }}>
+                  {formatBytes(files.reduce((s,f)=>s+f.size,0))}
+                </span>
+              </div>
+
+              <button className="btn-primary w-full justify-center text-base" onClick={handleSend} disabled={uploading}>
+                <Send size={16}/>
+                Send {files.length} file{files.length!==1?'s':''}
+                <ArrowRight size={14}/>
+              </button>
+            </div>
+          )}
+        </motion.div>
+
+        {/* ── BURN TOGGLE ── */}
+        {!uploading && (
+          <motion.div
+            className="flex items-center justify-between px-5 py-4 rounded-2xl mb-10"
+            style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}
+            initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.2 }}
+          >
+            <div className="flex items-center gap-3">
+              <Flame size={15} style={{ color:'var(--red)', flexShrink:0 }}/>
+              <div>
+                <p className="text-sm font-semibold" style={{ color:'var(--text)' }}>Burn after download</p>
+                <p style={{ color:'var(--text-3)', fontSize:'12px' }}>Deleted permanently on first download</p>
+              </div>
+            </div>
+            <label className="toggle">
+              <input type="checkbox" checked={burn} onChange={e=>setBurn(e.target.checked)}/>
+              <span className="toggle-slider"/>
+            </label>
+          </motion.div>
+        )}
+
+        {/* ── NEARBY (only if devices found) ── */}
+        <motion.div
+          className="mb-12"
+          initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }}
+        >
+          <NearbyPill/>
+        </motion.div>
+
+        {/* ── HOW IT WORKS ── no cards, just numbered steps ── */}
+        <motion.div
+          className="mb-14"
+          initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.35 }}
+        >
+          <div className="divider-glow mb-10"/>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
+            {[
+              ['01', 'Upload', 'Drop any file, any size up to 100MB'],
+              ['02', 'Get code', 'Instant 6-digit code + QR generated'],
+              ['03', 'Share', 'Send the code or scan the QR'],
+              ['04', 'Auto-delete', 'File vanishes after 10 minutes'],
+            ].map(([num, title, desc]) => (
+              <div key={num} className="flex flex-col gap-2">
+                <span className="font-display text-3xl leading-none" style={{
+                  color:'transparent',
+                  WebkitTextStroke:'1px rgba(99,102,241,0.25)',
+                  fontVariantNumeric:'tabular-nums',
+                }}>
+                  {num}
+                </span>
+                <p className="font-heading text-sm" style={{ color:'var(--text)', letterSpacing:'-0.01em' }}>{title}</p>
+                <p style={{ color:'var(--text-3)', fontSize:'12px', lineHeight:'1.5' }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="mb-10"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.38 }}
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {statsLoading ? (
+              [0, 1, 2, 3].map((i) => (
+                <div key={i} className="rounded-xl px-3 py-3" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+                  <div className="h-3 w-16 skeleton mb-2" />
+                  <div className="h-6 w-20 skeleton" />
+                </div>
+              ))
+            ) : (
+              [
+                ['Transfers', animatedStats.totalTransfers],
+                ['Files', animatedStats.totalFiles],
+                ['Downloads', animatedStats.totalDownloads],
+                ['Users', animatedStats.totalUsers],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl px-3 py-3" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+                  <p style={{ color:'var(--text-3)', fontSize:'11px' }}>{label}</p>
+                  <p className="font-heading text-lg" style={{ color:'var(--text)' }}>
+                    {stats ? Number(value).toLocaleString() : '--'}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </motion.div>
+
+        {/* ── FOOTER ── */}
+        <motion.div
+          className="text-center"
+          initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.4 }}
+        >
+          <p style={{ color:'var(--text-3)', fontSize:'12px' }}>
+            SwiftShare · No login required · Files auto-deleted · Free forever
+          </p>
+        </motion.div>
+
+      </div>
+    </div>
+  )
+}
+
+===== FILE: src/pages/JoinPage.jsx (8644 bytes) =====
+import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
+import { ArrowLeft, Download, Search, Clock, AlertCircle, Zap } from 'lucide-react'
+import { getFileMetadata } from '../services/api'
+import NearbyDevices from '../components/NearbyDevices'
+
+const CODE_LEN = 6
+const VALID = /^[A-Z2-9]$/
+
+export default function JoinPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [digits, setDigits] = useState(Array(CODE_LEN).fill(''))
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const refs = useRef([])
+
+  useEffect(() => {
+    const rawCode = searchParams.get('code') || ''
+    const cleaned = rawCode.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, CODE_LEN)
+
+    if (cleaned.length === CODE_LEN) {
+      setDigits(cleaned.split(''))
+    }
+  }, [searchParams])
+
+  const handleInput = (idx, val) => {
+    const char = val.toUpperCase().slice(-1)
+    if (char && !VALID.test(char)) return
+    const next = [...digits]; next[idx] = char; setDigits(next); setError(null)
+    if (char && idx < CODE_LEN-1) refs.current[idx+1]?.focus()
+    if (char && idx === CODE_LEN-1) {
+      const full = next.join('')
+      if (full.length === CODE_LEN) submit(full)
+    }
+  }
+
+  const handleKeyDown = (idx, e) => {
+    if (e.key === 'Backspace') {
+      const next = [...digits]
+      if (next[idx]) { next[idx]=''; setDigits(next) }
+      else if (idx>0) { next[idx-1]=''; setDigits(next); refs.current[idx-1]?.focus() }
+    }
+    if (e.key === 'ArrowLeft' && idx>0) refs.current[idx-1]?.focus()
+    if (e.key === 'ArrowRight' && idx<CODE_LEN-1) refs.current[idx+1]?.focus()
+    if (e.key === 'Enter') { const c=digits.join(''); if(c.length===CODE_LEN) submit(c) }
+  }
+
+  const handlePaste = (e) => {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData('text').toUpperCase().replace(/[^A-Z2-9]/g,'').slice(0,CODE_LEN)
+    if (!pasted.length) return
+    const next = Array(CODE_LEN).fill('')
+    pasted.split('').forEach((c,i)=>{ next[i]=c })
+    setDigits(next)
+    refs.current[Math.min(pasted.length, CODE_LEN-1)]?.focus()
+    if (pasted.length === CODE_LEN) submit(pasted)
+  }
+
+  const submit = async (code) => {
+    if (loading) return
+    setLoading(true); setError(null)
+    try {
+      const data = await getFileMetadata(code)
+      navigate(`/download/${code}`, { state:{ fileData:data }})
+    } catch(err) {
+      const status = err?.status
+      const errorCode = err?.code
+
+      if (err?.isNetworkError) {
+        setError({ type: 'error', msg: 'Network error. Check your connection and try again.' })
+        toast.error('Network error. Please check your connection.')
+        return
+      }
+
+      if (status === 404) {
+        setError({ type: 'notfound', msg: 'Transfer not found' })
+      } else if (status === 410 && errorCode === 'TRANSFER_EXPIRED') {
+        setError({ type: 'expired', msg: 'This transfer has expired' })
+      } else if (status === 410 && errorCode === 'ALREADY_DOWNLOADED') {
+        setError({ type: 'burned', msg: 'Already downloaded — this was a one-time transfer' })
+      } else {
+        setError({ type:'error', msg: err.message||'Something went wrong' })
+      }
+    } finally { setLoading(false) }
+  }
+
+  const errConfig = {
+    expired:  { icon: Clock,         color: '#FBBF24', bg: 'rgba(251,191,36,0.07)',  border: 'rgba(251,191,36,0.2)' },
+    burned:   { icon: AlertCircle,   color: '#F87171', bg: 'rgba(248,113,113,0.07)', border: 'rgba(248,113,113,0.2)' },
+    notfound: { icon: Search,        color: '#8B90AA', bg: 'rgba(74,78,101,0.1)',    border: 'rgba(74,78,101,0.2)' },
+    error:    { icon: AlertCircle,   color: '#F87171', bg: 'rgba(248,113,113,0.07)', border: 'rgba(248,113,113,0.2)' },
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background:'var(--bg)' }}>
+      <div className="fixed inset-0 grid-bg opacity-100 pointer-events-none"/>
+      <div className="fixed pointer-events-none" style={{
+        top:'-15%', left:'-5%', width:'400px', height:'400px', borderRadius:'50%',
+        background:'radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 65%)', filter:'blur(40px)'
+      }}/>
+
+      <div className="relative max-w-md mx-auto w-full px-4 py-10 flex-1 flex flex-col">
+
+        {/* Nav */}
+        <motion.div
+          className="flex items-center justify-between mb-12"
+          initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }}
+        >
+          <button className="btn-ghost py-2 px-3 text-sm" onClick={()=>navigate('/')}>
+            <ArrowLeft size={14}/> Back
+          </button>
+          <span className="font-heading text-sm" style={{ color:'var(--text)', letterSpacing:'-0.01em' }}>
+            Swift<span style={{ color:'#818CF8' }}>Share</span>
+          </span>
+        </motion.div>
+
+        {/* Card */}
+        <motion.div
+          className="card p-7 mb-5"
+          initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
+        >
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background:'rgba(99,102,241,0.1)', border:'1px solid rgba(99,102,241,0.2)' }}>
+              <Download size={20} style={{ color:'#818CF8' }}/>
+            </div>
+            <h1 className="font-display text-2xl mb-1.5" style={{ color:'var(--text)', letterSpacing:'-0.03em' }}>
+              Enter code
+            </h1>
+            <p style={{ color:'var(--text-2)', fontSize:'14px' }}>
+              6-digit code from the sender
+            </p>
+          </div>
+
+          {/* OTP inputs */}
+          <div className="flex justify-center gap-2 sm:gap-2.5 mb-6" onPaste={handlePaste}>
+            {digits.map((d,i) => (
+              <motion.div
+                key={i}
+                className={`code-char ${d?'filled':''}`}
+                style={{
+                  width:'clamp(40px,12vw,52px)',
+                  height:'clamp(48px,14vw,64px)',
+                  fontSize:'clamp(18px,5vw,26px)',
+                }}
+                animate={d ? { scale:[1,1.1,1] } : { scale:1 }}
+                transition={{ duration:0.14, type:'spring' }}
+              >
+                <input
+                  ref={el => refs.current[i]=el}
+                  type="text" inputMode="text" maxLength={1}
+                  value={d}
+                  onChange={e=>handleInput(i,e.target.value)}
+                  onKeyDown={e=>handleKeyDown(i,e)}
+                  onFocus={e=>e.target.select()}
+                  disabled={loading}
+                  autoComplete="off"
+                  autoFocus={i===0}
+                />
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Error */}
+          <AnimatePresence>
+            {error && (() => {
+              const { icon: Ic, color, bg, border } = errConfig[error.type]||errConfig.error
+              return (
+                <motion.div
+                  className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium mb-5"
+                  style={{ background:bg, border:`1px solid ${border}`, color }}
+                  initial={{ opacity:0, y:-4 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
+                >
+                  <Ic size={14}/> {error.msg}
+                </motion.div>
+              )
+            })()}
+          </AnimatePresence>
+
+          {/* Submit */}
+          <button
+            className="btn-primary w-full justify-center text-base"
+            onClick={()=>{ const c=digits.join(''); if(c.length===CODE_LEN) submit(c) }}
+            disabled={digits.join('').length < CODE_LEN || loading}
+          >
+            {loading ? (
+              <>
+                <motion.div animate={{ rotate:360 }} transition={{ duration:1, repeat:Infinity, ease:'linear' }}>
+                  <Search size={15}/>
+                </motion.div>
+                Looking up…
+              </>
+            ) : (
+              <><Download size={16}/> Get File</>
+            )}
+          </button>
+
+          <p className="text-center mt-4" style={{ color:'var(--text-3)', fontSize:'12px' }}>
+            📷 Or scan the QR from the sender's screen
+          </p>
+        </motion.div>
+
+        {/* Nearby */}
+        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.25 }}>
+          <NearbyDevices/>
+        </motion.div>
+
+      </div>
+    </div>
+  )
+}
+
+===== FILE: src/pages/SenderPage.jsx (16466 bytes) =====
+import React, { useState, useEffect } from 'react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import QRCode from 'react-qr-code'
+import toast from 'react-hot-toast'
+import {
+  Copy, Check, Link2, Clock, RefreshCw, Trash2,
+  ArrowLeft, Zap, AlertTriangle, Download
+} from 'lucide-react'
+import {
+  getFileMetadata, getTransferActivity, extendTransfer,
+  deleteTransfer, downloadFile, downloadSingleFile, previewUrl
+} from '../services/api'
+import { useSocket } from '../context/SocketContext'
+import { useTransfer } from '../context/TransferContext'
+import FileCard from '../components/FileCard'
+import AISummaryCard from '../components/AISummaryCard'
+import ActivityLog from '../components/ActivityLog'
+import CountdownRing from '../components/CountdownRing'
+import ProgressBar from '../components/ProgressBar'
+
+function getTotalCountdownSeconds(data) {
+  const createdAt = data?.createdAt ? new Date(data.createdAt).getTime() : null
+  const expiresAt = data?.expiresAt ? new Date(data.expiresAt).getTime() : null
+
+  if (!createdAt || !expiresAt || expiresAt <= createdAt) {
+    return 600
+  }
+
+  return Math.max(1, Math.ceil((expiresAt - createdAt) / 1000))
+}
+
+export default function SenderPage() {
+  const { code } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { socket, registerSender, joinRoom, isConnected } = useSocket()
+  const { uploadData, setAiData } = useTransfer()
+
+  const [transfer, setTransfer] = useState(location.state?.transferData || uploadData || null)
+  const [ai, setAi] = useState(transfer?.ai || null)
+  const [activity, setActivity] = useState([])
+  const [secondsRemaining, setSecondsRemaining] = useState(null)
+  const [expired, setExpired] = useState(false)
+  const [extendedOnce, setExtendedOnce] = useState(false)
+  const [extending, setExtending] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [codeCopied, setCodeCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [downloadPercent, setDownloadPercent] = useState(0)
+  const [aiLoading, setAiLoading] = useState(!ai)
+  const [totalSeconds, setTotalSeconds] = useState(getTotalCountdownSeconds(transfer))
+  const [showSocketWarning, setShowSocketWarning] = useState(false)
+  const shareLink = transfer?.shareLink || transfer?.data?.shareLink || `${import.meta.env.VITE_SHARE_BASE_URL}/join?code=${code}`
+
+  // Load transfer data if not in state
+  useEffect(() => {
+    if (!transfer) {
+      getFileMetadata(code)
+        .then(data => {
+          setTransfer(data)
+          setAi(data.ai || null)
+          setExtendedOnce(Boolean(data?.extendedOnce))
+          setTotalSeconds(getTotalCountdownSeconds(data))
+          if (data.ai) setAiLoading(false)
+          if (data.secondsRemaining != null) setSecondsRemaining(data.secondsRemaining)
+        })
+        .catch(() => navigate('/'))
+    } else {
+      if (transfer.secondsRemaining != null) setSecondsRemaining(transfer.secondsRemaining)
+      else {
+        const expAt = new Date(transfer.expiresAt).getTime()
+        setSecondsRemaining(Math.max(0, Math.ceil((expAt - Date.now()) / 1000)))
+      }
+      setExtendedOnce(Boolean(transfer?.extendedOnce))
+      setTotalSeconds(getTotalCountdownSeconds(transfer))
+    }
+  }, [code])
+
+  // Register socket
+  useEffect(() => {
+    if (!code) return
+    registerSender(code)
+    joinRoom(code)
+  }, [code, registerSender, joinRoom])
+
+  // Fetch activity
+  useEffect(() => {
+    const fetch = () => getTransferActivity(code).then(d => setActivity(d?.activity || [])).catch(() => {})
+    fetch()
+    const interval = setInterval(fetch, 15000)
+    return () => clearInterval(interval)
+  }, [code])
+
+  // Socket events
+  useEffect(() => {
+    if (!socket) return
+
+    const onAiReady = (data) => {
+      const aiData = { summary: data.summary, category: data.category, suggestedName: data.suggestedName }
+      setAi(aiData)
+      setAiData(aiData)
+      setAiLoading(false)
+      toast('✨ AI analysis complete!', { icon: '🤖' })
+    }
+    const onCountdown = ({ secondsRemaining: s }) => setSecondsRemaining(s)
+    const onExpired = () => {
+      setExpired(true)
+      toast.error('Transfer expired')
+    }
+    const onDownloadProgress = ({ percent }) => setDownloadPercent(percent || 0)
+
+    socket.on('ai-ready', onAiReady)
+    socket.on('countdown-tick', onCountdown)
+    socket.on('transfer-expired', onExpired)
+    socket.on('download-progress', onDownloadProgress)
+
+    return () => {
+      socket.off('ai-ready', onAiReady)
+      socket.off('countdown-tick', onCountdown)
+      socket.off('transfer-expired', onExpired)
+      socket.off('download-progress', onDownloadProgress)
+    }
+  }, [socket])
+
+  useEffect(() => {
+    let timer = null
+
+    if (!isConnected) {
+      timer = setTimeout(() => {
+        setShowSocketWarning(true)
+      }, 5000)
+    } else {
+      setShowSocketWarning(false)
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [isConnected])
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(code)
+    setCodeCopied(true)
+    toast.success('Code copied!')
+    setTimeout(() => setCodeCopied(false), 2000)
+  }
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareLink)
+    setLinkCopied(true)
+    toast.success('Link copied!')
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
+
+  const handleExtend = async () => {
+    setExtending(true)
+    try {
+      const result = await extendTransfer(code)
+      const isExtended = Boolean(result?.extendedOnce)
+      const nextExpiresAt = result?.expiresAt || transfer?.expiresAt
+
+      setExtendedOnce(isExtended)
+      if (nextExpiresAt) {
+        const nextSeconds = Math.max(0, Math.ceil((new Date(nextExpiresAt).getTime() - Date.now()) / 1000))
+        setSecondsRemaining(nextSeconds)
+      }
+
+      if (transfer) {
+        const nextTransfer = { ...transfer, expiresAt: nextExpiresAt, extendedOnce: isExtended }
+        setTransfer(nextTransfer)
+        setTotalSeconds(getTotalCountdownSeconds(nextTransfer))
+      }
+
+      toast.success('Extended by 10 minutes!')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setExtending(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm('Cancel this transfer? The file will be deleted.')) return
+    setDeleting(true)
+    try {
+      await deleteTransfer(code)
+      toast.success('Transfer cancelled')
+      navigate('/')
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const files = transfer?.files || []
+
+  return (
+    <div className="min-h-screen bg-bg-primary">
+      <div className="fixed inset-0 grid-bg opacity-20 pointer-events-none" />
+      <div className="blob-cyan fixed top-0 right-0 translate-x-1/2 pointer-events-none" />
+
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+        {/* Nav */}
+        <motion.div
+          className="flex items-center justify-between mb-8"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <button className="btn-ghost flex items-center gap-2 text-sm py-2 px-3" onClick={() => navigate('/')}>
+            <ArrowLeft size={14} />
+            New Transfer
+          </button>
+          <div className="flex items-center gap-2">
+            <Zap size={14} className="text-accent-cyan" />
+            <span className="text-text-primary font-bold text-sm">Swift<span className="text-accent-cyan">Share</span></span>
+          </div>
+        </motion.div>
+
+        {/* Expired banner */}
+        <AnimatePresence>
+          {expired && (
+            <motion.div
+              className="expired-banner flex items-center gap-2 mb-6"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <AlertTriangle size={14} />
+              This transfer has expired. Files have been deleted.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showSocketWarning && !expired && (
+            <motion.div
+              className="mb-6 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2"
+              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.24)', color: '#FBBF24' }}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <AlertTriangle size={14} />
+              Live connection is unstable. Countdown and activity may refresh slowly.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Download progress (for receiver activity) */}
+        {downloadPercent > 0 && downloadPercent < 100 && (
+          <motion.div className="mb-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <ProgressBar percent={downloadPercent} label="Someone is downloading..." color="#10B981" />
+          </motion.div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* ── LEFT COLUMN ── */}
+          <div className="space-y-5 order-2 lg:order-1">
+            {/* Files */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <h2 className="text-text-primary font-bold text-base mb-3 flex items-center gap-2">
+                <span className="w-1 h-4 bg-accent-cyan rounded-full block" />
+                Files ({files.length})
+              </h2>
+              <div className="space-y-2">
+                {files.map((file, i) => (
+                  <FileCard
+                    key={i}
+                    file={file}
+                    index={i}
+                    onPreview={() => window.open(previewUrl(code, i), '_blank')}
+                    onDownloadSingle={() => downloadSingleFile(code, i)}
+                    showDownload={files.length > 1}
+                  />
+                ))}
+              </div>
+            </motion.div>
+
+            {/* AI Summary */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <AISummaryCard ai={ai} loading={aiLoading} />
+            </motion.div>
+
+            {/* Activity */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <ActivityLog activity={activity} />
+            </motion.div>
+          </div>
+
+          {/* ── RIGHT COLUMN ── */}
+          <motion.div
+            className="space-y-5 order-1 lg:order-2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            {/* QR + Code card */}
+            <div className="glass-card p-6 glow-cyan">
+              {/* QR code */}
+              <div className="flex justify-center mb-6">
+                <div className="p-4 rounded-2xl" style={{ background: '#0F1628', border: '1px solid rgba(34,211,238,0.25)' }}>
+                  <QRCode
+                    value={shareLink}
+                    size={200}
+                    bgColor="#0F1628"
+                    fgColor="#22D3EE"
+                    level="M"
+                  />
+                </div>
+              </div>
+
+              {/* 6-digit code */}
+              <div className="flex justify-center gap-2 mb-4">
+                {(code || '').split('').map((char, i) => (
+                  <motion.div
+                    key={i}
+                    className={`code-char ${char ? 'filled' : ''}`}
+                    style={{width:"clamp(34px,8vw,52px)",height:"clamp(42px,10vw,64px)",fontSize:"clamp(15px,3.5vw,28px)"}}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: i * 0.05, type: 'spring', stiffness: 300 }}
+                  >
+                    {char}
+                  </motion.div>
+                ))}
+              </div>
+
+              <p className="text-text-dim text-xs text-center mb-5">Scan or enter code on any device</p>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 mb-5">
+                <button
+                  className="btn-ghost flex-1 flex items-center justify-center gap-1.5 text-sm py-2.5"
+                  onClick={handleCopyCode}
+                >
+                  {codeCopied ? <Check size={14} className="text-accent-green" /> : <Copy size={14} />}
+                  {codeCopied ? 'Copied!' : 'Copy Code'}
+                </button>
+                <button
+                  className="btn-ghost flex-1 flex items-center justify-center gap-1.5 text-sm py-2.5"
+                  onClick={handleCopyLink}
+                >
+                  {linkCopied ? <Check size={14} className="text-accent-green" /> : <Link2 size={14} />}
+                  {linkCopied ? 'Copied!' : 'Copy Link'}
+                </button>
+              </div>
+
+              {/* WhatsApp share */}
+              <a
+                href={`https://wa.me/?text=SwiftShare%3A%20${encodeURIComponent(shareLink)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs text-text-muted border border-border-color hover:border-green-500/40 hover:text-green-400 transition-all"
+              >
+                <span>📱</span> Share via WhatsApp
+              </a>
+            </div>
+
+            {/* Countdown */}
+            <div className="glass-card p-5 flex flex-col items-center gap-3">
+              <p className="text-text-muted text-xs font-semibold uppercase tracking-wider">Time remaining</p>
+              {secondsRemaining !== null && (
+                <CountdownRing
+                  secondsRemaining={secondsRemaining}
+                  totalSeconds={totalSeconds || 600}
+                  size={130}
+                />
+              )}
+              <p className="text-text-dim text-xs text-center">
+                File auto-deletes when timer reaches zero
+              </p>
+            </div>
+
+            {/* Controls */}
+            <div className="glass-card p-4 space-y-3">
+              <button
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  extendedOnce || expired
+                    ? 'bg-bg-elevated text-text-dim border border-border-color cursor-not-allowed'
+                    : 'bg-accent-yellow/10 text-accent-yellow border border-accent-yellow/25 hover:bg-accent-yellow/15'
+                }`}
+                onClick={handleExtend}
+                disabled={extendedOnce || extending || expired}
+              >
+                {extending
+                  ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><RefreshCw size={14} /></motion.div>
+                  : <Clock size={14} />
+                }
+                {extendedOnce ? 'Extended' : extending ? 'Extending...' : 'Extend 10 min'}
+              </button>
+
+              <button
+                className="btn-danger w-full flex items-center justify-center gap-2 text-sm py-2.5"
+                onClick={handleDelete}
+                disabled={deleting || expired}
+              >
+                {deleting
+                  ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity }}><RefreshCw size={14} /></motion.div>
+                  : <Trash2 size={14} />
+                }
+                {deleting ? 'Cancelling...' : 'Cancel Transfer'}
+              </button>
+            </div>
+
+            {/* Direct download (for sender convenience) */}
+            {!expired && (
+              <button
+                className="btn-primary w-full flex items-center justify-center gap-2"
+                onClick={() => downloadFile(code)}
+              >
+                <Download size={16} />
+                Download Own File
+              </button>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+===== FILE: src/services/api.js (3289 bytes) =====
+import axios from 'axios'
+
+const baseUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin)
+
+const api = axios.create({
+  baseURL: baseUrl,
+  timeout: 30000,
+})
+
+function createApiError(err) {
+  const error = new Error(err.response?.data?.error?.message || err.message)
+  error.status = err.response?.status
+  error.code = err.response?.data?.error?.code
+  error.isNetworkError = !err.response
+  return error
+}
+
+export const pingServer = async () => {
+  const start = Date.now()
+  try {
+    await api.get('/api/ping', { timeout: 8000 })
+    return { ok: true, latencyMs: Date.now() - start }
+  } catch {
+    return { ok: false, latencyMs: Date.now() - start }
+  }
+}
+
+export const uploadFiles = async (formData) => {
+  try {
+    const res = await api.post('/api/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    })
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const uploadClipboard = async (imageBase64, burnAfterDownload, senderSocketId) => {
+  try {
+    const res = await api.post('/api/upload/clipboard', {
+      imageBase64,
+      burnAfterDownload,
+      senderSocketId,
+    })
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const getFileMetadata = async (code) => {
+  try {
+    const res = await api.get(`/api/file/${code}`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const getTransferStatus = async (code) => {
+  try {
+    const res = await api.get(`/api/transfer/${code}/status`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const getTransferActivity = async (code) => {
+  try {
+    const res = await api.get(`/api/transfer/${code}/activity`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const extendTransfer = async (code) => {
+  try {
+    const res = await api.post(`/api/transfer/${code}/extend`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const deleteTransfer = async (code) => {
+  try {
+    const res = await api.delete(`/api/transfer/${code}`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const getNearbyDevices = async () => {
+  try {
+    const res = await api.get('/api/nearby')
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const getStats = async () => {
+  try {
+    const res = await api.get('/api/stats')
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const getHealth = async () => {
+  try {
+    const res = await api.get('/api/health')
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
+}
+
+export const downloadFile = (code) => {
+  window.location.href = `${baseUrl}/api/download/${code}`
+}
+
+export const downloadSingleFile = (code, index) => {
+  window.location.href = `${baseUrl}/api/download/${code}/single/${index}`
+}
+
+export const previewUrl = (code, index) =>
+  `${baseUrl}/api/file/${code}/preview/${index}`
+
+export default api
+
+===== FILE: tailwind.config.js (1478 bytes) =====
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        'bg-primary':  '#08090D',
+        'bg-card':     '#0D0F18',
+        'bg-elevated': '#12141F',
+        'accent-cyan':   '#22D3EE',
+        'accent-purple': '#6366F1',
+        'accent-green':  '#34D399',
+        'accent-red':    '#F87171',
+        'accent-yellow': '#FBBF24',
+        'accent-orange': '#FB923C',
+        'text-primary': '#ECEEF5',
+        'text-muted':   '#8B90AA',
+        'text-dim':     '#4A4E65',
+        'border-color': '#1C1E2E',
+      },
+      fontFamily: {
+        sans:    ['Satoshi', 'Inter', 'system-ui', 'sans-serif'],
+        body:    ['Inter', 'system-ui', 'sans-serif'],
+        mono:    ['JetBrains Mono', 'monospace'],
+        display: ['Satoshi', 'Inter', 'sans-serif'],
+      },
+      letterSpacing: {
+        tightest: '-0.04em',
+        tighter:  '-0.03em',
+        tight:    '-0.02em',
+        snug:     '-0.01em',
+      },
+      borderRadius: {
+        DEFAULT: '12px',
+        lg: '18px',
+        xl: '24px',
+      },
+      boxShadow: {
+        'glow':          '0 0 24px rgba(99,102,241,0.18)',
+        'glow-strong':   '0 0 48px rgba(99,102,241,0.30)',
+        'glow-cyan':     '0 0 20px rgba(34,211,238,0.12)',
+        'glow-green':    '0 0 20px rgba(52,211,153,0.20)',
+        'glow-red':      '0 0 20px rgba(248,113,113,0.20)',
+      },
+    },
+  },
+  plugins: [],
+}
+
+===== FILE: vercel.json (72 bytes) =====
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+
+===== FILE: vite.config.js (467 bytes) =====
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          motion: ['framer-motion'],
+          socket: ['socket.io-client'],
+        },
+      },
+    },
+  },
+  server: {
+    port: 5173,
+    open: true,
+  },
+})
+
+===== SUMMARY =====
+Included files: 18
+Skipped (too large): 0
+Total source bytes included: 98218

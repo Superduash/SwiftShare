@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
@@ -93,6 +93,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { socket, socketId, isConnected } = useSocket()
   const { startUpload, setUploadData, setError } = useTransfer()
+  const uploadCompletedRef = useRef(false)
 
   const [files, setFiles] = useState([])
   const [burn, setBurn] = useState(false)
@@ -108,6 +109,17 @@ export default function HomePage() {
     totalDownloads: 0,
     totalUsers: 0,
   })
+
+  const completeUpload = useCallback((data) => {
+    if (!data?.code || uploadCompletedRef.current) return
+
+    uploadCompletedRef.current = true
+    setUploading(false)
+    setPct((prev) => Math.max(prev, 100))
+    setFiles([])
+    setUploadData(data)
+    navigate(`/sender/${data.code}`, { state: { transferData: data } })
+  }, [navigate, setUploadData])
 
   useEffect(() => {
     let cancelled = false
@@ -197,11 +209,11 @@ export default function HomePage() {
   useEffect(() => {
     if (!socket) return
     const onProg  = ({ percent, speed }) => { setPct(percent||0); if(speed) setSpeedTxt(`${speed} MB/s`) }
-    const onDone  = (data) => { setUploadData(data); navigate(`/sender/${data.code}`, { state:{ transferData:data }}) }
+    const onDone  = (data) => completeUpload(data)
     socket.on('upload-progress', onProg)
     socket.on('upload-complete', onDone)
     return () => { socket.off('upload-progress', onProg); socket.off('upload-complete', onDone) }
-  }, [socket, navigate, setUploadData])
+  }, [socket, completeUpload])
 
   // Clipboard paste
   useEffect(() => {
@@ -213,9 +225,10 @@ export default function HomePage() {
           const reader = new FileReader()
           reader.onload = async (ev) => {
             try {
+              uploadCompletedRef.current = false
               setUploading(true); startUpload()
               const r = await uploadClipboard(ev.target.result, burn, socketId||'')
-              setUploadData(r); navigate(`/sender/${r.code}`, { state:{ transferData:r }})
+              completeUpload(r)
             } catch(err) { toast.error(getApiErrorMessage(err)); setError() } finally { setUploading(false) }
           }
           reader.readAsDataURL(f)
@@ -225,7 +238,7 @@ export default function HomePage() {
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-  }, [burn, socketId])
+  }, [burn, socketId, completeUpload, setError, startUpload])
 
   const onDrop = useCallback((accepted) => {
     const bad = accepted.filter(isBlocked)
@@ -237,13 +250,15 @@ export default function HomePage() {
 
   const handleSend = async () => {
     if (!files.length || uploading) return
+    uploadCompletedRef.current = false
     setUploading(true); setPct(0); startUpload()
     try {
       const fd = new FormData()
       files.forEach(f => fd.append('files', f))
       fd.append('burnAfterDownload', String(burn))
       fd.append('senderSocketId', socketId||'')
-      await uploadFiles(fd)
+      const response = await uploadFiles(fd)
+      completeUpload(response)
     } catch(err) {
       toast.error(getApiErrorMessage(err)); setError(); setUploading(false); setPct(0)
     }
