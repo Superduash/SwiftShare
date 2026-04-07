@@ -15,7 +15,7 @@ export function SocketProvider({ children }) {
 
   useEffect(() => {
     const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
-    const url = import.meta.env.VITE_SOCKET_URL || fallbackOrigin
+    const url = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || fallbackOrigin || '').replace(/\/+$/, '')
     const s = io(url, {
       transports: ['websocket', 'polling'],
       reconnection: true,

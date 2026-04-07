@@ -86,7 +86,7 @@ export default function RecentTransfers() {
           {confirmClear ? (
             <>
               <AlertTriangle size={11} />
-              Confirm clear?
+              Clear forever?
             </>
           ) : (
             <>
@@ -98,6 +98,7 @@ export default function RecentTransfers() {
       </div>
 
       <div className="space-y-1.5">
+        <p className="text-[10px] mb-1" style={{ color: 'var(--text-4)' }}>Clearing removes local history only</p>
         <AnimatePresence>
           {transfers.map((t, idx) => {
             const s = STATUS_STYLES[t.status] || STATUS_STYLES.unknown
@@ -129,8 +130,8 @@ export default function RecentTransfers() {
                   <button
                     className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity !w-6 !h-6"
                     onClick={(e) => handleRemove(e, t.code)}
-                    aria-label="Remove from list"
-                    title="Remove from list"
+                    aria-label="Remove from recents"
+                    title="Remove from recents"
                   >
                     <X size={12} />
                   </button>
