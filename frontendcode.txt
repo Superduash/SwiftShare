@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-07T14:03:17Z
+Generated: 2026-04-07T16:57:03Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (115 bytes) =====
@@ -7,7 +7,7 @@ VITE_API_URL=http://localhost:3001
 VITE_SOCKET_URL=http://localhost:3001
 VITE_SHARE_BASE_URL=http://localhost:5173
 
-===== FILE: index.html (967 bytes) =====
+===== FILE: index.html (1470 bytes) =====
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -20,7 +20,11 @@ VITE_SHARE_BASE_URL=http://localhost:5173
     <title>SwiftShare</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
@@ -28,36 +32,43 @@ VITE_SHARE_BASE_URL=http://localhost:5173
   </body>
 </html>
 
-===== FILE: package.json (733 bytes) =====
+===== FILE: package.json (897 bytes) =====
 {
   "name": "swiftshare-frontend",
   "version": "2.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --open",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.96.2",
+    "axios": "^1.7.7",
+    "canvas-confetti": "^1.9.3",
+    "framer-motion": "^11.3.31",
+    "lucide-react": "^0.447.0",
+    "prismjs": "^1.30.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.2",
-    "axios": "^1.7.7",
-    "socket.io-client": "^4.8.0",
-    "framer-motion": "^11.3.31",
+    "react-dropzone": "^14.2.10",
     "react-hot-toast": "^2.4.1",
-    "lucide-react": "^0.447.0",
+    "react-pdf": "^10.4.1",
     "react-qr-code": "^2.0.15",
-    "canvas-confetti": "^1.9.3",
-    "react-dropzone": "^14.2.10"
+    "react-router-dom": "^6.26.2",
+    "socket.io-client": "^4.8.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.2",
-    "vite": "^5.4.8",
-    "tailwindcss": "^3.4.13",
+    "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47"
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "vite": "^8.0.7"
   }
 }
 
@@ -184,12 +195,12 @@ export default function App() {
   )
 }
 
-===== FILE: src/components/AISummaryCard.jsx (5015 bytes) =====
+===== FILE: src/components/AISummaryCard.jsx (8395 bytes) =====
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, Copy, Check, FileText, Image, Video, FileArchive,
-  Music, BookOpen, Code, Presentation, Table2
+  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -210,10 +221,12 @@ function getCategoryIcon(cat) {
 
 export default function AISummaryCard({ ai, loading = false }) {
   const [copied, setCopied] = useState(false)
+  const [showFiles, setShowFiles] = useState(false)
 
   function copySuggestedName() {
-    if (!ai?.suggestedName) return
-    navigator.clipboard.writeText(ai.suggestedName).then(() => {
+    const name = ai?.suggestedName || ai?.suggested_filename
+    if (!name) return
+    navigator.clipboard.writeText(name).then(() => {
       setCopied(true)
       toast.success('Filename copied')
       setTimeout(() => setCopied(false), 2000)
@@ -221,6 +234,11 @@ export default function AISummaryCard({ ai, loading = false }) {
   }
 
   const CatIcon = ai?.category ? getCategoryIcon(ai.category) : Sparkles
+  const summary = ai?.summary || ai?.overall_summary
+  const suggestedName = ai?.suggestedName || ai?.suggested_filename
+  const detectedIntent = ai?.detectedIntent || ai?.detected_intent
+  const riskFlags = ai?.riskFlags || ai?.risk_flags || []
+  const fileAnalysis = ai?.files || []
 
   return (
     <motion.div
@@ -260,20 +278,41 @@ export default function AISummaryCard({ ai, loading = false }) {
           </motion.div>
         ) : ai ? (
           <motion.div key="data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Category badge */}
-            {ai.category && (
-              <div className="flex items-center gap-1.5 mb-3">
+            {/* Category + Intent */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              {ai.category && (
                 <div className="badge">
                   <CatIcon size={12} />
                   {ai.category}
                 </div>
-              </div>
-            )}
+              )}
+              {detectedIntent && (
+                <div className="badge" style={{ background: 'var(--info-soft)', color: 'var(--info)' }}>
+                  <Target size={12} />
+                  {detectedIntent}
+                </div>
+              )}
+            </div>
 
             {/* Summary */}
             <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-2)' }}>
-              {ai.summary || 'No summary available.'}
+              {summary || 'No summary available.'}
             </p>
+
+            {/* Risk flags */}
+            {riskFlags.length > 0 && (
+              <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AlertTriangle size={12} style={{ color: 'var(--warning)' }} />
+                  <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>Risk flags</p>
+                </div>
+                <ul className="text-xs space-y-0.5" style={{ color: 'var(--text-2)' }}>
+                  {riskFlags.map((flag, i) => (
+                    <li key={i}>• {flag}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Image description */}
             {ai.imageDescription && (
@@ -283,8 +322,47 @@ export default function AISummaryCard({ ai, loading = false }) {
               </div>
             )}
 
+            {/* Per-file analysis */}
+            {fileAnalysis.length > 0 && (
+              <div className="mb-3">
+                <button
+                  className="text-xs font-semibold flex items-center gap-1 mb-2"
+                  style={{ color: 'var(--accent)' }}
+                  onClick={() => setShowFiles(!showFiles)}
+                >
+                  <FileText size={12} />
+                  {showFiles ? 'Hide' : 'Show'} per-file analysis ({fileAnalysis.length})
+                </button>
+                <AnimatePresence>
+                  {showFiles && (
+                    <motion.div
+                      className="space-y-1.5"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      {fileAnalysis.map((f, i) => (
+                        <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
+                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
+                          {f.type && <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>{f.type}</p>}
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary}</p>
+                          {f.key_points && f.key_points.length > 0 && (
+                            <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
+                              {f.key_points.map((point, pi) => (
+                                <li key={pi}>• {point}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
             {/* Suggested name */}
-            {ai.suggestedName && (
+            {suggestedName && (
               <button
                 className="w-full flex items-center gap-2 p-2.5 rounded-lg text-left transition-all hover:opacity-80"
                 style={{ background: 'var(--accent-soft)', border: '1px solid transparent' }}
@@ -292,7 +370,7 @@ export default function AISummaryCard({ ai, loading = false }) {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-4)' }}>Suggested filename</p>
-                  <p className="text-xs font-mono font-medium truncate" style={{ color: 'var(--accent)' }}>{ai.suggestedName}</p>
+                  <p className="text-xs font-mono font-medium truncate" style={{ color: 'var(--accent)' }}>{suggestedName}</p>
                 </div>
                 {copied ? <Check size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} style={{ color: 'var(--text-4)' }} />}
               </button>
@@ -308,10 +386,10 @@ export default function AISummaryCard({ ai, loading = false }) {
   )
 }
 
-===== FILE: src/components/ActivityLog.jsx (2400 bytes) =====
+===== FILE: src/components/ActivityLog.jsx (3055 bytes) =====
 import React from 'react'
 import { motion } from 'framer-motion'
-import { History, Upload, Download, Eye, Trash2, Clock, Smartphone } from 'lucide-react'
+import { History, Upload, Download, Eye, Trash2, Clock, Smartphone, Ban, Flame, ArrowUpRight } from 'lucide-react'
 import { timeAgo } from '../utils/format'
 
 const EVENT_ICONS = {
@@ -320,6 +398,9 @@ const EVENT_ICONS = {
   viewed: { icon: Eye, color: 'var(--accent)' },
   expired: { icon: Clock, color: 'var(--warning)' },
   deleted: { icon: Trash2, color: 'var(--danger)' },
+  cancelled: { icon: Ban, color: 'var(--danger)' },
+  burned: { icon: Flame, color: 'var(--danger)' },
+  extended: { icon: ArrowUpRight, color: 'var(--success)' },
 }
 
 function getEventStyle(event) {
@@ -328,6 +409,19 @@ function getEventStyle(event) {
     if (key.includes(k)) return v
   }
   return { icon: Smartphone, color: 'var(--text-3)' }
+}
+
+function formatEventLabel(event) {
+  const key = (event || '').toLowerCase()
+  if (key === 'uploaded') return 'Uploaded'
+  if (key === 'downloaded') return 'Downloaded'
+  if (key === 'viewed') return 'Viewed'
+  if (key === 'expired') return 'Expired'
+  if (key === 'cancelled') return 'Cancelled'
+  if (key === 'burned') return 'Burned (auto-deleted)'
+  if (key === 'extended') return 'Timer extended'
+  if (key === 'deleted') return 'Deleted'
+  return event || 'Event'
 }
 
 export default function ActivityLog({ activity = [] }) {
@@ -341,7 +435,7 @@ export default function ActivityLog({ activity = [] }) {
       </div>
 
       <div className="space-y-1.5">
-        {activity.slice(0, 8).map((item, idx) => {
+        {activity.slice(0, 12).map((item, idx) => {
           const { icon: Icon, color } = getEventStyle(item.event)
           return (
             <motion.div
@@ -356,7 +450,7 @@ export default function ActivityLog({ activity = [] }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate" style={{ color: 'var(--text-2)' }}>
-                  {item.message || item.event || 'Event'}
+                  {formatEventLabel(item.event)}
                 </p>
                 {item.device && (
                   <p className="text-[10px] truncate" style={{ color: 'var(--text-4)' }}>{item.device}</p>
@@ -373,7 +467,7 @@ export default function ActivityLog({ activity = [] }) {
   )
 }
 
-===== FILE: src/components/CountdownRing.jsx (2165 bytes) =====
+===== FILE: src/components/CountdownRing.jsx (2439 bytes) =====
 import React from 'react'
 import { formatTime } from '../utils/format'
 
@@ -390,16 +484,22 @@ export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600
   // Color shifts: cyan → amber → red
   let color = '#0891B2' // info/cyan
   let glowColor = 'rgba(8,145,178,0.2)'
-  if (safe < 30) {
+  const isWarning = safe < 120 && safe >= 30
+  const isDanger = safe < 30 && safe > 0
+
+  if (isDanger) {
     color = 'var(--danger)'
-    glowColor = 'rgba(220,38,38,0.2)'
-  } else if (safe < 120) {
+    glowColor = 'rgba(220,38,38,0.3)'
+  } else if (isWarning) {
     color = 'var(--warning)'
     glowColor = 'rgba(217,119,6,0.2)'
   }
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+    <div
+      className={`relative inline-flex items-center justify-center ${isDanger ? 'countdown-pulse' : ''}`}
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {/* Track */}
         <circle
@@ -420,13 +520,16 @@ export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{
             transition: 'stroke-dashoffset 0.8s ease, stroke 0.4s ease',
-            filter: `drop-shadow(0 0 4px ${glowColor})`,
+            filter: `drop-shadow(0 0 ${isDanger ? '8px' : '4px'} ${glowColor})`,
           }}
         />
       </svg>
       {showLabel && (
         <div className="absolute text-center">
-          <div className="font-mono font-bold" style={{ color: 'var(--text)', fontSize: size > 100 ? 18 : 14 }}>
+          <div
+            className={`font-mono font-bold ${isDanger ? 'text-countdown-danger' : ''}`}
+            style={{ color: isDanger ? 'var(--danger)' : 'var(--text)', fontSize: size > 100 ? 18 : 14 }}
+          >
             {formatTime(safe)}
           </div>
           {size > 100 && (
@@ -608,6 +711,281 @@ export default function FileCard({
         )}
       </div>
     </motion.div>
+  )
+}
+
+===== FILE: src/components/FilePreviewModal.jsx (10328 bytes) =====
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Download, FileText, AlertTriangle } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { previewUrl } from '../services/api'
+
+function getPreviewType(file) {
+  const mime = (file?.mimeType || file?.type || '').toLowerCase()
+  const name = (file?.name || '').toLowerCase()
+  if (mime.startsWith('image/')) return 'image'
+  if (mime.includes('pdf') || name.endsWith('.pdf')) return 'pdf'
+  if (mime.startsWith('video/')) return 'video'
+  if (
+    mime.startsWith('text/') ||
+    mime.includes('json') ||
+    mime.includes('javascript') ||
+    mime.includes('xml') ||
+    mime.includes('yaml') ||
+    /\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|css|html|md|txt|log|sql|json|yaml|yml|xml|csv)$/i.test(name)
+  ) return 'code'
+  return 'unsupported'
+}
+
+export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload }) {
+  const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  // Reset state when file changes
+  React.useEffect(() => {
+    if (open && file) {
+      setError(false)
+      setLoading(true)
+    }
+  }, [open, file, fileIndex])
+
+  if (!open || !file) return null
+
+  const type = getPreviewType(file)
+  const src = previewUrl(code, fileIndex)
+
+  function openInNewTab() {
+    if (!src) {
+      toast.error('Preview URL not available')
+      return
+    }
+    try {
+      const newWindow = window.open(src, '_blank', 'noopener,noreferrer')
+      if (!newWindow) {
+        toast.error('Pop-up blocked. Please allow pop-ups for this site.')
+      }
+    } catch (err) {
+      toast.error('Failed to open file in new tab')
+    }
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'rgba(0,0,0,0.75)' }}
+            onClick={onClose}
+          />
+
+          {/* Modal */}
+          <motion.div
+            className="relative z-10 rounded-2xl overflow-hidden w-full max-w-3xl max-h-[85vh] flex flex-col"
+            style={{ background: 'var(--bg-raised)' }}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText size={16} style={{ color: 'var(--accent)' }} />
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+                  {file.name || `File ${fileIndex + 1}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {onDownload && (
+                  <button
+                    className="btn-ghost text-xs"
+                    onClick={() => onDownload(fileIndex)}
+                  >
+                    <Download size={14} /> Download
+                  </button>
+                )}
+                <button className="btn-icon" onClick={onClose} aria-label="Close preview">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-4" style={{ background: 'var(--bg-sunken)' }}>
+              {error ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-3" />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Preview unavailable</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>This file type can't be previewed</p>
+                  {onDownload && (
+                    <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
+                      <Download size={14} /> Download instead
+                    </button>
+                  )}
+                  <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
+                    Open in new tab
+                  </button>
+                </div>
+              ) : type === 'image' ? (
+                <div className="flex items-center justify-center min-h-[200px] relative">
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="shimmer-block w-full h-48 rounded-xl" />
+                    </div>
+                  )}
+                  <img
+                    src={src}
+                    alt={file.name || 'Preview'}
+                    className="max-w-full max-h-[65vh] object-contain rounded-xl"
+                    style={{ display: loading ? 'none' : 'block' }}
+                    loading="lazy"
+                    onLoad={() => setLoading(false)}
+                    onError={() => { 
+                      setLoading(false)
+                      setError(true)
+                      toast.error('Image preview failed')
+                    }}
+                  />
+                </div>
+              ) : type === 'pdf' ? (
+                <div className="relative" style={{ height: '65vh' }}>
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="shimmer-block w-full h-full rounded-xl" />
+                    </div>
+                  )}
+                  <iframe
+                    src={`${src}#view=FitH`}
+                    className="w-full h-full rounded-xl"
+                    style={{ border: 'none', display: loading ? 'none' : 'block' }}
+                    title={file.name || 'PDF Preview'}
+                    onLoad={() => setLoading(false)}
+                    onError={() => { 
+                      setLoading(false)
+                      setError(true)
+                      toast.error('PDF preview failed')
+                    }}
+                  />
+                </div>
+              ) : type === 'video' ? (
+                <div className="flex items-center justify-center">
+                  {loading && (
+                    <div className="shimmer-block w-full h-64 rounded-xl" />
+                  )}
+                  <video
+                    controls
+                    className="max-w-full max-h-[65vh] rounded-xl"
+                    style={{ background: '#000', display: loading ? 'none' : 'block' }}
+                    onLoadedData={() => setLoading(false)}
+                    onError={() => { 
+                      setLoading(false)
+                      setError(true)
+                      toast.error('Video preview failed')
+                    }}
+                  >
+                    <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
+                    Your browser does not support video playback.
+                  </video>
+                </div>
+              ) : type === 'code' ? (
+                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <FileText size={40} style={{ color: 'var(--text-4)' }} className="mb-3" />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                    No preview available
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
+                    This file type ({file.mimeType || file.type || 'unknown'}) can't be previewed in the browser
+                  </p>
+                  {onDownload && (
+                    <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
+                      <Download size={14} /> Download to view
+                    </button>
+                  )}
+                  <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
+                    Open in new tab
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function CodePreview({ src, onError, onLoad }) {
+  const [content, setContent] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  React.useEffect(() => {
+    if (!src) {
+      onError?.()
+      return
+    }
+    
+    const controller = new AbortController()
+    
+    fetch(src, { signal: controller.signal })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.text()
+      })
+      .then(text => {
+        if (!controller.signal.aborted) {
+          setContent(text.slice(0, 50000)) // limit preview to 50KB
+          setLoading(false)
+          onLoad?.()
+        }
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          onError?.()
+          toast.error('Failed to load code preview')
+        }
+      })
+    
+    return () => controller.abort()
+  }, [src, onError, onLoad])
+
+  if (loading) {
+    return (
+      <div className="space-y-2 p-4">
+        <div className="shimmer-block h-4 w-full" />
+        <div className="shimmer-block h-4 w-3/4" />
+        <div className="shimmer-block h-4 w-1/2" />
+      </div>
+    )
+  }
+
+  if (!content) return null
+
+  return (
+    <pre
+      className="text-xs leading-relaxed p-4 rounded-xl overflow-auto max-h-[65vh]"
+      style={{
+        background: 'var(--bg)',
+        color: 'var(--text)',
+        border: '1px solid var(--border)',
+        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+        tabSize: 4,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+      }}
+    >
+      {content}
+    </pre>
   )
 }
 
@@ -853,7 +1231,7 @@ export default function ProgressBar({ percent = 0, speed = 0, label = 'Uploading
   )
 }
 
-===== FILE: src/components/QRModal.jsx (2667 bytes) =====
+===== FILE: src/components/QRModal.jsx (2747 bytes) =====
 import React, { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Maximize2 } from 'lucide-react'
@@ -894,10 +1272,10 @@ export default function QRModal({ open, onClose, value, code }) {
             <h3 className="font-display font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>Scan to Download</h3>
             <p className="text-sm mb-6" style={{ color: 'var(--text-3)' }}>Point your camera at this code</p>
 
-            <div className="inline-block p-5 rounded-2xl mb-6" style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)' }}>
+            <div className="inline-block p-3 sm:p-5 rounded-2xl mb-6" style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)' }}>
               <QRCode
                 value={value || ''}
-                size={220}
+                size={Math.min(220, window.innerWidth * 0.45)}
                 bgColor="var(--qr-bg)"
                 fgColor="var(--qr-fg)"
                 level="M"
@@ -905,11 +1283,11 @@ export default function QRModal({ open, onClose, value, code }) {
             </div>
 
             {code && (
-              <div className="flex justify-center gap-1.5">
+              <div className="flex justify-center gap-1 sm:gap-1.5">
                 {code.split('').map((ch, i) => (
                   <div
                     key={i}
-                    className="w-10 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-lg"
+                    className="w-8 h-10 sm:w-10 sm:h-12 rounded-xl flex items-center justify-center font-mono font-bold text-base sm:text-lg"
                     style={{ background: 'var(--code-char-bg)', border: '1px solid var(--code-char-border)', color: 'var(--accent)' }}
                   >
                     {ch}
@@ -924,41 +1302,43 @@ export default function QRModal({ open, onClose, value, code }) {
   )
 }
 
-===== FILE: src/components/RecentTransfers.jsx (3963 bytes) =====
+===== FILE: src/components/RecentTransfers.jsx (5430 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, ArrowRight, Trash2, FileText } from 'lucide-react'
+import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { getRecentTransfers, clearTransfers } from '../utils/storage'
+import { getRecentTransfers, clearTransfers, removeTransfer } from '../utils/storage'
 import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
 const STATUS_STYLES = {
-  active: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Active' },
-  expired: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Expired' },
-  unknown: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: 'Unknown' },
+  ACTIVE: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Active' },
+  EXPIRED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Expired' },
+  CANCELLED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Cancelled' },
+  DELETED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Deleted' },
+  unknown: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: '...' },
 }
 
 export default function RecentTransfers() {
   const [transfers, setTransfers] = useState([])
+  const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     const list = getRecentTransfers()
-    setTransfers(list.map(t => ({ ...t, status: 'unknown' })))
+    setTransfers(list.map(t => ({ ...t, status: t.status || 'unknown' })))
 
     // Check status for each
     list.forEach(async (t) => {
       try {
         const data = await getTransferStatus(t.code)
+        const status = data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED')
         setTransfers(prev => prev.map(p =>
-          p.code === t.code
-            ? { ...p, status: data?.secondsRemaining > 0 ? 'active' : 'expired' }
-            : p
+          p.code === t.code ? { ...p, status } : p
         ))
       } catch {
         setTransfers(prev => prev.map(p =>
-          p.code === t.code ? { ...p, status: 'expired' } : p
+          p.code === t.code ? { ...p, status: 'EXPIRED' } : p
         ))
       }
     })
@@ -967,13 +1347,29 @@ export default function RecentTransfers() {
   if (!transfers.length) return null
 
   function handleClear() {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      setTimeout(() => setConfirmClear(false), 3000)
+      return
+    }
     clearTransfers()
     setTransfers([])
+    setConfirmClear(false)
+  }
+
+  function handleRemove(e, code) {
+    e.stopPropagation()
+    removeTransfer(code)
+    setTransfers(prev => prev.filter(t => t.code !== code))
   }
 
   function handleClick(t) {
-    if (t.isSender) navigate(`/sender/${t.code}`)
-    else navigate(`/join?code=${t.code}`)
+    // Role-based routing: sender → sender page, receiver → download page
+    if (t.isSender) {
+      navigate(`/sender/${t.code}`)
+    } else {
+      navigate(`/download/${t.code}`)
+    }
   }
 
   return (
@@ -987,9 +1383,22 @@ export default function RecentTransfers() {
           <Clock size={14} style={{ color: 'var(--text-3)' }} />
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Recent</h3>
         </div>
-        <button className="btn-ghost text-[11px] !py-1 !px-2" onClick={handleClear}>
-          <Trash2 size={11} />
-          Clear
+        <button
+          className="btn-ghost text-[11px] !py-1 !px-2"
+          onClick={handleClear}
+          style={confirmClear ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : undefined}
+        >
+          {confirmClear ? (
+            <>
+              <AlertTriangle size={11} />
+              Confirm clear?
+            </>
+          ) : (
+            <>
+              <Trash2 size={11} />
+              Clear
+            </>
+          )}
         </button>
       </div>
 
@@ -1014,12 +1423,22 @@ export default function RecentTransfers() {
                   <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                     {t.filename || t.code}
                   </p>
-                  <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>{timeAgo(t.savedAt)}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
+                    {timeAgo(t.savedAt)} · {t.isSender ? 'Sent' : 'Received'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>
                     {s.label}
                   </span>
+                  <button
+                    className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity !w-6 !h-6"
+                    onClick={(e) => handleRemove(e, t.code)}
+                    aria-label="Remove from list"
+                    title="Remove from list"
+                  >
+                    <X size={12} />
+                  </button>
                   <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-4)' }} />
                 </div>
               </motion.button>
@@ -1076,7 +1495,7 @@ export default function ServerWakeup() {
   )
 }
 
-===== FILE: src/components/SettingsPanel.jsx (8071 bytes) =====
+===== FILE: src/components/SettingsPanel.jsx (8385 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Sun, Moon, Flame, Clock, Trash2, Info } from 'lucide-react'
@@ -1100,6 +1519,8 @@ export default function SettingsPanel({ open, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const [confirmClear, setConfirmClear] = useState(false)
+
   function update(patch) {
     const next = { ...settings, ...patch }
     setSettings(next)
@@ -1107,7 +1528,13 @@ export default function SettingsPanel({ open, onClose }) {
   }
 
   function handleClearHistory() {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      setTimeout(() => setConfirmClear(false), 3000)
+      return
+    }
     clearTransfers()
+    setConfirmClear(false)
     toast.success('Transfer history cleared')
   }
 
@@ -1231,14 +1658,14 @@ export default function SettingsPanel({ open, onClose }) {
                 <button
                   className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all"
                   style={{
-                    background: 'var(--danger-soft)',
-                    color: 'var(--danger)',
+                    background: confirmClear ? 'var(--danger)' : 'var(--danger-soft)',
+                    color: confirmClear ? '#fff' : 'var(--danger)',
                     border: '1px solid transparent',
                   }}
                   onClick={handleClearHistory}
                 >
                   <Trash2 size={15} />
-                  Clear Transfer History
+                  {confirmClear ? 'Confirm — Clear All?' : 'Clear Transfer History'}
                 </button>
               </div>
 
@@ -1316,7 +1743,7 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
   )
 }
 
-===== FILE: src/context/SocketContext.jsx (1998 bytes) =====
+===== FILE: src/context/SocketContext.jsx (2261 bytes) =====
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
 
@@ -1328,21 +1755,37 @@ function normalizeCode(code) {
 
 export function SocketProvider({ children }) {
   const socketRef = useRef(null)
+  const [socket, setSocket] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
   const [socketId, setSocketId] = useState(null)
 
   useEffect(() => {
-    const url = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
-    const socket = io(url, { transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 2000 })
-    socketRef.current = socket
-
-    socket.on('connect', () => {
-      setIsConnected(true)
-      setSocketId(socket.id)
+    const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
+    const url = import.meta.env.VITE_SOCKET_URL || fallbackOrigin
+    const s = io(url, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 2000,
+      reconnectionAttempts: Infinity,
     })
-    socket.on('disconnect', () => setIsConnected(false))
+    socketRef.current = s
+    setSocket(s)
 
-    return () => { socket.disconnect() }
+    s.on('connect', () => {
+      setIsConnected(true)
+      setSocketId(s.id)
+    })
+
+    s.on('disconnect', () => {
+      setIsConnected(false)
+    })
+
+    s.on('reconnect', () => {
+      setIsConnected(true)
+      setSocketId(s.id)
+    })
+
+    return () => { s.disconnect() }
   }, [])
 
   const joinRoom = useCallback((code) => {
@@ -1371,7 +1814,7 @@ export function SocketProvider({ children }) {
 
   return (
     <SocketContext.Provider
-      value={{ socket: socketRef.current, isConnected, socketId, joinRoom, leaveRoom, registerSender, rejoinRoom }}
+      value={{ socket, isConnected, socketId, joinRoom, leaveRoom, registerSender, rejoinRoom }}
     >
       {children}
     </SocketContext.Provider>
@@ -1467,7 +1910,7 @@ export function useTransfer() {
   return useContext(TransferContext) || {}
 }
 
-===== FILE: src/index.css (8421 bytes) =====
+===== FILE: src/index.css (9840 bytes) =====
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -1754,6 +2197,57 @@ a { color: inherit; text-decoration: none; }
   border-radius: 4px;
 }
 
+/* ═══════════════════════════════════════════
+   KEYFRAME ANIMATIONS
+   ═══════════════════════════════════════════ */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes countdown-pulse-ring {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.04); opacity: 0.85; }
+}
+
+@keyframes countdown-danger-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.countdown-pulse {
+  animation: countdown-pulse-ring 1.2s ease-in-out infinite;
+}
+
+.text-countdown-danger {
+  animation: countdown-danger-flash 1s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: countdown-danger-flash 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE FIXES
+   ═══════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .surface-card {
+    border-radius: 14px;
+  }
+
+  .btn-primary {
+    padding: 10px 18px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+
+  .btn-ghost {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-height: 32px;
+  }
+}
+
 ===== FILE: src/main.jsx (230 bytes) =====
 import React from 'react'
 import ReactDOM from 'react-dom/client'
@@ -1766,16 +2260,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (10350 bytes) =====
-import React, { useEffect, useRef, useState } from 'react'
+===== FILE: src/pages/DownloadPage.jsx (18660 bytes) =====
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Loader2, CheckCircle2, Image as ImageIcon } from 'lucide-react'
+import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, AlertTriangle } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadata, previewUrl } from '../services/api'
+import { getFileMetadata, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
 import { smartDownload } from '../utils/download'
 import { saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
@@ -1786,6 +2280,8 @@ import FileCard from '../components/FileCard'
 import AISummaryCard from '../components/AISummaryCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
+
+const FilePreviewModal = lazy(() => import('../components/FilePreviewModal'))
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -1802,6 +2298,16 @@ export default function DownloadPage() {
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
   const [previewSrc, setPreviewSrc] = useState(null)
+  const [needsPassword, setNeedsPassword] = useState(false)
+  const [passwordVerified, setPasswordVerified] = useState(false)
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [transferStatus, setTransferStatus] = useState('ACTIVE')
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewIndex, setPreviewIndex] = useState(0)
+  const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
 
   useEffect(() => {
@@ -1824,7 +2330,9 @@ export default function DownloadPage() {
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
         setTotalSeconds(data.secondsRemaining || 600)
+        if (data.passwordProtected) { setNeedsPassword(true) }
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
+        if (data.status) { setTransferStatus(data.status) }
 
         // Preview for images
         const firstFile = data?.files?.[0]
@@ -1857,7 +2365,10 @@ export default function DownloadPage() {
     connectRoom()
 
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
-    const onExpired = () => navigate('/expired?reason=expired', { replace: true })
+    const onExpired = () => {
+      setTransferStatus('EXPIRED')
+      setSecondsRemaining(0)
+    }
     const onAi = (data) => { setAi(data); setAiLoading(false) }
     const onDownProg = ({ percent }) => {
       if (!downloadingRef.current) return
@@ -1869,6 +2380,15 @@ export default function DownloadPage() {
       setDownloading(false)
       setDownloaded(true)
     }
+    const onCancelled = () => {
+      setTransferStatus('CANCELLED')
+    }
+    const onDeleted = ({ reason } = {}) => {
+      setTransferStatus('DELETED')
+      if (reason === 'burn' && !downloaded) {
+        toast.error('This file was just burned after being downloaded')
+      }
+    }
 
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
@@ -1876,6 +2396,8 @@ export default function DownloadPage() {
     socket.on('ai-ready', onAi)
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
+    socket.on('transfer-cancelled', onCancelled)
+    socket.on('transfer-deleted', onDeleted)
 
     return () => {
       socket.off('connect', connectRoom)
@@ -1884,9 +2406,36 @@ export default function DownloadPage() {
       socket.off('ai-ready', onAi)
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
+      socket.off('transfer-cancelled', onCancelled)
+      socket.off('transfer-deleted', onDeleted)
       leaveRoom(code)
     }
-  }, [socket, code, joinRoom, leaveRoom, navigate])
+  }, [socket, code, joinRoom, leaveRoom, navigate, downloaded])
+
+  // Password verification
+  async function handlePasswordSubmit(e) {
+    e?.preventDefault()
+    if (!password.trim() || verifying) return
+    setVerifying(true)
+    setPasswordError('')
+    try {
+      const result = await verifyPassword(code, password)
+      if (result?.verified) {
+        setPasswordVerified(true)
+        verifiedPasswordRef.current = password
+      }
+    } catch (err) {
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'INVALID_PASSWORD') {
+        setPasswordError('Wrong password. Please try again.')
+      } else if (err?.response?.status === 429) {
+        setPasswordError('Too many attempts. This transfer is locked.')
+      } else {
+        setPasswordError('Verification failed. Please try again.')
+      }
+    }
+    setVerifying(false)
+  }
 
   // Download
   async function handleDownload() {
@@ -1896,6 +2445,7 @@ export default function DownloadPage() {
       await smartDownload(code, {
         aiName: ai?.suggestedName,
         originalName: meta?.files?.[0]?.name,
+        password: verifiedPasswordRef.current || undefined,
       })
       setDownloaded(true)
       setDownloading(false)
@@ -1912,6 +2462,23 @@ export default function DownloadPage() {
       toast.error('Download failed')
     }
   }
+
+  // Per-file operations
+  function handlePreview(index) {
+    const file = meta?.files?.[index]
+    if (file) {
+      setPreviewFile(file)
+      setPreviewIndex(index)
+    }
+  }
+
+  function handleDownloadSingle(index) {
+    const pw = verifiedPasswordRef.current || undefined
+    downloadSingleFile(code, index, pw)
+  }
+
+  const isUnavailable = transferStatus === 'CANCELLED' || transferStatus === 'DELETED' || transferStatus === 'EXPIRED'
+  const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
 
   if (loading) {
     return (
@@ -1930,8 +2497,59 @@ export default function DownloadPage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
 
+      <Suspense fallback={null}>
+        <FilePreviewModal
+          open={!!previewFile}
+          onClose={() => setPreviewFile(null)}
+          file={previewFile}
+          code={code}
+          fileIndex={previewIndex}
+          onDownload={canDownload ? handleDownloadSingle : undefined}
+        />
+      </Suspense>
+
       <main className="pt-14">
         <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+          {/* Status banner */}
+          <AnimatePresence>
+            {transferStatus === 'CANCELLED' && (
+              <motion.div
+                className="mb-4 p-3 rounded-xl text-center"
+                style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+                  ❌ This transfer has been cancelled by the sender
+                </p>
+              </motion.div>
+            )}
+            {transferStatus === 'EXPIRED' && !downloaded && (
+              <motion.div
+                className="mb-4 p-3 rounded-xl text-center"
+                style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
+                  ⏰ This transfer has expired
+                </p>
+              </motion.div>
+            )}
+            {transferStatus === 'DELETED' && !downloaded && (
+              <motion.div
+                className="mb-4 p-3 rounded-xl text-center"
+                style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+                  🔥 This file has been deleted
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Header */}
           <motion.div
@@ -1940,7 +2558,7 @@ export default function DownloadPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="font-display font-extrabold text-2xl sm:text-3xl mb-1" style={{ color: 'var(--text)' }}>
-              {downloaded ? 'Download complete!' : 'Ready to download'}
+              {downloaded ? 'Download complete!' : isUnavailable ? 'Transfer unavailable' : 'Ready to download'}
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-3)' }}>
               {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${code}`}
@@ -1974,7 +2592,14 @@ export default function DownloadPage() {
             transition={{ delay: 0.15 }}
           >
             {(meta?.files || []).map((f, i) => (
-              <FileCard key={i} file={f} index={i} />
+              <FileCard
+                key={i}
+                file={f}
+                index={i}
+                showDownload={canDownload}
+                onPreview={() => handlePreview(i)}
+                onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
+              />
             ))}
             {meta?.totalSize > 0 && (
               <p className="text-xs text-center" style={{ color: 'var(--text-4)' }}>
@@ -1984,7 +2609,7 @@ export default function DownloadPage() {
           </motion.div>
 
           {/* Burn badge */}
-          {meta?.burnAfterDownload && !downloaded && (
+          {meta?.burnAfterDownload && !downloaded && !isUnavailable && (
             <motion.div
               className="mb-4 p-3 rounded-xl text-center"
               style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
@@ -1997,8 +2622,71 @@ export default function DownloadPage() {
             </motion.div>
           )}
 
+          {/* Password gate */}
+          {needsPassword && !passwordVerified && !downloaded && !isUnavailable && (
+            <motion.div
+              className="mb-6"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="surface-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock size={18} style={{ color: 'var(--accent)' }} />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                    This transfer is password protected
+                  </p>
+                </div>
+                <form onSubmit={handlePasswordSubmit}>
+                  <div className="relative mb-3">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setPasswordError('') }}
+                      placeholder="Enter password..."
+                      maxLength={64}
+                      autoFocus
+                      className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
+                      style={{
+                        background: 'var(--bg-sunken)',
+                        border: `1.5px solid ${passwordError ? 'var(--danger)' : 'var(--border)'}`,
+                        color: 'var(--text)',
+                      }}
+                      onFocus={(e) => { if (!passwordError) e.target.style.borderColor = 'var(--accent)' }}
+                      onBlur={(e) => { if (!passwordError) e.target.style.borderColor = 'var(--border)' }}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                    >
+                      {showPassword
+                        ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
+                        : <Eye size={16} style={{ color: 'var(--text-4)' }} />
+                      }
+                    </button>
+                  </div>
+                  {passwordError && (
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <ShieldX size={14} style={{ color: 'var(--danger)' }} />
+                      <p className="text-xs" style={{ color: 'var(--danger)' }}>{passwordError}</p>
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    className="btn-primary w-full text-sm"
+                    disabled={!password.trim() || verifying}
+                  >
+                    {verifying ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                    {verifying ? 'Verifying...' : 'Unlock'}
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          )}
+
           {/* Countdown */}
-          {!downloaded && (
+          {!downloaded && !isUnavailable && (
             <div className="flex justify-center mb-6">
               <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={100} />
             </div>
@@ -2012,7 +2700,7 @@ export default function DownloadPage() {
                   <div className="surface-card p-5 mb-6">
                     <ProgressBar percent={downloadPercent} label="Downloading..." showSpeed={false} />
                   </div>
-                ) : (
+                ) : isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
                   <button className="btn-primary w-full text-base mb-6" onClick={handleDownload}>
                     <Download size={18} />
                     Download {meta?.files?.length > 1 ? `${meta.files.length} files` : 'file'}
@@ -2135,14 +2823,14 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (18364 bytes) =====
+===== FILE: src/pages/HomePage.jsx (23292 bytes) =====
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
 import {
   Upload, Plus, X, Flame, Shield, Zap, Clock, Cpu, QrCode,
-  ArrowRight, Clipboard, AlertTriangle, FileText
+  ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -2184,6 +2872,9 @@ export default function HomePage() {
   const [uploading, setUploading] = useState(false)
   const [uploadPercent, setUploadPercent] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState(0)
+  const [passwordProtected, setPasswordProtected] = useState(false)
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
 
@@ -2236,7 +2927,12 @@ export default function HomePage() {
               setUploading(true)
               uploadHandledRef.current = false
               const imageDataUrl = typeof reader.result === 'string' ? reader.result : ''
-              const response = await uploadClipboard(imageDataUrl, burn, socketId)
+              const clipOpts = {}
+              if (passwordProtected && password.trim()) {
+                clipOpts.passwordProtected = true
+                clipOpts.password = password
+              }
+              const response = await uploadClipboard(imageDataUrl, burn, socketId, clipOpts)
               handleUploadSuccess(response)
             } catch (err) {
               setUploading(false)
@@ -2250,7 +2946,7 @@ export default function HomePage() {
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)
-  }, [burn, socketId])
+  }, [burn, socketId, passwordProtected, password])
 
   // Validation
   function validateFile(file) {
@@ -2295,6 +2991,10 @@ export default function HomePage() {
       files.forEach(f => formData.append('files', f))
       formData.append('expiryMinutes', expiry)
       formData.append('burnAfterDownload', burn)
+      if (passwordProtected && password.trim()) {
+        formData.append('passwordProtected', 'true')
+        formData.append('password', password)
+      }
       if (socketId) formData.append('socketId', socketId)
       const response = await uploadFiles(formData)
       handleUploadSuccess(response)
@@ -2448,8 +3148,87 @@ export default function HomePage() {
                       </div>
                     </button>
 
+                    {/* Password protection toggle */}
+                    <div>
+                      <button
+                        type="button"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                        style={{
+                          background: passwordProtected ? 'var(--accent-soft)' : 'transparent',
+                          border: `1.5px solid ${passwordProtected ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
+                        onClick={() => {
+                          setPasswordProtected(!passwordProtected)
+                          if (passwordProtected) { setPassword(''); setShowPassword(false) }
+                        }}
+                      >
+                        <Lock size={18} style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-4)' }} />
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-semibold" style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-2)' }}>
+                            Password protect
+                          </p>
+                          <p className="text-xs" style={{ color: 'var(--text-4)' }}>Require a password to download</p>
+                        </div>
+                        <div
+                          className="w-10 h-6 rounded-full relative transition-all"
+                          style={{ background: passwordProtected ? 'var(--accent)' : 'var(--border-strong)' }}
+                        >
+                          <div
+                            className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                            style={{ background: '#fff', left: passwordProtected ? '22px' : '4px' }}
+                          />
+                        </div>
+                      </button>
+
+                      {/* Password input field */}
+                      <AnimatePresence>
+                        {passwordProtected && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="relative mt-2">
+                              <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Enter a password..."
+                                maxLength={64}
+                                className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
+                                style={{
+                                  background: 'var(--bg-sunken)',
+                                  border: '1.5px solid var(--border)',
+                                  color: 'var(--text)',
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                              />
+                              <button
+                                type="button"
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
+                                onClick={() => setShowPassword(!showPassword)}
+                                tabIndex={-1}
+                              >
+                                {showPassword
+                                  ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
+                                  : <Eye size={16} style={{ color: 'var(--text-4)' }} />
+                                }
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
                     {/* Upload button */}
-                    <button className="btn-primary w-full text-base" onClick={handleUpload}>
+                    <button
+                      className="btn-primary w-full text-base"
+                      onClick={handleUpload}
+                      disabled={passwordProtected && !password.trim()}
+                    >
                       <Upload size={18} />
                       Share {files.length} file{files.length !== 1 ? 's' : ''}
                     </button>
@@ -2777,13 +3556,14 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (14291 bytes) =====
-import React, { useEffect, useState, useCallback } from 'react'
+===== FILE: src/pages/SenderPage.jsx (21037 bytes) =====
+import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, ExternalLink, Share2, Clock, Trash2,
-  MessageCircle, Mail, Monitor, Maximize2
+  MessageCircle, Mail, Monitor, Maximize2, Send,
+  Download, QrCode, AlertTriangle
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import toast from 'react-hot-toast'
@@ -2791,7 +3571,7 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import {
   getFileMetadata, getTransferActivity,
-  extendTransfer, deleteTransfer
+  extendTransfer, deleteTransfer, downloadSingleFile
 } from '../services/api'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
@@ -2801,6 +3581,8 @@ import ActivityLog from '../components/ActivityLog'
 import ProgressBar from '../components/ProgressBar'
 import QRModal from '../components/QRModal'
 import ErrorState from '../components/ErrorState'
+
+const FilePreviewModal = lazy(() => import('../components/FilePreviewModal'))
 
 export default function SenderPage() {
   const { code } = useParams()
@@ -2821,6 +3603,10 @@ export default function SenderPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmExtend, setConfirmExtend] = useState(false)
+  const [cancelled, setCancelled] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   const shareLink = `${import.meta.env.VITE_SHARE_BASE_URL || window.location.origin}/g/${code}`
 
@@ -2841,6 +3627,9 @@ export default function SenderPage() {
         setSecondsRemaining(data.secondsRemaining || 0)
         setTotalSeconds(data.secondsRemaining || 600)
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
+        if (data.status === 'CANCELLED' || data.status === 'DELETED') {
+          setCancelled(true)
+        }
       } catch (err) {
         const errCode = err?.response?.data?.error?.code
         if (errCode === 'TRANSFER_NOT_FOUND' || errCode === 'TRANSFER_EXPIRED') {
@@ -2898,6 +3687,21 @@ export default function SenderPage() {
         toast.success(`Downloaded by ${receipt.receiver}`)
       }
     }
+    const onCancelled = () => {
+      setCancelled(true)
+      void loadActivity()
+    }
+    const onDeleted = () => {
+      setCancelled(true)
+      void loadActivity()
+    }
+    const onExtended = ({ expiresAt }) => {
+      if (expiresAt) {
+        const newSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
+        setSecondsRemaining(newSeconds)
+        setTotalSeconds(newSeconds)
+      }
+    }
 
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
@@ -2906,6 +3710,9 @@ export default function SenderPage() {
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-receipt', onReceipt)
+    socket.on('transfer-cancelled', onCancelled)
+    socket.on('transfer-deleted', onDeleted)
+    socket.on('transfer-extended', onExtended)
 
     return () => {
       socket.off('connect', connectRoom)
@@ -2915,6 +3722,9 @@ export default function SenderPage() {
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-receipt', onReceipt)
+      socket.off('transfer-cancelled', onCancelled)
+      socket.off('transfer-deleted', onDeleted)
+      socket.off('transfer-extended', onExtended)
       leaveRoom(code)
     }
   }, [socket, code, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity])
@@ -2949,21 +3759,129 @@ export default function SenderPage() {
 
   // Extend
   async function handleExtend() {
+    if (!confirmExtend) {
+      setConfirmExtend(true)
+      setTimeout(() => setConfirmExtend(false), 3000)
+      return
+    }
     try {
-      await extendTransfer(code)
+      const result = await extendTransfer(code)
       setExtended(true)
+      setConfirmExtend(false)
+      if (result?.expiresAt) {
+        const newSeconds = Math.max(0, Math.ceil((new Date(result.expiresAt).getTime() - Date.now()) / 1000))
+        setSecondsRemaining(newSeconds)
+        setTotalSeconds(newSeconds)
+      }
       toast.success('Extended by 10 minutes')
     } catch { toast.error('Failed to extend') }
   }
 
   // Delete
   async function handleDelete() {
-    if (!confirmDelete) { setConfirmDelete(true); return }
+    if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
     try {
       await deleteTransfer(code)
       toast.success('Transfer cancelled')
-      navigate('/', { replace: true })
+      setCancelled(true)
+      setConfirmDelete(false)
     } catch { toast.error('Failed to cancel') }
+  }
+
+  // Per-file operations
+  function handlePreview(index) {
+    const file = meta?.files?.[index]
+    if (file) {
+      setPreviewFile(file)
+      setPreviewIndex(index)
+    }
+  }
+
+  function handleDownloadSingle(index) {
+    downloadSingleFile(code, index)
+  }
+
+  // Share helpers
+  function handleWebShare() {
+    if (navigator.share) {
+      navigator.share({
+        title: 'SwiftShare',
+        text: `Download my file: ${code}`,
+        url: shareLink,
+      }).catch(() => {})
+    } else {
+      copyLink()
+    }
+  }
+
+  function handleDownloadQR() {
+    const svg = document.querySelector('#sender-qr-code')
+    if (!svg) {
+      toast.error('QR code not found')
+      return
+    }
+    
+    try {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      
+      // High resolution with proper padding
+      const qrSize = 1024
+      const padding = 80
+      const totalSize = qrSize + (padding * 2)
+      
+      canvas.width = totalSize
+      canvas.height = totalSize
+      
+      // White background
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, totalSize, totalSize)
+      
+      // Serialize SVG
+      const svgData = new XMLSerializer().serializeToString(svg)
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(svgBlob)
+      
+      const img = new Image()
+      
+      img.onload = () => {
+        try {
+          // Draw QR centered with padding
+          ctx.drawImage(img, padding, padding, qrSize, qrSize)
+          
+          // Convert to PNG and download
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              toast.error('Failed to generate QR image')
+              return
+            }
+            
+            const link = document.createElement('a')
+            link.download = `swiftshare-qr-${code}.png`
+            link.href = URL.createObjectURL(blob)
+            link.click()
+            
+            // Cleanup
+            URL.revokeObjectURL(link.href)
+            toast.success('QR code downloaded')
+          }, 'image/png', 1.0)
+          
+          URL.revokeObjectURL(url)
+        } catch (err) {
+          URL.revokeObjectURL(url)
+          toast.error('Failed to export QR code')
+        }
+      }
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        toast.error('Failed to load QR code')
+      }
+      
+      img.src = url
+    } catch (err) {
+      toast.error('Failed to download QR code')
+    }
   }
 
   if (loading) {
@@ -2991,6 +3909,34 @@ export default function SenderPage() {
       <Navbar />
       <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={code} />
 
+      <Suspense fallback={null}>
+        <FilePreviewModal
+          open={!!previewFile}
+          onClose={() => setPreviewFile(null)}
+          file={previewFile}
+          code={code}
+          fileIndex={previewIndex}
+          onDownload={handleDownloadSingle}
+        />
+      </Suspense>
+
+      {/* Cancelled banner */}
+      <AnimatePresence>
+        {cancelled && (
+          <motion.div
+            className="fixed top-14 left-0 right-0 z-40 p-3 text-center"
+            style={{ background: 'var(--danger-soft)', borderBottom: '1px solid rgba(220,38,38,0.15)' }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+              This transfer has been cancelled. Files are permanently deleted.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main className="pt-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
           <div className="lg:grid lg:grid-cols-5 lg:gap-10">
@@ -3004,7 +3950,14 @@ export default function SenderPage() {
                 </h2>
                 <div className="space-y-2">
                   {(meta?.files || []).map((f, i) => (
-                    <FileCard key={i} file={f} index={i} />
+                    <FileCard
+                      key={i}
+                      file={f}
+                      index={i}
+                      showDownload={!cancelled}
+                      onPreview={() => handlePreview(i)}
+                      onDownloadSingle={() => handleDownloadSingle(i)}
+                    />
                   ))}
                 </div>
               </motion.div>
@@ -3038,7 +3991,7 @@ export default function SenderPage() {
                     style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)' }}
                     onClick={() => setQrModal(true)}
                   >
-                    <QRCode value={shareLink} size={160} bgColor="var(--qr-bg)" fgColor="var(--qr-fg)" level="M" />
+                    <QRCode id="sender-qr-code" value={shareLink} size={160} bgColor="var(--qr-bg)" fgColor="var(--qr-fg)" level="M" />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" style={{ background: 'rgba(0,0,0,0.05)' }}>
                       <Maximize2 size={20} style={{ color: 'var(--text-3)' }} />
                     </div>
@@ -3100,36 +4053,58 @@ export default function SenderPage() {
                       <Mail size={14} />Email
                     </a>
                     <a
-                      href={`/download/${code}`}
+                      href={`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(`Download my file on SwiftShare`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="btn-ghost justify-center"
                     >
-                      <Monitor size={14} />This device
+                      <Send size={14} />Telegram
                     </a>
+                    <button className="btn-ghost justify-center" onClick={handleDownloadQR}>
+                      <QrCode size={14} />Save QR
+                    </button>
+                    <button className="btn-ghost justify-center col-span-2" onClick={handleWebShare}>
+                      <Share2 size={14} />
+                      {navigator.share ? 'Share…' : 'Copy link'}
+                    </button>
                   </div>
                 </div>
 
                 {/* Countdown */}
-                <div className="surface-card p-5 text-center">
-                  <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={130} />
+                {!cancelled && (
+                  <div className="surface-card p-5 text-center">
+                    <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={130} />
 
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      className="btn-ghost flex-1 text-xs"
-                      onClick={handleExtend}
-                      disabled={extended}
-                    >
-                      <Clock size={13} />
-                      {extended ? 'Extended' : '+10 min'}
-                    </button>
-                    <button
-                      className="btn-ghost flex-1 text-xs hover:!text-red-500"
-                      onClick={handleDelete}
-                    >
-                      <Trash2 size={13} />
-                      {confirmDelete ? 'Confirm?' : 'Cancel'}
-                    </button>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        className="btn-ghost flex-1 text-xs"
+                        onClick={handleExtend}
+                        disabled={extended}
+                        style={confirmExtend ? { borderColor: 'var(--warning)', color: 'var(--warning)' } : undefined}
+                      >
+                        {confirmExtend ? (
+                          <><AlertTriangle size={13} />Confirm?</>
+                        ) : (
+                          <><Clock size={13} />{extended ? 'Extended' : '+10 min'}</>
+                        )}
+                      </button>
+                      <button
+                        className="btn-ghost flex-1 text-xs hover:!text-red-500"
+                        onClick={handleDelete}
+                        style={confirmDelete ? { borderColor: 'var(--danger)', color: 'var(--danger)' } : undefined}
+                      >
+                        <Trash2 size={13} />
+                        {confirmDelete ? 'Confirm?' : 'Cancel'}
+                      </button>
+                    </div>
+
+                    {extended && (
+                      <p className="text-[10px] mt-2" style={{ color: 'var(--text-4)' }}>
+                        Can only extend once per transfer
+                      </p>
+                    )}
                   </div>
-                </div>
+                )}
 
                 {/* Burn badge */}
                 {meta?.burnAfterDownload && (
@@ -3148,15 +4123,35 @@ export default function SenderPage() {
   )
 }
 
-===== FILE: src/services/api.js (4856 bytes) =====
+===== FILE: src/services/api.js (6352 bytes) =====
 import axios from 'axios'
 
-const rawBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+const rawBaseURL = import.meta.env.VITE_API_URL || fallbackOrigin
 const baseURL = rawBaseURL.replace(/\/+$/, '')
 
 const API = axios.create({
   baseURL,
   timeout: 30000,
+})
+
+// Retry interceptor for transient failures
+API.interceptors.response.use(null, async (error) => {
+  const config = error.config
+  if (!config) return Promise.reject(error)
+
+  config.__retryCount = config.__retryCount || 0
+  const isRetryable = !error.response || error.response.status === 503 || error.code === 'ERR_NETWORK'
+  const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
+
+  if (isRetryable && isIdempotent && config.__retryCount < 2) {
+    config.__retryCount += 1
+    const delay = config.__retryCount * 1000
+    await new Promise(r => setTimeout(r, delay))
+    return API(config)
+  }
+
+  return Promise.reject(error)
 })
 
 function unwrapResponse(payload) {
@@ -3173,6 +4168,15 @@ function normalizeCode(code) {
 
 function buildBackendUrl(path) {
   return `${baseURL}${path}`
+}
+
+function appendPasswordQuery(url, password) {
+  if (typeof password !== 'string' || !password.trim()) {
+    return url
+  }
+
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}password=${encodeURIComponent(password)}`
 }
 
 function toDataUrl(base64OrDataUrl, mimeType = 'image/png') {
@@ -3250,6 +4254,12 @@ export async function getTransferActivity(code) {
   return unwrapResponse(data)
 }
 
+// ── Password ───────────────────────────────
+export async function verifyPassword(code, password) {
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/verify-password`, { password })
+  return unwrapResponse(data)
+}
+
 // ── Actions ─────────────────────────────────
 export async function extendTransfer(code) {
   const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/extend`)
@@ -3274,29 +4284,32 @@ export async function getStats() {
 }
 
 // ── Download ────────────────────────────────
-export function getDownloadUrl(code) {
-  return buildBackendUrl(`/api/download/${normalizeCode(code)}`)
+export function getDownloadUrl(code, password) {
+  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}`)
+  return appendPasswordQuery(url, password)
 }
 
-export function getSingleDownloadUrl(code, index) {
+export function getSingleDownloadUrl(code, index, password) {
   const safeIndex = Number(index)
-  return buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  return appendPasswordQuery(url, password)
 }
 
-export function downloadFile(code) {
-  window.location.href = getDownloadUrl(code)
+export function downloadFile(code, password) {
+  window.location.href = getDownloadUrl(code, password)
 }
 
-export function downloadSingleFile(code, index) {
-  window.location.href = getSingleDownloadUrl(code, index)
+export function downloadSingleFile(code, index, password) {
+  window.location.href = getSingleDownloadUrl(code, index, password)
 }
 
-export function previewUrl(code, index) {
+export function previewUrl(code, index, password) {
   const safeIndex = Number(index)
-  return buildBackendUrl(`/api/file/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  return appendPasswordQuery(url, password)
 }
 
-===== FILE: src/utils/download.js (1438 bytes) =====
+===== FILE: src/utils/download.js (1781 bytes) =====
 import {
   downloadFile,
   downloadSingleFile,
@@ -3304,17 +4317,26 @@ import {
   getSingleDownloadUrl,
 } from '../services/api'
 
-export async function smartDownload(code, { aiName, index, originalName } = {}) {
+function buildPasswordHeaders(password) {
+  if (typeof password !== 'string' || !password.trim()) {
+    return undefined
+  }
+
+  return { 'x-transfer-password': password }
+}
+
+export async function smartDownload(code, { aiName, index, originalName, password } = {}) {
   const filename = aiName || originalName || `swiftshare_${code}`
+  const headers = buildPasswordHeaders(password)
 
   if (typeof index === 'number') {
     // Single file from multi-file transfer — try blob rename
     try {
       const url = typeof downloadSingleFile === 'function'
-        ? getSingleDownloadUrl(code, index)
+        ? getSingleDownloadUrl(code, index, password)
         : null
       if (url) {
-        const resp = await fetch(url)
+        const resp = await fetch(url, headers ? { headers } : undefined)
         if (!resp.ok) throw new Error('Download failed')
         const blob = await resp.blob()
         triggerBlobDownload(blob, filename)
@@ -3322,21 +4344,21 @@ export async function smartDownload(code, { aiName, index, originalName } = {}) 
       }
     } catch {
       // Fallback
-      downloadSingleFile(code, index)
+      downloadSingleFile(code, index, password)
       return true
     }
   }
 
   // Full transfer download with rename
   try {
-    const url = getDownloadUrl(code)
-    const resp = await fetch(url)
+    const url = getDownloadUrl(code, password)
+    const resp = await fetch(url, headers ? { headers } : undefined)
     if (!resp.ok) throw new Error('Download failed')
     const blob = await resp.blob()
     triggerBlobDownload(blob, filename)
     return true
   } catch {
-    downloadFile(code)
+    downloadFile(code, password)
     return true
   }
 }
@@ -3354,7 +4376,7 @@ function triggerBlobDownload(blob, filename) {
   }, 100)
 }
 
-===== FILE: src/utils/errors.js (3205 bytes) =====
+===== FILE: src/utils/errors.js (3643 bytes) =====
 import {
   FileWarning, Clock, ShieldX, AlertTriangle, WifiOff,
   Ban, FileX, Server, Lock, Flame
@@ -3401,6 +4423,20 @@ const ERROR_MAP = {
     description: 'This file has been automatically deleted. Ask the sender to share again.',
     icon: Clock,
     color: 'var(--warning)',
+    action: 'Go home',
+  },
+  TRANSFER_CANCELLED: {
+    title: 'Transfer cancelled',
+    description: 'The sender cancelled this transfer. Files have been permanently deleted.',
+    icon: Ban,
+    color: 'var(--danger)',
+    action: 'Go home',
+  },
+  TRANSFER_DELETED: {
+    title: 'Transfer deleted',
+    description: 'This transfer has been permanently deleted and is no longer available.',
+    icon: FileX,
+    color: 'var(--danger)',
     action: 'Go home',
   },
   ALREADY_DOWNLOADED: {
@@ -3521,7 +4557,7 @@ export function expiryLabel(minutes) {
   return '5 hours'
 }
 
-===== FILE: src/utils/storage.js (1794 bytes) =====
+===== FILE: src/utils/storage.js (2106 bytes) =====
 const KEYS = {
   RECENT: 'swiftshare_recent',
   SETTINGS: 'swiftshare_settings',
@@ -3546,7 +4582,17 @@ export function getRecentTransfers() {
 export function saveTransfer(entry) {
   const list = getRecentTransfers().filter(t => t.code !== entry.code)
   list.unshift({ ...entry, savedAt: new Date().toISOString() })
-  safeSet(KEYS.RECENT, list.slice(0, 5))
+  safeSet(KEYS.RECENT, list.slice(0, 10))
+}
+export function removeTransfer(code) {
+  const list = getRecentTransfers().filter(t => t.code !== code)
+  safeSet(KEYS.RECENT, list)
+}
+export function updateTransferStatus(code, status) {
+  const list = getRecentTransfers().map(t =>
+    t.code === code ? { ...t, status } : t
+  )
+  safeSet(KEYS.RECENT, list)
 }
 export function clearTransfers() {
   localStorage.removeItem(KEYS.RECENT)
@@ -3712,6 +4758,6 @@ export default defineConfig({
 })
 
 ===== SUMMARY =====
-Included files: 38
+Included files: 39
 Skipped (too large): 0
-Total source bytes included: 131441
+Total source bytes included: 172861
