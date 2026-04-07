@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react'
+import React, { Suspense, lazy, useEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
   useLocation, useParams,
@@ -12,7 +12,6 @@ import { ThemeProvider } from './context/ThemeContext'
 import { pingServer } from './services/api'
 
 import LoadingScreen from './components/LoadingScreen'
-import ServerWakeup from './components/ServerWakeup'
 
 // Eager — critical path
 import HomePage from './pages/HomePage'
@@ -74,42 +73,20 @@ function AnimatedRoutes() {
   )
 }
 
-// ── Server health gate ───────────────────────
-function ServerShell() {
-  const [serverReady, setServerReady] = useState(null)
-
-  useEffect(() => {
-    let timer = null
-    const tryPing = async () => {
-      const { ok, latencyMs } = await pingServer()
-      if (ok && latencyMs < 5000) {
-        setServerReady(true)
-      } else {
-        setServerReady(false)
-        timer = setTimeout(tryPing, 4000)
-      }
-    }
-    tryPing()
-    return () => { if (timer) clearTimeout(timer) }
-  }, [])
-
-  if (serverReady === null) return <LoadingScreen message="Connecting to SwiftShare..." />
-  if (serverReady === false) return <ServerWakeup />
-
-  return (
-    <BrowserRouter>
-      <AnimatedRoutes />
-    </BrowserRouter>
-  )
-}
-
 // ── Root ─────────────────────────────────────
 export default function App() {
+  useEffect(() => {
+    // Warm backend once without blocking first paint.
+    void pingServer()
+  }, [])
+
   return (
     <ThemeProvider>
       <SocketProvider>
         <TransferProvider>
-          <ServerShell />
+          <BrowserRouter>
+            <AnimatedRoutes />
+          </BrowserRouter>
           <Toaster
             position="top-right"
             gutter={8}
