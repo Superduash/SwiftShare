@@ -50,7 +50,6 @@ export function getSettings() {
 }
 export function saveSettings(patch) {
   safeSet(KEYS.SETTINGS, { ...getSettings(), ...patch })
-  window.dispatchEvent(new Event('swiftshare-settings-updated'))
 }
 
 // ── Theme ──────────────────────────────────

@@ -11,7 +11,7 @@ import { smartDownload } from '../utils/download'
 import { saveTransfer, getSettings } from '../utils/storage'
 import { formatBytes } from '../utils/format'
 import { extractErrorCode } from '../utils/errors'
-import { playSuccess, playError } from '../utils/sound'
+import { playDownloadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
@@ -89,10 +89,7 @@ export default function DownloadPage() {
         if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
         else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
         else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-        else {
-          toast.error('Failed to load transfer')
-          playError()
-        }
+        else toast.error('Failed to load transfer')
       }
       setLoading(false)
     }
@@ -133,7 +130,6 @@ export default function DownloadPage() {
       // Only show error if user hasn't downloaded and isn't currently downloading
       if (reason === 'burn' && !downloaded && !downloadingRef.current) {
         toast.error('This file was burned after being downloaded by someone else')
-        playError()
       }
     }
     const onReceipt = (data) => setReceipt(data)
@@ -216,12 +212,11 @@ export default function DownloadPage() {
       // Success sound
       const currentSettings = getSettings()
       if (currentSettings.soundEnabled) {
-        playSuccess()
+        playDownloadSuccess()
       }
     } catch {
       setDownloading(false)
       toast.error('Download failed')
-      playError()
     }
   }
 

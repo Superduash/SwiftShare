@@ -3,14 +3,13 @@ import {
   BrowserRouter, Routes, Route, Navigate,
   useLocation, useParams,
 } from 'react-router-dom'
-import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 
 import { SocketProvider } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { pingServer } from './services/api'
-import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
 
@@ -76,37 +75,18 @@ function AnimatedRoutes() {
 
 // ── Root ─────────────────────────────────────
 export default function App() {
-  const [reducedMotion, setReducedMotion] = React.useState(() => getSettings().reducedMotion)
-
   useEffect(() => {
     // Warm backend once without blocking first paint.
     void pingServer()
-
-    const onSettingsChange = () => {
-      setReducedMotion(getSettings().reducedMotion)
-      if (getSettings().reducedMotion) {
-        document.body.classList.add('reduce-motion')
-      } else {
-        document.body.classList.remove('reduce-motion')
-      }
-    }
-    
-    // Initialize body class on mount
-    onSettingsChange()
-
-    window.addEventListener('swiftshare-settings-updated', onSettingsChange)
-    return () => window.removeEventListener('swiftshare-settings-updated', onSettingsChange)
   }, [])
 
   return (
     <ThemeProvider>
       <SocketProvider>
         <TransferProvider>
-          <MotionConfig reducedMotion={reducedMotion ? "always" : "user"}>
-            <BrowserRouter>
-              <AnimatedRoutes />
-            </BrowserRouter>
-          </MotionConfig>
+          <BrowserRouter>
+            <AnimatedRoutes />
+          </BrowserRouter>
           <Toaster
             position="top-right"
             gutter={8}

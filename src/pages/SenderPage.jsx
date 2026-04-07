@@ -14,7 +14,6 @@ import {
   getFileMetadata, getTransferActivity,
   extendTransfer, deleteTransfer, downloadSingleFile
 } from '../services/api'
-import { playSuccess, playError } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
@@ -136,7 +135,6 @@ export default function SenderPage() {
       if (receiptCode && receiptCode !== currentCode) return
       if (receipt?.receiver) {
         toast.success(`Downloaded by ${receipt.receiver}`)
-        playSuccess()
       }
     }
     const onCancelled = () => {
@@ -228,10 +226,7 @@ export default function SenderPage() {
         setTotalSeconds(600)
       }
       toast.success('Extended by 10 minutes')
-    } catch {
-      toast.error('Failed to extend')
-      playError()
-    }
+    } catch { toast.error('Failed to extend') }
   }
 
   // Delete
@@ -242,10 +237,7 @@ export default function SenderPage() {
       toast.success('Transfer cancelled permanently')
       setCancelled(true)
       setConfirmDelete(false)
-    } catch {
-      toast.error('Failed to cancel')
-      playError()
-    }
+    } catch { toast.error('Failed to cancel') }
   }
 
   // Per-file operations

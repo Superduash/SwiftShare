@@ -1,4 +1,4 @@
-// Simple subtle sounds using Web Audio API
+// Subtle success sounds using Web Audio API
 let audioContext = null
 let isInitialized = false
 
@@ -8,75 +8,94 @@ function initAudio() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)()
     isInitialized = true
   } catch (error) {
+    // Audio not supported
     isInitialized = false
   }
 }
 
-export function playSuccess() {
+// Upload success: gentle ascending chime (C5 → E5)
+export function playUploadSuccess() {
   try {
     initAudio()
     if (!audioContext) return
-    if (audioContext.state === 'suspended') audioContext.resume()
+
+    if (audioContext.state === 'suspended') {
+      audioContext.resume()
+    }
 
     const now = audioContext.currentTime
     const osc1 = audioContext.createOscillator()
     const osc2 = audioContext.createOscillator()
     const gain = audioContext.createGain()
 
-    osc1.type = 'sine'
-    osc2.type = 'sine'
-    
-    // Very subtle, soft chime (C5 to E5, extremely quiet)
+    // C5 (523.25 Hz) → E5 (659.25 Hz) - ascending
     osc1.frequency.setValueAtTime(523.25, now)
+    osc1.type = 'sine'
+    
     osc2.frequency.setValueAtTime(659.25, now + 0.08)
+    osc2.type = 'sine'
 
+    // Very subtle volume (0.08 max)
     gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(0.02, now + 0.05)
-    gain.gain.linearRampToValueAtTime(0.01, now + 0.12)
-    gain.gain.linearRampToValueAtTime(0, now + 0.3)
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.04)
+    gain.gain.linearRampToValueAtTime(0.06, now + 0.12)
+    gain.gain.linearRampToValueAtTime(0, now + 0.25)
 
     osc1.connect(gain)
     osc2.connect(gain)
     gain.connect(audioContext.destination)
 
     osc1.start(now)
-    osc1.stop(now + 0.15)
+    osc1.stop(now + 0.12)
     osc2.start(now + 0.08)
-    osc2.stop(now + 0.3)
-  } catch (e) {}
+    osc2.stop(now + 0.25)
+  } catch (error) {
+    // Silently fail
+  }
 }
 
-export function playError() {
+// Download success: gentle descending chime (G5 → D5)
+export function playDownloadSuccess() {
   try {
     initAudio()
     if (!audioContext) return
-    if (audioContext.state === 'suspended') audioContext.resume()
+
+    if (audioContext.state === 'suspended') {
+      audioContext.resume()
+    }
 
     const now = audioContext.currentTime
     const osc1 = audioContext.createOscillator()
     const osc2 = audioContext.createOscillator()
     const gain = audioContext.createGain()
 
+    // G5 (783.99 Hz) → D5 (587.33 Hz) - descending
+    osc1.frequency.setValueAtTime(783.99, now)
     osc1.type = 'sine'
-    osc2.type = 'triangle'
     
-    // Soft, muted double low beep
-    osc1.frequency.setValueAtTime(220, now)
-    osc2.frequency.setValueAtTime(200, now + 0.12)
+    osc2.frequency.setValueAtTime(587.33, now + 0.08)
+    osc2.type = 'sine'
 
+    // Very subtle volume (0.08 max)
     gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(0.02, now + 0.03)
-    gain.gain.linearRampToValueAtTime(0.01, now + 0.1)
-    gain.gain.linearRampToValueAtTime(0.02, now + 0.15)
-    gain.gain.linearRampToValueAtTime(0, now + 0.3)
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.04)
+    gain.gain.linearRampToValueAtTime(0.06, now + 0.12)
+    gain.gain.linearRampToValueAtTime(0, now + 0.25)
 
     osc1.connect(gain)
     osc2.connect(gain)
     gain.connect(audioContext.destination)
 
     osc1.start(now)
-    osc1.stop(now + 0.1)
-    osc2.start(now + 0.12)
-    osc2.stop(now + 0.3)
-  } catch (e) {}
+    osc1.stop(now + 0.12)
+    osc2.start(now + 0.08)
+    osc2.stop(now + 0.25)
+  } catch (error) {
+    // Silently fail
+  }
+}
+
+// Legacy export for backward compatibility
+export function playSuccess() {
+  playUploadSuccess()
 }
