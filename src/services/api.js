@@ -176,7 +176,8 @@ export function downloadSingleFile(code, index, password) {
   window.location.href = getSingleDownloadUrl(code, index, password)
 }
 
-export function previewUrl(code, index) {
+export function previewUrl(code, index, password) {
   const safeIndex = Number(index)
-  return buildBackendUrl(`/api/file/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  return appendPasswordQuery(url, password)
 }
