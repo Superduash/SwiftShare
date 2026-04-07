@@ -3,13 +3,13 @@ import {
   BrowserRouter, Routes, Route, Navigate,
   useLocation, useParams,
 } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 
 import { SocketProvider } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
-import { ThemeProvider } from './context/ThemeContext'
 import { pingServer } from './services/api'
+import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
 
@@ -75,13 +75,25 @@ function AnimatedRoutes() {
 
 // ── Root ─────────────────────────────────────
 export default function App() {
+  const [reducedMotion, setReducedMotion] = React.useState(() => getSettings().reducedMotion)
+
   useEffect(() => {
     // Warm backend once without blocking first paint.
     void pingServer()
   }, [])
 
+  useEffect(() => {
+    const syncSettings = () => setReducedMotion(getSettings().reducedMotion)
+    window.addEventListener('swiftshare:settings-changed', syncSettings)
+    return () => window.removeEventListener('swiftshare:settings-changed', syncSettings)
+  }, [])
+
+  useEffect(() => {
+    document.body.classList.toggle('reduce-motion', Boolean(reducedMotion))
+  }, [reducedMotion])
+
   return (
-    <ThemeProvider>
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
       <SocketProvider>
         <TransferProvider>
           <BrowserRouter>
@@ -108,6 +120,6 @@ export default function App() {
           />
         </TransferProvider>
       </SocketProvider>
-    </ThemeProvider>
+    </MotionConfig>
   )
 }

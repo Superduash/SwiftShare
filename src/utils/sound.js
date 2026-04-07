@@ -1,55 +1,96 @@
-// Subtle success sounds using Web Audio API
+// Subtle success sounds using Web Audio API.
+// Browser autoplay policies require a user gesture before audio can play,
+// so we unlock the context on first interaction.
 let audioContext = null
-let isInitialized = false
+let unlockListenersBound = false
 
-function initAudio() {
-  if (isInitialized) return
+function getAudioContext() {
+  if (audioContext) return audioContext
   try {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)()
-    isInitialized = true
-  } catch (error) {
-    // Audio not supported
-    isInitialized = false
+    const Ctor = window.AudioContext || window.webkitAudioContext
+    if (!Ctor) return null
+    audioContext = new Ctor()
+    return audioContext
+  } catch {
+    return null
   }
 }
 
-// Upload success: gentle ascending chime (C5 → E5)
-export function playUploadSuccess() {
+async function unlockAudio() {
+  const ctx = getAudioContext()
+  if (!ctx) return false
   try {
-    initAudio()
-    if (!audioContext) return
-
-    if (audioContext.state === 'suspended') {
-      audioContext.resume()
+    if (ctx.state === 'suspended') {
+      await ctx.resume()
     }
+    return ctx.state === 'running'
+  } catch {
+    return false
+  }
+}
 
-    const now = audioContext.currentTime
-    const osc1 = audioContext.createOscillator()
-    const osc2 = audioContext.createOscillator()
-    const gain = audioContext.createGain()
+function bindUnlockListeners() {
+  if (unlockListenersBound || typeof window === 'undefined') return
+  unlockListenersBound = true
 
-    // C5 (523.25 Hz) → E5 (659.25 Hz) - ascending
-    osc1.frequency.setValueAtTime(523.25, now)
+  const events = ['pointerdown', 'keydown', 'touchstart', 'mousedown']
+  const onFirstInteraction = () => {
+    void unlockAudio().then((ok) => {
+      if (!ok) return
+      events.forEach((eventName) => window.removeEventListener(eventName, onFirstInteraction))
+    })
+  }
+
+  events.forEach((eventName) => window.addEventListener(eventName, onFirstInteraction, { passive: true }))
+}
+
+function playTwoTone(firstFrequency, secondFrequency) {
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  const play = () => {
+    const now = ctx.currentTime
+    const osc1 = ctx.createOscillator()
+    const osc2 = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc1.frequency.setValueAtTime(firstFrequency, now)
     osc1.type = 'sine'
-    
-    osc2.frequency.setValueAtTime(659.25, now + 0.08)
+
+    osc2.frequency.setValueAtTime(secondFrequency, now + 0.08)
     osc2.type = 'sine'
 
-    // Very subtle volume (0.08 max)
     gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(0.08, now + 0.04)
-    gain.gain.linearRampToValueAtTime(0.06, now + 0.12)
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.04)
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.12)
     gain.gain.linearRampToValueAtTime(0, now + 0.25)
 
     osc1.connect(gain)
     osc2.connect(gain)
-    gain.connect(audioContext.destination)
+    gain.connect(ctx.destination)
 
     osc1.start(now)
     osc1.stop(now + 0.12)
     osc2.start(now + 0.08)
     osc2.stop(now + 0.25)
-  } catch (error) {
+  }
+
+  if (ctx.state === 'suspended') {
+    void ctx.resume().then(play).catch(() => {})
+    return
+  }
+
+  play()
+}
+
+bindUnlockListeners()
+
+// Upload success: gentle ascending chime (C5 → E5)
+export function playUploadSuccess() {
+  try {
+    // C5 (523.25 Hz) -> E5 (659.25 Hz), ascending.
+    playTwoTone(523.25, 659.25)
+  } catch {
     // Silently fail
   }
 }
@@ -57,40 +98,9 @@ export function playUploadSuccess() {
 // Download success: gentle descending chime (G5 → D5)
 export function playDownloadSuccess() {
   try {
-    initAudio()
-    if (!audioContext) return
-
-    if (audioContext.state === 'suspended') {
-      audioContext.resume()
-    }
-
-    const now = audioContext.currentTime
-    const osc1 = audioContext.createOscillator()
-    const osc2 = audioContext.createOscillator()
-    const gain = audioContext.createGain()
-
-    // G5 (783.99 Hz) → D5 (587.33 Hz) - descending
-    osc1.frequency.setValueAtTime(783.99, now)
-    osc1.type = 'sine'
-    
-    osc2.frequency.setValueAtTime(587.33, now + 0.08)
-    osc2.type = 'sine'
-
-    // Very subtle volume (0.08 max)
-    gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(0.08, now + 0.04)
-    gain.gain.linearRampToValueAtTime(0.06, now + 0.12)
-    gain.gain.linearRampToValueAtTime(0, now + 0.25)
-
-    osc1.connect(gain)
-    osc2.connect(gain)
-    gain.connect(audioContext.destination)
-
-    osc1.start(now)
-    osc1.stop(now + 0.12)
-    osc2.start(now + 0.08)
-    osc2.stop(now + 0.25)
-  } catch (error) {
+    // G5 (783.99 Hz) -> D5 (587.33 Hz), descending.
+    playTwoTone(783.99, 587.33)
+  } catch {
     // Silently fail
   }
 }
