@@ -30,17 +30,28 @@ function canPreview(icon, mimeType = '') {
   return t === 'image' || t === 'pdf' || m.startsWith('image/') || m.includes('pdf')
 }
 
-export default function FileCard({ file, index = 0, onPreview, onDownloadSingle, showDownload = false }) {
+export default function FileCard({
+  file,
+  index = 0,
+  onPreview,
+  onDownloadSingle,
+  showDownload = false,
+  disableDownload = false,
+}) {
   const { Icon, cls } = getIconConfig(file?.icon, file?.type)
   const canPrev = canPreview(file?.icon, file?.type)
 
   return (
     <motion.div
       className="glass-card p-4 flex items-center gap-4 group"
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.06, duration: 0.3 }}
-      whileHover={{ scale: 1.01, borderColor: 'rgba(34,211,238,0.25)' }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1, duration: 0.3 }}
+      whileHover={{
+        scale: 1.02,
+        borderColor: 'rgba(34,211,238,0.25)',
+        boxShadow: '0 16px 36px rgba(34,211,238,0.16)',
+      }}
     >
       {/* File icon */}
       <div className={`w-11 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 ${cls}`}>
@@ -66,9 +77,10 @@ export default function FileCard({ file, index = 0, onPreview, onDownloadSingle,
         )}
         {showDownload && onDownloadSingle && (
           <button
-            className="btn-icon"
+            className="btn-icon disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => onDownloadSingle(index)}
             title="Download"
+            disabled={disableDownload}
           >
             <Download size={14} />
           </button>

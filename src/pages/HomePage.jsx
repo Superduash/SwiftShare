@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
 import toast from 'react-hot-toast'
 import {
   Upload, X, Send, ArrowRight, Zap,
-  Flame, Wifi, FileText, Image,
+  Flame, FileText, Image,
   Video, Archive, File, RefreshCw
 } from 'lucide-react'
-import { uploadFiles, uploadClipboard, getNearbyDevices } from '../services/api'
+import { uploadFiles, uploadClipboard, getNearbyDevices, getStats, pingServer } from '../services/api'
 import { useSocket } from '../context/SocketContext'
 import { useTransfer } from '../context/TransferContext'
 import ProgressBar from '../components/ProgressBar'
-import ServerWakeup from '../components/ServerWakeup'
+import LoadingScreen from '../components/LoadingScreen'
 
 function formatBytes(b) {
   if (!b) return '0 B'
@@ -26,6 +26,29 @@ function getFileIcon(type='') {
   if (type.startsWith('video/'))  return { Icon: Video,    color: '#A78BFA' }
   if (type.includes('zip'))       return { Icon: Archive,  color: '#FB923C' }
   return                                 { Icon: File,     color: '#8B90AA' }
+}
+
+function getApiErrorMessage(err, fallback = 'Something went wrong. Please try again.') {
+  if (!err) return fallback
+  if (err.isNetworkError) return 'Network error. Check your connection and try again.'
+
+  if (err.code === 'FILE_TOO_LARGE') {
+    return 'This file is too large. Maximum size is 50MB.'
+  }
+
+  if (err.code === 'TOO_MANY_FILES') {
+    return 'Too many files selected. You can upload up to 10 files.'
+  }
+
+  if (err.code === 'INVALID_FILE_TYPE') {
+    return 'One or more selected files are not allowed.'
+  }
+
+  if (err.code === 'RATE_LIMIT_EXCEEDED') {
+    return 'Too many requests. Please wait a moment and try again.'
+  }
+
+  return err.message || fallback
 }
 
 const BLOCKED = ['.exe','.bat','.sh','.cmd','.msi','.scr','.vbs','.ps1']
@@ -69,13 +92,106 @@ function NearbyPill() {
 export default function HomePage() {
   const navigate = useNavigate()
   const { socket, socketId, isConnected } = useSocket()
-  const { startUpload, setUploadData, setError, setUploadProgress } = useTransfer()
+  const { startUpload, setUploadData, setError } = useTransfer()
 
   const [files, setFiles] = useState([])
   const [burn, setBurn] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [pct, setPct] = useState(0)
   const [speedTxt, setSpeedTxt] = useState('')
+  const [isWakingServer, setIsWakingServer] = useState(false)
+  const [stats, setStats] = useState(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [animatedStats, setAnimatedStats] = useState({
+    totalTransfers: 0,
+    totalFiles: 0,
+    totalDownloads: 0,
+    totalUsers: 0,
+  })
+
+  useEffect(() => {
+    let cancelled = false
+    let retryId = null
+
+    const checkServer = async () => {
+      const { ok, latencyMs } = await pingServer()
+      if (cancelled) return
+
+      if (ok && latencyMs <= 3000) {
+        setIsWakingServer(false)
+        return
+      }
+
+      setIsWakingServer(true)
+      retryId = setTimeout(checkServer, 3000)
+    }
+
+    checkServer()
+
+    return () => {
+      cancelled = true
+      if (retryId) clearTimeout(retryId)
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    const startedAt = Date.now()
+
+    const finishLoading = () => {
+      const remaining = Math.max(0, 1000 - (Date.now() - startedAt))
+      setTimeout(() => {
+        if (active) {
+          setStatsLoading(false)
+        }
+      }, remaining)
+    }
+
+    getStats()
+      .then((data) => {
+        if (!active) return
+        setStats(data)
+      })
+      .catch((err) => {
+        if (!active) return
+        toast.error(getApiErrorMessage(err, 'Unable to load live stats right now.'), { id: 'stats-error' })
+      })
+      .finally(finishLoading)
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!stats) return
+
+    const targets = {
+      totalTransfers: Number(stats.totalTransfers || 0),
+      totalFiles: Number(stats.totalFiles || 0),
+      totalDownloads: Number(stats.totalDownloads || 0),
+      totalUsers: Number(stats.totalUsers || 0),
+    }
+
+    const start = Date.now()
+    const duration = 1500
+    const interval = setInterval(() => {
+      const progress = Math.min(1, (Date.now() - start) / duration)
+
+      setAnimatedStats({
+        totalTransfers: Math.floor(targets.totalTransfers * progress),
+        totalFiles: Math.floor(targets.totalFiles * progress),
+        totalDownloads: Math.floor(targets.totalDownloads * progress),
+        totalUsers: Math.floor(targets.totalUsers * progress),
+      })
+
+      if (progress >= 1) {
+        clearInterval(interval)
+      }
+    }, 30)
+
+    return () => clearInterval(interval)
+  }, [stats])
 
   // Socket: progress
   useEffect(() => {
@@ -100,7 +216,7 @@ export default function HomePage() {
               setUploading(true); startUpload()
               const r = await uploadClipboard(ev.target.result, burn, socketId||'')
               setUploadData(r); navigate(`/sender/${r.code}`, { state:{ transferData:r }})
-            } catch(err) { toast.error(err.message); setError() } finally { setUploading(false) }
+            } catch(err) { toast.error(getApiErrorMessage(err)); setError() } finally { setUploading(false) }
           }
           reader.readAsDataURL(f)
           toast('📋 Image pasted — uploading...')
@@ -129,11 +245,17 @@ export default function HomePage() {
       fd.append('senderSocketId', socketId||'')
       await uploadFiles(fd)
     } catch(err) {
-      toast.error(err.message); setError(); setUploading(false); setPct(0)
+      toast.error(getApiErrorMessage(err)); setError(); setUploading(false); setPct(0)
     }
   }
 
   const removeFile = (i) => setFiles(prev => prev.filter((_,idx)=>idx!==i))
+
+  if (isWakingServer) {
+    return (
+      <LoadingScreen message="Waking up server... this takes ~30 seconds on first load" />
+    )
+  }
 
   return (
     <div className="min-h-screen" style={{ background:'var(--bg)' }}>
@@ -211,7 +333,7 @@ export default function HomePage() {
             /* ── Empty zone ── */
             <div
               {...getRootProps()}
-              className={`upload-zone py-12 sm:py-16 px-8 text-center ${isDragActive?'dragging':''}`}
+              className={`upload-zone w-full py-12 sm:py-16 px-8 text-center ${isDragActive?'dragging':''}`}
             >
               <input {...getInputProps()} />
               <AnimatePresence mode="wait">
@@ -358,7 +480,7 @@ export default function HomePage() {
                 </span>
               </div>
 
-              <button className="btn-primary w-full justify-center text-base" onClick={handleSend}>
+              <button className="btn-primary w-full justify-center text-base" onClick={handleSend} disabled={uploading}>
                 <Send size={16}/>
                 Send {files.length} file{files.length!==1?'s':''}
                 <ArrowRight size={14}/>
@@ -421,6 +543,38 @@ export default function HomePage() {
                 <p style={{ color:'var(--text-3)', fontSize:'12px', lineHeight:'1.5' }}>{desc}</p>
               </div>
             ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="mb-10"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.38 }}
+        >
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {statsLoading ? (
+              [0, 1, 2, 3].map((i) => (
+                <div key={i} className="rounded-xl px-3 py-3" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+                  <div className="h-3 w-16 skeleton mb-2" />
+                  <div className="h-6 w-20 skeleton" />
+                </div>
+              ))
+            ) : (
+              [
+                ['Transfers', animatedStats.totalTransfers],
+                ['Files', animatedStats.totalFiles],
+                ['Downloads', animatedStats.totalDownloads],
+                ['Users', animatedStats.totalUsers],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl px-3 py-3" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+                  <p style={{ color:'var(--text-3)', fontSize:'11px' }}>{label}</p>
+                  <p className="font-heading text-lg" style={{ color:'var(--text)' }}>
+                    {stats ? Number(value).toLocaleString() : '--'}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </motion.div>
 

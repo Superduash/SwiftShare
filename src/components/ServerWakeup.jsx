@@ -34,10 +34,10 @@ export default function ServerWakeup({ onDismiss }) {
         </div>
 
         <div>
-          <h2 className="text-xl font-bold text-text-primary">Waking up SwiftShare</h2>
+          <h2 className="text-xl font-bold text-text-primary">Waking up SwiftShare...</h2>
           <p className="text-text-muted text-sm mt-2 leading-relaxed">
             Free tier servers sleep after inactivity.<br />
-            This takes about 30 seconds — hang tight.
+            This takes ~30 seconds.
           </p>
         </div>
 

@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import confetti from 'canvas-confetti'
-import { ArrowLeft, Download, Zap, AlertTriangle, Check, FileText, Image } from 'lucide-react'
+import { ArrowLeft, Download, Zap, AlertTriangle, Check, FileText } from 'lucide-react'
 import { getFileMetadata, downloadFile, downloadSingleFile, previewUrl } from '../services/api'
 import { useSocket } from '../context/SocketContext'
 import FileCard from '../components/FileCard'
@@ -29,16 +29,27 @@ export default function DownloadPage() {
   const { code } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { socket, joinRoom } = useSocket()
+  const { socket, joinRoom, isConnected } = useSocket()
 
   const [fileData, setFileData] = useState(location.state?.fileData || null)
   const [secondsRemaining, setSecondsRemaining] = useState(null)
   const [expired, setExpired] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
+  const [startingDownload, setStartingDownload] = useState(false)
+  const [showSocketWarning, setShowSocketWarning] = useState(false)
   const [loading, setLoading] = useState(!fileData)
   const [previewError, setPreviewError] = useState(false)
+  const [showReceiptModal, setShowReceiptModal] = useState(false)
+  const [receipt, setReceipt] = useState(null)
   const downloadedRef = useRef(false)
+  const downloadTimerRef = useRef(null)
+
+  const files = fileData?.files || []
+  const isSingleFile = files.length === 1
+  const firstFile = files[0]
+  const isImage = firstFile?.type?.startsWith('image/')
+  const isPdf = firstFile?.type?.includes('pdf') || firstFile?.icon === 'pdf'
 
   // Fetch metadata if not in state
   useEffect(() => {
@@ -50,16 +61,43 @@ export default function DownloadPage() {
           setLoading(false)
         })
         .catch(err => {
-          const msg = err.message || ''
-          if (msg.toLowerCase().includes('expired')) navigate('/expired', { state: { reason: 'expired' } })
-          else if (msg.toLowerCase().includes('already')) navigate('/expired', { state: { reason: 'burned' } })
-          else navigate('/expired', { state: { reason: 'notfound' } })
+          const status = err?.status
+          const errorCode = err?.code
+
+          if (err?.isNetworkError) {
+            toast.error('Network error. Please check your connection and try again.')
+          }
+
+          if (status === 404) {
+            navigate('/expired', { state: { reason: 'notfound' } })
+            return
+          }
+
+          if (status === 410 && errorCode === 'TRANSFER_EXPIRED') {
+            navigate('/expired', { state: { reason: 'expired' } })
+            return
+          }
+
+          if (status === 410 && errorCode === 'ALREADY_DOWNLOADED') {
+            navigate('/expired', { state: { reason: 'burned' } })
+            return
+          }
+
+          navigate('/expired', { state: { reason: 'notfound' } })
         })
     } else {
       if (fileData.secondsRemaining != null) setSecondsRemaining(fileData.secondsRemaining)
       setLoading(false)
     }
   }, [code])
+
+  useEffect(() => {
+    return () => {
+      if (downloadTimerRef.current) {
+        clearTimeout(downloadTimerRef.current)
+      }
+    }
+  }, [])
 
   // Socket
   useEffect(() => {
@@ -79,6 +117,13 @@ export default function DownloadPage() {
       if (percent >= 100 && !downloadedRef.current) {
         downloadedRef.current = true
         setDownloaded(true)
+        setReceipt({
+          code,
+          filename: isSingleFile ? (firstFile?.name || 'File') : `${files.length} files (ZIP)`,
+          senderDevice: fileData?.senderDeviceName || 'Unknown Device',
+          fileSize: formatBytes(fileData?.totalSize || 0),
+        })
+        setShowReceiptModal(true)
         fireConfetti()
         toast.success('Transfer complete! 🎉')
       }
@@ -93,24 +138,45 @@ export default function DownloadPage() {
       socket.off('transfer-expired', onExpired)
       socket.off('download-progress', onProgress)
     }
-  }, [socket])
+  }, [socket, code, fileData, files.length, firstFile?.name, isSingleFile])
+
+  useEffect(() => {
+    let timer = null
+
+    if (!isConnected) {
+      timer = setTimeout(() => {
+        setShowSocketWarning(true)
+      }, 5000)
+    } else {
+      setShowSocketWarning(false)
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [isConnected])
 
   const handleDownload = () => {
-    downloadFile(code)
-    // Simulate progress start for UX
-    setDownloadPercent(5)
+    if (expired || startingDownload || downloaded) return
+    setStartingDownload(true)
+    setDownloadPercent((prev) => Math.max(prev, 5))
+
+    downloadTimerRef.current = setTimeout(() => {
+      downloadFile(code)
+      setStartingDownload(false)
+    }, 450)
   }
 
   const handleDownloadSingle = (idx) => {
-    downloadSingleFile(code, idx)
-    setDownloadPercent(5)
-  }
+    if (expired || startingDownload || downloaded) return
+    setStartingDownload(true)
+    setDownloadPercent((prev) => Math.max(prev, 5))
 
-  const files = fileData?.files || []
-  const isSingleFile = files.length === 1
-  const firstFile = files[0]
-  const isImage = firstFile?.type?.startsWith('image/')
-  const isPdf = firstFile?.type?.includes('pdf') || firstFile?.icon === 'pdf'
+    downloadTimerRef.current = setTimeout(() => {
+      downloadSingleFile(code, idx)
+      setStartingDownload(false)
+    }, 450)
+  }
 
   if (loading) {
     return (
@@ -153,6 +219,21 @@ export default function DownloadPage() {
             <motion.div className="expired-banner flex items-center gap-2 mb-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <AlertTriangle size={14} />
               This transfer has expired.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showSocketWarning && !expired && (
+            <motion.div
+              className="mb-5 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2"
+              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.24)', color: '#FBBF24' }}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <AlertTriangle size={14} />
+              Live connection is unstable. Progress updates may be delayed.
             </motion.div>
           )}
         </AnimatePresence>
@@ -249,6 +330,7 @@ export default function DownloadPage() {
                   onPreview={() => window.open(previewUrl(code, i), '_blank')}
                   onDownloadSingle={() => handleDownloadSingle(i)}
                   showDownload
+                  disableDownload={expired || startingDownload}
                 />
               ))}
             </div>
@@ -269,12 +351,16 @@ export default function DownloadPage() {
             <motion.button
               className="btn-primary w-full flex items-center justify-center gap-2 text-base"
               onClick={handleDownload}
-              disabled={expired}
+              disabled={expired || startingDownload}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
             >
               <Download size={18} />
-              {isSingleFile ? `Download ${firstFile?.name || 'File'}` : `Download All (ZIP)`}
+              {startingDownload
+                ? 'Preparing download...'
+                : isSingleFile
+                  ? `Download ${firstFile?.name || 'File'}`
+                  : 'Download All (ZIP)'}
             </motion.button>
           )}
 
@@ -304,6 +390,36 @@ export default function DownloadPage() {
             <AISummaryCard ai={fileData.ai} />
           </motion.div>
         )}
+
+        <AnimatePresence>
+          {showReceiptModal && receipt && (
+            <motion.button
+              type="button"
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm px-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowReceiptModal(false)}
+            >
+              <motion.div
+                className="max-w-sm w-full mx-auto mt-24 glass-card p-5 text-left"
+                initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-text-primary font-bold text-base mb-3">Transfer Receipt</h3>
+                <div className="space-y-2 text-sm">
+                  <p className="text-text-muted">Code: <span className="text-text-primary font-mono">{receipt.code}</span></p>
+                  <p className="text-text-muted">Filename: <span className="text-text-primary">{receipt.filename}</span></p>
+                  <p className="text-text-muted">Sender device: <span className="text-text-primary">{receipt.senderDevice}</span></p>
+                  <p className="text-text-muted">File size: <span className="text-text-primary">{receipt.fileSize}</span></p>
+                </div>
+                <p className="text-text-dim text-xs mt-4">Click anywhere to dismiss</p>
+              </motion.div>
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )

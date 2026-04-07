@@ -1,23 +1,19 @@
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const baseUrl = import.meta.env.VITE_API_URL || window.location.origin
 
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: baseUrl,
   timeout: 30000,
 })
 
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const message =
-      err.response?.data?.error?.message ||
-      err.response?.data?.message ||
-      err.message ||
-      'Something went wrong'
-    throw new Error(message)
-  }
-)
+function createApiError(err) {
+  const error = new Error(err.response?.data?.error?.message || err.message)
+  error.status = err.response?.status
+  error.code = err.response?.data?.error?.code
+  error.isNetworkError = !err.response
+  return error
+}
 
 export const pingServer = async () => {
   const start = Date.now()
@@ -30,71 +26,111 @@ export const pingServer = async () => {
 }
 
 export const uploadFiles = async (formData) => {
-  const res = await api.post('/api/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120000,
-  })
-  return res.data.data || res.data
+  try {
+    const res = await api.post('/api/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    })
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const uploadClipboard = async (imageBase64, burnAfterDownload, senderSocketId) => {
-  const res = await api.post('/api/upload/clipboard', {
-    imageBase64,
-    burnAfterDownload,
-    senderSocketId,
-  })
-  return res.data.data || res.data
+  try {
+    const res = await api.post('/api/upload/clipboard', {
+      imageBase64,
+      burnAfterDownload,
+      senderSocketId,
+    })
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const getFileMetadata = async (code) => {
-  const res = await api.get(`/api/file/${code}`)
-  return res.data.data || res.data
+  try {
+    const res = await api.get(`/api/file/${code}`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const getTransferStatus = async (code) => {
-  const res = await api.get(`/api/transfer/${code}/status`)
-  return res.data.data || res.data
+  try {
+    const res = await api.get(`/api/transfer/${code}/status`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const getTransferActivity = async (code) => {
-  const res = await api.get(`/api/transfer/${code}/activity`)
-  return res.data.data || res.data
+  try {
+    const res = await api.get(`/api/transfer/${code}/activity`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const extendTransfer = async (code) => {
-  const res = await api.post(`/api/transfer/${code}/extend`)
-  return res.data.data || res.data
+  try {
+    const res = await api.post(`/api/transfer/${code}/extend`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const deleteTransfer = async (code) => {
-  const res = await api.delete(`/api/transfer/${code}`)
-  return res.data
+  try {
+    const res = await api.delete(`/api/transfer/${code}`)
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const getNearbyDevices = async () => {
-  const res = await api.get('/api/nearby')
-  return res.data.data || res.data
+  try {
+    const res = await api.get('/api/nearby')
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const getStats = async () => {
-  const res = await api.get('/api/stats')
-  return res.data.data || res.data
+  try {
+    const res = await api.get('/api/stats')
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const getHealth = async () => {
-  const res = await api.get('/api/health')
-  return res.data
+  try {
+    const res = await api.get('/api/health')
+    return res.data.data || res.data
+  } catch (err) {
+    throw createApiError(err)
+  }
 }
 
 export const downloadFile = (code) => {
-  window.location.href = `${BASE_URL}/api/download/${code}`
+  window.location.href = `${baseUrl}/api/download/${code}`
 }
 
 export const downloadSingleFile = (code, index) => {
-  window.location.href = `${BASE_URL}/api/download/${code}/single/${index}`
+  window.location.href = `${baseUrl}/api/download/${code}/single/${index}`
 }
 
 export const previewUrl = (code, index) =>
-  `${BASE_URL}/api/file/${code}/preview/${index}`
+  `${baseUrl}/api/file/${code}/preview/${index}`
 
 export default api

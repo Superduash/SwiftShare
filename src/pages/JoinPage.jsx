@@ -18,9 +18,13 @@ export default function JoinPage() {
   const refs = useRef([])
 
   useEffect(() => {
-    const code = searchParams.get('code')
-    if (code?.length === CODE_LEN) setDigits(code.toUpperCase().split(''))
-  }, [])
+    const rawCode = searchParams.get('code') || ''
+    const cleaned = rawCode.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, CODE_LEN)
+
+    if (cleaned.length === CODE_LEN) {
+      setDigits(cleaned.split(''))
+    }
+  }, [searchParams])
 
   const handleInput = (idx, val) => {
     const char = val.toUpperCase().slice(-1)
@@ -62,11 +66,24 @@ export default function JoinPage() {
       const data = await getFileMetadata(code)
       navigate(`/download/${code}`, { state:{ fileData:data }})
     } catch(err) {
-      const m = (err.message||'').toLowerCase()
-      if (m.includes('expired'))   setError({ type:'expired', msg:'This transfer has expired' })
-      else if (m.includes('already') || m.includes('downloaded')) setError({ type:'burned', msg:'Already downloaded — one-time transfer' })
-      else if (m.includes('not found') || m.includes('404'))      setError({ type:'notfound', msg:'Transfer not found — check the code' })
-      else setError({ type:'error', msg: err.message||'Something went wrong' })
+      const status = err?.status
+      const errorCode = err?.code
+
+      if (err?.isNetworkError) {
+        setError({ type: 'error', msg: 'Network error. Check your connection and try again.' })
+        toast.error('Network error. Please check your connection.')
+        return
+      }
+
+      if (status === 404) {
+        setError({ type: 'notfound', msg: 'Transfer not found' })
+      } else if (status === 410 && errorCode === 'TRANSFER_EXPIRED') {
+        setError({ type: 'expired', msg: 'This transfer has expired' })
+      } else if (status === 410 && errorCode === 'ALREADY_DOWNLOADED') {
+        setError({ type: 'burned', msg: 'Already downloaded — this was a one-time transfer' })
+      } else {
+        setError({ type:'error', msg: err.message||'Something went wrong' })
+      }
     } finally { setLoading(false) }
   }
 
@@ -126,9 +143,9 @@ export default function JoinPage() {
                 key={i}
                 className={`code-char ${d?'filled':''}`}
                 style={{
-                  width:'clamp(38px,11vw,52px)',
-                  height:'clamp(46px,13vw,64px)',
-                  fontSize:'clamp(17px,4.5vw,26px)',
+                  width:'clamp(40px,12vw,52px)',
+                  height:'clamp(48px,14vw,64px)',
+                  fontSize:'clamp(18px,5vw,26px)',
                 }}
                 animate={d ? { scale:[1,1.1,1] } : { scale:1 }}
                 transition={{ duration:0.14, type:'spring' }}
