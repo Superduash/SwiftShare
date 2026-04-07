@@ -258,21 +258,37 @@ export default function SenderPage() {
   function handleDownloadQR() {
     const svg = document.querySelector('#sender-qr-code')
     if (!svg) return
+    
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
+    const size = 1024
+    const padding = 80
+    
+    canvas.width = size + (padding * 2)
+    canvas.height = size + (padding * 2)
+    
+    // White background with padding
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    
     const svgData = new XMLSerializer().serializeToString(svg)
     const img = new Image()
+    
     img.onload = () => {
-      canvas.width = img.width * 2
-      canvas.height = img.height * 2
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      // Draw QR centered with padding
+      ctx.drawImage(img, padding, padding, size, size)
+      
       const link = document.createElement('a')
       link.download = `swiftshare-${code}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
+      toast.success('QR code downloaded')
     }
+    
+    img.onerror = () => {
+      toast.error('Failed to download QR code')
+    }
+    
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
   }
 

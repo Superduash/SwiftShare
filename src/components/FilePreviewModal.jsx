@@ -24,6 +24,14 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
 
+  // Reset state when file changes
+  React.useEffect(() => {
+    if (open && file) {
+      setError(false)
+      setLoading(true)
+    }
+  }, [open, file, fileIndex])
+
   if (!open || !file) return null
 
   const type = getPreviewType(file)
@@ -91,39 +99,53 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   )}
                 </div>
               ) : type === 'image' ? (
-                <div className="flex items-center justify-center min-h-[200px]">
-                  {loading && <div className="shimmer-block w-full h-48 rounded-xl absolute" />}
+                <div className="flex items-center justify-center min-h-[200px] relative">
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="shimmer-block w-full h-48 rounded-xl" />
+                    </div>
+                  )}
                   <img
                     src={src}
                     alt={file.name || 'Preview'}
                     className="max-w-full max-h-[65vh] object-contain rounded-xl"
+                    style={{ display: loading ? 'none' : 'block' }}
                     loading="lazy"
                     onLoad={() => setLoading(false)}
                     onError={() => { setLoading(false); setError(true) }}
                   />
                 </div>
               ) : type === 'pdf' ? (
-                <iframe
-                  src={src}
-                  className="w-full rounded-xl"
-                  style={{ height: '65vh', border: 'none' }}
-                  title={file.name || 'PDF Preview'}
-                  onError={() => setError(true)}
-                />
+                <div className="relative" style={{ height: '65vh' }}>
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="shimmer-block w-full h-full rounded-xl" />
+                    </div>
+                  )}
+                  <iframe
+                    src={src}
+                    className="w-full h-full rounded-xl"
+                    style={{ border: 'none', display: loading ? 'none' : 'block' }}
+                    title={file.name || 'PDF Preview'}
+                    onLoad={() => setLoading(false)}
+                    onError={() => { setLoading(false); setError(true) }}
+                  />
+                </div>
               ) : type === 'video' ? (
                 <div className="flex items-center justify-center">
                   <video
                     controls
                     className="max-w-full max-h-[65vh] rounded-xl"
                     style={{ background: '#000' }}
-                    onError={() => setError(true)}
+                    onLoadedData={() => setLoading(false)}
+                    onError={() => { setLoading(false); setError(true) }}
                   >
                     <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
                     Your browser does not support video playback.
                   </video>
                 </div>
               ) : type === 'code' ? (
-                <CodePreview src={src} onError={() => setError(true)} />
+                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <FileText size={40} style={{ color: 'var(--text-4)' }} className="mb-3" />
@@ -148,7 +170,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   )
 }
 
-function CodePreview({ src, onError }) {
+function CodePreview({ src, onError, onLoad }) {
   const [content, setContent] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -162,12 +184,13 @@ function CodePreview({ src, onError }) {
       .then(text => {
         setContent(text.slice(0, 50000)) // limit preview
         setLoading(false)
+        onLoad?.()
       })
       .catch(() => {
         setLoading(false)
         onError?.()
       })
-  }, [src, onError])
+  }, [src, onError, onLoad])
 
   if (loading) {
     return (

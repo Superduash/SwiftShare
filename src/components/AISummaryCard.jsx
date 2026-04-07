@@ -148,6 +148,13 @@ export default function AISummaryCard({ ai, loading = false }) {
                           <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
                           {f.type && <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>{f.type}</p>}
                           <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary}</p>
+                          {f.key_points && f.key_points.length > 0 && (
+                            <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
+                              {f.key_points.map((point, pi) => (
+                                <li key={pi}>• {point}</li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                       ))}
                     </motion.div>
