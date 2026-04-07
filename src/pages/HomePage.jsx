@@ -205,7 +205,7 @@ export default function HomePage() {
                   <span style={{ color: 'var(--accent)' }}>instantly.</span>
                 </h1>
                 <p className="text-base sm:text-lg" style={{ color: 'var(--text-3)' }}>
-                  Drop a file, get a code. No sign-up. Files auto-delete.
+                  Drop a file, get a code. No sign-up. Auto-delete is built in.
                 </p>
               </motion.div>
 
@@ -309,7 +309,7 @@ export default function HomePage() {
                         <p className="text-sm font-semibold" style={{ color: burn ? 'var(--danger)' : 'var(--text-2)' }}>
                           Burn after download
                         </p>
-                        <p className="text-xs" style={{ color: 'var(--text-4)' }}>File deletes after first download</p>
+                        <p className="text-xs" style={{ color: 'var(--text-4)' }}>This action is permanent after first download</p>
                       </div>
                       <div
                         className="w-10 h-6 rounded-full relative transition-all"
@@ -341,7 +341,7 @@ export default function HomePage() {
                           <p className="text-sm font-semibold" style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-2)' }}>
                             Password protect
                           </p>
-                          <p className="text-xs" style={{ color: 'var(--text-4)' }}>Require a password to download</p>
+                          <p className="text-xs" style={{ color: 'var(--text-4)' }}>Only people with the password can download</p>
                         </div>
                         <div
                           className="w-10 h-6 rounded-full relative transition-all"
@@ -406,6 +406,7 @@ export default function HomePage() {
                       <Upload size={18} />
                       Share {files.length} file{files.length !== 1 ? 's' : ''}
                     </button>
+                    <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>Share the code before leaving this page</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -500,8 +501,8 @@ export default function HomePage() {
                 <div className="space-y-4">
                   {[
                     { step: '1', label: 'Drop your file', desc: 'Drag & drop or click to upload' },
-                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or QR' },
-                    { step: '3', label: 'They download', desc: 'Open on any device, no app needed' },
+                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or QR before leaving' },
+                    { step: '3', label: 'They download', desc: 'Files auto-delete after expiry or burn' },
                   ].map(({ step, label, desc }) => (
                     <div key={step} className="flex items-start gap-3">
                       <div

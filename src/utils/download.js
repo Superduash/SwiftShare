@@ -14,39 +14,37 @@ function buildPasswordHeaders(password) {
 }
 
 export async function smartDownload(code, { aiName, index, originalName, password } = {}) {
-  const filename = aiName || originalName || `swiftshare_${code}`
-  const headers = buildPasswordHeaders(password)
-
-  if (typeof index === 'number') {
-    // Single file from multi-file transfer — try blob rename
-    try {
-      const url = typeof downloadSingleFile === 'function'
-        ? getSingleDownloadUrl(code, index, password)
-        : null
-      if (url) {
-        const resp = await fetch(url, headers ? { headers } : undefined)
-        if (!resp.ok) throw new Error('Download failed')
-        const blob = await resp.blob()
-        triggerBlobDownload(blob, filename)
-        return true
-      }
-    } catch {
-      // Fallback
-      downloadSingleFile(code, index, password)
-      return true
-    }
+  // For simple full-transfer downloads with no rename, use direct navigation (streaming, no memory pressure)
+  if (typeof index !== 'number' && !aiName) {
+    downloadFile(code, password)
+    return true
   }
 
-  // Full transfer download with rename
+  const headers = buildPasswordHeaders(password)
+  const url = typeof index === 'number'
+    ? getSingleDownloadUrl(code, index, password)
+    : getDownloadUrl(code, password)
+
   try {
-    const url = getDownloadUrl(code, password)
     const resp = await fetch(url, headers ? { headers } : undefined)
     if (!resp.ok) throw new Error('Download failed')
+
+    // If file is >50MB, skip blob rename — just navigate directly to avoid OOM on mobile
+    const contentLength = Number(resp.headers.get('content-length') || 0)
+    if (contentLength > 50 * 1024 * 1024) {
+      resp.body?.cancel()
+      if (typeof index === 'number') downloadSingleFile(code, index, password)
+      else downloadFile(code, password)
+      return true
+    }
+
     const blob = await resp.blob()
+    const filename = aiName || originalName || `swiftshare_${code}`
     triggerBlobDownload(blob, filename)
     return true
   } catch {
-    downloadFile(code, password)
+    if (typeof index === 'number') downloadSingleFile(code, index, password)
+    else downloadFile(code, password)
     return true
   }
 }

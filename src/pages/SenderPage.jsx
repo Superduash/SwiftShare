@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react'
+import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -49,6 +49,9 @@ export default function SenderPage() {
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
 
+  const mountedRef = useRef(true)
+  useEffect(() => { return () => { mountedRef.current = false } }, [])
+
   const shareLink = `${import.meta.env.VITE_SHARE_BASE_URL || window.location.origin}/g/${code}`
 
   // Title
@@ -66,7 +69,10 @@ export default function SenderPage() {
         const data = await getFileMetadata(code)
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
-        setTotalSeconds(data.secondsRemaining || 600)
+        const sessionDuration = data.expiresAt && data.createdAt
+          ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
+          : 600
+        setTotalSeconds(Math.max(sessionDuration, 60))
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
         if (data.status === 'CANCELLED' || data.status === 'DELETED') {
           setCancelled(true)
@@ -112,7 +118,10 @@ export default function SenderPage() {
     connectRoom()
 
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
-    const onExpired = () => navigate('/expired?reason=expired', { replace: true })
+    const onExpired = () => {
+      if (!mountedRef.current) return
+      navigate('/expired?reason=expired', { replace: true })
+    }
     const onAi = (data) => { setAi(data); setAiLoading(false) }
     const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
     const onDownComplete = () => {
@@ -140,7 +149,8 @@ export default function SenderPage() {
       if (expiresAt) {
         const newSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
         setSecondsRemaining(newSeconds)
-        setTotalSeconds(newSeconds)
+        // Extension duration is 10 minutes (600 seconds) by default
+        setTotalSeconds(600)
       }
     }
 
@@ -212,7 +222,8 @@ export default function SenderPage() {
       if (result?.expiresAt) {
         const newSeconds = Math.max(0, Math.ceil((new Date(result.expiresAt).getTime() - Date.now()) / 1000))
         setSecondsRemaining(newSeconds)
-        setTotalSeconds(newSeconds)
+        // Extension duration is 10 minutes (600 seconds) by default
+        setTotalSeconds(600)
       }
       toast.success('Extended by 10 minutes')
     } catch { toast.error('Failed to extend') }
@@ -223,7 +234,7 @@ export default function SenderPage() {
     if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
     try {
       await deleteTransfer(code)
-      toast.success('Transfer cancelled')
+      toast.success('Transfer cancelled permanently')
       setCancelled(true)
       setConfirmDelete(false)
     } catch { toast.error('Failed to cancel') }
@@ -524,7 +535,7 @@ export default function SenderPage() {
                         style={confirmExtend ? { borderColor: 'var(--warning)', color: 'var(--warning)' } : undefined}
                       >
                         {confirmExtend ? (
-                          <><AlertTriangle size={13} />Confirm?</>
+                          <><AlertTriangle size={13} />Confirm extend?</>
                         ) : (
                           <><Clock size={13} />{extended ? 'Extended' : '+10 min'}</>
                         )}
@@ -535,12 +546,16 @@ export default function SenderPage() {
                         style={confirmDelete ? { borderColor: 'var(--danger)', color: 'var(--danger)' } : undefined}
                       >
                         <Trash2 size={13} />
-                        {confirmDelete ? 'Confirm?' : 'Cancel'}
+                        {confirmDelete ? 'Delete forever?' : 'Cancel'}
                       </button>
                     </div>
 
+                    <p className="text-[10px] mt-2" style={{ color: confirmDelete ? 'var(--danger)' : 'var(--text-4)' }}>
+                      {confirmDelete ? 'This action is permanent' : 'Share the code before this timer ends'}
+                    </p>
+
                     {extended && (
-                      <p className="text-[10px] mt-2" style={{ color: 'var(--text-4)' }}>
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-4)' }}>
                         Can only extend once per transfer
                       </p>
                     )}
@@ -551,7 +566,7 @@ export default function SenderPage() {
                 {meta?.burnAfterDownload && (
                   <div className="p-3 rounded-xl text-center" style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}>
                     <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
-                      🔥 Burn after download enabled — file will delete after first download
+                      🔥 Burn mode is on: first download permanently deletes this transfer
                     </p>
                   </div>
                 )}

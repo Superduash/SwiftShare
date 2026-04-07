@@ -11,11 +11,13 @@ import ErrorState from '../components/ErrorState'
 import { extractErrorCode } from '../utils/errors'
 
 const CODE_LENGTH = 6
+// Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
+const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
 
 export default function JoinPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const prefill = (params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH)
+  const prefill = (params.get('code') || '').toUpperCase().replace(/[^A-HJ-KM-NP-Z2-9]/g, '').slice(0, CODE_LENGTH)
 
   const [chars, setChars] = useState(() => {
     const arr = Array(CODE_LENGTH).fill('')
@@ -47,9 +49,13 @@ export default function JoinPage() {
     const ch = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (!ch) return
 
+    // Filter to valid code characters (excludes 0, O, 1, I, L)
+    const filtered = ch.split('').filter(c => VALID_CODE_CHARS.test(c)).join('')
+    if (!filtered) return
+
     // Handle paste
-    if (ch.length > 1) {
-      const pasted = ch.slice(0, CODE_LENGTH).split('')
+    if (filtered.length > 1) {
+      const pasted = filtered.slice(0, CODE_LENGTH).split('')
       const next = [...chars]
       pasted.forEach((c, i) => {
         if (idx + i < CODE_LENGTH) next[idx + i] = c
@@ -61,7 +67,7 @@ export default function JoinPage() {
     }
 
     const next = [...chars]
-    next[idx] = ch[0]
+    next[idx] = filtered[0]
     setChars(next)
     if (idx < CODE_LENGTH - 1) inputRefs.current[idx + 1]?.focus()
   }
@@ -161,6 +167,11 @@ export default function JoinPage() {
               />
             ))}
           </motion.div>
+
+          {/* Alphabet hint */}
+          <p className="text-center text-xs mb-4" style={{ color: 'var(--text-4)' }}>
+            Letters A–Z (except O, I, L) and numbers 2–9
+          </p>
 
           {/* Error */}
           {error && (

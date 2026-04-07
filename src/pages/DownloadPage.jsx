@@ -44,6 +44,7 @@ export default function DownloadPage() {
   const [transferStatus, setTransferStatus] = useState('ACTIVE')
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [receipt, setReceipt] = useState(null)
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
 
@@ -66,15 +67,18 @@ export default function DownloadPage() {
         const data = await getFileMetadata(code)
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
-        setTotalSeconds(data.secondsRemaining || 600)
+        const sessionDuration = data.expiresAt && data.createdAt
+          ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
+          : 600
+        setTotalSeconds(Math.max(sessionDuration, 60))
         if (data.passwordProtected) { setNeedsPassword(true) }
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
         if (data.status) { setTransferStatus(data.status) }
 
-        // Preview for images
+        // Preview for images — skip if password-protected (will set after verification)
         const firstFile = data?.files?.[0]
         const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
-        if (firstFile && firstFileType.startsWith('image/')) {
+        if (firstFile && firstFileType.startsWith('image/') && !data.passwordProtected) {
           setPreviewSrc(previewUrl(code, 0))
         }
 
@@ -126,6 +130,7 @@ export default function DownloadPage() {
         toast.error('This file was just burned after being downloaded')
       }
     }
+    const onReceipt = (data) => setReceipt(data)
 
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
@@ -135,6 +140,7 @@ export default function DownloadPage() {
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-cancelled', onCancelled)
     socket.on('transfer-deleted', onDeleted)
+    socket.on('transfer-receipt', onReceipt)
 
     return () => {
       socket.off('connect', connectRoom)
@@ -145,6 +151,7 @@ export default function DownloadPage() {
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
+      socket.off('transfer-receipt', onReceipt)
       leaveRoom(code)
     }
   }, [socket, code, joinRoom, leaveRoom, navigate, downloaded])
@@ -160,6 +167,11 @@ export default function DownloadPage() {
       if (result?.verified) {
         setPasswordVerified(true)
         verifiedPasswordRef.current = password
+        const firstFile = meta?.files?.[0]
+        const firstFileType = String(firstFile?.type || '').toLowerCase()
+        if (firstFile && firstFileType.startsWith('image/')) {
+          setPreviewSrc(previewUrl(code, 0, password))
+        }
       }
     } catch (err) {
       const errCode = err?.response?.data?.error?.code
@@ -464,6 +476,7 @@ export default function DownloadPage() {
                   senderDevice={meta?.senderDeviceName}
                   totalSize={meta?.totalSize}
                   burnAfterDownload={meta?.burnAfterDownload}
+                  receipt={receipt}
                 />
               </motion.div>
             )}
