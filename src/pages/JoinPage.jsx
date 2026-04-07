@@ -1,215 +1,202 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { ArrowRight, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Download, Search, Clock, AlertCircle, Zap } from 'lucide-react'
-import { getFileMetadata } from '../services/api'
-import NearbyDevices from '../components/NearbyDevices'
 
-const CODE_LEN = 6
-const VALID = /^[A-Z2-9]$/
+import { getFileMetadata } from '../services/api'
+import Navbar from '../components/Navbar'
+import NearbyDevices from '../components/NearbyDevices'
+import ErrorState from '../components/ErrorState'
+import { extractErrorCode } from '../utils/errors'
+
+const CODE_LENGTH = 6
 
 export default function JoinPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [digits, setDigits] = useState(Array(CODE_LEN).fill(''))
-  const [error, setError] = useState(null)
+  const [params] = useSearchParams()
+  const prefill = (params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH)
+
+  const [chars, setChars] = useState(() => {
+    const arr = Array(CODE_LENGTH).fill('')
+    prefill.split('').forEach((c, i) => { arr[i] = c })
+    return arr
+  })
   const [loading, setLoading] = useState(false)
-  const refs = useRef([])
+  const [error, setError] = useState(null)
+  const inputRefs = useRef([])
 
   useEffect(() => {
-    const rawCode = searchParams.get('code') || ''
-    const cleaned = rawCode.toUpperCase().replace(/[^A-Z2-9]/g, '').slice(0, CODE_LEN)
+    document.title = 'Receive a file · SwiftShare'
+  }, [])
 
-    if (cleaned.length === CODE_LEN) {
-      setDigits(cleaned.split(''))
-    }
-  }, [searchParams])
+  // Auto-focus first empty
+  useEffect(() => {
+    const firstEmpty = chars.findIndex(c => !c)
+    if (firstEmpty >= 0) inputRefs.current[firstEmpty]?.focus()
+  }, [])
 
-  const handleInput = (idx, val) => {
-    const char = val.toUpperCase().slice(-1)
-    if (char && !VALID.test(char)) return
-    const next = [...digits]; next[idx] = char; setDigits(next); setError(null)
-    if (char && idx < CODE_LEN-1) refs.current[idx+1]?.focus()
-    if (char && idx === CODE_LEN-1) {
-      const full = next.join('')
-      if (full.length === CODE_LEN) submit(full)
+  // Auto-submit when complete
+  useEffect(() => {
+    if (chars.every(c => c) && chars.length === CODE_LENGTH) {
+      handleSubmit(chars.join(''))
     }
+  }, [chars])
+
+  function handleChange(idx, value) {
+    const ch = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (!ch) return
+
+    // Handle paste
+    if (ch.length > 1) {
+      const pasted = ch.slice(0, CODE_LENGTH).split('')
+      const next = [...chars]
+      pasted.forEach((c, i) => {
+        if (idx + i < CODE_LENGTH) next[idx + i] = c
+      })
+      setChars(next)
+      const focusIdx = Math.min(idx + pasted.length, CODE_LENGTH - 1)
+      inputRefs.current[focusIdx]?.focus()
+      return
+    }
+
+    const next = [...chars]
+    next[idx] = ch[0]
+    setChars(next)
+    if (idx < CODE_LENGTH - 1) inputRefs.current[idx + 1]?.focus()
   }
 
-  const handleKeyDown = (idx, e) => {
+  function handleKeyDown(idx, e) {
     if (e.key === 'Backspace') {
-      const next = [...digits]
-      if (next[idx]) { next[idx]=''; setDigits(next) }
-      else if (idx>0) { next[idx-1]=''; setDigits(next); refs.current[idx-1]?.focus() }
+      if (chars[idx]) {
+        const next = [...chars]
+        next[idx] = ''
+        setChars(next)
+      } else if (idx > 0) {
+        const next = [...chars]
+        next[idx - 1] = ''
+        setChars(next)
+        inputRefs.current[idx - 1]?.focus()
+      }
     }
-    if (e.key === 'ArrowLeft' && idx>0) refs.current[idx-1]?.focus()
-    if (e.key === 'ArrowRight' && idx<CODE_LEN-1) refs.current[idx+1]?.focus()
-    if (e.key === 'Enter') { const c=digits.join(''); if(c.length===CODE_LEN) submit(c) }
+    if (e.key === 'Enter') {
+      const code = chars.join('')
+      if (code.length === CODE_LENGTH) handleSubmit(code)
+    }
   }
 
-  const handlePaste = (e) => {
-    e.preventDefault()
-    const pasted = e.clipboardData.getData('text').toUpperCase().replace(/[^A-Z2-9]/g,'').slice(0,CODE_LEN)
-    if (!pasted.length) return
-    const next = Array(CODE_LEN).fill('')
-    pasted.split('').forEach((c,i)=>{ next[i]=c })
-    setDigits(next)
-    refs.current[Math.min(pasted.length, CODE_LEN-1)]?.focus()
-    if (pasted.length === CODE_LEN) submit(pasted)
-  }
-
-  const submit = async (code) => {
-    if (loading) return
-    setLoading(true); setError(null)
+  async function handleSubmit(code) {
+    if (loading || code.length !== CODE_LENGTH) return
+    setLoading(true)
+    setError(null)
     try {
-      const data = await getFileMetadata(code)
-      navigate(`/download/${code}`, { state:{ fileData:data }})
-    } catch(err) {
-      const status = err?.status
-      const errorCode = err?.code
-
-      if (err?.isNetworkError) {
-        setError({ type: 'error', msg: 'Network error. Check your connection and try again.' })
-        toast.error('Network error. Please check your connection.')
-        return
-      }
-
-      if (status === 404) {
-        setError({ type: 'notfound', msg: 'Transfer not found' })
-      } else if (status === 410 && errorCode === 'TRANSFER_EXPIRED') {
-        setError({ type: 'expired', msg: 'This transfer has expired' })
-      } else if (status === 410 && errorCode === 'ALREADY_DOWNLOADED') {
-        setError({ type: 'burned', msg: 'Already downloaded — this was a one-time transfer' })
+      await getFileMetadata(code)
+      navigate(`/download/${code}`)
+    } catch (err) {
+      const errCode = extractErrorCode(err)
+      if (errCode === 'TRANSFER_EXPIRED') {
+        navigate('/expired?reason=expired', { replace: true })
+      } else if (errCode === 'ALREADY_DOWNLOADED') {
+        navigate('/expired?reason=burned', { replace: true })
       } else {
-        setError({ type:'error', msg: err.message||'Something went wrong' })
+        setError(errCode)
+        setLoading(false)
+        // Shake animation
+        const el = document.getElementById('code-input-row')
+        if (el) { el.classList.add('animate-shake'); setTimeout(() => el.classList.remove('animate-shake'), 500) }
       }
-    } finally { setLoading(false) }
-  }
-
-  const errConfig = {
-    expired:  { icon: Clock,         color: '#FBBF24', bg: 'rgba(251,191,36,0.07)',  border: 'rgba(251,191,36,0.2)' },
-    burned:   { icon: AlertCircle,   color: '#F87171', bg: 'rgba(248,113,113,0.07)', border: 'rgba(248,113,113,0.2)' },
-    notfound: { icon: Search,        color: '#8B90AA', bg: 'rgba(74,78,101,0.1)',    border: 'rgba(74,78,101,0.2)' },
-    error:    { icon: AlertCircle,   color: '#F87171', bg: 'rgba(248,113,113,0.07)', border: 'rgba(248,113,113,0.2)' },
+    }
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background:'var(--bg)' }}>
-      <div className="fixed inset-0 grid-bg opacity-100 pointer-events-none"/>
-      <div className="fixed pointer-events-none" style={{
-        top:'-15%', left:'-5%', width:'400px', height:'400px', borderRadius:'50%',
-        background:'radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 65%)', filter:'blur(40px)'
-      }}/>
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <Navbar />
 
-      <div className="relative max-w-md mx-auto w-full px-4 py-10 flex-1 flex flex-col">
-
-        {/* Nav */}
-        <motion.div
-          className="flex items-center justify-between mb-12"
-          initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }}
-        >
-          <button className="btn-ghost py-2 px-3 text-sm" onClick={()=>navigate('/')}>
-            <ArrowLeft size={14}/> Back
-          </button>
-          <span className="font-heading text-sm" style={{ color:'var(--text)', letterSpacing:'-0.01em' }}>
-            Swift<span style={{ color:'#818CF8' }}>Share</span>
-          </span>
-        </motion.div>
-
-        {/* Card */}
-        <motion.div
-          className="card p-7 mb-5"
-          initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
-        >
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ background:'rgba(99,102,241,0.1)', border:'1px solid rgba(99,102,241,0.2)' }}>
-              <Download size={20} style={{ color:'#818CF8' }}/>
-            </div>
-            <h1 className="font-display text-2xl mb-1.5" style={{ color:'var(--text)', letterSpacing:'-0.03em' }}>
-              Enter code
+      <main className="pt-14">
+        <div className="max-w-lg mx-auto px-4 sm:px-6 py-12 sm:py-20">
+          <motion.div
+            className="text-center mb-10"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <h1 className="font-display font-extrabold text-3xl sm:text-4xl mb-2" style={{ color: 'var(--text)' }}>
+              Receive a file
             </h1>
-            <p style={{ color:'var(--text-2)', fontSize:'14px' }}>
-              6-digit code from the sender
+            <p className="text-base" style={{ color: 'var(--text-3)' }}>
+              Enter the 6-character code from the sender
             </p>
-          </div>
+          </motion.div>
 
-          {/* OTP inputs */}
-          <div className="flex justify-center gap-2 sm:gap-2.5 mb-6" onPaste={handlePaste}>
-            {digits.map((d,i) => (
-              <motion.div
+          {/* OTP Input */}
+          <motion.div
+            id="code-input-row"
+            className="flex justify-center gap-2 sm:gap-3 mb-6"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            {chars.map((ch, i) => (
+              <motion.input
                 key={i}
-                className={`code-char ${d?'filled':''}`}
+                ref={(el) => { inputRefs.current[i] = el }}
+                type="text"
+                inputMode="text"
+                maxLength={6}
+                value={ch}
+                onChange={(e) => handleChange(i, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(i, e)}
+                onFocus={(e) => e.target.select()}
+                className="w-12 h-14 sm:w-14 sm:h-16 text-center font-mono font-bold text-xl sm:text-2xl rounded-xl outline-none transition-all"
                 style={{
-                  width:'clamp(40px,12vw,52px)',
-                  height:'clamp(48px,14vw,64px)',
-                  fontSize:'clamp(18px,5vw,26px)',
+                  background: 'var(--code-char-bg)',
+                  border: `2px solid ${ch ? 'var(--accent)' : error ? 'var(--danger)' : 'var(--code-char-border)'}`,
+                  color: 'var(--accent)',
+                  caretColor: 'var(--accent)',
                 }}
-                animate={d ? { scale:[1,1.1,1] } : { scale:1 }}
-                transition={{ duration:0.14, type:'spring' }}
-              >
-                <input
-                  ref={el => refs.current[i]=el}
-                  type="text" inputMode="text" maxLength={1}
-                  value={d}
-                  onChange={e=>handleInput(i,e.target.value)}
-                  onKeyDown={e=>handleKeyDown(i,e)}
-                  onFocus={e=>e.target.select()}
-                  disabled={loading}
-                  autoComplete="off"
-                  autoFocus={i===0}
-                />
-              </motion.div>
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + i * 0.04 }}
+                autoComplete="off"
+                aria-label={`Code digit ${i + 1}`}
+              />
             ))}
-          </div>
+          </motion.div>
 
           {/* Error */}
-          <AnimatePresence>
-            {error && (() => {
-              const { icon: Ic, color, bg, border } = errConfig[error.type]||errConfig.error
-              return (
-                <motion.div
-                  className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium mb-5"
-                  style={{ background:bg, border:`1px solid ${border}`, color }}
-                  initial={{ opacity:0, y:-4 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
-                >
-                  <Ic size={14}/> {error.msg}
-                </motion.div>
-              )
-            })()}
-          </AnimatePresence>
+          {error && (
+            <motion.div
+              className="text-center mb-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <ErrorState code={error} />
+            </motion.div>
+          )}
 
-          {/* Submit */}
-          <button
-            className="btn-primary w-full justify-center text-base"
-            onClick={()=>{ const c=digits.join(''); if(c.length===CODE_LEN) submit(c) }}
-            disabled={digits.join('').length < CODE_LEN || loading}
+          {/* Submit button */}
+          <motion.div
+            className="text-center mb-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
           >
-            {loading ? (
-              <>
-                <motion.div animate={{ rotate:360 }} transition={{ duration:1, repeat:Infinity, ease:'linear' }}>
-                  <Search size={15}/>
-                </motion.div>
-                Looking up…
-              </>
-            ) : (
-              <><Download size={16}/> Get File</>
-            )}
-          </button>
+            <button
+              className="btn-primary mx-auto px-10"
+              onClick={() => handleSubmit(chars.join(''))}
+              disabled={loading || chars.some(c => !c)}
+            >
+              {loading ? (
+                <><Loader2 size={16} className="animate-spin" /> Checking...</>
+              ) : (
+                <>Get file <ArrowRight size={16} /></>
+              )}
+            </button>
+          </motion.div>
 
-          <p className="text-center mt-4" style={{ color:'var(--text-3)', fontSize:'12px' }}>
-            📷 Or scan the QR from the sender's screen
-          </p>
-        </motion.div>
-
-        {/* Nearby */}
-        <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.25 }}>
-          <NearbyDevices/>
-        </motion.div>
-
-      </div>
+          {/* Nearby Devices */}
+          <NearbyDevices />
+        </div>
+      </main>
     </div>
   )
 }

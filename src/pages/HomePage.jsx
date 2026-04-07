@@ -1,609 +1,436 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
-import toast from 'react-hot-toast'
 import {
-  Upload, X, Send, ArrowRight, Zap,
-  Flame, FileText, Image,
-  Video, Archive, File, RefreshCw
+  Upload, Plus, X, Flame, Shield, Zap, Clock, Cpu, QrCode,
+  ArrowRight, Clipboard, AlertTriangle, FileText
 } from 'lucide-react'
-import { uploadFiles, uploadClipboard, getNearbyDevices, getStats, pingServer } from '../services/api'
+import toast from 'react-hot-toast'
+
 import { useSocket } from '../context/SocketContext'
 import { useTransfer } from '../context/TransferContext'
+import { uploadFiles, uploadClipboard } from '../services/api'
+import { getSettings } from '../utils/storage'
+import { saveTransfer } from '../utils/storage'
+import { formatBytes } from '../utils/format'
+import Navbar from '../components/Navbar'
+import FileCard from '../components/FileCard'
+import ExpirySelector from '../components/ExpirySelector'
 import ProgressBar from '../components/ProgressBar'
-import LoadingScreen from '../components/LoadingScreen'
+import RecentTransfers from '../components/RecentTransfers'
+import NearbyDevices from '../components/NearbyDevices'
 
-function formatBytes(b) {
-  if (!b) return '0 B'
-  const u = ['B','KB','MB','GB'], i = Math.floor(Math.log(b)/Math.log(1024))
-  return `${(b/Math.pow(1024,i)).toFixed(i?1:0)} ${u[i]}`
-}
+const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
+const MAX_SIZE = 100 * 1024 * 1024 // 100MB
+const MAX_FILES = 5
 
-function getFileIcon(type='') {
-  if (type.includes('pdf'))       return { Icon: FileText, color: '#F87171' }
-  if (type.startsWith('image/'))  return { Icon: Image,    color: '#34D399' }
-  if (type.startsWith('video/'))  return { Icon: Video,    color: '#A78BFA' }
-  if (type.includes('zip'))       return { Icon: Archive,  color: '#FB923C' }
-  return                                 { Icon: File,     color: '#8B90AA' }
-}
-
-function getApiErrorMessage(err, fallback = 'Something went wrong. Please try again.') {
-  if (!err) return fallback
-  if (err.isNetworkError) return 'Network error. Check your connection and try again.'
-
-  if (err.code === 'FILE_TOO_LARGE') {
-    return 'This file is too large. Maximum size is 50MB.'
-  }
-
-  if (err.code === 'TOO_MANY_FILES') {
-    return 'Too many files selected. You can upload up to 10 files.'
-  }
-
-  if (err.code === 'INVALID_FILE_TYPE') {
-    return 'One or more selected files are not allowed.'
-  }
-
-  if (err.code === 'RATE_LIMIT_EXCEEDED') {
-    return 'Too many requests. Please wait a moment and try again.'
-  }
-
-  return err.message || fallback
-}
-
-const BLOCKED = ['.exe','.bat','.sh','.cmd','.msi','.scr','.vbs','.ps1']
-const isBlocked = f => BLOCKED.includes('.'+f.name.split('.').pop().toLowerCase())
-
-// ── Nearby pill ─────────────────────────────────────────────────────────
-function NearbyPill() {
-  const [devices, setDevices] = useState([])
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    getNearbyDevices().then(d => setDevices(d?.devices || [])).catch(()=>{})
-    const t = setInterval(() => getNearbyDevices().then(d => setDevices(d?.devices||[])).catch(()=>{}), 12000)
-    return () => clearInterval(t)
-  }, [])
-
-  if (!devices.length) return null
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-2 flex-wrap justify-center"
-    >
-      {devices.slice(0,3).map((d,i) => (
-        <button
-          key={i}
-          onClick={() => navigate(`/join?code=${d.code}`)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
-          style={{ background:'rgba(99,102,241,0.08)', border:'1px solid rgba(99,102,241,0.2)', color:'#818CF8' }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          {d.deviceName} · {d.fileCount} file{d.fileCount!==1?'s':''}
-        </button>
-      ))}
-      <span className="text-xs" style={{ color:'var(--text-3)' }}>nearby on your WiFi</span>
-    </motion.div>
-  )
-}
+const FEATURES = [
+  { icon: Shield, title: 'Zero Login', desc: 'No accounts, ever' },
+  { icon: Clock, title: 'Auto-Delete', desc: 'Files vanish on schedule' },
+  { icon: Flame, title: 'Burn Mode', desc: 'One download, then gone' },
+  { icon: Cpu, title: 'AI Analysis', desc: 'Smart file summaries' },
+  { icon: QrCode, title: 'QR Sharing', desc: 'Scan to download' },
+  { icon: Zap, title: 'Real-time', desc: 'Live progress tracking' },
+]
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { socket, socketId, isConnected } = useSocket()
-  const { startUpload, setUploadData, setError } = useTransfer()
-  const uploadCompletedRef = useRef(false)
+  const { socket, isConnected, socketId } = useSocket()
+  const { uploadState, setUploadProgress, startUpload, setError } = useTransfer()
 
+  const settings = getSettings()
   const [files, setFiles] = useState([])
-  const [burn, setBurn] = useState(false)
+  const [expiry, setExpiry] = useState(settings.defaultExpiry || 60)
+  const [burn, setBurn] = useState(settings.defaultBurn || false)
   const [uploading, setUploading] = useState(false)
-  const [pct, setPct] = useState(0)
-  const [speedTxt, setSpeedTxt] = useState('')
-  const [isWakingServer, setIsWakingServer] = useState(false)
-  const [stats, setStats] = useState(null)
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [animatedStats, setAnimatedStats] = useState({
-    totalTransfers: 0,
-    totalFiles: 0,
-    totalDownloads: 0,
-    totalUsers: 0,
-  })
+  const [uploadPercent, setUploadPercent] = useState(0)
+  const [uploadSpeed, setUploadSpeed] = useState(0)
+  const fileInputRef = useRef(null)
+  const uploadHandledRef = useRef(false)
 
-  const completeUpload = useCallback((data) => {
-    if (!data?.code || uploadCompletedRef.current) return
+  const handleUploadSuccess = useCallback((payload) => {
+    const transferCode = payload?.code
+    if (!transferCode || uploadHandledRef.current) {
+      return
+    }
 
-    uploadCompletedRef.current = true
+    uploadHandledRef.current = true
     setUploading(false)
-    setPct((prev) => Math.max(prev, 100))
-    setFiles([])
-    setUploadData(data)
-    navigate(`/sender/${data.code}`, { state: { transferData: data } })
-  }, [navigate, setUploadData])
 
-  useEffect(() => {
-    let cancelled = false
-    let retryId = null
+    const fname = files[0]?.name || 'file'
+    saveTransfer({ code: transferCode, filename: fname, isSender: true })
+    navigate(`/sender/${transferCode}`)
+  }, [files, navigate])
 
-    const checkServer = async () => {
-      const { ok, latencyMs } = await pingServer()
-      if (cancelled) return
+  // Title
+  useEffect(() => { document.title = 'SwiftShare — Share files instantly' }, [])
 
-      if (ok && latencyMs <= 3000) {
-        setIsWakingServer(false)
-        return
-      }
-
-      setIsWakingServer(true)
-      retryId = setTimeout(checkServer, 3000)
-    }
-
-    checkServer()
-
-    return () => {
-      cancelled = true
-      if (retryId) clearTimeout(retryId)
-    }
-  }, [])
-
-  useEffect(() => {
-    let active = true
-    const startedAt = Date.now()
-
-    const finishLoading = () => {
-      const remaining = Math.max(0, 1000 - (Date.now() - startedAt))
-      setTimeout(() => {
-        if (active) {
-          setStatsLoading(false)
-        }
-      }, remaining)
-    }
-
-    getStats()
-      .then((data) => {
-        if (!active) return
-        setStats(data)
-      })
-      .catch((err) => {
-        if (!active) return
-        toast.error(getApiErrorMessage(err, 'Unable to load live stats right now.'), { id: 'stats-error' })
-      })
-      .finally(finishLoading)
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!stats) return
-
-    const targets = {
-      totalTransfers: Number(stats.totalTransfers || 0),
-      totalFiles: Number(stats.totalFiles || 0),
-      totalDownloads: Number(stats.totalDownloads || 0),
-      totalUsers: Number(stats.totalUsers || 0),
-    }
-
-    const start = Date.now()
-    const duration = 1500
-    const interval = setInterval(() => {
-      const progress = Math.min(1, (Date.now() - start) / duration)
-
-      setAnimatedStats({
-        totalTransfers: Math.floor(targets.totalTransfers * progress),
-        totalFiles: Math.floor(targets.totalFiles * progress),
-        totalDownloads: Math.floor(targets.totalDownloads * progress),
-        totalUsers: Math.floor(targets.totalUsers * progress),
-      })
-
-      if (progress >= 1) {
-        clearInterval(interval)
-      }
-    }, 30)
-
-    return () => clearInterval(interval)
-  }, [stats])
-
-  // Socket: progress
+  // Socket listeners for upload
   useEffect(() => {
     if (!socket) return
-    const onProg  = ({ percent, speed }) => { setPct(percent||0); if(speed) setSpeedTxt(`${speed} MB/s`) }
-    const onDone  = (data) => completeUpload(data)
-    socket.on('upload-progress', onProg)
-    socket.on('upload-complete', onDone)
-    return () => { socket.off('upload-progress', onProg); socket.off('upload-complete', onDone) }
-  }, [socket, completeUpload])
+    const onProgress = ({ percent, speed }) => {
+      setUploadPercent(percent || 0)
+      setUploadSpeed(speed || 0)
+    }
+    const onComplete = (payload) => handleUploadSuccess(payload)
+    socket.on('upload-progress', onProgress)
+    socket.on('upload-complete', onComplete)
+    return () => {
+      socket.off('upload-progress', onProgress)
+      socket.off('upload-complete', onComplete)
+    }
+  }, [socket, handleUploadSuccess])
 
   // Clipboard paste
   useEffect(() => {
     const onPaste = async (e) => {
-      for (const item of e.clipboardData?.items||[]) {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
         if (item.type.startsWith('image/')) {
-          const f = item.getAsFile()
-          if (!f) return
+          e.preventDefault()
+          const blob = item.getAsFile()
+          if (!blob) return
           const reader = new FileReader()
-          reader.onload = async (ev) => {
+          reader.onload = async () => {
             try {
-              uploadCompletedRef.current = false
-              setUploading(true); startUpload()
-              const r = await uploadClipboard(ev.target.result, burn, socketId||'')
-              completeUpload(r)
-            } catch(err) { toast.error(getApiErrorMessage(err)); setError() } finally { setUploading(false) }
+              setUploading(true)
+              uploadHandledRef.current = false
+              const imageDataUrl = typeof reader.result === 'string' ? reader.result : ''
+              const response = await uploadClipboard(imageDataUrl, burn, socketId)
+              handleUploadSuccess(response)
+            } catch (err) {
+              setUploading(false)
+              toast.error('Failed to upload clipboard image')
+            }
           }
-          reader.readAsDataURL(f)
-          toast('📋 Image pasted — uploading...')
+          reader.readAsDataURL(blob)
+          return
         }
       }
     }
-    document.addEventListener('paste', onPaste)
-    return () => document.removeEventListener('paste', onPaste)
-  }, [burn, socketId, completeUpload, setError, startUpload])
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [burn, socketId])
+
+  // Validation
+  function validateFile(file) {
+    const ext = '.' + (file.name || '').split('.').pop().toLowerCase()
+    if (BLOCKED_EXTS.has(ext)) return `${file.name}: blocked file type`
+    if (file.size > MAX_SIZE) return `${file.name}: exceeds 100 MB limit`
+    return null
+  }
 
   const onDrop = useCallback((accepted) => {
-    const bad = accepted.filter(isBlocked)
-    if (bad.length) { toast.error(`Blocked: ${bad.map(f=>f.name).join(', ')}`); return }
-    setFiles(prev => [...prev, ...accepted])
-  }, [])
+    const combined = [...files, ...accepted].slice(0, MAX_FILES)
+    const errors = combined.map(validateFile).filter(Boolean)
+    if (errors.length) {
+      errors.forEach(e => toast.error(e))
+      return
+    }
+    setFiles(combined)
+  }, [files])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, multiple: true })
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    noClick: files.length > 0,
+    multiple: true,
+  })
 
-  const handleSend = async () => {
-    if (!files.length || uploading) return
-    uploadCompletedRef.current = false
-    setUploading(true); setPct(0); startUpload()
+  function removeFile(idx) {
+    setFiles(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function totalSize() {
+    return files.reduce((s, f) => s + (f.size || 0), 0)
+  }
+
+  async function handleUpload() {
+    if (!files.length) return toast.error('Select at least one file')
+    if (!isConnected) return toast.error('Not connected to server')
+    setUploading(true)
+    setUploadPercent(0)
+    uploadHandledRef.current = false
     try {
-      const fd = new FormData()
-      files.forEach(f => fd.append('files', f))
-      fd.append('burnAfterDownload', String(burn))
-      fd.append('senderSocketId', socketId||'')
-      const response = await uploadFiles(fd)
-      completeUpload(response)
-    } catch(err) {
-      toast.error(getApiErrorMessage(err)); setError(); setUploading(false); setPct(0)
+      const formData = new FormData()
+      files.forEach(f => formData.append('files', f))
+      formData.append('expiryMinutes', expiry)
+      formData.append('burnAfterDownload', burn)
+      if (socketId) formData.append('socketId', socketId)
+      const response = await uploadFiles(formData)
+      handleUploadSuccess(response)
+    } catch (err) {
+      setUploading(false)
+      const msg = err?.response?.data?.error?.message || 'Upload failed'
+      toast.error(msg)
     }
   }
 
-  const removeFile = (i) => setFiles(prev => prev.filter((_,idx)=>idx!==i))
-
-  if (isWakingServer) {
-    return (
-      <LoadingScreen message="Waking up server... this takes ~30 seconds on first load" />
-    )
-  }
+  const hasFiles = files.length > 0
 
   return (
-    <div className="min-h-screen" style={{ background:'var(--bg)' }}>
-      {/* Grid texture */}
-      <div className="fixed inset-0 grid-bg opacity-100 pointer-events-none" />
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <Navbar />
 
-      {/* Ambient glows */}
-      <div className="fixed pointer-events-none" style={{
-        top:'-20%', right:'-10%', width:'500px', height:'500px', borderRadius:'50%',
-        background:'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 65%)',
-        filter:'blur(40px)'
-      }}/>
-      <div className="fixed pointer-events-none" style={{
-        bottom:'-15%', left:'-10%', width:'400px', height:'400px', borderRadius:'50%',
-        background:'radial-gradient(circle, rgba(34,211,238,0.05) 0%, transparent 65%)',
-        filter:'blur(40px)'
-      }}/>
+      <main className="pt-14">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
 
-      <div className="relative max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+          {/* Desktop: split layout */}
+          <div className="lg:grid lg:grid-cols-5 lg:gap-10">
 
-        {/* ── NAV ── */}
-        <motion.nav
-          className="flex items-center justify-between mb-16 sm:mb-20"
-          initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.35 }}
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{ background:'rgba(99,102,241,0.15)', border:'1px solid rgba(99,102,241,0.3)' }}>
-              <Zap size={14} style={{ color:'#818CF8' }}/>
-            </div>
-            <span className="font-heading text-lg" style={{ color:'var(--text)', letterSpacing:'-0.02em' }}>
-              Swift<span style={{ color:'#818CF8' }}>Share</span>
-            </span>
-          </div>
+            {/* ═══ LEFT: Upload Zone (60%) ═══ */}
+            <div className="lg:col-span-3">
+              {/* Hero text */}
+              <motion.div
+                className="mb-6"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl leading-tight mb-2" style={{ color: 'var(--text)' }}>
+                  Share files<br />
+                  <span style={{ color: 'var(--accent)' }}>instantly.</span>
+                </h1>
+                <p className="text-base sm:text-lg" style={{ color: 'var(--text-3)' }}>
+                  Drop a file, get a code. No sign-up. Files auto-delete.
+                </p>
+              </motion.div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-              style={isConnected
-                ? { background:'rgba(52,211,153,0.08)', color:'#34D399', border:'1px solid rgba(52,211,153,0.15)' }
-                : { background:'rgba(248,113,113,0.08)', color:'var(--red)', border:'1px solid rgba(248,113,113,0.15)' }
-              }>
-              <span className="w-1.5 h-1.5 rounded-full"
-                style={{ background: isConnected ? '#34D399' : 'var(--red)',
-                  boxShadow: isConnected ? '0 0 6px #34D399' : 'none' }}/>
-              {isConnected ? 'Live' : 'Offline'}
-            </div>
-            <button className="btn-ghost text-sm py-2 px-4" onClick={() => navigate('/join')}>
-              Receive File
-            </button>
-          </div>
-        </motion.nav>
+              {/* Drop zone */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.4 }}
+              >
+                <div
+                  {...getRootProps()}
+                  className={`drop-zone relative ${isDragActive ? 'active' : ''} ${hasFiles ? 'p-5' : 'p-8 sm:p-12'}`}
+                  style={{ minHeight: hasFiles ? 'auto' : '260px' }}
+                >
+                  <input {...getInputProps()} />
 
-        {/* ── HERO ── */}
-        <motion.div
-          className="mb-10 sm:mb-12"
-          initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.45, delay:0.05 }}
-        >
-          <h1 className="font-display mb-4 leading-none"
-            style={{ fontSize:'clamp(44px, 9vw, 72px)', letterSpacing:'-0.04em', lineHeight:'1.0' }}>
-            <span style={{ color:'var(--text)' }}>Transfer</span>
-            <br />
-            <span className="text-gradient">anything.</span>
-          </h1>
-          <p style={{ color:'var(--text-2)', fontSize:'16px', lineHeight:'1.6', fontFamily:"'Inter', sans-serif" }}>
-            No login. No install. Files auto-delete after delivery.
-          </p>
-        </motion.div>
-
-        {/* ── UPLOAD AREA ── */}
-        <motion.div
-          className="mb-5"
-          initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.45, delay:0.1 }}
-        >
-          {!uploading && !files.length ? (
-            /* ── Empty zone ── */
-            <div
-              {...getRootProps()}
-              className={`upload-zone w-full py-12 sm:py-16 px-8 text-center ${isDragActive?'dragging':''}`}
-            >
-              <input {...getInputProps()} />
-              <AnimatePresence mode="wait">
-                {isDragActive ? (
-                  <motion.div
-                    key="drag"
-                    initial={{ opacity:0, scale:0.96 }}
-                    animate={{ opacity:1, scale:1 }}
-                    exit={{ opacity:0 }}
-                    className="flex flex-col items-center gap-4"
-                  >
-                    <motion.div
-                      className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                      style={{ background:'rgba(99,102,241,0.15)', border:'1px solid rgba(99,102,241,0.3)' }}
-                      animate={{ scale:[1,1.08,1] }}
-                      transition={{ duration:0.6, repeat:Infinity }}
-                    >
-                      <Upload size={28} style={{ color:'#818CF8' }}/>
-                    </motion.div>
-                    <div>
-                      <p className="font-heading text-xl" style={{ color:'#818CF8' }}>Drop to upload</p>
-                      <p style={{ color:'var(--text-3)', fontSize:'13px', marginTop:'4px' }}>Release to start</p>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="idle"
-                    initial={{ opacity:0 }}
-                    animate={{ opacity:1 }}
-                    exit={{ opacity:0 }}
-                    className="flex flex-col items-center gap-5"
-                  >
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                      style={{ background:'var(--bg-elevated)', border:'1px solid var(--border)' }}>
-                      <Upload size={22} style={{ color:'var(--text-3)' }}/>
-                    </div>
-
-                    <div>
-                      <p className="font-heading text-xl mb-1" style={{ color:'var(--text)' }}>
-                        Drop files here
+                  {!hasFiles ? (
+                    <div className="text-center">
+                      <motion.div
+                        className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                        style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-medium)' }}
+                        animate={isDragActive ? { scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] } : {}}
+                        transition={{ duration: 0.4 }}
+                      >
+                        <Upload size={28} style={{ color: 'var(--accent)' }} />
+                      </motion.div>
+                      <p className="font-display font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>
+                        {isDragActive ? 'Drop it here!' : 'Drop files here'}
                       </p>
-                      <p style={{ color:'var(--text-3)', fontSize:'13px' }}>
-                        or click anywhere to browse
+                      <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
+                        or click to browse · Ctrl+V to paste images
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+                        Max 100 MB per file · Up to 5 files
                       </p>
                     </div>
+                  ) : (
+                    <div>
+                      {/* File list */}
+                      <div className="space-y-2 mb-4">
+                        {files.map((f, i) => (
+                          <FileCard key={i} file={f} index={i} showRemove onRemove={removeFile} />
+                        ))}
+                      </div>
 
-                    {/* The explicit CTA button */}
-                    <div
-                      className="flex items-center gap-2 px-7 py-3 rounded-xl pointer-events-none font-heading text-sm"
-                      style={{ background:'var(--accent)', color:'#fff', letterSpacing:'-0.01em' }}
-                    >
-                      <Upload size={15}/>
-                      Choose Files
+                      {/* Add more */}
+                      {files.length < MAX_FILES && (
+                        <button
+                          className="btn-ghost w-full justify-center"
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click() }}
+                        >
+                          <Plus size={14} />
+                          Add more files ({files.length}/{MAX_FILES})
+                        </button>
+                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const newFiles = Array.from(e.target.files || [])
+                          onDrop(newFiles)
+                          e.target.value = ''
+                        }}
+                      />
+
+                      {/* Size info */}
+                      <p className="text-xs text-center mt-2" style={{ color: 'var(--text-4)' }}>
+                        {files.length} file{files.length !== 1 ? 's' : ''} · {formatBytes(totalSize())} total
+                      </p>
                     </div>
+                  )}
+                </div>
+              </motion.div>
 
-                    <p style={{ color:'var(--text-3)', fontSize:'12px' }}>
-                      All types · 100MB max · Up to 10 files · Ctrl+V to paste
-                    </p>
+              {/* Upload controls */}
+              <AnimatePresence>
+                {hasFiles && !uploading && (
+                  <motion.div
+                    className="mt-5 space-y-4"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <ExpirySelector value={expiry} onChange={setExpiry} />
+
+                    {/* Burn toggle */}
+                    <button
+                      type="button"
+                      className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                      style={{
+                        background: burn ? 'var(--danger-soft)' : 'transparent',
+                        border: `1.5px solid ${burn ? 'var(--danger)' : 'var(--border)'}`,
+                      }}
+                      onClick={() => setBurn(!burn)}
+                    >
+                      <Flame size={18} style={{ color: burn ? 'var(--danger)' : 'var(--text-4)' }} />
+                      <div className="flex-1 text-left">
+                        <p className="text-sm font-semibold" style={{ color: burn ? 'var(--danger)' : 'var(--text-2)' }}>
+                          Burn after download
+                        </p>
+                        <p className="text-xs" style={{ color: 'var(--text-4)' }}>File deletes after first download</p>
+                      </div>
+                      <div
+                        className="w-10 h-6 rounded-full relative transition-all"
+                        style={{ background: burn ? 'var(--danger)' : 'var(--border-strong)' }}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                          style={{ background: '#fff', left: burn ? '22px' : '4px' }}
+                        />
+                      </div>
+                    </button>
+
+                    {/* Upload button */}
+                    <button className="btn-primary w-full text-base" onClick={handleUpload}>
+                      <Upload size={18} />
+                      Share {files.length} file{files.length !== 1 ? 's' : ''}
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
 
-          ) : uploading ? (
-            /* ── Upload in progress ── */
-            <div className="card p-8 text-center">
-              <motion.div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
-                style={{ background:'rgba(99,102,241,0.1)', border:'1px solid rgba(99,102,241,0.2)' }}
-                animate={{ rotate:360 }}
-                transition={{ duration:2, repeat:Infinity, ease:'linear' }}
-              >
-                <RefreshCw size={22} style={{ color:'#818CF8' }}/>
-              </motion.div>
-              <p className="font-heading text-lg mb-1" style={{ color:'var(--text)' }}>Uploading…</p>
-              <p style={{ color:'var(--text-2)', fontSize:'13px', marginBottom:'24px' }}>
-                {files.length} file{files.length!==1?'s':''} · {formatBytes(files.reduce((s,f)=>s+f.size,0))}
-              </p>
-              <ProgressBar percent={pct} label="Progress" speed={speedTxt||null} color="#6366F1" />
-              <p style={{ color:'var(--text-3)', fontSize:'12px', marginTop:'16px' }}>
-                AI analyzing content in background…
-              </p>
-            </div>
+              {/* Upload progress */}
+              <AnimatePresence>
+                {uploading && (
+                  <motion.div
+                    className="mt-5 surface-card p-5"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <ProgressBar percent={uploadPercent} speed={uploadSpeed} label="Uploading..." />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-          ) : (
-            /* ── Files queued ── */
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-heading text-base" style={{ color:'var(--text)', letterSpacing:'-0.01em' }}>
-                  {files.length} file{files.length!==1?'s':''} ready
-                </span>
+              {/* Receive section (mobile) */}
+              <div className="mt-8 lg:hidden">
                 <button
-                  onClick={()=>setFiles([])}
-                  style={{ color:'var(--text-3)', fontSize:'12px', background:'none', border:'none', cursor:'pointer' }}
-                  onMouseEnter={e=>e.target.style.color='var(--red)'}
-                  onMouseLeave={e=>e.target.style.color='var(--text-3)'}
+                  className="btn-secondary w-full"
+                  onClick={() => navigate('/join')}
                 >
-                  Clear all
+                  <Clipboard size={16} />
+                  Receive a file
+                  <ArrowRight size={14} />
                 </button>
               </div>
+            </div>
 
-              {/* File list */}
-              <div className="space-y-2 mb-4 max-h-52 overflow-y-auto scroll-container">
-                <AnimatePresence>
-                  {files.map((f,i) => {
-                    const { Icon, color } = getFileIcon(f.type)
-                    return (
-                      <motion.div
-                        key={`${f.name}-${i}`}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 group"
-                        style={{ background:'var(--bg-elevated)' }}
-                        initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }}
-                        exit={{ opacity:0, x:8 }} transition={{ delay:i*0.04 }}
-                      >
-                        <Icon size={15} style={{ color, flexShrink:0 }}/>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-sm font-medium" style={{ color:'var(--text)' }}>{f.name}</p>
-                          <p style={{ color:'var(--text-3)', fontSize:'11px' }}>{formatBytes(f.size)}</p>
-                        </div>
-                        <button className="btn-icon w-7 h-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={()=>removeFile(i)}>
-                          <X size={11}/>
-                        </button>
-                      </motion.div>
-                    )
-                  })}
-                </AnimatePresence>
-              </div>
-
-              {/* Add more */}
-              <div {...getRootProps()} className="rounded-xl px-4 py-3 text-center cursor-pointer mb-4 transition-colors"
-                style={{ border:'1px dashed var(--border)' }}
-                onMouseEnter={e=>e.currentTarget.style.borderColor='rgba(99,102,241,0.35)'}
-                onMouseLeave={e=>e.currentTarget.style.borderColor='var(--border)'}
+            {/* ═══ RIGHT: Secondary info (40%) ═══ */}
+            <div className="lg:col-span-2 mt-10 lg:mt-0 space-y-6">
+              {/* Receive CTA (desktop) */}
+              <motion.button
+                className="hidden lg:flex w-full items-center gap-3 surface-card p-4 group cursor-pointer"
+                style={{ borderColor: 'var(--border)' }}
+                whileHover={{ scale: 1.01, borderColor: 'var(--accent)' }}
+                onClick={() => navigate('/join')}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
               >
-                <input {...getInputProps()}/>
-                <p style={{ color:'var(--text-3)', fontSize:'12px' }}>+ Add more files</p>
-              </div>
-
-              {/* Total */}
-              <div className="flex justify-between text-xs mb-5" style={{ color:'var(--text-2)' }}>
-                <span>Total</span>
-                <span style={{ fontFamily:"'JetBrains Mono', monospace" }}>
-                  {formatBytes(files.reduce((s,f)=>s+f.size,0))}
-                </span>
-              </div>
-
-              <button className="btn-primary w-full justify-center text-base" onClick={handleSend} disabled={uploading}>
-                <Send size={16}/>
-                Send {files.length} file{files.length!==1?'s':''}
-                <ArrowRight size={14}/>
-              </button>
-            </div>
-          )}
-        </motion.div>
-
-        {/* ── BURN TOGGLE ── */}
-        {!uploading && (
-          <motion.div
-            className="flex items-center justify-between px-5 py-4 rounded-2xl mb-10"
-            style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}
-            initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.2 }}
-          >
-            <div className="flex items-center gap-3">
-              <Flame size={15} style={{ color:'var(--red)', flexShrink:0 }}/>
-              <div>
-                <p className="text-sm font-semibold" style={{ color:'var(--text)' }}>Burn after download</p>
-                <p style={{ color:'var(--text-3)', fontSize:'12px' }}>Deleted permanently on first download</p>
-              </div>
-            </div>
-            <label className="toggle">
-              <input type="checkbox" checked={burn} onChange={e=>setBurn(e.target.checked)}/>
-              <span className="toggle-slider"/>
-            </label>
-          </motion.div>
-        )}
-
-        {/* ── NEARBY (only if devices found) ── */}
-        <motion.div
-          className="mb-12"
-          initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }}
-        >
-          <NearbyPill/>
-        </motion.div>
-
-        {/* ── HOW IT WORKS ── no cards, just numbered steps ── */}
-        <motion.div
-          className="mb-14"
-          initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.35 }}
-        >
-          <div className="divider-glow mb-10"/>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
-            {[
-              ['01', 'Upload', 'Drop any file, any size up to 100MB'],
-              ['02', 'Get code', 'Instant 6-digit code + QR generated'],
-              ['03', 'Share', 'Send the code or scan the QR'],
-              ['04', 'Auto-delete', 'File vanishes after 10 minutes'],
-            ].map(([num, title, desc]) => (
-              <div key={num} className="flex flex-col gap-2">
-                <span className="font-display text-3xl leading-none" style={{
-                  color:'transparent',
-                  WebkitTextStroke:'1px rgba(99,102,241,0.25)',
-                  fontVariantNumeric:'tabular-nums',
-                }}>
-                  {num}
-                </span>
-                <p className="font-heading text-sm" style={{ color:'var(--text)', letterSpacing:'-0.01em' }}>{title}</p>
-                <p style={{ color:'var(--text-3)', fontSize:'12px', lineHeight:'1.5' }}>{desc}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div
-          className="mb-10"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.38 }}
-        >
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {statsLoading ? (
-              [0, 1, 2, 3].map((i) => (
-                <div key={i} className="rounded-xl px-3 py-3" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
-                  <div className="h-3 w-16 skeleton mb-2" />
-                  <div className="h-6 w-20 skeleton" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)' }}>
+                  <Clipboard size={18} style={{ color: 'var(--accent)' }} />
                 </div>
-              ))
-            ) : (
-              [
-                ['Transfers', animatedStats.totalTransfers],
-                ['Files', animatedStats.totalFiles],
-                ['Downloads', animatedStats.totalDownloads],
-                ['Users', animatedStats.totalUsers],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-xl px-3 py-3" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
-                  <p style={{ color:'var(--text-3)', fontSize:'11px' }}>{label}</p>
-                  <p className="font-heading text-lg" style={{ color:'var(--text)' }}>
-                    {stats ? Number(value).toLocaleString() : '--'}
-                  </p>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Receive a file</p>
+                  <p className="text-xs" style={{ color: 'var(--text-3)' }}>Enter a 6-digit code to download</p>
                 </div>
-              ))
-            )}
+                <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--accent)' }} />
+              </motion.button>
+
+              {/* Features grid */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+              >
+                <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-4)' }}>Why SwiftShare</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {FEATURES.map(({ icon: Icon, title, desc }, idx) => (
+                    <motion.div
+                      key={title}
+                      className="surface-card-flat p-3 group"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + idx * 0.05 }}
+                    >
+                      <Icon size={16} className="mb-1.5" style={{ color: 'var(--accent)' }} />
+                      <p className="text-xs font-bold" style={{ color: 'var(--text)' }}>{title}</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>{desc}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Recent Transfers */}
+              <RecentTransfers />
+
+              {/* Nearby Devices */}
+              <NearbyDevices />
+
+              {/* How it works */}
+              <motion.div
+                className="surface-card p-5"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <h3 className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-4)' }}>How it works</h3>
+                <div className="space-y-4">
+                  {[
+                    { step: '1', label: 'Drop your file', desc: 'Drag & drop or click to upload' },
+                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or QR' },
+                    { step: '3', label: 'They download', desc: 'Open on any device, no app needed' },
+                  ].map(({ step, label, desc }) => (
+                    <div key={step} className="flex items-start gap-3">
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-display font-bold text-xs"
+                        style={{ background: 'var(--accent)', color: '#fff' }}
+                      >
+                        {step}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{label}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-4)' }}>{desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
           </div>
-        </motion.div>
-
-        {/* ── FOOTER ── */}
-        <motion.div
-          className="text-center"
-          initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.4 }}
-        >
-          <p style={{ color:'var(--text-3)', fontSize:'12px' }}>
-            SwiftShare · No login required · Files auto-deleted · Free forever
-          </p>
-        </motion.div>
-
-      </div>
+        </div>
+      </main>
     </div>
   )
 }
