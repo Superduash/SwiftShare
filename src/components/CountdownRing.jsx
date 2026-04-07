@@ -2,20 +2,23 @@ import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 
 export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600, size = 120 }) {
-  const radius = (size - 16) / 2
+  const radius = 80
+  const svgSize = 180
+  const center = svgSize / 2
   const circumference = 2 * Math.PI * radius
-  const progress = Math.max(0, Math.min(1, secondsRemaining / totalSeconds))
-  const dashOffset = circumference * (1 - progress)
+  const safeTotal = Math.max(1, totalSeconds)
+  const safeRemaining = Math.max(0, Math.min(secondsRemaining, safeTotal))
+  const dashOffset = circumference * (1 - safeRemaining / safeTotal)
 
   const color = useMemo(() => {
     if (secondsRemaining > 120) return '#22D3EE'
-    if (secondsRemaining > 60) return '#F59E0B'
+    if (secondsRemaining >= 60) return '#FACC15'
     return '#EF4444'
   }, [secondsRemaining])
 
   const glowColor = useMemo(() => {
     if (secondsRemaining > 120) return 'rgba(34,211,238,0.3)'
-    if (secondsRemaining > 60) return 'rgba(245,158,11,0.3)'
+    if (secondsRemaining >= 60) return 'rgba(250,204,21,0.3)'
     return 'rgba(239,68,68,0.4)'
   }, [secondsRemaining])
 
@@ -33,11 +36,11 @@ export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600
         transition={{ duration: 1, repeat: Infinity }}
         style={{ width: size, height: size }}
       >
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <svg width={size} height={size} viewBox={`0 0 ${svgSize} ${svgSize}`} style={{ transform: 'rotate(-90deg)' }}>
           {/* Background track */}
           <circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={center}
+            cy={center}
             r={radius}
             fill="none"
             stroke="rgba(30,45,69,0.8)"
@@ -45,8 +48,8 @@ export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600
           />
           {/* Progress arc */}
           <motion.circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={center}
+            cy={center}
             r={radius}
             fill="none"
             stroke={color}

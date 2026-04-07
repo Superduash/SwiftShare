@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import QRCode from 'react-qr-code'
@@ -19,11 +19,22 @@ import ActivityLog from '../components/ActivityLog'
 import CountdownRing from '../components/CountdownRing'
 import ProgressBar from '../components/ProgressBar'
 
+function getTotalCountdownSeconds(data) {
+  const createdAt = data?.createdAt ? new Date(data.createdAt).getTime() : null
+  const expiresAt = data?.expiresAt ? new Date(data.expiresAt).getTime() : null
+
+  if (!createdAt || !expiresAt || expiresAt <= createdAt) {
+    return 600
+  }
+
+  return Math.max(1, Math.ceil((expiresAt - createdAt) / 1000))
+}
+
 export default function SenderPage() {
   const { code } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { socket, registerSender, joinRoom } = useSocket()
+  const { socket, registerSender, joinRoom, isConnected } = useSocket()
   const { uploadData, setAiData } = useTransfer()
 
   const [transfer, setTransfer] = useState(location.state?.transferData || uploadData || null)
@@ -38,6 +49,8 @@ export default function SenderPage() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [aiLoading, setAiLoading] = useState(!ai)
+  const [totalSeconds, setTotalSeconds] = useState(getTotalCountdownSeconds(transfer))
+  const [showSocketWarning, setShowSocketWarning] = useState(false)
   const shareLink = transfer?.shareLink || transfer?.data?.shareLink || `${import.meta.env.VITE_SHARE_BASE_URL}/join?code=${code}`
 
   // Load transfer data if not in state
@@ -47,6 +60,8 @@ export default function SenderPage() {
         .then(data => {
           setTransfer(data)
           setAi(data.ai || null)
+          setExtendedOnce(Boolean(data?.extendedOnce))
+          setTotalSeconds(getTotalCountdownSeconds(data))
           if (data.ai) setAiLoading(false)
           if (data.secondsRemaining != null) setSecondsRemaining(data.secondsRemaining)
         })
@@ -57,6 +72,8 @@ export default function SenderPage() {
         const expAt = new Date(transfer.expiresAt).getTime()
         setSecondsRemaining(Math.max(0, Math.ceil((expAt - Date.now()) / 1000)))
       }
+      setExtendedOnce(Boolean(transfer?.extendedOnce))
+      setTotalSeconds(getTotalCountdownSeconds(transfer))
     }
   }, [code])
 
@@ -106,6 +123,22 @@ export default function SenderPage() {
     }
   }, [socket])
 
+  useEffect(() => {
+    let timer = null
+
+    if (!isConnected) {
+      timer = setTimeout(() => {
+        setShowSocketWarning(true)
+      }, 5000)
+    } else {
+      setShowSocketWarning(false)
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [isConnected])
+
   const handleCopyCode = () => {
     navigator.clipboard.writeText(code)
     setCodeCopied(true)
@@ -123,9 +156,22 @@ export default function SenderPage() {
   const handleExtend = async () => {
     setExtending(true)
     try {
-      await extendTransfer(code)
-      setExtendedOnce(true)
-      setSecondsRemaining(prev => (prev || 0) + 600)
+      const result = await extendTransfer(code)
+      const isExtended = Boolean(result?.extendedOnce)
+      const nextExpiresAt = result?.expiresAt || transfer?.expiresAt
+
+      setExtendedOnce(isExtended)
+      if (nextExpiresAt) {
+        const nextSeconds = Math.max(0, Math.ceil((new Date(nextExpiresAt).getTime() - Date.now()) / 1000))
+        setSecondsRemaining(nextSeconds)
+      }
+
+      if (transfer) {
+        const nextTransfer = { ...transfer, expiresAt: nextExpiresAt, extendedOnce: isExtended }
+        setTransfer(nextTransfer)
+        setTotalSeconds(getTotalCountdownSeconds(nextTransfer))
+      }
+
       toast.success('Extended by 10 minutes!')
     } catch (err) {
       toast.error(err.message)
@@ -187,6 +233,21 @@ export default function SenderPage() {
           )}
         </AnimatePresence>
 
+        <AnimatePresence>
+          {showSocketWarning && !expired && (
+            <motion.div
+              className="mb-6 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2"
+              style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.24)', color: '#FBBF24' }}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+            >
+              <AlertTriangle size={14} />
+              Live connection is unstable. Countdown and activity may refresh slowly.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Download progress (for receiver activity) */}
         {downloadPercent > 0 && downloadPercent < 100 && (
           <motion.div className="mb-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -197,7 +258,7 @@ export default function SenderPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* ── LEFT COLUMN ── */}
-          <div className="space-y-5">
+          <div className="space-y-5 order-2 lg:order-1">
             {/* Files */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -243,7 +304,7 @@ export default function SenderPage() {
 
           {/* ── RIGHT COLUMN ── */}
           <motion.div
-            className="space-y-5"
+            className="space-y-5 order-1 lg:order-2"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.15 }}
@@ -252,12 +313,12 @@ export default function SenderPage() {
             <div className="glass-card p-6 glow-cyan">
               {/* QR code */}
               <div className="flex justify-center mb-6">
-                <div className="p-4 bg-white rounded-2xl">
+                <div className="p-4 rounded-2xl" style={{ background: '#0F1628', border: '1px solid rgba(34,211,238,0.25)' }}>
                   <QRCode
                     value={shareLink}
-                    size={180}
-                    bgColor="#ffffff"
-                    fgColor="#0A0E1A"
+                    size={200}
+                    bgColor="#0F1628"
+                    fgColor="#22D3EE"
                     level="M"
                   />
                 </div>
@@ -316,7 +377,7 @@ export default function SenderPage() {
               {secondsRemaining !== null && (
                 <CountdownRing
                   secondsRemaining={secondsRemaining}
-                  totalSeconds={600}
+                  totalSeconds={totalSeconds || 600}
                   size={130}
                 />
               )}
@@ -340,7 +401,7 @@ export default function SenderPage() {
                   ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}><RefreshCw size={14} /></motion.div>
                   : <Clock size={14} />
                 }
-                {extendedOnce ? 'Already extended' : extending ? 'Extending...' : 'Extend 10 minutes'}
+                {extendedOnce ? 'Extended' : extending ? 'Extending...' : 'Extend 10 min'}
               </button>
 
               <button

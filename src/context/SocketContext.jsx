@@ -9,15 +9,19 @@ export function SocketProvider({ children }) {
   const [socketId, setSocketId] = useState(null)
 
   useEffect(() => {
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin
+    let socket = socketRef.current
 
-    const socket = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-    })
-
-    socketRef.current = socket
+    if (!socket) {
+      socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+      })
+      socketRef.current = socket
+    } else if (!socket.connected) {
+      socket.connect()
+    }
 
     socket.on('connect', () => {
       setIsConnected(true)
@@ -29,31 +33,38 @@ export function SocketProvider({ children }) {
       setSocketId(null)
     })
 
+    if (socket.connected) {
+      setIsConnected(true)
+      setSocketId(socket.id)
+    }
+
     return () => {
+      socket.off('connect')
+      socket.off('disconnect')
       socket.disconnect()
     }
   }, [])
 
   const joinRoom = useCallback((code) => {
-    if (socketRef.current && code) {
+    if (socketRef.current?.connected && code) {
       socketRef.current.emit('join-room', { code })
     }
   }, [])
 
   const leaveRoom = useCallback((code) => {
-    if (socketRef.current && code) {
+    if (socketRef.current?.connected && code) {
       socketRef.current.emit('leave-room', { code })
     }
   }, [])
 
   const registerSender = useCallback((code) => {
-    if (socketRef.current && code) {
+    if (socketRef.current?.connected && code) {
       socketRef.current.emit('register-sender', { code })
     }
   }, [])
 
   const rejoinRoom = useCallback((code) => {
-    if (socketRef.current && code) {
+    if (socketRef.current?.connected && code) {
       socketRef.current.emit('rejoin-room', { code })
     }
   }, [])

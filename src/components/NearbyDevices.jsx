@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { Wifi, FileText, ChevronRight } from 'lucide-react'
 import { getNearbyDevices } from '../services/api'
 
@@ -30,27 +31,50 @@ function timeLeft(expiresAt) {
 export default function NearbyDevices() {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isVisible, setIsVisible] = useState(false)
+  const containerRef = useRef(null)
   const navigate = useNavigate()
 
   const fetchDevices = async () => {
     try {
       const data = await getNearbyDevices()
       setDevices(data?.devices || [])
-    } catch {
+    } catch (error) {
       setDevices([])
+      toast.error(error.message, { id: 'nearby-error' })
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        setIsVisible(Boolean(entry?.isIntersecting))
+      },
+      { threshold: 0.1 },
+    )
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!isVisible) {
+      return undefined
+    }
+
     fetchDevices()
     const interval = setInterval(fetchDevices, 10000)
     return () => clearInterval(interval)
-  }, [])
+  }, [isVisible])
 
   return (
-    <div className="glass-card p-4">
+    <div ref={containerRef} className="glass-card p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Wifi size={15} className="text-accent-cyan" />
