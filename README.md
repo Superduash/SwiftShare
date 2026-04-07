@@ -1,4 +1,4 @@
-# SwiftShare – Frontend ⚡📦🚀
+# SwiftShare⚡📦🚀
 
 **Zero-Login | Ultra-Fast | Cross-Platform File Transfer**
 
