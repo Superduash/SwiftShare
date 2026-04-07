@@ -5,17 +5,26 @@ import {
   getSingleDownloadUrl,
 } from '../services/api'
 
-export async function smartDownload(code, { aiName, index, originalName } = {}) {
+function buildPasswordHeaders(password) {
+  if (typeof password !== 'string' || !password.trim()) {
+    return undefined
+  }
+
+  return { 'x-transfer-password': password }
+}
+
+export async function smartDownload(code, { aiName, index, originalName, password } = {}) {
   const filename = aiName || originalName || `swiftshare_${code}`
+  const headers = buildPasswordHeaders(password)
 
   if (typeof index === 'number') {
     // Single file from multi-file transfer — try blob rename
     try {
       const url = typeof downloadSingleFile === 'function'
-        ? getSingleDownloadUrl(code, index)
+        ? getSingleDownloadUrl(code, index, password)
         : null
       if (url) {
-        const resp = await fetch(url)
+        const resp = await fetch(url, headers ? { headers } : undefined)
         if (!resp.ok) throw new Error('Download failed')
         const blob = await resp.blob()
         triggerBlobDownload(blob, filename)
@@ -23,21 +32,21 @@ export async function smartDownload(code, { aiName, index, originalName } = {}) 
       }
     } catch {
       // Fallback
-      downloadSingleFile(code, index)
+      downloadSingleFile(code, index, password)
       return true
     }
   }
 
   // Full transfer download with rename
   try {
-    const url = getDownloadUrl(code)
-    const resp = await fetch(url)
+    const url = getDownloadUrl(code, password)
+    const resp = await fetch(url, headers ? { headers } : undefined)
     if (!resp.ok) throw new Error('Download failed')
     const blob = await resp.blob()
     triggerBlobDownload(blob, filename)
     return true
   } catch {
-    downloadFile(code)
+    downloadFile(code, password)
     return true
   }
 }

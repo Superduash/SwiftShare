@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Loader2, CheckCircle2, Image as ImageIcon } from 'lucide-react'
+import { Download, Loader2, CheckCircle2, Image as ImageIcon, Lock, Eye, EyeOff, ShieldX } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadata, previewUrl } from '../services/api'
+import { getFileMetadata, previewUrl, verifyPassword } from '../services/api'
 import { smartDownload } from '../utils/download'
 import { saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
@@ -33,6 +33,13 @@ export default function DownloadPage() {
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
   const [previewSrc, setPreviewSrc] = useState(null)
+  const [needsPassword, setNeedsPassword] = useState(false)
+  const [passwordVerified, setPasswordVerified] = useState(false)
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
 
   useEffect(() => {
@@ -55,6 +62,7 @@ export default function DownloadPage() {
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
         setTotalSeconds(data.secondsRemaining || 600)
+        if (data.passwordProtected) { setNeedsPassword(true) }
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
 
         // Preview for images
@@ -119,6 +127,31 @@ export default function DownloadPage() {
     }
   }, [socket, code, joinRoom, leaveRoom, navigate])
 
+  // Password verification
+  async function handlePasswordSubmit(e) {
+    e?.preventDefault()
+    if (!password.trim() || verifying) return
+    setVerifying(true)
+    setPasswordError('')
+    try {
+      const result = await verifyPassword(code, password)
+      if (result?.verified) {
+        setPasswordVerified(true)
+        verifiedPasswordRef.current = password
+      }
+    } catch (err) {
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'INVALID_PASSWORD') {
+        setPasswordError('Wrong password. Please try again.')
+      } else if (err?.response?.status === 429) {
+        setPasswordError('Too many attempts. This transfer is locked.')
+      } else {
+        setPasswordError('Verification failed. Please try again.')
+      }
+    }
+    setVerifying(false)
+  }
+
   // Download
   async function handleDownload() {
     if (downloading || downloaded) return
@@ -127,6 +160,7 @@ export default function DownloadPage() {
       await smartDownload(code, {
         aiName: ai?.suggestedName,
         originalName: meta?.files?.[0]?.name,
+        password: verifiedPasswordRef.current || undefined,
       })
       setDownloaded(true)
       setDownloading(false)
@@ -228,6 +262,69 @@ export default function DownloadPage() {
             </motion.div>
           )}
 
+          {/* Password gate */}
+          {needsPassword && !passwordVerified && !downloaded && (
+            <motion.div
+              className="mb-6"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="surface-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock size={18} style={{ color: 'var(--accent)' }} />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                    This transfer is password protected
+                  </p>
+                </div>
+                <form onSubmit={handlePasswordSubmit}>
+                  <div className="relative mb-3">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setPasswordError('') }}
+                      placeholder="Enter password..."
+                      maxLength={64}
+                      autoFocus
+                      className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
+                      style={{
+                        background: 'var(--bg-sunken)',
+                        border: `1.5px solid ${passwordError ? 'var(--danger)' : 'var(--border)'}`,
+                        color: 'var(--text)',
+                      }}
+                      onFocus={(e) => { if (!passwordError) e.target.style.borderColor = 'var(--accent)' }}
+                      onBlur={(e) => { if (!passwordError) e.target.style.borderColor = 'var(--border)' }}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                    >
+                      {showPassword
+                        ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
+                        : <Eye size={16} style={{ color: 'var(--text-4)' }} />
+                      }
+                    </button>
+                  </div>
+                  {passwordError && (
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <ShieldX size={14} style={{ color: 'var(--danger)' }} />
+                      <p className="text-xs" style={{ color: 'var(--danger)' }}>{passwordError}</p>
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    className="btn-primary w-full text-sm"
+                    disabled={!password.trim() || verifying}
+                  >
+                    {verifying ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                    {verifying ? 'Verifying...' : 'Unlock'}
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          )}
+
           {/* Countdown */}
           {!downloaded && (
             <div className="flex justify-center mb-6">
@@ -243,7 +340,7 @@ export default function DownloadPage() {
                   <div className="surface-card p-5 mb-6">
                     <ProgressBar percent={downloadPercent} label="Downloading..." showSpeed={false} />
                   </div>
-                ) : (
+                ) : (needsPassword && !passwordVerified) ? null : (
                   <button className="btn-primary w-full text-base mb-6" onClick={handleDownload}>
                     <Download size={18} />
                     Download {meta?.files?.length > 1 ? `${meta.files.length} files` : 'file'}

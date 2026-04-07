@@ -24,6 +24,15 @@ function buildBackendUrl(path) {
   return `${baseURL}${path}`
 }
 
+function appendPasswordQuery(url, password) {
+  if (typeof password !== 'string' || !password.trim()) {
+    return url
+  }
+
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}password=${encodeURIComponent(password)}`
+}
+
 function toDataUrl(base64OrDataUrl, mimeType = 'image/png') {
   if (typeof base64OrDataUrl !== 'string' || !base64OrDataUrl) {
     return ''
@@ -99,6 +108,12 @@ export async function getTransferActivity(code) {
   return unwrapResponse(data)
 }
 
+// ── Password ───────────────────────────────
+export async function verifyPassword(code, password) {
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/verify-password`, { password })
+  return unwrapResponse(data)
+}
+
 // ── Actions ─────────────────────────────────
 export async function extendTransfer(code) {
   const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/extend`)
@@ -123,21 +138,23 @@ export async function getStats() {
 }
 
 // ── Download ────────────────────────────────
-export function getDownloadUrl(code) {
-  return buildBackendUrl(`/api/download/${normalizeCode(code)}`)
+export function getDownloadUrl(code, password) {
+  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}`)
+  return appendPasswordQuery(url, password)
 }
 
-export function getSingleDownloadUrl(code, index) {
+export function getSingleDownloadUrl(code, index, password) {
   const safeIndex = Number(index)
-  return buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  return appendPasswordQuery(url, password)
 }
 
-export function downloadFile(code) {
-  window.location.href = getDownloadUrl(code)
+export function downloadFile(code, password) {
+  window.location.href = getDownloadUrl(code, password)
 }
 
-export function downloadSingleFile(code, index) {
-  window.location.href = getSingleDownloadUrl(code, index)
+export function downloadSingleFile(code, index, password) {
+  window.location.href = getSingleDownloadUrl(code, index, password)
 }
 
 export function previewUrl(code, index) {
