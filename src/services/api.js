@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const rawBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+const rawBaseURL = import.meta.env.VITE_API_URL || fallbackOrigin
 const baseURL = rawBaseURL.replace(/\/+$/, '')
 
 const API = axios.create({

@@ -14,7 +14,8 @@ export function SocketProvider({ children }) {
   const [socketId, setSocketId] = useState(null)
 
   useEffect(() => {
-    const url = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
+    const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
+    const url = import.meta.env.VITE_SOCKET_URL || fallbackOrigin
     const s = io(url, {
       transports: ['websocket', 'polling'],
       reconnection: true,
