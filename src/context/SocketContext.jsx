@@ -9,21 +9,36 @@ function normalizeCode(code) {
 
 export function SocketProvider({ children }) {
   const socketRef = useRef(null)
+  const [socket, setSocket] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
   const [socketId, setSocketId] = useState(null)
 
   useEffect(() => {
     const url = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001'
-    const socket = io(url, { transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 2000 })
-    socketRef.current = socket
-
-    socket.on('connect', () => {
-      setIsConnected(true)
-      setSocketId(socket.id)
+    const s = io(url, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 2000,
+      reconnectionAttempts: Infinity,
     })
-    socket.on('disconnect', () => setIsConnected(false))
+    socketRef.current = s
+    setSocket(s)
 
-    return () => { socket.disconnect() }
+    s.on('connect', () => {
+      setIsConnected(true)
+      setSocketId(s.id)
+    })
+
+    s.on('disconnect', () => {
+      setIsConnected(false)
+    })
+
+    s.on('reconnect', () => {
+      setIsConnected(true)
+      setSocketId(s.id)
+    })
+
+    return () => { s.disconnect() }
   }, [])
 
   const joinRoom = useCallback((code) => {
@@ -52,7 +67,7 @@ export function SocketProvider({ children }) {
 
   return (
     <SocketContext.Provider
-      value={{ socket: socketRef.current, isConnected, socketId, joinRoom, leaveRoom, registerSender, rejoinRoom }}
+      value={{ socket, isConnected, socketId, joinRoom, leaveRoom, registerSender, rejoinRoom }}
     >
       {children}
     </SocketContext.Provider>

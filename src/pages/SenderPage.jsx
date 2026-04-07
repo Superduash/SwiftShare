@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, ExternalLink, Share2, Clock, Trash2,
-  MessageCircle, Mail, Monitor, Maximize2
+  MessageCircle, Mail, Monitor, Maximize2, Send,
+  Download, QrCode, AlertTriangle
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import toast from 'react-hot-toast'
@@ -11,7 +12,7 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import {
   getFileMetadata, getTransferActivity,
-  extendTransfer, deleteTransfer
+  extendTransfer, deleteTransfer, downloadSingleFile
 } from '../services/api'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
@@ -21,6 +22,8 @@ import ActivityLog from '../components/ActivityLog'
 import ProgressBar from '../components/ProgressBar'
 import QRModal from '../components/QRModal'
 import ErrorState from '../components/ErrorState'
+
+const FilePreviewModal = lazy(() => import('../components/FilePreviewModal'))
 
 export default function SenderPage() {
   const { code } = useParams()
@@ -41,6 +44,10 @@ export default function SenderPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmExtend, setConfirmExtend] = useState(false)
+  const [cancelled, setCancelled] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   const shareLink = `${import.meta.env.VITE_SHARE_BASE_URL || window.location.origin}/g/${code}`
 
@@ -61,6 +68,9 @@ export default function SenderPage() {
         setSecondsRemaining(data.secondsRemaining || 0)
         setTotalSeconds(data.secondsRemaining || 600)
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
+        if (data.status === 'CANCELLED' || data.status === 'DELETED') {
+          setCancelled(true)
+        }
       } catch (err) {
         const errCode = err?.response?.data?.error?.code
         if (errCode === 'TRANSFER_NOT_FOUND' || errCode === 'TRANSFER_EXPIRED') {
@@ -118,6 +128,21 @@ export default function SenderPage() {
         toast.success(`Downloaded by ${receipt.receiver}`)
       }
     }
+    const onCancelled = () => {
+      setCancelled(true)
+      void loadActivity()
+    }
+    const onDeleted = () => {
+      setCancelled(true)
+      void loadActivity()
+    }
+    const onExtended = ({ expiresAt }) => {
+      if (expiresAt) {
+        const newSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
+        setSecondsRemaining(newSeconds)
+        setTotalSeconds(newSeconds)
+      }
+    }
 
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
@@ -126,6 +151,9 @@ export default function SenderPage() {
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-receipt', onReceipt)
+    socket.on('transfer-cancelled', onCancelled)
+    socket.on('transfer-deleted', onDeleted)
+    socket.on('transfer-extended', onExtended)
 
     return () => {
       socket.off('connect', connectRoom)
@@ -135,6 +163,9 @@ export default function SenderPage() {
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-receipt', onReceipt)
+      socket.off('transfer-cancelled', onCancelled)
+      socket.off('transfer-deleted', onDeleted)
+      socket.off('transfer-extended', onExtended)
       leaveRoom(code)
     }
   }, [socket, code, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity])
@@ -169,21 +200,80 @@ export default function SenderPage() {
 
   // Extend
   async function handleExtend() {
+    if (!confirmExtend) {
+      setConfirmExtend(true)
+      setTimeout(() => setConfirmExtend(false), 3000)
+      return
+    }
     try {
-      await extendTransfer(code)
+      const result = await extendTransfer(code)
       setExtended(true)
+      setConfirmExtend(false)
+      if (result?.expiresAt) {
+        const newSeconds = Math.max(0, Math.ceil((new Date(result.expiresAt).getTime() - Date.now()) / 1000))
+        setSecondsRemaining(newSeconds)
+        setTotalSeconds(newSeconds)
+      }
       toast.success('Extended by 10 minutes')
     } catch { toast.error('Failed to extend') }
   }
 
   // Delete
   async function handleDelete() {
-    if (!confirmDelete) { setConfirmDelete(true); return }
+    if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
     try {
       await deleteTransfer(code)
       toast.success('Transfer cancelled')
-      navigate('/', { replace: true })
+      setCancelled(true)
+      setConfirmDelete(false)
     } catch { toast.error('Failed to cancel') }
+  }
+
+  // Per-file operations
+  function handlePreview(index) {
+    const file = meta?.files?.[index]
+    if (file) {
+      setPreviewFile(file)
+      setPreviewIndex(index)
+    }
+  }
+
+  function handleDownloadSingle(index) {
+    downloadSingleFile(code, index)
+  }
+
+  // Share helpers
+  function handleWebShare() {
+    if (navigator.share) {
+      navigator.share({
+        title: 'SwiftShare',
+        text: `Download my file: ${code}`,
+        url: shareLink,
+      }).catch(() => {})
+    } else {
+      copyLink()
+    }
+  }
+
+  function handleDownloadQR() {
+    const svg = document.querySelector('#sender-qr-code')
+    if (!svg) return
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const img = new Image()
+    img.onload = () => {
+      canvas.width = img.width * 2
+      canvas.height = img.height * 2
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const link = document.createElement('a')
+      link.download = `swiftshare-${code}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    }
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
   }
 
   if (loading) {
@@ -211,6 +301,34 @@ export default function SenderPage() {
       <Navbar />
       <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={code} />
 
+      <Suspense fallback={null}>
+        <FilePreviewModal
+          open={!!previewFile}
+          onClose={() => setPreviewFile(null)}
+          file={previewFile}
+          code={code}
+          fileIndex={previewIndex}
+          onDownload={handleDownloadSingle}
+        />
+      </Suspense>
+
+      {/* Cancelled banner */}
+      <AnimatePresence>
+        {cancelled && (
+          <motion.div
+            className="fixed top-14 left-0 right-0 z-40 p-3 text-center"
+            style={{ background: 'var(--danger-soft)', borderBottom: '1px solid rgba(220,38,38,0.15)' }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+              This transfer has been cancelled. Files are permanently deleted.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main className="pt-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
           <div className="lg:grid lg:grid-cols-5 lg:gap-10">
@@ -224,7 +342,14 @@ export default function SenderPage() {
                 </h2>
                 <div className="space-y-2">
                   {(meta?.files || []).map((f, i) => (
-                    <FileCard key={i} file={f} index={i} />
+                    <FileCard
+                      key={i}
+                      file={f}
+                      index={i}
+                      showDownload={!cancelled}
+                      onPreview={() => handlePreview(i)}
+                      onDownloadSingle={() => handleDownloadSingle(i)}
+                    />
                   ))}
                 </div>
               </motion.div>
@@ -258,7 +383,7 @@ export default function SenderPage() {
                     style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)' }}
                     onClick={() => setQrModal(true)}
                   >
-                    <QRCode value={shareLink} size={160} bgColor="var(--qr-bg)" fgColor="var(--qr-fg)" level="M" />
+                    <QRCode id="sender-qr-code" value={shareLink} size={160} bgColor="var(--qr-bg)" fgColor="var(--qr-fg)" level="M" />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" style={{ background: 'rgba(0,0,0,0.05)' }}>
                       <Maximize2 size={20} style={{ color: 'var(--text-3)' }} />
                     </div>
@@ -320,36 +445,58 @@ export default function SenderPage() {
                       <Mail size={14} />Email
                     </a>
                     <a
-                      href={`/download/${code}`}
+                      href={`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(`Download my file on SwiftShare`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="btn-ghost justify-center"
                     >
-                      <Monitor size={14} />This device
+                      <Send size={14} />Telegram
                     </a>
+                    <button className="btn-ghost justify-center" onClick={handleDownloadQR}>
+                      <QrCode size={14} />Save QR
+                    </button>
+                    <button className="btn-ghost justify-center col-span-2" onClick={handleWebShare}>
+                      <Share2 size={14} />
+                      {navigator.share ? 'Share…' : 'Copy link'}
+                    </button>
                   </div>
                 </div>
 
                 {/* Countdown */}
-                <div className="surface-card p-5 text-center">
-                  <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={130} />
+                {!cancelled && (
+                  <div className="surface-card p-5 text-center">
+                    <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={130} />
 
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      className="btn-ghost flex-1 text-xs"
-                      onClick={handleExtend}
-                      disabled={extended}
-                    >
-                      <Clock size={13} />
-                      {extended ? 'Extended' : '+10 min'}
-                    </button>
-                    <button
-                      className="btn-ghost flex-1 text-xs hover:!text-red-500"
-                      onClick={handleDelete}
-                    >
-                      <Trash2 size={13} />
-                      {confirmDelete ? 'Confirm?' : 'Cancel'}
-                    </button>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        className="btn-ghost flex-1 text-xs"
+                        onClick={handleExtend}
+                        disabled={extended}
+                        style={confirmExtend ? { borderColor: 'var(--warning)', color: 'var(--warning)' } : undefined}
+                      >
+                        {confirmExtend ? (
+                          <><AlertTriangle size={13} />Confirm?</>
+                        ) : (
+                          <><Clock size={13} />{extended ? 'Extended' : '+10 min'}</>
+                        )}
+                      </button>
+                      <button
+                        className="btn-ghost flex-1 text-xs hover:!text-red-500"
+                        onClick={handleDelete}
+                        style={confirmDelete ? { borderColor: 'var(--danger)', color: 'var(--danger)' } : undefined}
+                      >
+                        <Trash2 size={13} />
+                        {confirmDelete ? 'Confirm?' : 'Cancel'}
+                      </button>
+                    </div>
+
+                    {extended && (
+                      <p className="text-[10px] mt-2" style={{ color: 'var(--text-4)' }}>
+                        Can only extend once per transfer
+                      </p>
+                    )}
                   </div>
-                </div>
+                )}
 
                 {/* Burn badge */}
                 {meta?.burnAfterDownload && (

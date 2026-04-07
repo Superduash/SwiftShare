@@ -21,6 +21,8 @@ export default function SettingsPanel({ open, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const [confirmClear, setConfirmClear] = useState(false)
+
   function update(patch) {
     const next = { ...settings, ...patch }
     setSettings(next)
@@ -28,7 +30,13 @@ export default function SettingsPanel({ open, onClose }) {
   }
 
   function handleClearHistory() {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      setTimeout(() => setConfirmClear(false), 3000)
+      return
+    }
     clearTransfers()
+    setConfirmClear(false)
     toast.success('Transfer history cleared')
   }
 
@@ -152,14 +160,14 @@ export default function SettingsPanel({ open, onClose }) {
                 <button
                   className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all"
                   style={{
-                    background: 'var(--danger-soft)',
-                    color: 'var(--danger)',
+                    background: confirmClear ? 'var(--danger)' : 'var(--danger-soft)',
+                    color: confirmClear ? '#fff' : 'var(--danger)',
                     border: '1px solid transparent',
                   }}
                   onClick={handleClearHistory}
                 >
                   <Trash2 size={15} />
-                  Clear Transfer History
+                  {confirmClear ? 'Confirm — Clear All?' : 'Clear Transfer History'}
                 </button>
               </div>
 

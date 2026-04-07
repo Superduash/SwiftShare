@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, Copy, Check, FileText, Image, Video, FileArchive,
-  Music, BookOpen, Code, Presentation, Table2
+  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -23,10 +23,12 @@ function getCategoryIcon(cat) {
 
 export default function AISummaryCard({ ai, loading = false }) {
   const [copied, setCopied] = useState(false)
+  const [showFiles, setShowFiles] = useState(false)
 
   function copySuggestedName() {
-    if (!ai?.suggestedName) return
-    navigator.clipboard.writeText(ai.suggestedName).then(() => {
+    const name = ai?.suggestedName || ai?.suggested_filename
+    if (!name) return
+    navigator.clipboard.writeText(name).then(() => {
       setCopied(true)
       toast.success('Filename copied')
       setTimeout(() => setCopied(false), 2000)
@@ -34,6 +36,11 @@ export default function AISummaryCard({ ai, loading = false }) {
   }
 
   const CatIcon = ai?.category ? getCategoryIcon(ai.category) : Sparkles
+  const summary = ai?.summary || ai?.overall_summary
+  const suggestedName = ai?.suggestedName || ai?.suggested_filename
+  const detectedIntent = ai?.detectedIntent || ai?.detected_intent
+  const riskFlags = ai?.riskFlags || ai?.risk_flags || []
+  const fileAnalysis = ai?.files || []
 
   return (
     <motion.div
@@ -73,20 +80,41 @@ export default function AISummaryCard({ ai, loading = false }) {
           </motion.div>
         ) : ai ? (
           <motion.div key="data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Category badge */}
-            {ai.category && (
-              <div className="flex items-center gap-1.5 mb-3">
+            {/* Category + Intent */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+              {ai.category && (
                 <div className="badge">
                   <CatIcon size={12} />
                   {ai.category}
                 </div>
-              </div>
-            )}
+              )}
+              {detectedIntent && (
+                <div className="badge" style={{ background: 'var(--info-soft)', color: 'var(--info)' }}>
+                  <Target size={12} />
+                  {detectedIntent}
+                </div>
+              )}
+            </div>
 
             {/* Summary */}
             <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-2)' }}>
-              {ai.summary || 'No summary available.'}
+              {summary || 'No summary available.'}
             </p>
+
+            {/* Risk flags */}
+            {riskFlags.length > 0 && (
+              <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AlertTriangle size={12} style={{ color: 'var(--warning)' }} />
+                  <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>Risk flags</p>
+                </div>
+                <ul className="text-xs space-y-0.5" style={{ color: 'var(--text-2)' }}>
+                  {riskFlags.map((flag, i) => (
+                    <li key={i}>• {flag}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Image description */}
             {ai.imageDescription && (
@@ -96,8 +124,40 @@ export default function AISummaryCard({ ai, loading = false }) {
               </div>
             )}
 
+            {/* Per-file analysis */}
+            {fileAnalysis.length > 0 && (
+              <div className="mb-3">
+                <button
+                  className="text-xs font-semibold flex items-center gap-1 mb-2"
+                  style={{ color: 'var(--accent)' }}
+                  onClick={() => setShowFiles(!showFiles)}
+                >
+                  <FileText size={12} />
+                  {showFiles ? 'Hide' : 'Show'} per-file analysis ({fileAnalysis.length})
+                </button>
+                <AnimatePresence>
+                  {showFiles && (
+                    <motion.div
+                      className="space-y-1.5"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      {fileAnalysis.map((f, i) => (
+                        <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
+                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
+                          {f.type && <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>{f.type}</p>}
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary}</p>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
             {/* Suggested name */}
-            {ai.suggestedName && (
+            {suggestedName && (
               <button
                 className="w-full flex items-center gap-2 p-2.5 rounded-lg text-left transition-all hover:opacity-80"
                 style={{ background: 'var(--accent-soft)', border: '1px solid transparent' }}
@@ -105,7 +165,7 @@ export default function AISummaryCard({ ai, loading = false }) {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-4)' }}>Suggested filename</p>
-                  <p className="text-xs font-mono font-medium truncate" style={{ color: 'var(--accent)' }}>{ai.suggestedName}</p>
+                  <p className="text-xs font-mono font-medium truncate" style={{ color: 'var(--accent)' }}>{suggestedName}</p>
                 </div>
                 {copied ? <Check size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} style={{ color: 'var(--text-4)' }} />}
               </button>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { History, Upload, Download, Eye, Trash2, Clock, Smartphone } from 'lucide-react'
+import { History, Upload, Download, Eye, Trash2, Clock, Smartphone, Ban, Flame, ArrowUpRight } from 'lucide-react'
 import { timeAgo } from '../utils/format'
 
 const EVENT_ICONS = {
@@ -9,6 +9,9 @@ const EVENT_ICONS = {
   viewed: { icon: Eye, color: 'var(--accent)' },
   expired: { icon: Clock, color: 'var(--warning)' },
   deleted: { icon: Trash2, color: 'var(--danger)' },
+  cancelled: { icon: Ban, color: 'var(--danger)' },
+  burned: { icon: Flame, color: 'var(--danger)' },
+  extended: { icon: ArrowUpRight, color: 'var(--success)' },
 }
 
 function getEventStyle(event) {
@@ -17,6 +20,19 @@ function getEventStyle(event) {
     if (key.includes(k)) return v
   }
   return { icon: Smartphone, color: 'var(--text-3)' }
+}
+
+function formatEventLabel(event) {
+  const key = (event || '').toLowerCase()
+  if (key === 'uploaded') return 'Uploaded'
+  if (key === 'downloaded') return 'Downloaded'
+  if (key === 'viewed') return 'Viewed'
+  if (key === 'expired') return 'Expired'
+  if (key === 'cancelled') return 'Cancelled'
+  if (key === 'burned') return 'Burned (auto-deleted)'
+  if (key === 'extended') return 'Timer extended'
+  if (key === 'deleted') return 'Deleted'
+  return event || 'Event'
 }
 
 export default function ActivityLog({ activity = [] }) {
@@ -30,7 +46,7 @@ export default function ActivityLog({ activity = [] }) {
       </div>
 
       <div className="space-y-1.5">
-        {activity.slice(0, 8).map((item, idx) => {
+        {activity.slice(0, 12).map((item, idx) => {
           const { icon: Icon, color } = getEventStyle(item.event)
           return (
             <motion.div
@@ -45,7 +61,7 @@ export default function ActivityLog({ activity = [] }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate" style={{ color: 'var(--text-2)' }}>
-                  {item.message || item.event || 'Event'}
+                  {formatEventLabel(item.event)}
                 </p>
                 {item.device && (
                   <p className="text-[10px] truncate" style={{ color: 'var(--text-4)' }}>{item.device}</p>

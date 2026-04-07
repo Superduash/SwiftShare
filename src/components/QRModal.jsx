@@ -38,10 +38,10 @@ export default function QRModal({ open, onClose, value, code }) {
             <h3 className="font-display font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>Scan to Download</h3>
             <p className="text-sm mb-6" style={{ color: 'var(--text-3)' }}>Point your camera at this code</p>
 
-            <div className="inline-block p-5 rounded-2xl mb-6" style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)' }}>
+            <div className="inline-block p-3 sm:p-5 rounded-2xl mb-6" style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)' }}>
               <QRCode
                 value={value || ''}
-                size={220}
+                size={Math.min(220, window.innerWidth * 0.45)}
                 bgColor="var(--qr-bg)"
                 fgColor="var(--qr-fg)"
                 level="M"
@@ -49,11 +49,11 @@ export default function QRModal({ open, onClose, value, code }) {
             </div>
 
             {code && (
-              <div className="flex justify-center gap-1.5">
+              <div className="flex justify-center gap-1 sm:gap-1.5">
                 {code.split('').map((ch, i) => (
                   <div
                     key={i}
-                    className="w-10 h-12 rounded-xl flex items-center justify-center font-mono font-bold text-lg"
+                    className="w-8 h-10 sm:w-10 sm:h-12 rounded-xl flex items-center justify-center font-mono font-bold text-base sm:text-lg"
                     style={{ background: 'var(--code-char-bg)', border: '1px solid var(--code-char-border)', color: 'var(--accent)' }}
                   >
                     {ch}

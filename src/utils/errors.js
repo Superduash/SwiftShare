@@ -46,6 +46,20 @@ const ERROR_MAP = {
     color: 'var(--warning)',
     action: 'Go home',
   },
+  TRANSFER_CANCELLED: {
+    title: 'Transfer cancelled',
+    description: 'The sender cancelled this transfer. Files have been permanently deleted.',
+    icon: Ban,
+    color: 'var(--danger)',
+    action: 'Go home',
+  },
+  TRANSFER_DELETED: {
+    title: 'Transfer deleted',
+    description: 'This transfer has been permanently deleted and is no longer available.',
+    icon: FileX,
+    color: 'var(--danger)',
+    action: 'Go home',
+  },
   ALREADY_DOWNLOADED: {
     title: 'Already downloaded',
     description: 'This was a burn-after-download transfer. The file was deleted after the first download.',
