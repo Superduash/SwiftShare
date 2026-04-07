@@ -8,6 +8,25 @@ const API = axios.create({
   timeout: 30000,
 })
 
+// Retry interceptor for transient failures
+API.interceptors.response.use(null, async (error) => {
+  const config = error.config
+  if (!config) return Promise.reject(error)
+
+  config.__retryCount = config.__retryCount || 0
+  const isRetryable = !error.response || error.response.status === 503 || error.code === 'ERR_NETWORK'
+  const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
+
+  if (isRetryable && isIdempotent && config.__retryCount < 2) {
+    config.__retryCount += 1
+    const delay = config.__retryCount * 1000
+    await new Promise(r => setTimeout(r, delay))
+    return API(config)
+  }
+
+  return Promise.reject(error)
+})
+
 function unwrapResponse(payload) {
   if (payload && typeof payload === 'object' && payload.success === true && Object.prototype.hasOwnProperty.call(payload, 'data')) {
     return payload.data

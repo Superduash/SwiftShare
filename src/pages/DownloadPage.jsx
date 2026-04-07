@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Loader2, CheckCircle2, Image as ImageIcon, Lock, Eye, EyeOff, ShieldX } from 'lucide-react'
+import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, AlertTriangle } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadata, previewUrl, verifyPassword } from '../services/api'
+import { getFileMetadata, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
 import { smartDownload } from '../utils/download'
 import { saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
@@ -17,6 +17,8 @@ import FileCard from '../components/FileCard'
 import AISummaryCard from '../components/AISummaryCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
+
+const FilePreviewModal = lazy(() => import('../components/FilePreviewModal'))
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -39,6 +41,9 @@ export default function DownloadPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [verifying, setVerifying] = useState(false)
+  const [transferStatus, setTransferStatus] = useState('ACTIVE')
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewIndex, setPreviewIndex] = useState(0)
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
 
@@ -64,6 +69,7 @@ export default function DownloadPage() {
         setTotalSeconds(data.secondsRemaining || 600)
         if (data.passwordProtected) { setNeedsPassword(true) }
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
+        if (data.status) { setTransferStatus(data.status) }
 
         // Preview for images
         const firstFile = data?.files?.[0]
@@ -96,7 +102,10 @@ export default function DownloadPage() {
     connectRoom()
 
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
-    const onExpired = () => navigate('/expired?reason=expired', { replace: true })
+    const onExpired = () => {
+      setTransferStatus('EXPIRED')
+      setSecondsRemaining(0)
+    }
     const onAi = (data) => { setAi(data); setAiLoading(false) }
     const onDownProg = ({ percent }) => {
       if (!downloadingRef.current) return
@@ -108,6 +117,15 @@ export default function DownloadPage() {
       setDownloading(false)
       setDownloaded(true)
     }
+    const onCancelled = () => {
+      setTransferStatus('CANCELLED')
+    }
+    const onDeleted = ({ reason } = {}) => {
+      setTransferStatus('DELETED')
+      if (reason === 'burn' && !downloaded) {
+        toast.error('This file was just burned after being downloaded')
+      }
+    }
 
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
@@ -115,6 +133,8 @@ export default function DownloadPage() {
     socket.on('ai-ready', onAi)
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
+    socket.on('transfer-cancelled', onCancelled)
+    socket.on('transfer-deleted', onDeleted)
 
     return () => {
       socket.off('connect', connectRoom)
@@ -123,9 +143,11 @@ export default function DownloadPage() {
       socket.off('ai-ready', onAi)
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
+      socket.off('transfer-cancelled', onCancelled)
+      socket.off('transfer-deleted', onDeleted)
       leaveRoom(code)
     }
-  }, [socket, code, joinRoom, leaveRoom, navigate])
+  }, [socket, code, joinRoom, leaveRoom, navigate, downloaded])
 
   // Password verification
   async function handlePasswordSubmit(e) {
@@ -178,6 +200,23 @@ export default function DownloadPage() {
     }
   }
 
+  // Per-file operations
+  function handlePreview(index) {
+    const file = meta?.files?.[index]
+    if (file) {
+      setPreviewFile(file)
+      setPreviewIndex(index)
+    }
+  }
+
+  function handleDownloadSingle(index) {
+    const pw = verifiedPasswordRef.current || undefined
+    downloadSingleFile(code, index, pw)
+  }
+
+  const isUnavailable = transferStatus === 'CANCELLED' || transferStatus === 'DELETED' || transferStatus === 'EXPIRED'
+  const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
+
   if (loading) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -195,8 +234,59 @@ export default function DownloadPage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
 
+      <Suspense fallback={null}>
+        <FilePreviewModal
+          open={!!previewFile}
+          onClose={() => setPreviewFile(null)}
+          file={previewFile}
+          code={code}
+          fileIndex={previewIndex}
+          onDownload={canDownload ? handleDownloadSingle : undefined}
+        />
+      </Suspense>
+
       <main className="pt-14">
         <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+          {/* Status banner */}
+          <AnimatePresence>
+            {transferStatus === 'CANCELLED' && (
+              <motion.div
+                className="mb-4 p-3 rounded-xl text-center"
+                style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+                  ❌ This transfer has been cancelled by the sender
+                </p>
+              </motion.div>
+            )}
+            {transferStatus === 'EXPIRED' && !downloaded && (
+              <motion.div
+                className="mb-4 p-3 rounded-xl text-center"
+                style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
+                  ⏰ This transfer has expired
+                </p>
+              </motion.div>
+            )}
+            {transferStatus === 'DELETED' && !downloaded && (
+              <motion.div
+                className="mb-4 p-3 rounded-xl text-center"
+                style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
+                  🔥 This file has been deleted
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Header */}
           <motion.div
@@ -205,7 +295,7 @@ export default function DownloadPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="font-display font-extrabold text-2xl sm:text-3xl mb-1" style={{ color: 'var(--text)' }}>
-              {downloaded ? 'Download complete!' : 'Ready to download'}
+              {downloaded ? 'Download complete!' : isUnavailable ? 'Transfer unavailable' : 'Ready to download'}
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-3)' }}>
               {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${code}`}
@@ -239,7 +329,14 @@ export default function DownloadPage() {
             transition={{ delay: 0.15 }}
           >
             {(meta?.files || []).map((f, i) => (
-              <FileCard key={i} file={f} index={i} />
+              <FileCard
+                key={i}
+                file={f}
+                index={i}
+                showDownload={canDownload}
+                onPreview={() => handlePreview(i)}
+                onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
+              />
             ))}
             {meta?.totalSize > 0 && (
               <p className="text-xs text-center" style={{ color: 'var(--text-4)' }}>
@@ -249,7 +346,7 @@ export default function DownloadPage() {
           </motion.div>
 
           {/* Burn badge */}
-          {meta?.burnAfterDownload && !downloaded && (
+          {meta?.burnAfterDownload && !downloaded && !isUnavailable && (
             <motion.div
               className="mb-4 p-3 rounded-xl text-center"
               style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
@@ -263,7 +360,7 @@ export default function DownloadPage() {
           )}
 
           {/* Password gate */}
-          {needsPassword && !passwordVerified && !downloaded && (
+          {needsPassword && !passwordVerified && !downloaded && !isUnavailable && (
             <motion.div
               className="mb-6"
               initial={{ opacity: 0, y: 8 }}
@@ -326,7 +423,7 @@ export default function DownloadPage() {
           )}
 
           {/* Countdown */}
-          {!downloaded && (
+          {!downloaded && !isUnavailable && (
             <div className="flex justify-center mb-6">
               <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={100} />
             </div>
@@ -340,7 +437,7 @@ export default function DownloadPage() {
                   <div className="surface-card p-5 mb-6">
                     <ProgressBar percent={downloadPercent} label="Downloading..." showSpeed={false} />
                   </div>
-                ) : (needsPassword && !passwordVerified) ? null : (
+                ) : isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
                   <button className="btn-primary w-full text-base mb-6" onClick={handleDownload}>
                     <Download size={18} />
                     Download {meta?.files?.length > 1 ? `${meta.files.length} files` : 'file'}

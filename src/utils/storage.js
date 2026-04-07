@@ -22,7 +22,17 @@ export function getRecentTransfers() {
 export function saveTransfer(entry) {
   const list = getRecentTransfers().filter(t => t.code !== entry.code)
   list.unshift({ ...entry, savedAt: new Date().toISOString() })
-  safeSet(KEYS.RECENT, list.slice(0, 5))
+  safeSet(KEYS.RECENT, list.slice(0, 10))
+}
+export function removeTransfer(code) {
+  const list = getRecentTransfers().filter(t => t.code !== code)
+  safeSet(KEYS.RECENT, list)
+}
+export function updateTransferStatus(code, status) {
+  const list = getRecentTransfers().map(t =>
+    t.code === code ? { ...t, status } : t
+  )
+  safeSet(KEYS.RECENT, list)
 }
 export function clearTransfers() {
   localStorage.removeItem(KEYS.RECENT)

@@ -1,37 +1,39 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, ArrowRight, Trash2, FileText } from 'lucide-react'
+import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { getRecentTransfers, clearTransfers } from '../utils/storage'
+import { getRecentTransfers, clearTransfers, removeTransfer } from '../utils/storage'
 import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
 const STATUS_STYLES = {
-  active: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Active' },
-  expired: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Expired' },
-  unknown: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: 'Unknown' },
+  ACTIVE: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Active' },
+  EXPIRED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Expired' },
+  CANCELLED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Cancelled' },
+  DELETED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Deleted' },
+  unknown: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: '...' },
 }
 
 export default function RecentTransfers() {
   const [transfers, setTransfers] = useState([])
+  const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     const list = getRecentTransfers()
-    setTransfers(list.map(t => ({ ...t, status: 'unknown' })))
+    setTransfers(list.map(t => ({ ...t, status: t.status || 'unknown' })))
 
     // Check status for each
     list.forEach(async (t) => {
       try {
         const data = await getTransferStatus(t.code)
+        const status = data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED')
         setTransfers(prev => prev.map(p =>
-          p.code === t.code
-            ? { ...p, status: data?.secondsRemaining > 0 ? 'active' : 'expired' }
-            : p
+          p.code === t.code ? { ...p, status } : p
         ))
       } catch {
         setTransfers(prev => prev.map(p =>
-          p.code === t.code ? { ...p, status: 'expired' } : p
+          p.code === t.code ? { ...p, status: 'EXPIRED' } : p
         ))
       }
     })
@@ -40,13 +42,29 @@ export default function RecentTransfers() {
   if (!transfers.length) return null
 
   function handleClear() {
+    if (!confirmClear) {
+      setConfirmClear(true)
+      setTimeout(() => setConfirmClear(false), 3000)
+      return
+    }
     clearTransfers()
     setTransfers([])
+    setConfirmClear(false)
+  }
+
+  function handleRemove(e, code) {
+    e.stopPropagation()
+    removeTransfer(code)
+    setTransfers(prev => prev.filter(t => t.code !== code))
   }
 
   function handleClick(t) {
-    if (t.isSender) navigate(`/sender/${t.code}`)
-    else navigate(`/join?code=${t.code}`)
+    // Role-based routing: sender → sender page, receiver → download page
+    if (t.isSender) {
+      navigate(`/sender/${t.code}`)
+    } else {
+      navigate(`/download/${t.code}`)
+    }
   }
 
   return (
@@ -60,9 +78,22 @@ export default function RecentTransfers() {
           <Clock size={14} style={{ color: 'var(--text-3)' }} />
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Recent</h3>
         </div>
-        <button className="btn-ghost text-[11px] !py-1 !px-2" onClick={handleClear}>
-          <Trash2 size={11} />
-          Clear
+        <button
+          className="btn-ghost text-[11px] !py-1 !px-2"
+          onClick={handleClear}
+          style={confirmClear ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : undefined}
+        >
+          {confirmClear ? (
+            <>
+              <AlertTriangle size={11} />
+              Confirm clear?
+            </>
+          ) : (
+            <>
+              <Trash2 size={11} />
+              Clear
+            </>
+          )}
         </button>
       </div>
 
@@ -87,12 +118,22 @@ export default function RecentTransfers() {
                   <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                     {t.filename || t.code}
                   </p>
-                  <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>{timeAgo(t.savedAt)}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
+                    {timeAgo(t.savedAt)} · {t.isSender ? 'Sent' : 'Received'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>
                     {s.label}
                   </span>
+                  <button
+                    className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity !w-6 !h-6"
+                    onClick={(e) => handleRemove(e, t.code)}
+                    aria-label="Remove from list"
+                    title="Remove from list"
+                  >
+                    <X size={12} />
+                  </button>
                   <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-4)' }} />
                 </div>
               </motion.button>
