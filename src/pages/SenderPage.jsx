@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, ExternalLink, Share2, Clock, Trash2,
   MessageCircle, Mail, Monitor, Maximize2, Send,
   Download, QrCode, AlertTriangle
 } from 'lucide-react'
-import QRCode from 'react-qr-code'
+import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
@@ -23,11 +23,15 @@ import ProgressBar from '../components/ProgressBar'
 import QRModal from '../components/QRModal'
 import ErrorState from '../components/ErrorState'
 
-const FilePreviewModal = lazy(() => import('../components/FilePreviewModal'))
+const FilePreviewModal = lazy(() =>
+  import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
+)
 
 export default function SenderPage() {
   const { code } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const navState = location.state?.transferData || null
   const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
   const [meta, setMeta] = useState(null)
@@ -66,9 +70,29 @@ export default function SenderPage() {
   // Fetch metadata
   useEffect(() => {
     if (!code) return
+
+    // If we have data from navigation state (just uploaded), use it directly
+    if (navState && navState.code === code) {
+      setMeta(navState)
+      const secs = navState.secondsRemaining ||
+        (navState.expiresAt
+          ? Math.max(0, Math.ceil((new Date(navState.expiresAt).getTime() - Date.now()) / 1000))
+          : 600)
+      setSecondsRemaining(secs)
+      const sessionDuration = navState.expiresAt && navState.createdAt
+        ? Math.ceil((new Date(navState.expiresAt).getTime() - new Date(navState.createdAt).getTime()) / 1000)
+        : 600
+      setTotalSeconds(Math.max(sessionDuration, 60))
+      if (navState.ai) { setAi(navState.ai); setAiLoading(false) }
+      setLoading(false)
+      return
+    }
+
+    // Otherwise fetch from API
     async function load() {
       try {
-        const data = await getFileMetadata(code)
+        const data = await getFileMetadata(code, { timeout: 12000, noRetry: true })
+        if (!mountedRef.current) return
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
         const sessionDuration = data.expiresAt && data.createdAt
@@ -80,21 +104,25 @@ export default function SenderPage() {
           setCancelled(true)
         }
       } catch (err) {
+        if (!mountedRef.current) return
+        console.error('[SenderPage] load error:', err)
         const errCode = err?.response?.data?.error?.code
         if (errCode === 'TRANSFER_NOT_FOUND' || errCode === 'TRANSFER_EXPIRED') {
           navigate('/expired?reason=' + (errCode === 'TRANSFER_EXPIRED' ? 'expired' : 'notfound'), { replace: true })
-        } else {
-          setError(errCode || 'SERVER_ERROR')
+          return
         }
+        setError(errCode || 'SERVER_ERROR')
+      } finally {
+        if (mountedRef.current) setLoading(false)
       }
-      setLoading(false)
     }
+
     load()
-  }, [code, navigate])
+  }, [code])
 
   // Fetch activity
   const loadActivity = useCallback(async () => {
-    if (!code) return
+    if (!code || document.hidden) return
     try {
       const data = await getTransferActivity(code)
       if (data?.activity) setActivity(data.activity)

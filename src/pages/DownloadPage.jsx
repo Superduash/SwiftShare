@@ -19,7 +19,9 @@ import AISummaryCard from '../components/AISummaryCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
 
-const FilePreviewModal = lazy(() => import('../components/FilePreviewModal'))
+const FilePreviewModal = lazy(() =>
+  import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
+)
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -48,6 +50,8 @@ export default function DownloadPage() {
   const [receipt, setReceipt] = useState(null)
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
+  const mountedRef = useRef(true)
+  useEffect(() => { return () => { mountedRef.current = false } }, [])
 
   useEffect(() => {
     downloadingRef.current = downloading
@@ -66,6 +70,7 @@ export default function DownloadPage() {
     async function load() {
       try {
         const data = await getFileMetadata(code)
+        if (!mountedRef.current) return
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
         const sessionDuration = data.expiresAt && data.createdAt
@@ -85,13 +90,15 @@ export default function DownloadPage() {
 
         saveTransfer({ code, filename: firstFile?.name || code, isSender: false })
       } catch (err) {
+        if (!mountedRef.current) return
         const errCode = extractErrorCode(err)
         if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
         else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
         else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
         else toast.error('Failed to load transfer')
+      } finally {
+        if (mountedRef.current) setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [code, navigate])

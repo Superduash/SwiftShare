@@ -20,23 +20,22 @@ export default function RecentTransfers() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    let mounted = true
     const list = getRecentTransfers()
-    setTransfers(list.map(t => ({ ...t, status: t.status || 'unknown' })))
-
-    // Check status for each
-    list.forEach(async (t) => {
-      try {
-        const data = await getTransferStatus(t.code)
-        const status = data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED')
-        setTransfers(prev => prev.map(p =>
-          p.code === t.code ? { ...p, status } : p
-        ))
-      } catch {
-        setTransfers(prev => prev.map(p =>
-          p.code === t.code ? { ...p, status: 'EXPIRED' } : p
-        ))
-      }
+    const initial = list.map(t => ({ ...t, status: t.status || 'unknown' }))
+    setTransfers(initial)
+    if (!list.length) return
+    Promise.allSettled(list.map(t => getTransferStatus(t.code))).then(results => {
+      if (!mounted) return
+      setTransfers(prev => prev.map((p, i) => {
+        if (results[i].status === 'fulfilled') {
+          const data = results[i].value
+          return { ...p, status: data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED') }
+        }
+        return { ...p, status: 'EXPIRED' }
+      }))
     })
+    return () => { mounted = false }
   }, [])
 
   if (!transfers.length) return null

@@ -1,13 +1,18 @@
 # Frontend export
-Generated: 2026-04-07T16:57:03Z
+Generated: 2026-04-07T18:54:21Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
-===== FILE: .env (115 bytes) =====
+===== FILE: .env.local (115 bytes) =====
 VITE_API_URL=http://localhost:3001
 VITE_SOCKET_URL=http://localhost:3001
 VITE_SHARE_BASE_URL=http://localhost:5173
 
-===== FILE: index.html (1470 bytes) =====
+===== FILE: .env.production (159 bytes) =====
+VITE_API_URL=https://swiftshare-backend.onrender.com
+VITE_SOCKET_URL=https://swiftshare-backend.onrender.com
+VITE_SHARE_BASE_URL=https://swiftshare.vercel.app
+
+===== FILE: index.html (1971 bytes) =====
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -18,6 +23,17 @@ VITE_SHARE_BASE_URL=http://localhost:5173
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>SwiftShare</title>
+    <script>
+      (function() {
+        try {
+          const theme = localStorage.getItem('swiftshare_theme');
+          const validTheme = theme && ['terracotta', 'dark', 'light', 'ocean', 'sakura', 'emerald', 'cyber', 'amber'].includes(JSON.parse(theme)) ? JSON.parse(theme) : 'terracotta';
+          document.documentElement.setAttribute('data-theme', validTheme);
+        } catch {
+          document.documentElement.setAttribute('data-theme', 'terracotta');
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" />
@@ -80,19 +96,19 @@ export default {
   },
 }
 
-===== FILE: src/App.jsx (4091 bytes) =====
+===== FILE: src/App.jsx (4628 bytes) =====
 import React, { Suspense, lazy, useEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
   useLocation, useParams,
 } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
 
 import { SocketProvider } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
-import { ThemeProvider } from './context/ThemeContext'
 import { pingServer } from './services/api'
+import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
 
@@ -158,13 +174,25 @@ function AnimatedRoutes() {
 
 // ── Root ─────────────────────────────────────
 export default function App() {
+  const [reducedMotion, setReducedMotion] = React.useState(() => getSettings().reducedMotion)
+
   useEffect(() => {
     // Warm backend once without blocking first paint.
     void pingServer()
   }, [])
 
+  useEffect(() => {
+    const syncSettings = () => setReducedMotion(getSettings().reducedMotion)
+    window.addEventListener('swiftshare:settings-changed', syncSettings)
+    return () => window.removeEventListener('swiftshare:settings-changed', syncSettings)
+  }, [])
+
+  useEffect(() => {
+    document.body.classList.toggle('reduce-motion', Boolean(reducedMotion))
+  }, [reducedMotion])
+
   return (
-    <ThemeProvider>
+    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
       <SocketProvider>
         <TransferProvider>
           <BrowserRouter>
@@ -191,7 +219,7 @@ export default function App() {
           />
         </TransferProvider>
       </SocketProvider>
-    </ThemeProvider>
+    </MotionConfig>
   )
 }
 
@@ -1029,17 +1057,17 @@ export default function LoadingScreen({ message = 'Loading...' }) {
   )
 }
 
-===== FILE: src/components/Navbar.jsx (3771 bytes) =====
+===== FILE: src/components/Navbar.jsx (2805 bytes) =====
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Sun, Moon, Settings, Zap, ArrowLeft } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Settings, Zap, ArrowLeft } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useSocket } from '../context/SocketContext'
 import SettingsPanel from './SettingsPanel'
 
 export default function Navbar() {
-  const { theme, toggleTheme } = useTheme()
+  const { theme } = useTheme()
   const { isConnected } = useSocket()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
@@ -1064,7 +1092,7 @@ export default function Navbar() {
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
                 style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(232,99,74,0.25)' }}
               >
-                <Zap size={16} color="#fff" strokeWidth={2.5} />
+                <Zap size={16} color={theme === 'dark' ? '#0F1014' : '#fff'} strokeWidth={2.5} />
               </div>
               <span className="font-display font-bold text-lg hidden sm:inline" style={{ color: 'var(--text)' }}>
                 SwiftShare
@@ -1087,26 +1115,6 @@ export default function Navbar() {
                 {isConnected ? 'Connected' : 'Connecting'}
               </span>
             </div>
-
-            {/* Theme toggle */}
-            <motion.button
-              className="btn-icon"
-              onClick={toggleTheme}
-              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-              whileTap={{ scale: 0.9 }}
-            >
-              <AnimatePresence mode="wait">
-                {theme === 'light' ? (
-                  <motion.div key="sun" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Sun size={18} />
-                  </motion.div>
-                ) : (
-                  <motion.div key="moon" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <Moon size={18} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.button>
 
             {/* Settings */}
             <button className="btn-icon" onClick={() => setSettingsOpen(true)} aria-label="Settings">
@@ -1302,7 +1310,7 @@ export default function QRModal({ open, onClose, value, code }) {
   )
 }
 
-===== FILE: src/components/RecentTransfers.jsx (5430 bytes) =====
+===== FILE: src/components/RecentTransfers.jsx (5551 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
@@ -1391,7 +1399,7 @@ export default function RecentTransfers() {
           {confirmClear ? (
             <>
               <AlertTriangle size={11} />
-              Confirm clear?
+              Clear forever?
             </>
           ) : (
             <>
@@ -1403,6 +1411,7 @@ export default function RecentTransfers() {
       </div>
 
       <div className="space-y-1.5">
+        <p className="text-[10px] mb-1" style={{ color: 'var(--text-4)' }}>Clearing removes local history only</p>
         <AnimatePresence>
           {transfers.map((t, idx) => {
             const s = STATUS_STYLES[t.status] || STATUS_STYLES.unknown
@@ -1434,8 +1443,8 @@ export default function RecentTransfers() {
                   <button
                     className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity !w-6 !h-6"
                     onClick={(e) => handleRemove(e, t.code)}
-                    aria-label="Remove from list"
-                    title="Remove from list"
+                    aria-label="Remove from recents"
+                    title="Remove from recents"
                   >
                     <X size={12} />
                   </button>
@@ -1495,10 +1504,10 @@ export default function ServerWakeup() {
   )
 }
 
-===== FILE: src/components/SettingsPanel.jsx (8385 bytes) =====
+===== FILE: src/components/SettingsPanel.jsx (14152 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Sun, Moon, Flame, Clock, Trash2, Info } from 'lucide-react'
+import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, clearTransfers } from '../utils/storage'
 import toast from 'react-hot-toast'
@@ -1509,15 +1518,42 @@ const EXPIRY_OPTIONS = [
   { value: 300, label: '5 hours' },
 ]
 
+const THEME_OPTIONS = [
+  { value: 'terracotta', label: 'Terracotta', color: '#E06D53' },
+  { value: 'dark', label: 'Dark', color: '#0F1014' },
+  { value: 'light', label: 'Light', color: '#F8F9FA' },
+  { value: 'ocean', label: 'Ocean', color: '#2B6CB0' },
+  { value: 'sakura', label: 'Sakura', color: '#FF4D6D' },
+  { value: 'emerald', label: 'Emerald', color: '#10B981' },
+  { value: 'cyber', label: 'Cyber', color: '#A855F7' },
+  { value: 'amber', label: 'Amber', color: '#F59E0B' },
+]
+
 export default function SettingsPanel({ open, onClose }) {
-  const { theme, toggleTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const [settings, setSettings] = useState(getSettings)
+
+  useEffect(() => {
+    const syncSettings = () => setSettings(getSettings())
+    window.addEventListener('swiftshare:settings-changed', syncSettings)
+    if (open) syncSettings()
+    return () => window.removeEventListener('swiftshare:settings-changed', syncSettings)
+  }, [open])
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     if (open) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  // Apply reduce motion class to body
+  useEffect(() => {
+    if (settings.reducedMotion) {
+      document.body.classList.add('reduce-motion')
+    } else {
+      document.body.classList.remove('reduce-motion')
+    }
+  }, [settings.reducedMotion])
 
   const [confirmClear, setConfirmClear] = useState(false)
 
@@ -1573,27 +1609,51 @@ export default function SettingsPanel({ open, onClose }) {
               {/* Theme */}
               <div className="mb-8">
                 <label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: 'var(--text-3)' }}>
-                  Appearance
+                  Theme
                 </label>
-                <div className="flex gap-2">
-                  {[
-                    { value: 'light', label: 'Light', icon: Sun },
-                    { value: 'dark', label: 'Dark', icon: Moon },
-                  ].map(opt => (
-                    <button
-                      key={opt.value}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-all"
-                      style={{
-                        background: theme === opt.value ? 'var(--accent-soft)' : 'transparent',
-                        color: theme === opt.value ? 'var(--accent)' : 'var(--text-3)',
-                        border: `1px solid ${theme === opt.value ? 'var(--accent)' : 'var(--border)'}`,
-                      }}
-                      onClick={() => { if (theme !== opt.value) toggleTheme() }}
-                    >
-                      <opt.icon size={16} />
-                      {opt.label}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {THEME_OPTIONS.map(opt => {
+                    const isActive = theme === opt.value
+                    const checkmarkColor = opt.value === 'light' ? '#111827' : '#FFFFFF'
+                    
+                    return (
+                      <button
+                        key={opt.value}
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                        style={{
+                          background: isActive ? 'var(--accent-soft)' : 'transparent',
+                          border: `2px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
+                        onClick={() => setTheme(opt.value)}
+                        aria-label={`Switch to ${opt.label} theme`}
+                      >
+                        <div className="relative w-12 h-12 flex items-center justify-center">
+                          <div
+                            className="w-12 h-12 rounded-full transition-all"
+                            style={{
+                              backgroundColor: opt.color,
+                              border: '1px solid var(--border-strong)',
+                              boxShadow: isActive ? `0 0 0 3px var(--accent-soft)` : 'none',
+                            }}
+                          />
+                          {isActive && (
+                            <div
+                              className="absolute inset-0 flex items-center justify-center"
+                              style={{ color: checkmarkColor }}
+                            >
+                              <Check size={16} strokeWidth={3} />
+                            </div>
+                          )}
+                        </div>
+                        <span
+                          className="text-xs font-medium text-center"
+                          style={{ color: isActive ? 'var(--accent)' : 'var(--text-3)' }}
+                        >
+                          {opt.label}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -1653,6 +1713,78 @@ export default function SettingsPanel({ open, onClose }) {
                 </button>
               </div>
 
+              {/* Preferences */}
+              <div className="mb-8">
+                <label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: 'var(--text-3)' }}>
+                  Preferences
+                </label>
+                <div className="space-y-2">
+                  {/* Reduce Motion */}
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                    style={{
+                      background: 'transparent',
+                      border: `1px solid var(--border)`,
+                    }}
+                    onClick={() => update({ reducedMotion: !settings.reducedMotion })}
+                  >
+                    <Activity size={16} style={{ color: 'var(--text-3)' }} />
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>
+                        Reduce Motion
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+                        Disable UI animations for better performance
+                      </p>
+                    </div>
+                    <div
+                      className="w-10 h-6 rounded-full relative transition-all"
+                      style={{ background: settings.reducedMotion ? 'var(--accent)' : 'var(--border-strong)' }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                        style={{
+                          background: '#fff',
+                          left: settings.reducedMotion ? '22px' : '4px',
+                        }}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Sound Effects */}
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                    style={{
+                      background: 'transparent',
+                      border: `1px solid var(--border)`,
+                    }}
+                    onClick={() => update({ soundEnabled: !settings.soundEnabled })}
+                  >
+                    <Volume2 size={16} style={{ color: 'var(--text-3)' }} />
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>
+                        Sound Effects
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+                        Play subtle sounds on success
+                      </p>
+                    </div>
+                    <div
+                      className="w-10 h-6 rounded-full relative transition-all"
+                      style={{ background: settings.soundEnabled ? 'var(--accent)' : 'var(--border-strong)' }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                        style={{
+                          background: '#fff',
+                          left: settings.soundEnabled ? '22px' : '4px',
+                        }}
+                      />
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* Clear history */}
               <div className="mb-8">
                 <button
@@ -1678,6 +1810,9 @@ export default function SettingsPanel({ open, onClose }) {
                   <Info size={14} style={{ color: 'var(--accent)' }} />
                   <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>About SwiftShare</span>
                 </div>
+                <p className="text-xs italic font-semibold mb-2" style={{ color: 'var(--text-2)' }}>
+                  "Simple, yet too effective."
+                </p>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
                   Zero-login temporary file sharing. Files are stored securely and auto-delete after your chosen expiry.
                   No accounts, no permanent storage, no tracking.
@@ -1743,7 +1878,7 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
   )
 }
 
-===== FILE: src/context/SocketContext.jsx (2261 bytes) =====
+===== FILE: src/context/SocketContext.jsx (2321 bytes) =====
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
 
@@ -1761,7 +1896,7 @@ export function SocketProvider({ children }) {
 
   useEffect(() => {
     const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
-    const url = import.meta.env.VITE_SOCKET_URL || fallbackOrigin
+    const url = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || fallbackOrigin || '').replace(/\/+$/, '')
     const s = io(url, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -1825,31 +1960,36 @@ export function useSocket() {
   return useContext(SocketContext) || {}
 }
 
-===== FILE: src/context/ThemeContext.jsx (840 bytes) =====
+===== FILE: src/context/ThemeContext.jsx (1038 bytes) =====
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { getTheme, saveTheme } from '../utils/storage'
 
-const ThemeContext = createContext({ theme: 'light', toggleTheme: () => {} })
+const ThemeContext = createContext({ 
+  theme: 'terracotta', 
+  setTheme: () => {} 
+})
+
+const VALID_THEMES = ['terracotta', 'dark', 'light', 'ocean', 'sakura', 'emerald', 'cyber', 'amber']
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => getTheme())
+  const [theme, setThemeState] = useState(() => {
+    const saved = getTheme()
+    return VALID_THEMES.includes(saved) ? saved : 'terracotta'
+  })
 
-  useEffect(() => {
-    const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    saveTheme(theme)
-  }, [theme])
-
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light')
+  const setTheme = useCallback((newTheme) => {
+    if (!VALID_THEMES.includes(newTheme)) return
+    setThemeState(newTheme)
+    document.documentElement.setAttribute('data-theme', newTheme)
+    saveTheme(newTheme)
   }, [])
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   )
@@ -1910,32 +2050,33 @@ export function useTransfer() {
   return useContext(TransferContext) || {}
 }
 
-===== FILE: src/index.css (9840 bytes) =====
+===== FILE: src/index.css (21681 bytes) =====
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════
-   LIGHT THEME (default)
+   THEME: TERRACOTTA (Signature Default)
    ═══════════════════════════════════════════ */
-:root {
-  --bg: #FFFCF9;
+[data-theme="terracotta"] {
+  --bg: #FFFAF5;
   --bg-raised: #FFFFFF;
   --bg-sunken: #FFF5EC;
-  --bg-overlay: rgba(255,252,249,0.92);
+  --bg-overlay: rgba(255,250,245,0.92);
   --surface: #FFFFFF;
   --surface-hover: #FFF8F1;
   --surface-active: #FFEDE0;
-  --border: #F0E8DF;
+  --border: #F0E6DF;
   --border-strong: #D4CEC6;
-  --text: #1A1715;
+  --text: #2D2825;
   --text-2: #504840;
-  --text-3: #8E8477;
+  --text-3: #8A7F7A;
   --text-4: #B5ADA2;
-  --accent: #E8634A;
-  --accent-hover: #D14A33;
-  --accent-soft: rgba(232,99,74,0.08);
-  --accent-medium: rgba(232,99,74,0.15);
+  --accent: #E06D53;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #C95A42;
+  --accent-soft: rgba(224,109,83,0.08);
+  --accent-medium: rgba(224,109,83,0.15);
   --success: #16A34A;
   --success-soft: rgba(22,163,74,0.08);
   --warning: #D97706;
@@ -1944,58 +2085,59 @@ export function useTransfer() {
   --danger-soft: rgba(220,38,38,0.08);
   --info: #0891B2;
   --info-soft: rgba(8,145,178,0.08);
-  --ring-track: #F0E8DF;
-  --shimmer-from: #F0E8DF;
+  --ring-track: #F0E6DF;
+  --shimmer-from: #F0E6DF;
   --shimmer-to: #FFE8D3;
-  --toast-bg: #1A1715;
+  --toast-bg: #2D2825;
   --toast-text: #FFF8F1;
-  --toast-border: #3A342E;
+  --toast-border: #504840;
   --code-bg: #FFF5EC;
   --code-char-bg: #FFFFFF;
   --code-char-border: #FFCDB2;
   --qr-bg: #FFFFFF;
-  --qr-fg: #1A1715;
+  --qr-fg: #2D2825;
   --drop-zone-bg: #FFF8F1;
   --drop-zone-border: #FFD4B8;
   --drop-zone-active-bg: #FFEDE0;
-  --drop-zone-active-border: #E8634A;
-  --nav-bg: rgba(255,252,249,0.85);
-  --nav-border: #F0E8DF;
+  --drop-zone-active-border: #E06D53;
+  --nav-bg: rgba(255,250,245,0.85);
+  --nav-border: #F0E6DF;
   --settings-bg: #FFFFFF;
-  --file-icon-bg: rgba(232,99,74,0.08);
-  --file-icon-color: #E8634A;
+  --file-icon-bg: rgba(224,109,83,0.08);
+  --file-icon-color: #E06D53;
   --ai-bg: linear-gradient(135deg, #FFF7F0 0%, #FFEDE0 100%);
   --ai-border: #FFD4B8;
-  --ai-icon: #E8634A;
+  --ai-icon: #E06D53;
   --nearby-bg: #FFF8F1;
   --tag-bg: #FFEDE0;
-  --tag-text: #B03424;
-  --progress-track: #F0E8DF;
-  --progress-fill: #E8634A;
-  --skeleton: linear-gradient(90deg, #F0E8DF 25%, #FFE8D3 50%, #F0E8DF 75%);
+  --tag-text: #C95A42;
+  --progress-track: #F0E6DF;
+  --progress-fill: #E06D53;
+  --skeleton: linear-gradient(90deg, #F0E6DF 25%, #FFE8D3 50%, #F0E6DF 75%);
 }
 
 /* ═══════════════════════════════════════════
-   DARK THEME
+   THEME: DARK (Deep Minimal)
    ═══════════════════════════════════════════ */
-.dark {
-  --bg: #131110;
-  --bg-raised: #1C1917;
-  --bg-sunken: #0F0D0C;
-  --bg-overlay: rgba(19,17,16,0.92);
-  --surface: #1C1917;
-  --surface-hover: #262220;
-  --surface-active: #302B27;
-  --border: #2E2924;
-  --border-strong: #44403C;
-  --text: #FAF5F0;
-  --text-2: #D4CEC6;
-  --text-3: #8E8477;
-  --text-4: #665A49;
-  --accent: #FF8A6A;
-  --accent-hover: #FF6E47;
-  --accent-soft: rgba(255,138,106,0.1);
-  --accent-medium: rgba(255,138,106,0.18);
+[data-theme="dark"] {
+  --bg: #0F1014;
+  --bg-raised: #181A20;
+  --bg-sunken: #0A0B0E;
+  --bg-overlay: rgba(15,16,20,0.92);
+  --surface: #181A20;
+  --surface-hover: #1F2128;
+  --surface-active: #272A35;
+  --border: #272A35;
+  --border-strong: #3A3E4F;
+  --text: #F3F4F6;
+  --text-2: #D1D5DB;
+  --text-3: #9CA3AF;
+  --text-4: #6B7280;
+  --accent: #FFFFFF;
+  --accent-contrast: #0F1014;
+  --accent-hover: #E2E2E2;
+  --accent-soft: rgba(255,255,255,0.08);
+  --accent-medium: rgba(255,255,255,0.15);
   --success: #34D399;
   --success-soft: rgba(52,211,153,0.1);
   --warning: #FBBF24;
@@ -2004,35 +2146,401 @@ export function useTransfer() {
   --danger-soft: rgba(248,113,113,0.1);
   --info: #22D3EE;
   --info-soft: rgba(34,211,238,0.1);
-  --ring-track: #2E2924;
-  --shimmer-from: #2E2924;
-  --shimmer-to: #44403C;
-  --toast-bg: #262220;
-  --toast-text: #FAF5F0;
-  --toast-border: #44403C;
-  --code-bg: #1C1917;
-  --code-char-bg: #262220;
-  --code-char-border: #44403C;
-  --qr-bg: #FAF5F0;
-  --qr-fg: #131110;
-  --drop-zone-bg: #1C1917;
-  --drop-zone-border: #44403C;
-  --drop-zone-active-bg: rgba(255,138,106,0.08);
-  --drop-zone-active-border: #FF8A6A;
-  --nav-bg: rgba(19,17,16,0.85);
-  --nav-border: #2E2924;
-  --settings-bg: #1C1917;
-  --file-icon-bg: rgba(255,138,106,0.1);
-  --file-icon-color: #FF8A6A;
-  --ai-bg: linear-gradient(135deg, #1C1917 0%, #262220 100%);
-  --ai-border: #44403C;
-  --ai-icon: #FF8A6A;
-  --nearby-bg: #1C1917;
-  --tag-bg: rgba(255,138,106,0.12);
-  --tag-text: #FF8A6A;
-  --progress-track: #2E2924;
-  --progress-fill: #FF8A6A;
-  --skeleton: linear-gradient(90deg, #2E2924 25%, #44403C 50%, #2E2924 75%);
+  --ring-track: #272A35;
+  --shimmer-from: #272A35;
+  --shimmer-to: #3A3E4F;
+  --toast-bg: #1F2128;
+  --toast-text: #F3F4F6;
+  --toast-border: #3A3E4F;
+  --code-bg: #181A20;
+  --code-char-bg: #1F2128;
+  --code-char-border: #3A3E4F;
+  --qr-bg: #F3F4F6;
+  --qr-fg: #0F1014;
+  --drop-zone-bg: #181A20;
+  --drop-zone-border: #3A3E4F;
+  --drop-zone-active-bg: rgba(255,255,255,0.05);
+  --drop-zone-active-border: #FFFFFF;
+  --nav-bg: rgba(15,16,20,0.85);
+  --nav-border: #272A35;
+  --settings-bg: #181A20;
+  --file-icon-bg: rgba(255,255,255,0.08);
+  --file-icon-color: #FFFFFF;
+  --ai-bg: linear-gradient(135deg, #181A20 0%, #1F2128 100%);
+  --ai-border: #3A3E4F;
+  --ai-icon: #FFFFFF;
+  --nearby-bg: #181A20;
+  --tag-bg: rgba(255,255,255,0.12);
+  --tag-text: #F3F4F6;
+  --progress-track: #272A35;
+  --progress-fill: #FFFFFF;
+  --skeleton: linear-gradient(90deg, #272A35 25%, #3A3E4F 50%, #272A35 75%);
+}
+
+/* ═══════════════════════════════════════════
+   THEME: LIGHT (Crisp Studio)
+   ═══════════════════════════════════════════ */
+[data-theme="light"] {
+  --bg: #F8F9FA;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #F1F3F5;
+  --bg-overlay: rgba(248,249,250,0.92);
+  --surface: #FFFFFF;
+  --surface-hover: #F8F9FA;
+  --surface-active: #F1F3F5;
+  --border: #E5E7EB;
+  --border-strong: #D1D5DB;
+  --text: #111827;
+  --text-2: #374151;
+  --text-3: #6B7280;
+  --text-4: #9CA3AF;
+  --accent: #000000;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #333333;
+  --accent-soft: rgba(0,0,0,0.05);
+  --accent-medium: rgba(0,0,0,0.1);
+  --success: #16A34A;
+  --success-soft: rgba(22,163,74,0.08);
+  --warning: #D97706;
+  --warning-soft: rgba(217,119,6,0.08);
+  --danger: #DC2626;
+  --danger-soft: rgba(220,38,38,0.08);
+  --info: #0891B2;
+  --info-soft: rgba(8,145,178,0.08);
+  --ring-track: #E5E7EB;
+  --shimmer-from: #E5E7EB;
+  --shimmer-to: #D1D5DB;
+  --toast-bg: #111827;
+  --toast-text: #F9FAFB;
+  --toast-border: #374151;
+  --code-bg: #F1F3F5;
+  --code-char-bg: #FFFFFF;
+  --code-char-border: #D1D5DB;
+  --qr-bg: #FFFFFF;
+  --qr-fg: #111827;
+  --drop-zone-bg: #F8F9FA;
+  --drop-zone-border: #D1D5DB;
+  --drop-zone-active-bg: #F1F3F5;
+  --drop-zone-active-border: #000000;
+  --nav-bg: rgba(248,249,250,0.85);
+  --nav-border: #E5E7EB;
+  --settings-bg: #FFFFFF;
+  --file-icon-bg: rgba(0,0,0,0.05);
+  --file-icon-color: #000000;
+  --ai-bg: linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%);
+  --ai-border: #E5E7EB;
+  --ai-icon: #000000;
+  --nearby-bg: #F8F9FA;
+  --tag-bg: #F1F3F5;
+  --tag-text: #111827;
+  --progress-track: #E5E7EB;
+  --progress-fill: #000000;
+  --skeleton: linear-gradient(90deg, #E5E7EB 25%, #D1D5DB 50%, #E5E7EB 75%);
+}
+
+/* ═══════════════════════════════════════════
+   THEME: OCEAN (Subtle Tech)
+   ═══════════════════════════════════════════ */
+[data-theme="ocean"] {
+  --bg: #F0F4F8;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #E6EDF3;
+  --bg-overlay: rgba(240,244,248,0.92);
+  --surface: #FFFFFF;
+  --surface-hover: #F7FAFC;
+  --surface-active: #EDF2F7;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E0;
+  --text: #1A365D;
+  --text-2: #2D3748;
+  --text-3: #4A5568;
+  --text-4: #718096;
+  --accent: #2B6CB0;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #2C5282;
+  --accent-soft: rgba(43,108,176,0.08);
+  --accent-medium: rgba(43,108,176,0.15);
+  --success: #16A34A;
+  --success-soft: rgba(22,163,74,0.08);
+  --warning: #D97706;
+  --warning-soft: rgba(217,119,6,0.08);
+  --danger: #DC2626;
+  --danger-soft: rgba(220,38,38,0.08);
+  --info: #0891B2;
+  --info-soft: rgba(8,145,178,0.08);
+  --ring-track: #E2E8F0;
+  --shimmer-from: #E2E8F0;
+  --shimmer-to: #CBD5E0;
+  --toast-bg: #1A365D;
+  --toast-text: #F7FAFC;
+  --toast-border: #2D3748;
+  --code-bg: #E6EDF3;
+  --code-char-bg: #FFFFFF;
+  --code-char-border: #CBD5E0;
+  --qr-bg: #FFFFFF;
+  --qr-fg: #1A365D;
+  --drop-zone-bg: #F7FAFC;
+  --drop-zone-border: #CBD5E0;
+  --drop-zone-active-bg: #EDF2F7;
+  --drop-zone-active-border: #2B6CB0;
+  --nav-bg: rgba(240,244,248,0.85);
+  --nav-border: #E2E8F0;
+  --settings-bg: #FFFFFF;
+  --file-icon-bg: rgba(43,108,176,0.08);
+  --file-icon-color: #2B6CB0;
+  --ai-bg: linear-gradient(135deg, #F7FAFC 0%, #EDF2F7 100%);
+  --ai-border: #CBD5E0;
+  --ai-icon: #2B6CB0;
+  --nearby-bg: #F7FAFC;
+  --tag-bg: #EDF2F7;
+  --tag-text: #2C5282;
+  --progress-track: #E2E8F0;
+  --progress-fill: #2B6CB0;
+  --skeleton: linear-gradient(90deg, #E2E8F0 25%, #CBD5E0 50%, #E2E8F0 75%);
+}
+
+/* ═══════════════════════════════════════════
+   THEME: SAKURA (Soft Red/Pink)
+   ═══════════════════════════════════════════ */
+[data-theme="sakura"] {
+  --bg: #FFF0F3;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #FFE4E9;
+  --bg-overlay: rgba(255,240,243,0.92);
+  --surface: #FFFFFF;
+  --surface-hover: #FFF5F7;
+  --surface-active: #FFEAEE;
+  --border: #FFCCD5;
+  --border-strong: #FFB3C1;
+  --text: #590D22;
+  --text-2: #800F2F;
+  --text-3: #A4133C;
+  --text-4: #C9184A;
+  --accent: #FF4D6D;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #C9184A;
+  --accent-soft: rgba(255,77,109,0.08);
+  --accent-medium: rgba(255,77,109,0.15);
+  --success: #16A34A;
+  --success-soft: rgba(22,163,74,0.08);
+  --warning: #D97706;
+  --warning-soft: rgba(217,119,6,0.08);
+  --danger: #DC2626;
+  --danger-soft: rgba(220,38,38,0.08);
+  --info: #0891B2;
+  --info-soft: rgba(8,145,178,0.08);
+  --ring-track: #FFCCD5;
+  --shimmer-from: #FFCCD5;
+  --shimmer-to: #FFB3C1;
+  --toast-bg: #590D22;
+  --toast-text: #FFF5F7;
+  --toast-border: #800F2F;
+  --code-bg: #FFE4E9;
+  --code-char-bg: #FFFFFF;
+  --code-char-border: #FFCCD5;
+  --qr-bg: #FFFFFF;
+  --qr-fg: #590D22;
+  --drop-zone-bg: #FFF5F7;
+  --drop-zone-border: #FFB3C1;
+  --drop-zone-active-bg: #FFEAEE;
+  --drop-zone-active-border: #FF4D6D;
+  --nav-bg: rgba(255,240,243,0.85);
+  --nav-border: #FFCCD5;
+  --settings-bg: #FFFFFF;
+  --file-icon-bg: rgba(255,77,109,0.08);
+  --file-icon-color: #FF4D6D;
+  --ai-bg: linear-gradient(135deg, #FFF5F7 0%, #FFEAEE 100%);
+  --ai-border: #FFCCD5;
+  --ai-icon: #FF4D6D;
+  --nearby-bg: #FFF5F7;
+  --tag-bg: #FFEAEE;
+  --tag-text: #C9184A;
+  --progress-track: #FFCCD5;
+  --progress-fill: #FF4D6D;
+  --skeleton: linear-gradient(90deg, #FFCCD5 25%, #FFB3C1 50%, #FFCCD5 75%);
+}
+
+/* ═══════════════════════════════════════════
+   THEME: EMERALD (Vibrant Green)
+   ═══════════════════════════════════════════ */
+[data-theme="emerald"] {
+  --bg: #F0FDF4;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #DCFCE7;
+  --bg-overlay: rgba(240,253,244,0.92);
+  --surface: #FFFFFF;
+  --surface-hover: #F7FEF9;
+  --surface-active: #ECFDF5;
+  --border: #D1FAE5;
+  --border-strong: #A7F3D0;
+  --text: #064E3B;
+  --text-2: #065F46;
+  --text-3: #047857;
+  --text-4: #059669;
+  --accent: #10B981;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #059669;
+  --accent-soft: rgba(16,185,129,0.08);
+  --accent-medium: rgba(16,185,129,0.15);
+  --success: #16A34A;
+  --success-soft: rgba(22,163,74,0.08);
+  --warning: #D97706;
+  --warning-soft: rgba(217,119,6,0.08);
+  --danger: #DC2626;
+  --danger-soft: rgba(220,38,38,0.08);
+  --info: #0891B2;
+  --info-soft: rgba(8,145,178,0.08);
+  --ring-track: #D1FAE5;
+  --shimmer-from: #D1FAE5;
+  --shimmer-to: #A7F3D0;
+  --toast-bg: #064E3B;
+  --toast-text: #F7FEF9;
+  --toast-border: #065F46;
+  --code-bg: #DCFCE7;
+  --code-char-bg: #FFFFFF;
+  --code-char-border: #D1FAE5;
+  --qr-bg: #FFFFFF;
+  --qr-fg: #064E3B;
+  --drop-zone-bg: #F7FEF9;
+  --drop-zone-border: #A7F3D0;
+  --drop-zone-active-bg: #ECFDF5;
+  --drop-zone-active-border: #10B981;
+  --nav-bg: rgba(240,253,244,0.85);
+  --nav-border: #D1FAE5;
+  --settings-bg: #FFFFFF;
+  --file-icon-bg: rgba(16,185,129,0.08);
+  --file-icon-color: #10B981;
+  --ai-bg: linear-gradient(135deg, #F7FEF9 0%, #ECFDF5 100%);
+  --ai-border: #D1FAE5;
+  --ai-icon: #10B981;
+  --nearby-bg: #F7FEF9;
+  --tag-bg: #ECFDF5;
+  --tag-text: #059669;
+  --progress-track: #D1FAE5;
+  --progress-fill: #10B981;
+  --skeleton: linear-gradient(90deg, #D1FAE5 25%, #A7F3D0 50%, #D1FAE5 75%);
+}
+
+/* ═══════════════════════════════════════════
+   THEME: CYBER (Dark Neon Purple)
+   ═══════════════════════════════════════════ */
+[data-theme="cyber"] {
+  --bg: #09090B;
+  --bg-raised: #18181B;
+  --bg-sunken: #000000;
+  --bg-overlay: rgba(9,9,11,0.92);
+  --surface: #18181B;
+  --surface-hover: #27272A;
+  --surface-active: #3F3F46;
+  --border: #27272A;
+  --border-strong: #52525B;
+  --text: #FAFAFA;
+  --text-2: #E4E4E7;
+  --text-3: #A1A1AA;
+  --text-4: #71717A;
+  --accent: #A855F7;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #9333EA;
+  --accent-soft: rgba(168,85,247,0.08);
+  --accent-medium: rgba(168,85,247,0.15);
+  --success: #34D399;
+  --success-soft: rgba(52,211,153,0.1);
+  --warning: #FBBF24;
+  --warning-soft: rgba(251,191,36,0.1);
+  --danger: #F87171;
+  --danger-soft: rgba(248,113,113,0.1);
+  --info: #22D3EE;
+  --info-soft: rgba(34,211,238,0.1);
+  --ring-track: #27272A;
+  --shimmer-from: #27272A;
+  --shimmer-to: #52525B;
+  --toast-bg: #27272A;
+  --toast-text: #FAFAFA;
+  --toast-border: #52525B;
+  --code-bg: #18181B;
+  --code-char-bg: #27272A;
+  --code-char-border: #52525B;
+  --qr-bg: #FAFAFA;
+  --qr-fg: #09090B;
+  --drop-zone-bg: #18181B;
+  --drop-zone-border: #52525B;
+  --drop-zone-active-bg: rgba(168,85,247,0.05);
+  --drop-zone-active-border: #A855F7;
+  --nav-bg: rgba(9,9,11,0.85);
+  --nav-border: #27272A;
+  --settings-bg: #18181B;
+  --file-icon-bg: rgba(168,85,247,0.08);
+  --file-icon-color: #A855F7;
+  --ai-bg: linear-gradient(135deg, #18181B 0%, #27272A 100%);
+  --ai-border: #52525B;
+  --ai-icon: #A855F7;
+  --nearby-bg: #18181B;
+  --tag-bg: rgba(168,85,247,0.12);
+  --tag-text: #E9D5FF;
+  --progress-track: #27272A;
+  --progress-fill: #A855F7;
+  --skeleton: linear-gradient(90deg, #27272A 25%, #52525B 50%, #27272A 75%);
+}
+
+/* ═══════════════════════════════════════════
+   THEME: AMBER (Warm Sunset Gold)
+   ═══════════════════════════════════════════ */
+[data-theme="amber"] {
+  --bg: #FFFBEB;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #FEF3C7;
+  --bg-overlay: rgba(255,251,235,0.92);
+  --surface: #FFFFFF;
+  --surface-hover: #FEFCE8;
+  --surface-active: #FEF9C3;
+  --border: #FEF3C7;
+  --border-strong: #FDE68A;
+  --text: #78350F;
+  --text-2: #92400E;
+  --text-3: #B45309;
+  --text-4: #D97706;
+  --accent: #F59E0B;
+  --accent-contrast: #111827;
+  --accent-hover: #D97706;
+  --accent-soft: rgba(245,158,11,0.08);
+  --accent-medium: rgba(245,158,11,0.15);
+  --success: #16A34A;
+  --success-soft: rgba(22,163,74,0.08);
+  --warning: #D97706;
+  --warning-soft: rgba(217,119,6,0.08);
+  --danger: #DC2626;
+  --danger-soft: rgba(220,38,38,0.08);
+  --info: #0891B2;
+  --info-soft: rgba(8,145,178,0.08);
+  --ring-track: #FEF3C7;
+  --shimmer-from: #FEF3C7;
+  --shimmer-to: #FDE68A;
+  --toast-bg: #78350F;
+  --toast-text: #FEFCE8;
+  --toast-border: #92400E;
+  --code-bg: #FEF3C7;
+  --code-char-bg: #FFFFFF;
+  --code-char-border: #FDE68A;
+  --qr-bg: #FFFFFF;
+  --qr-fg: #78350F;
+  --drop-zone-bg: #FEFCE8;
+  --drop-zone-border: #FDE68A;
+  --drop-zone-active-bg: #FEF9C3;
+  --drop-zone-active-border: #F59E0B;
+  --nav-bg: rgba(255,251,235,0.85);
+  --nav-border: #FEF3C7;
+  --settings-bg: #FFFFFF;
+  --file-icon-bg: rgba(245,158,11,0.08);
+  --file-icon-color: #F59E0B;
+  --ai-bg: linear-gradient(135deg, #FEFCE8 0%, #FEF9C3 100%);
+  --ai-border: #FEF3C7;
+  --ai-icon: #F59E0B;
+  --nearby-bg: #FEFCE8;
+  --tag-bg: #FEF9C3;
+  --tag-text: #D97706;
+  --progress-track: #FEF3C7;
+  --progress-fill: #F59E0B;
+  --skeleton: linear-gradient(90deg, #FEF3C7 25%, #FDE68A 50%, #FEF3C7 75%);
 }
 
 /* ═══════════════════════════════════════════
@@ -2079,7 +2587,7 @@ a { color: inherit; text-decoration: none; }
     gap: 8px;
     padding: 12px 24px;
     background: var(--accent);
-    color: #FFFFFF;
+    color: var(--accent-contrast, #FFFFFF);
     font-weight: 600;
     font-size: 15px;
     border-radius: 12px;
@@ -2197,6 +2705,15 @@ a { color: inherit; text-decoration: none; }
   border-radius: 4px;
 }
 
+/* Reduce Motion */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
 /* ═══════════════════════════════════════════
    KEYFRAME ANIMATIONS
    ═══════════════════════════════════════════ */
@@ -2248,19 +2765,22 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
-===== FILE: src/main.jsx (230 bytes) =====
+===== FILE: src/main.jsx (328 bytes) =====
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { ThemeProvider } from './context/ThemeContext'
 import App from './App'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (18660 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (19803 bytes) =====
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -2271,9 +2791,10 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import { getFileMetadata, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
 import { smartDownload } from '../utils/download'
-import { saveTransfer } from '../utils/storage'
+import { saveTransfer, getSettings } from '../utils/storage'
 import { formatBytes } from '../utils/format'
 import { extractErrorCode } from '../utils/errors'
+import { playDownloadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
@@ -2307,6 +2828,7 @@ export default function DownloadPage() {
   const [transferStatus, setTransferStatus] = useState('ACTIVE')
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [receipt, setReceipt] = useState(null)
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
 
@@ -2329,15 +2851,18 @@ export default function DownloadPage() {
         const data = await getFileMetadata(code)
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
-        setTotalSeconds(data.secondsRemaining || 600)
+        const sessionDuration = data.expiresAt && data.createdAt
+          ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
+          : 600
+        setTotalSeconds(Math.max(sessionDuration, 60))
         if (data.passwordProtected) { setNeedsPassword(true) }
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
         if (data.status) { setTransferStatus(data.status) }
 
-        // Preview for images
+        // Preview for images — skip if password-protected (will set after verification)
         const firstFile = data?.files?.[0]
         const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
-        if (firstFile && firstFileType.startsWith('image/')) {
+        if (firstFile && firstFileType.startsWith('image/') && !data.passwordProtected) {
           setPreviewSrc(previewUrl(code, 0))
         }
 
@@ -2385,10 +2910,12 @@ export default function DownloadPage() {
     }
     const onDeleted = ({ reason } = {}) => {
       setTransferStatus('DELETED')
-      if (reason === 'burn' && !downloaded) {
-        toast.error('This file was just burned after being downloaded')
+      // Only show error if user hasn't downloaded and isn't currently downloading
+      if (reason === 'burn' && !downloaded && !downloadingRef.current) {
+        toast.error('This file was burned after being downloaded by someone else')
       }
     }
+    const onReceipt = (data) => setReceipt(data)
 
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
@@ -2398,6 +2925,7 @@ export default function DownloadPage() {
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-cancelled', onCancelled)
     socket.on('transfer-deleted', onDeleted)
+    socket.on('transfer-receipt', onReceipt)
 
     return () => {
       socket.off('connect', connectRoom)
@@ -2408,6 +2936,7 @@ export default function DownloadPage() {
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
+      socket.off('transfer-receipt', onReceipt)
       leaveRoom(code)
     }
   }, [socket, code, joinRoom, leaveRoom, navigate, downloaded])
@@ -2423,6 +2952,11 @@ export default function DownloadPage() {
       if (result?.verified) {
         setPasswordVerified(true)
         verifiedPasswordRef.current = password
+        const firstFile = meta?.files?.[0]
+        const firstFileType = String(firstFile?.type || '').toLowerCase()
+        if (firstFile && firstFileType.startsWith('image/')) {
+          setPreviewSrc(previewUrl(code, 0, password))
+        }
       }
     } catch (err) {
       const errCode = err?.response?.data?.error?.code
@@ -2450,13 +2984,22 @@ export default function DownloadPage() {
       setDownloaded(true)
       setDownloading(false)
 
+      const currentSettings = getSettings()
+
       // Confetti!
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#E8634A', '#FFB88A', '#FF9A5C', '#16A34A', '#0891B2'],
-      })
+      if (!currentSettings.reducedMotion) {
+        confetti({
+          particleCount: 72,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#E8634A', '#FFB88A', '#FF9A5C', '#16A34A', '#0891B2'],
+        })
+      }
+
+      // Success sound
+      if (currentSettings.soundEnabled) {
+        playDownloadSuccess()
+      }
     } catch {
       setDownloading(false)
       toast.error('Download failed')
@@ -2727,6 +3270,7 @@ export default function DownloadPage() {
                   senderDevice={meta?.senderDeviceName}
                   totalSize={meta?.totalSize}
                   burnAfterDownload={meta?.burnAfterDownload}
+                  receipt={receipt}
                 />
               </motion.div>
             )}
@@ -2823,7 +3367,7 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (23292 bytes) =====
+===== FILE: src/pages/HomePage.jsx (26923 bytes) =====
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -2840,6 +3384,7 @@ import { uploadFiles, uploadClipboard } from '../services/api'
 import { getSettings } from '../utils/storage'
 import { saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
+import { playUploadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import FileCard from '../components/FileCard'
 import ExpirySelector from '../components/ExpirySelector'
@@ -2878,6 +3423,22 @@ export default function HomePage() {
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
 
+  // Password strength calculation
+  function getPasswordStrength(pwd) {
+    if (!pwd) return null
+    let score = 0
+    if (pwd.length >= 8) score++
+    if (/[A-Z]/.test(pwd)) score++
+    if (/[0-9]/.test(pwd)) score++
+    if (/[^A-Za-z0-9]/.test(pwd)) score++
+    
+    if (score <= 1) return { level: 'weak', label: 'Not recommended', color: 'var(--danger)' }
+    if (score === 2 || score === 3) return { level: 'medium', label: 'Okay', color: 'var(--warning)' }
+    return { level: 'strong', label: 'Strong password', color: 'var(--success)' }
+  }
+
+  const passwordStrength = getPasswordStrength(password)
+
   const handleUploadSuccess = useCallback((payload) => {
     const transferCode = payload?.code
     if (!transferCode || uploadHandledRef.current) {
@@ -2889,7 +3450,17 @@ export default function HomePage() {
 
     const fname = files[0]?.name || 'file'
     saveTransfer({ code: transferCode, filename: fname, isSender: true })
+
+    // Navigate first to avoid any transient audio API issues blocking route transition.
     navigate(`/sender/${transferCode}`)
+
+    // Play success sound after navigation commit.
+    window.setTimeout(() => {
+      const currentSettings = getSettings()
+      if (currentSettings.soundEnabled) {
+        playUploadSuccess()
+      }
+    }, 0)
   }, [files, navigate])
 
   // Title
@@ -3030,8 +3601,18 @@ export default function HomePage() {
                   Share files<br />
                   <span style={{ color: 'var(--accent)' }}>instantly.</span>
                 </h1>
-                <p className="text-base sm:text-lg" style={{ color: 'var(--text-3)' }}>
-                  Drop a file, get a code. No sign-up. Files auto-delete.
+                <p className="text-base sm:text-lg mb-2" style={{ color: 'var(--text-3)' }}>
+                  Drop a file, get a code. No sign-up. Auto-delete is built in.
+                </p>
+                <p 
+                  className="text-sm font-medium tracking-wide bg-clip-text text-transparent bg-gradient-to-r"
+                  style={{ 
+                    backgroundImage: 'linear-gradient(to right, var(--accent), var(--accent-hover))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Simple, yet too effective.
                 </p>
               </motion.div>
 
@@ -3135,7 +3716,7 @@ export default function HomePage() {
                         <p className="text-sm font-semibold" style={{ color: burn ? 'var(--danger)' : 'var(--text-2)' }}>
                           Burn after download
                         </p>
-                        <p className="text-xs" style={{ color: 'var(--text-4)' }}>File deletes after first download</p>
+                        <p className="text-xs" style={{ color: 'var(--text-4)' }}>This action is permanent after first download</p>
                       </div>
                       <div
                         className="w-10 h-6 rounded-full relative transition-all"
@@ -3167,7 +3748,7 @@ export default function HomePage() {
                           <p className="text-sm font-semibold" style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-2)' }}>
                             Password protect
                           </p>
-                          <p className="text-xs" style={{ color: 'var(--text-4)' }}>Require a password to download</p>
+                          <p className="text-xs" style={{ color: 'var(--text-4)' }}>Only people with the password can download</p>
                         </div>
                         <div
                           className="w-10 h-6 rounded-full relative transition-all"
@@ -3218,6 +3799,39 @@ export default function HomePage() {
                                 }
                               </button>
                             </div>
+
+                            {/* Password strength indicator */}
+                            {passwordStrength && (
+                              <motion.div
+                                className="mt-2 px-1"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                {/* Progress bar */}
+                                <div className="h-1 rounded-full mb-1.5" style={{ background: 'var(--border)' }}>
+                                  <div
+                                    className="h-full rounded-full transition-all duration-300"
+                                    style={{
+                                      width: passwordStrength.level === 'weak' ? '33%' : passwordStrength.level === 'medium' ? '66%' : '100%',
+                                      background: passwordStrength.color,
+                                    }}
+                                  />
+                                </div>
+                                {/* Label */}
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs transition-colors duration-300" style={{ color: passwordStrength.color }}>
+                                    {passwordStrength.label}
+                                  </p>
+                                  {/* Suggestion for large files */}
+                                  {passwordStrength.level === 'weak' && totalSize() > 10 * 1024 * 1024 && (
+                                    <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
+                                      Consider stronger for large files
+                                    </p>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -3232,6 +3846,7 @@ export default function HomePage() {
                       <Upload size={18} />
                       Share {files.length} file{files.length !== 1 ? 's' : ''}
                     </button>
+                    <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>Share the code before leaving this page</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -3326,8 +3941,8 @@ export default function HomePage() {
                 <div className="space-y-4">
                   {[
                     { step: '1', label: 'Drop your file', desc: 'Drag & drop or click to upload' },
-                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or QR' },
-                    { step: '3', label: 'They download', desc: 'Open on any device, no app needed' },
+                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or QR before leaving' },
+                    { step: '3', label: 'They download', desc: 'Files auto-delete after expiry or burn' },
                   ].map(({ step, label, desc }) => (
                     <div key={step} className="flex items-start gap-3">
                       <div
@@ -3352,7 +3967,7 @@ export default function HomePage() {
   )
 }
 
-===== FILE: src/pages/JoinPage.jsx (6575 bytes) =====
+===== FILE: src/pages/JoinPage.jsx (7085 bytes) =====
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -3366,11 +3981,13 @@ import ErrorState from '../components/ErrorState'
 import { extractErrorCode } from '../utils/errors'
 
 const CODE_LENGTH = 6
+// Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
+const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
 
 export default function JoinPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const prefill = (params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH)
+  const prefill = (params.get('code') || '').toUpperCase().replace(/[^A-HJ-KM-NP-Z2-9]/g, '').slice(0, CODE_LENGTH)
 
   const [chars, setChars] = useState(() => {
     const arr = Array(CODE_LENGTH).fill('')
@@ -3402,9 +4019,13 @@ export default function JoinPage() {
     const ch = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (!ch) return
 
+    // Filter to valid code characters (excludes 0, O, 1, I, L)
+    const filtered = ch.split('').filter(c => VALID_CODE_CHARS.test(c)).join('')
+    if (!filtered) return
+
     // Handle paste
-    if (ch.length > 1) {
-      const pasted = ch.slice(0, CODE_LENGTH).split('')
+    if (filtered.length > 1) {
+      const pasted = filtered.slice(0, CODE_LENGTH).split('')
       const next = [...chars]
       pasted.forEach((c, i) => {
         if (idx + i < CODE_LENGTH) next[idx + i] = c
@@ -3416,7 +4037,7 @@ export default function JoinPage() {
     }
 
     const next = [...chars]
-    next[idx] = ch[0]
+    next[idx] = filtered[0]
     setChars(next)
     if (idx < CODE_LENGTH - 1) inputRefs.current[idx + 1]?.focus()
   }
@@ -3517,6 +4138,11 @@ export default function JoinPage() {
             ))}
           </motion.div>
 
+          {/* Alphabet hint */}
+          <p className="text-center text-xs mb-4" style={{ color: 'var(--text-4)' }}>
+            Letters A–Z (except O, I, L) and numbers 2–9
+          </p>
+
           {/* Error */}
           {error && (
             <motion.div
@@ -3556,8 +4182,8 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (21037 bytes) =====
-import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react'
+===== FILE: src/pages/SenderPage.jsx (23015 bytes) =====
+import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -3608,7 +4234,12 @@ export default function SenderPage() {
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
 
-  const shareLink = `${import.meta.env.VITE_SHARE_BASE_URL || window.location.origin}/g/${code}`
+  const mountedRef = useRef(true)
+  useEffect(() => { return () => { mountedRef.current = false } }, [])
+
+  const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+  const shareLink = `${baseShareUrl}/g/${code}`
+  const canUseWebShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   // Title
   useEffect(() => {
@@ -3625,7 +4256,10 @@ export default function SenderPage() {
         const data = await getFileMetadata(code)
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
-        setTotalSeconds(data.secondsRemaining || 600)
+        const sessionDuration = data.expiresAt && data.createdAt
+          ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
+          : 600
+        setTotalSeconds(Math.max(sessionDuration, 60))
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
         if (data.status === 'CANCELLED' || data.status === 'DELETED') {
           setCancelled(true)
@@ -3671,7 +4305,10 @@ export default function SenderPage() {
     connectRoom()
 
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
-    const onExpired = () => navigate('/expired?reason=expired', { replace: true })
+    const onExpired = () => {
+      if (!mountedRef.current) return
+      navigate('/expired?reason=expired', { replace: true })
+    }
     const onAi = (data) => { setAi(data); setAiLoading(false) }
     const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
     const onDownComplete = () => {
@@ -3699,7 +4336,8 @@ export default function SenderPage() {
       if (expiresAt) {
         const newSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
         setSecondsRemaining(newSeconds)
-        setTotalSeconds(newSeconds)
+        // Extension duration is 10 minutes (600 seconds) by default
+        setTotalSeconds(600)
       }
     }
 
@@ -3771,7 +4409,8 @@ export default function SenderPage() {
       if (result?.expiresAt) {
         const newSeconds = Math.max(0, Math.ceil((new Date(result.expiresAt).getTime() - Date.now()) / 1000))
         setSecondsRemaining(newSeconds)
-        setTotalSeconds(newSeconds)
+        // Extension duration is 10 minutes (600 seconds) by default
+        setTotalSeconds(600)
       }
       toast.success('Extended by 10 minutes')
     } catch { toast.error('Failed to extend') }
@@ -3782,7 +4421,7 @@ export default function SenderPage() {
     if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
     try {
       await deleteTransfer(code)
-      toast.success('Transfer cancelled')
+      toast.success('Transfer cancelled permanently')
       setCancelled(true)
       setConfirmDelete(false)
     } catch { toast.error('Failed to cancel') }
@@ -3803,7 +4442,7 @@ export default function SenderPage() {
 
   // Share helpers
   function handleWebShare() {
-    if (navigator.share) {
+    if (canUseWebShare) {
       navigator.share({
         title: 'SwiftShare',
         text: `Download my file: ${code}`,
@@ -3822,8 +4461,30 @@ export default function SenderPage() {
     }
     
     try {
+      // Resolve CSS variables to actual colors
+      const computedStyle = getComputedStyle(document.documentElement)
+      const bgColor = computedStyle.getPropertyValue('--qr-bg').trim() || '#ffffff'
+      const fgColor = computedStyle.getPropertyValue('--qr-fg').trim() || '#000000'
+      
+      // Clone SVG and replace CSS vars with resolved values
+      const clonedSvg = svg.cloneNode(true)
+      clonedSvg.querySelectorAll('path').forEach(path => {
+        const fill = path.getAttribute('fill')
+        if (fill === 'var(--qr-fg)') path.setAttribute('fill', fgColor)
+        if (fill === 'var(--qr-bg)') path.setAttribute('fill', bgColor)
+      })
+      clonedSvg.querySelectorAll('rect').forEach(rect => {
+        const fill = rect.getAttribute('fill')
+        if (fill === 'var(--qr-fg)') rect.setAttribute('fill', fgColor)
+        if (fill === 'var(--qr-bg)') rect.setAttribute('fill', bgColor)
+      })
+      
       const canvas = document.createElement('canvas')
       const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        toast.error('Canvas is not supported on this device')
+        return
+      }
       
       // High resolution with proper padding
       const qrSize = 1024
@@ -3833,12 +4494,12 @@ export default function SenderPage() {
       canvas.width = totalSize
       canvas.height = totalSize
       
-      // White background
-      ctx.fillStyle = '#ffffff'
+      // Use resolved background color
+      ctx.fillStyle = bgColor
       ctx.fillRect(0, 0, totalSize, totalSize)
       
-      // Serialize SVG
-      const svgData = new XMLSerializer().serializeToString(svg)
+      // Serialize cloned SVG
+      const svgData = new XMLSerializer().serializeToString(clonedSvg)
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
       const url = URL.createObjectURL(svgBlob)
       
@@ -4065,7 +4726,7 @@ export default function SenderPage() {
                     </button>
                     <button className="btn-ghost justify-center col-span-2" onClick={handleWebShare}>
                       <Share2 size={14} />
-                      {navigator.share ? 'Share…' : 'Copy link'}
+                      {canUseWebShare ? 'Share...' : 'Copy link'}
                     </button>
                   </div>
                 </div>
@@ -4083,7 +4744,7 @@ export default function SenderPage() {
                         style={confirmExtend ? { borderColor: 'var(--warning)', color: 'var(--warning)' } : undefined}
                       >
                         {confirmExtend ? (
-                          <><AlertTriangle size={13} />Confirm?</>
+                          <><AlertTriangle size={13} />Confirm extend?</>
                         ) : (
                           <><Clock size={13} />{extended ? 'Extended' : '+10 min'}</>
                         )}
@@ -4094,12 +4755,16 @@ export default function SenderPage() {
                         style={confirmDelete ? { borderColor: 'var(--danger)', color: 'var(--danger)' } : undefined}
                       >
                         <Trash2 size={13} />
-                        {confirmDelete ? 'Confirm?' : 'Cancel'}
+                        {confirmDelete ? 'Delete forever?' : 'Cancel'}
                       </button>
                     </div>
 
+                    <p className="text-[10px] mt-2" style={{ color: confirmDelete ? 'var(--danger)' : 'var(--text-4)' }}>
+                      {confirmDelete ? 'This action is permanent' : 'Share the code before this timer ends'}
+                    </p>
+
                     {extended && (
-                      <p className="text-[10px] mt-2" style={{ color: 'var(--text-4)' }}>
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-4)' }}>
                         Can only extend once per transfer
                       </p>
                     )}
@@ -4110,7 +4775,7 @@ export default function SenderPage() {
                 {meta?.burnAfterDownload && (
                   <div className="p-3 rounded-xl text-center" style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}>
                     <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
-                      🔥 Burn after download enabled — file will delete after first download
+                      🔥 Burn mode is on: first download permanently deletes this transfer
                     </p>
                   </div>
                 )}
@@ -4309,7 +4974,10 @@ export function previewUrl(code, index, password) {
   return appendPasswordQuery(url, password)
 }
 
-===== FILE: src/utils/download.js (1781 bytes) =====
+===== FILE: src/utils/constants.js (55 bytes) =====
+export const APP_MOTTO = 'Simple, yet too effective.';
+
+===== FILE: src/utils/download.js (1892 bytes) =====
 import {
   downloadFile,
   downloadSingleFile,
@@ -4326,39 +4994,37 @@ function buildPasswordHeaders(password) {
 }
 
 export async function smartDownload(code, { aiName, index, originalName, password } = {}) {
-  const filename = aiName || originalName || `swiftshare_${code}`
-  const headers = buildPasswordHeaders(password)
-
-  if (typeof index === 'number') {
-    // Single file from multi-file transfer — try blob rename
-    try {
-      const url = typeof downloadSingleFile === 'function'
-        ? getSingleDownloadUrl(code, index, password)
-        : null
-      if (url) {
-        const resp = await fetch(url, headers ? { headers } : undefined)
-        if (!resp.ok) throw new Error('Download failed')
-        const blob = await resp.blob()
-        triggerBlobDownload(blob, filename)
-        return true
-      }
-    } catch {
-      // Fallback
-      downloadSingleFile(code, index, password)
-      return true
-    }
+  // For simple full-transfer downloads with no rename, use direct navigation (streaming, no memory pressure)
+  if (typeof index !== 'number' && !aiName) {
+    downloadFile(code, password)
+    return true
   }
 
-  // Full transfer download with rename
+  const headers = buildPasswordHeaders(password)
+  const url = typeof index === 'number'
+    ? getSingleDownloadUrl(code, index, password)
+    : getDownloadUrl(code, password)
+
   try {
-    const url = getDownloadUrl(code, password)
     const resp = await fetch(url, headers ? { headers } : undefined)
     if (!resp.ok) throw new Error('Download failed')
+
+    // If file is >50MB, skip blob rename — just navigate directly to avoid OOM on mobile
+    const contentLength = Number(resp.headers.get('content-length') || 0)
+    if (contentLength > 50 * 1024 * 1024) {
+      resp.body?.cancel()
+      if (typeof index === 'number') downloadSingleFile(code, index, password)
+      else downloadFile(code, password)
+      return true
+    }
+
     const blob = await resp.blob()
+    const filename = aiName || originalName || `swiftshare_${code}`
     triggerBlobDownload(blob, filename)
     return true
   } catch {
-    downloadFile(code, password)
+    if (typeof index === 'number') downloadSingleFile(code, index, password)
+    else downloadFile(code, password)
     return true
   }
 }
@@ -4557,7 +5223,120 @@ export function expiryLabel(minutes) {
   return '5 hours'
 }
 
-===== FILE: src/utils/storage.js (2106 bytes) =====
+===== FILE: src/utils/sound.js (2872 bytes) =====
+// Subtle success sounds using Web Audio API.
+// Browser autoplay policies require a user gesture before audio can play,
+// so we unlock the context on first interaction.
+let audioContext = null
+let unlockListenersBound = false
+
+function getAudioContext() {
+  if (audioContext) return audioContext
+  try {
+    const Ctor = window.AudioContext || window.webkitAudioContext
+    if (!Ctor) return null
+    audioContext = new Ctor()
+    return audioContext
+  } catch {
+    return null
+  }
+}
+
+async function unlockAudio() {
+  const ctx = getAudioContext()
+  if (!ctx) return false
+  try {
+    if (ctx.state === 'suspended') {
+      await ctx.resume()
+    }
+    return ctx.state === 'running'
+  } catch {
+    return false
+  }
+}
+
+function bindUnlockListeners() {
+  if (unlockListenersBound || typeof window === 'undefined') return
+  unlockListenersBound = true
+
+  const events = ['pointerdown', 'keydown', 'touchstart', 'mousedown']
+  const onFirstInteraction = () => {
+    void unlockAudio().then((ok) => {
+      if (!ok) return
+      events.forEach((eventName) => window.removeEventListener(eventName, onFirstInteraction))
+    })
+  }
+
+  events.forEach((eventName) => window.addEventListener(eventName, onFirstInteraction, { passive: true }))
+}
+
+function playTwoTone(firstFrequency, secondFrequency) {
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  const play = () => {
+    const now = ctx.currentTime
+    const osc1 = ctx.createOscillator()
+    const osc2 = ctx.createOscillator()
+    const gain = ctx.createGain()
+
+    osc1.frequency.setValueAtTime(firstFrequency, now)
+    osc1.type = 'sine'
+
+    osc2.frequency.setValueAtTime(secondFrequency, now + 0.08)
+    osc2.type = 'sine'
+
+    gain.gain.setValueAtTime(0, now)
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.04)
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.12)
+    gain.gain.linearRampToValueAtTime(0, now + 0.25)
+
+    osc1.connect(gain)
+    osc2.connect(gain)
+    gain.connect(ctx.destination)
+
+    osc1.start(now)
+    osc1.stop(now + 0.12)
+    osc2.start(now + 0.08)
+    osc2.stop(now + 0.25)
+  }
+
+  if (ctx.state === 'suspended') {
+    void ctx.resume().then(play).catch(() => {})
+    return
+  }
+
+  play()
+}
+
+bindUnlockListeners()
+
+// Upload success: gentle ascending chime (C5 → E5)
+export function playUploadSuccess() {
+  try {
+    // C5 (523.25 Hz) -> E5 (659.25 Hz), ascending.
+    playTwoTone(523.25, 659.25)
+  } catch {
+    // Silently fail
+  }
+}
+
+// Download success: gentle descending chime (G5 → D5)
+export function playDownloadSuccess() {
+  try {
+    // G5 (783.99 Hz) -> D5 (587.33 Hz), descending.
+    playTwoTone(783.99, 587.33)
+  } catch {
+    // Silently fail
+  }
+}
+
+// Legacy export for backward compatibility
+export function playSuccess() {
+  playUploadSuccess()
+}
+
+===== FILE: src/utils/storage.js (2311 bytes) =====
 const KEYS = {
   RECENT: 'swiftshare_recent',
   SETTINGS: 'swiftshare_settings',
@@ -4602,17 +5381,23 @@ export function clearTransfers() {
 const DEFAULT_SETTINGS = {
   defaultExpiry: 60,
   defaultBurn: false,
+  reducedMotion: false,
+  soundEnabled: true,
 }
 export function getSettings() {
   return { ...DEFAULT_SETTINGS, ...safeGet(KEYS.SETTINGS, {}) }
 }
 export function saveSettings(patch) {
-  safeSet(KEYS.SETTINGS, { ...getSettings(), ...patch })
+  const next = { ...getSettings(), ...patch }
+  safeSet(KEYS.SETTINGS, next)
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('swiftshare:settings-changed', { detail: next }))
+  }
 }
 
 // ── Theme ──────────────────────────────────
 export function getTheme() {
-  return safeGet(KEYS.THEME, 'light')
+  return safeGet(KEYS.THEME, 'terracotta')
 }
 export function saveTheme(theme) {
   safeSet(KEYS.THEME, theme)
@@ -4734,10 +5519,18 @@ export default {
   plugins: [],
 }
 
-===== FILE: vercel.json (80 bytes) =====
+===== FILE: vercel.json (254 bytes) =====
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
   ]
 }
 
@@ -4758,6 +5551,6 @@ export default defineConfig({
 })
 
 ===== SUMMARY =====
-Included files: 39
+Included files: 42
 Skipped (too large): 0
-Total source bytes included: 172861
+Total source bytes included: 201856

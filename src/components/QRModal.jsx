@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Maximize2 } from 'lucide-react'
-import QRCode from 'react-qr-code'
+import { QRCode } from 'react-qr-code'
 
 export default function QRModal({ open, onClose, value, code }) {
   useEffect(() => {
