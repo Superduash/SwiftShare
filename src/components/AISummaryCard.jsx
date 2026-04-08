@@ -21,12 +21,16 @@ function getCategoryIcon(cat) {
   return CATEGORY_ICONS.default
 }
 
+const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic)\b/gi
+
 function cleanSummary(text) {
   return String(text || '')
-    .replace(/\b(this file contains|this file is a|appears to be)\b/gi, '')
+    .replace(BANNED_PHRASES_RE, '')
     .replace(/\b(mime|format|extension|file size|size)\b\s*[:\-]?/gi, '')
     .replace(/\b\d+(?:\.\d+)?\s*(kb|mb|gb|bytes?)\b/gi, '')
+    .replace(/\bmetadata\b/gi, '')
     .replace(/\s+/g, ' ')
+    .replace(/^[\s.,;:]+/, '')
     .trim()
 }
 
