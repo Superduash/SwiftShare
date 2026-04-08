@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Download, FileText, AlertTriangle, Lock } from 'lucide-react'
+import { X, Download, FileText, AlertTriangle, Lock, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { previewUrl } from '../services/api'
 
@@ -204,6 +204,12 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  className="btn-ghost text-xs"
+                  onClick={openInNewTab}
+                >
+                  <ExternalLink size={14} /> Open in new tab
+                </button>
                 {onDownload && (
                   <button
                     className="btn-ghost text-xs"
