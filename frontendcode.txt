@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-07T18:54:21Z
+Generated: 2026-04-08T01:46:36Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env.local (115 bytes) =====
@@ -96,7 +96,7 @@ export default {
   },
 }
 
-===== FILE: src/App.jsx (4628 bytes) =====
+===== FILE: src/App.jsx (5861 bytes) =====
 import React, { Suspense, lazy, useEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
@@ -111,6 +111,32 @@ import { pingServer } from './services/api'
 import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
+
+// ── Error boundary for lazy routes ───────────
+class RouteErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, info) {
+    console.error('[SwiftShare] Route failed to load:', error, info)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px' }}>
+          <p style={{ color: 'var(--text)', fontWeight: 600 }}>Something went wrong loading this page.</p>
+          <p style={{ color: 'var(--text-3)', fontSize: '13px', fontFamily: 'monospace' }}>{this.state.error?.message}</p>
+          <button style={{ padding: '10px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Go Home</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 // Eager — critical path
 import HomePage from './pages/HomePage'
@@ -156,17 +182,19 @@ function AnimatedRoutes() {
     <>
       <ScrollToTop />
       <AnimatePresence mode="wait">
-        <Suspense fallback={<LoadingScreen message="Loading..." />}>
-          <Routes location={location} key={location.pathname}>
-            <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
-            <Route path="/sender/:code" element={<PageWrapper><SenderPage /></PageWrapper>} />
-            <Route path="/join" element={<PageWrapper><JoinPage /></PageWrapper>} />
-            <Route path="/g/:code" element={<LegacyShareRedirect />} />
-            <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
-            <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+        <RouteErrorBoundary>
+          <Suspense fallback={<LoadingScreen message="Loading..." />}>
+            <Routes location={location} key={location.pathname}>
+              <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
+              <Route path="/sender/:code" element={<PageWrapper><SenderPage /></PageWrapper>} />
+              <Route path="/join" element={<PageWrapper><JoinPage /></PageWrapper>} />
+              <Route path="/g/:code" element={<LegacyShareRedirect />} />
+              <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
+              <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </RouteErrorBoundary>
       </AnimatePresence>
     </>
   )
@@ -742,10 +770,10 @@ export default function FileCard({
   )
 }
 
-===== FILE: src/components/FilePreviewModal.jsx (10328 bytes) =====
-import React, { useState } from 'react'
+===== FILE: src/components/FilePreviewModal.jsx (12962 bytes) =====
+import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Download, FileText, AlertTriangle } from 'lucide-react'
+import { X, Download, FileText, AlertTriangle, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { previewUrl } from '../services/api'
 
@@ -766,7 +794,7 @@ function getPreviewType(file) {
   return 'unsupported'
 }
 
-export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload }) {
+export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired, senderKey }) {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -780,8 +808,64 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
   if (!open || !file) return null
 
+  // If password is required and not yet verified, show a clean gate
+  if (passwordRequired) {
+    return (
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{ background: 'rgba(0,0,0,0.75)' }}
+              onClick={onClose}
+            />
+            <motion.div
+              className="relative z-10 rounded-2xl overflow-hidden w-full max-w-md flex flex-col"
+              style={{ background: 'var(--bg-raised)' }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            >
+              <div className="flex items-center justify-between p-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText size={16} style={{ color: 'var(--accent)' }} />
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+                    {file.name || `File ${fileIndex + 1}`}
+                  </p>
+                </div>
+                <button className="btn-icon" onClick={onClose} aria-label="Close preview">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="flex flex-col items-center justify-center py-16 px-6 text-center" style={{ background: 'var(--bg-sunken)' }}>
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                  style={{ background: 'var(--accent-soft)' }}
+                >
+                  <Lock size={28} style={{ color: 'var(--accent)' }} />
+                </div>
+                <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
+                  Password required to preview
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-3)' }}>
+                  Enter the transfer password to unlock previews and downloads
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    )
+  }
+
   const type = getPreviewType(file)
-  const src = previewUrl(code, fileIndex)
+  const src = previewUrl(code, fileIndex, password, senderKey)
 
   function openInNewTab() {
     if (!src) {
@@ -875,11 +959,11 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     className="max-w-full max-h-[65vh] object-contain rounded-xl"
                     style={{ display: loading ? 'none' : 'block' }}
                     loading="lazy"
+                    crossOrigin="anonymous"
                     onLoad={() => setLoading(false)}
                     onError={() => { 
                       setLoading(false)
                       setError(true)
-                      toast.error('Image preview failed')
                     }}
                   />
                 </div>
@@ -899,7 +983,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     onError={() => { 
                       setLoading(false)
                       setError(true)
-                      toast.error('PDF preview failed')
                     }}
                   />
                 </div>
@@ -916,7 +999,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     onError={() => { 
                       setLoading(false)
                       setError(true)
-                      toast.error('Video preview failed')
                     }}
                   >
                     <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
@@ -924,7 +1006,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   </video>
                 </div>
               ) : type === 'code' ? (
-                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} />
+                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} loading={loading} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <FileText size={40} style={{ color: 'var(--text-4)' }} className="mb-3" />
@@ -952,13 +1034,18 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   )
 }
 
-function CodePreview({ src, onError, onLoad }) {
+function CodePreview({ src, onError, onLoad, loading: parentLoading }) {
   const [content, setContent] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Use refs to avoid re-rendering loops from callback deps
+  const onErrorRef = useRef(onError)
+  const onLoadRef = useRef(onLoad)
+  onErrorRef.current = onError
+  onLoadRef.current = onLoad
 
   React.useEffect(() => {
     if (!src) {
-      onError?.()
+      onErrorRef.current?.()
       return
     }
     
@@ -973,19 +1060,18 @@ function CodePreview({ src, onError, onLoad }) {
         if (!controller.signal.aborted) {
           setContent(text.slice(0, 50000)) // limit preview to 50KB
           setLoading(false)
-          onLoad?.()
+          onLoadRef.current?.()
         }
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
           setLoading(false)
-          onError?.()
-          toast.error('Failed to load code preview')
+          onErrorRef.current?.()
         }
       })
     
     return () => controller.abort()
-  }, [src, onError, onLoad])
+  }, [src])
 
   if (loading) {
     return (
@@ -1129,7 +1215,7 @@ export default function Navbar() {
   )
 }
 
-===== FILE: src/components/NearbyDevices.jsx (2883 bytes) =====
+===== FILE: src/components/NearbyDevices.jsx (2917 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, Download, Clock } from 'lucide-react'
@@ -1145,6 +1231,7 @@ export default function NearbyDevices() {
   useEffect(() => {
     let mounted = true
     async function fetch() {
+      if (document.hidden) return
       try {
         const data = await getNearbyDevices()
         if (mounted && data?.devices?.length) setDevices(data.devices)
@@ -1239,11 +1326,11 @@ export default function ProgressBar({ percent = 0, speed = 0, label = 'Uploading
   )
 }
 
-===== FILE: src/components/QRModal.jsx (2747 bytes) =====
+===== FILE: src/components/QRModal.jsx (2751 bytes) =====
 import React, { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Maximize2 } from 'lucide-react'
-import QRCode from 'react-qr-code'
+import { QRCode } from 'react-qr-code'
 
 export default function QRModal({ open, onClose, value, code }) {
   useEffect(() => {
@@ -1310,7 +1397,7 @@ export default function QRModal({ open, onClose, value, code }) {
   )
 }
 
-===== FILE: src/components/RecentTransfers.jsx (5551 bytes) =====
+===== FILE: src/components/RecentTransfers.jsx (5618 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
@@ -1333,23 +1420,22 @@ export default function RecentTransfers() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    let mounted = true
     const list = getRecentTransfers()
-    setTransfers(list.map(t => ({ ...t, status: t.status || 'unknown' })))
-
-    // Check status for each
-    list.forEach(async (t) => {
-      try {
-        const data = await getTransferStatus(t.code)
-        const status = data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED')
-        setTransfers(prev => prev.map(p =>
-          p.code === t.code ? { ...p, status } : p
-        ))
-      } catch {
-        setTransfers(prev => prev.map(p =>
-          p.code === t.code ? { ...p, status: 'EXPIRED' } : p
-        ))
-      }
+    const initial = list.map(t => ({ ...t, status: t.status || 'unknown' }))
+    setTransfers(initial)
+    if (!list.length) return
+    Promise.allSettled(list.map(t => getTransferStatus(t.code))).then(results => {
+      if (!mounted) return
+      setTransfers(prev => prev.map((p, i) => {
+        if (results[i].status === 'fulfilled') {
+          const data = results[i].value
+          return { ...p, status: data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED') }
+        }
+        return { ...p, status: 'EXPIRED' }
+      }))
     })
+    return () => { mounted = false }
   }, [])
 
   if (!transfers.length) return null
@@ -2780,7 +2866,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (19803 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (20288 bytes) =====
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -2802,7 +2888,9 @@ import AISummaryCard from '../components/AISummaryCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
 
-const FilePreviewModal = lazy(() => import('../components/FilePreviewModal'))
+const FilePreviewModal = lazy(() =>
+  import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
+)
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -2831,6 +2919,8 @@ export default function DownloadPage() {
   const [receipt, setReceipt] = useState(null)
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
+  const mountedRef = useRef(true)
+  useEffect(() => { return () => { mountedRef.current = false } }, [])
 
   useEffect(() => {
     downloadingRef.current = downloading
@@ -2849,6 +2939,7 @@ export default function DownloadPage() {
     async function load() {
       try {
         const data = await getFileMetadata(code)
+        if (!mountedRef.current) return
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
         const sessionDuration = data.expiresAt && data.createdAt
@@ -2868,13 +2959,15 @@ export default function DownloadPage() {
 
         saveTransfer({ code, filename: firstFile?.name || code, isSender: false })
       } catch (err) {
+        if (!mountedRef.current) return
         const errCode = extractErrorCode(err)
         if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
         else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
         else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
         else toast.error('Failed to load transfer')
+      } finally {
+        if (mountedRef.current) setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [code, navigate])
@@ -2952,8 +3045,9 @@ export default function DownloadPage() {
       if (result?.verified) {
         setPasswordVerified(true)
         verifiedPasswordRef.current = password
+        // Now set preview for images with the verified password
         const firstFile = meta?.files?.[0]
-        const firstFileType = String(firstFile?.type || '').toLowerCase()
+        const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
         if (firstFile && firstFileType.startsWith('image/')) {
           setPreviewSrc(previewUrl(code, 0, password))
         }
@@ -3048,6 +3142,8 @@ export default function DownloadPage() {
           code={code}
           fileIndex={previewIndex}
           onDownload={canDownload ? handleDownloadSingle : undefined}
+          password={verifiedPasswordRef.current || undefined}
+          passwordRequired={needsPassword && !passwordVerified}
         />
       </Suspense>
 
@@ -3367,7 +3463,7 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (26923 bytes) =====
+===== FILE: src/pages/HomePage.jsx (27939 bytes) =====
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -3452,7 +3548,7 @@ export default function HomePage() {
     saveTransfer({ code: transferCode, filename: fname, isSender: true })
 
     // Navigate first to avoid any transient audio API issues blocking route transition.
-    navigate(`/sender/${transferCode}`)
+    navigate(`/sender/${transferCode}`, { state: { transferData: payload } })
 
     // Play success sound after navigation commit.
     window.setTimeout(() => {
@@ -3507,7 +3603,7 @@ export default function HomePage() {
               handleUploadSuccess(response)
             } catch (err) {
               setUploading(false)
-              toast.error('Failed to upload clipboard image')
+              toast.error(getUploadErrorMessage(err))
             }
           }
           reader.readAsDataURL(blob)
@@ -3551,12 +3647,29 @@ export default function HomePage() {
     return files.reduce((s, f) => s + (f.size || 0), 0)
   }
 
+  function getUploadErrorMessage(err) {
+    const status = Number(err?.response?.status || 0)
+    const backendError = err?.response?.data?.error
+    const backendMessage = typeof backendError === 'string'
+      ? backendError
+      : (backendError?.message || err?.response?.data?.message || '')
+
+    if (status === 429) {
+      return backendMessage || 'Rate limit active: Please wait a moment before sending more files.'
+    }
+
+    return backendMessage || err?.message || 'Upload failed'
+  }
+
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
     if (!isConnected) return toast.error('Not connected to server')
+
     setUploading(true)
     setUploadPercent(0)
     uploadHandledRef.current = false
+
+    let uploadSucceeded = false
     try {
       const formData = new FormData()
       files.forEach(f => formData.append('files', f))
@@ -3567,12 +3680,24 @@ export default function HomePage() {
         formData.append('password', password)
       }
       if (socketId) formData.append('socketId', socketId)
+
       const response = await uploadFiles(formData)
-      handleUploadSuccess(response)
+
+      // Strict success validation: never navigate without a valid transfer code.
+      const transferCode = typeof response?.code === 'string' ? response.code.trim() : ''
+      if (!transferCode) {
+        throw new Error('Upload response was incomplete. Please try again.')
+      }
+
+      uploadSucceeded = true
+      handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
-      setUploading(false)
-      const msg = err?.response?.data?.error?.message || 'Upload failed'
-      toast.error(msg)
+      toast.error(getUploadErrorMessage(err))
+    } finally {
+      // Always release spinner on failure; successful path is handled by handleUploadSuccess/navigation.
+      if (!uploadSucceeded) {
+        setUploading(false)
+      }
     }
   }
 
@@ -4182,16 +4307,16 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (23015 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (24188 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, ExternalLink, Share2, Clock, Trash2,
   MessageCircle, Mail, Monitor, Maximize2, Send,
   Download, QrCode, AlertTriangle
 } from 'lucide-react'
-import QRCode from 'react-qr-code'
+import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
@@ -4208,12 +4333,16 @@ import ProgressBar from '../components/ProgressBar'
 import QRModal from '../components/QRModal'
 import ErrorState from '../components/ErrorState'
 
-const FilePreviewModal = lazy(() => import('../components/FilePreviewModal'))
+const FilePreviewModal = lazy(() =>
+  import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
+)
 
 export default function SenderPage() {
   const { code } = useParams()
   const navigate = useNavigate()
-  const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
+  const location = useLocation()
+  const navState = location.state?.transferData || null
+  const { socket, socketId, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
   const [meta, setMeta] = useState(null)
   const [activity, setActivity] = useState([])
@@ -4251,9 +4380,29 @@ export default function SenderPage() {
   // Fetch metadata
   useEffect(() => {
     if (!code) return
+
+    // If we have data from navigation state (just uploaded), use it directly
+    if (navState && navState.code === code) {
+      setMeta(navState)
+      const secs = navState.secondsRemaining ||
+        (navState.expiresAt
+          ? Math.max(0, Math.ceil((new Date(navState.expiresAt).getTime() - Date.now()) / 1000))
+          : 600)
+      setSecondsRemaining(secs)
+      const sessionDuration = navState.expiresAt && navState.createdAt
+        ? Math.ceil((new Date(navState.expiresAt).getTime() - new Date(navState.createdAt).getTime()) / 1000)
+        : 600
+      setTotalSeconds(Math.max(sessionDuration, 60))
+      if (navState.ai) { setAi(navState.ai); setAiLoading(false) }
+      setLoading(false)
+      return
+    }
+
+    // Otherwise fetch from API
     async function load() {
       try {
-        const data = await getFileMetadata(code)
+        const data = await getFileMetadata(code, { timeout: 12000, noRetry: true })
+        if (!mountedRef.current) return
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
         const sessionDuration = data.expiresAt && data.createdAt
@@ -4265,21 +4414,25 @@ export default function SenderPage() {
           setCancelled(true)
         }
       } catch (err) {
+        if (!mountedRef.current) return
+        console.error('[SenderPage] load error:', err)
         const errCode = err?.response?.data?.error?.code
         if (errCode === 'TRANSFER_NOT_FOUND' || errCode === 'TRANSFER_EXPIRED') {
           navigate('/expired?reason=' + (errCode === 'TRANSFER_EXPIRED' ? 'expired' : 'notfound'), { replace: true })
-        } else {
-          setError(errCode || 'SERVER_ERROR')
+          return
         }
+        setError(errCode || 'SERVER_ERROR')
+      } finally {
+        if (mountedRef.current) setLoading(false)
       }
-      setLoading(false)
     }
+
     load()
-  }, [code, navigate])
+  }, [code])
 
   // Fetch activity
   const loadActivity = useCallback(async () => {
-    if (!code) return
+    if (!code || document.hidden) return
     try {
       const data = await getTransferActivity(code)
       if (data?.activity) setActivity(data.activity)
@@ -4578,6 +4731,7 @@ export default function SenderPage() {
           code={code}
           fileIndex={previewIndex}
           onDownload={handleDownloadSingle}
+          senderKey={socketId}
         />
       </Suspense>
 
@@ -4788,7 +4942,7 @@ export default function SenderPage() {
   )
 }
 
-===== FILE: src/services/api.js (6352 bytes) =====
+===== FILE: src/services/api.js (6665 bytes) =====
 import axios from 'axios'
 
 const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : ''
@@ -4804,6 +4958,10 @@ const API = axios.create({
 API.interceptors.response.use(null, async (error) => {
   const config = error.config
   if (!config) return Promise.reject(error)
+
+  if (config.noRetry) {
+    return Promise.reject(error)
+  }
 
   config.__retryCount = config.__retryCount || 0
   const isRetryable = !error.response || error.response.status === 503 || error.code === 'ERR_NETWORK'
@@ -4904,8 +5062,8 @@ export async function uploadClipboard(imageBase64, burnAfterDownload, senderSock
 }
 
 // ── Metadata & Status ───────────────────────
-export async function getFileMetadata(code) {
-  const { data } = await API.get(`/api/file/${normalizeCode(code)}`)
+export async function getFileMetadata(code, requestConfig = undefined) {
+  const { data } = await API.get(`/api/file/${normalizeCode(code)}`, requestConfig)
   return unwrapResponse(data)
 }
 
@@ -4968,10 +5126,15 @@ export function downloadSingleFile(code, index, password) {
   window.location.href = getSingleDownloadUrl(code, index, password)
 }
 
-export function previewUrl(code, index, password) {
+export function previewUrl(code, index, password, senderKey) {
   const safeIndex = Number(index)
-  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
-  return appendPasswordQuery(url, password)
+  let url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  url = appendPasswordQuery(url, password)
+  if (typeof senderKey === 'string' && senderKey.trim()) {
+    const separator = url.includes('?') ? '&' : '?'
+    url = `${url}${separator}senderKey=${encodeURIComponent(senderKey)}`
+  }
+  return url
 }
 
 ===== FILE: src/utils/constants.js (55 bytes) =====
@@ -5553,4 +5716,4 @@ export default defineConfig({
 ===== SUMMARY =====
 Included files: 42
 Skipped (too large): 0
-Total source bytes included: 201856
+Total source bytes included: 208815

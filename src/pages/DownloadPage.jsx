@@ -505,7 +505,25 @@ export default function DownloadPage() {
 
           {/* AI Summary */}
           <div className="mt-6">
-            <AISummaryCard ai={ai} loading={aiLoading} />
+            {needsPassword && !passwordVerified ? (
+              <motion.div
+                className="surface-card p-5 text-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--accent-soft)' }}>
+                  <Lock size={20} style={{ color: 'var(--accent)' }} />
+                </div>
+                <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-2)' }}>
+                  AI Summary Locked
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+                  AI summary is disabled for password-protected files
+                </p>
+              </motion.div>
+            ) : (
+              <AISummaryCard ai={ai} loading={aiLoading} />
+            )}
           </div>
         </div>
       </main>
