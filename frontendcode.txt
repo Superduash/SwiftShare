@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-08T09:54:43Z
+Generated: 2026-04-08T13:53:39Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (118 bytes) =====
@@ -314,14 +314,13 @@ export default function App() {
   )
 }
 
-===== FILE: src/components/AISummaryCard.jsx (9511 bytes) =====
+===== FILE: src/components/AISummaryCard.jsx (8139 bytes) =====
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Sparkles, Copy, Check, FileText, Image, Video, FileArchive,
+  Sparkles, FileText, Image, Video, FileArchive,
   Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target
 } from 'lucide-react'
-import toast from 'react-hot-toast'
 
 const CATEGORY_ICONS = {
   document: FileText, image: Image, video: Video, archive: FileArchive,
@@ -361,23 +360,11 @@ function cleanKeyPoints(points) {
 }
 
 export default function AISummaryCard({ ai, loading = false }) {
-  const [copied, setCopied] = useState(false)
   const [showFiles, setShowFiles] = useState(false)
   const activeAi = ai
 
-  function copySuggestedName() {
-    const name = activeAi?.suggestedName || activeAi?.suggested_filename
-    if (!name) return
-    navigator.clipboard.writeText(name).then(() => {
-      setCopied(true)
-      toast.success('Filename copied')
-      setTimeout(() => setCopied(false), 2000)
-    }).catch(() => {})
-  }
-
   const CatIcon = activeAi?.category ? getCategoryIcon(activeAi.category) : Sparkles
   const summary = cleanSummary(activeAi?.summary || activeAi?.overall_summary)
-  const suggestedName = activeAi?.suggestedName || activeAi?.suggested_filename
   const detectedIntent = activeAi?.detectedIntent || activeAi?.detected_intent
   const riskFlags = activeAi?.riskFlags || activeAi?.risk_flags || []
   const fileAnalysis = (activeAi?.files || []).map((file) => ({
@@ -506,20 +493,6 @@ export default function AISummaryCard({ ai, loading = false }) {
               </div>
             )}
 
-            {/* Suggested name */}
-            {suggestedName && (
-              <button
-                className="w-full flex items-center gap-2 p-2.5 rounded-lg text-left transition-all hover:opacity-80"
-                style={{ background: 'var(--accent-soft)', border: '1px solid transparent' }}
-                onClick={copySuggestedName}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-4)' }}>Suggested filename</p>
-                  <p className="text-xs font-mono font-medium truncate" style={{ color: 'var(--accent)' }}>{suggestedName}</p>
-                </div>
-                {copied ? <Check size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} style={{ color: 'var(--text-4)' }} />}
-              </button>
-            )}
           </motion.div>
         ) : (
           <motion.p key="empty" className="text-sm" style={{ color: 'var(--text-4)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -826,12 +799,12 @@ export default function ExpirySelector({ value = 60, onChange }) {
   )
 }
 
-===== FILE: src/components/FileCard.jsx (3282 bytes) =====
+===== FILE: src/components/FileCard.jsx (4798 bytes) =====
 import React from 'react'
 import { motion } from 'framer-motion'
 import {
   FileText, Image, Video, FileArchive, File, FileSpreadsheet,
-  Download, Eye, X, Music
+  Download, Eye, X, Music, FileCode, Presentation
 } from 'lucide-react'
 import { formatBytes } from '../utils/format'
 
@@ -843,6 +816,9 @@ const ICON_MAP = {
   doc: { icon: FileText, color: '#2563EB' },
   spreadsheet: { icon: FileSpreadsheet, color: '#16A34A' },
   audio: { icon: Music, color: '#EC4899' },
+  ppt: { icon: Presentation, color: '#D95240' },
+  code: { icon: FileCode, color: '#0D9488' },
+  txt: { icon: FileText, color: '#6B7280' },
   file: { icon: File, color: 'var(--text-3)' },
 }
 
@@ -853,10 +829,32 @@ function getFileCategory(file) {
   if (mime.startsWith('image/')) return 'image'
   if (mime.startsWith('video/')) return 'video'
   if (mime.startsWith('audio/')) return 'audio'
-  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('archive')) return 'zip'
-  if (mime.includes('word') || mime.includes('document')) return 'doc'
-  if (mime.includes('sheet') || mime.includes('csv') || mime.includes('excel')) return 'spreadsheet'
+  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('archive') || /\.(zip|rar|7z|tar|gz|bz2|tgz)$/i.test(name)) return 'zip'
+  if (mime.includes('presentationml') || mime.includes('powerpoint') || /\.(ppt|pptx|odp|key)$/i.test(name)) return 'ppt'
+  if (mime.includes('wordprocessingml') || mime.includes('msword') || mime.includes('document') || /\.(doc|docx|odt|rtf)$/i.test(name)) return 'doc'
+  if (mime.includes('spreadsheetml') || mime.includes('sheet') || mime.includes('csv') || mime.includes('excel') || /\.(xls|xlsx|csv|ods|numbers)$/i.test(name)) return 'spreadsheet'
+  if (/\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|cs|swift|kt|r|sh|bash|zsh|ps1|sql|html|css|scss|sass|vue|svelte|json|yaml|yml|xml|toml|env|config)$/i.test(name)) return 'code'
+  if (mime === 'text/plain' || /\.(txt|log|md|readme|cfg|conf|ini)$/i.test(name)) return 'txt'
   return 'file'
+}
+
+function canPreview(file) {
+  const mime = (file?.mimeType || file?.type || '').toLowerCase()
+  const name = (file?.name || '').toLowerCase()
+  if (mime.startsWith('image/')) return true
+  if (mime.includes('pdf') || name.endsWith('.pdf')) return true
+  if (mime.startsWith('video/')) return true
+  if (mime.startsWith('audio/')) return true
+  if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return true
+  if (
+    mime.startsWith('text/') ||
+    mime.includes('json') ||
+    mime.includes('javascript') ||
+    mime.includes('xml') ||
+    mime.includes('yaml') ||
+    /\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|css|html|md|txt|log|sql|json|yaml|yml|xml|csv)$/i.test(name)
+  ) return true
+  return false
 }
 
 export default function FileCard({
@@ -892,7 +890,7 @@ export default function FileCard({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        {onPreview && (
+        {onPreview && canPreview(file) && (
           <button className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onPreview(index)} aria-label="Preview">
             <Eye size={15} />
           </button>
@@ -912,10 +910,10 @@ export default function FileCard({
   )
 }
 
-===== FILE: src/components/FilePreviewModal.jsx (15048 bytes) =====
+===== FILE: src/components/FilePreviewModal.jsx (18390 bytes) =====
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Download, FileText, AlertTriangle, Lock } from 'lucide-react'
+import { X, Download, FileText, AlertTriangle, Lock, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { previewUrl } from '../services/api'
 
@@ -925,6 +923,8 @@ function getPreviewType(file) {
   if (mime.startsWith('image/')) return 'image'
   if (mime.includes('pdf') || name.endsWith('.pdf')) return 'pdf'
   if (mime.startsWith('video/')) return 'video'
+  if (mime.startsWith('audio/')) return 'audio'
+  if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return 'docx'
   if (
     mime.startsWith('text/') ||
     mime.includes('json') ||
@@ -936,10 +936,31 @@ function getPreviewType(file) {
   return 'unsupported'
 }
 
-export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired, senderKey }) {
+function getDocxPreviewUrl(src) {
+  if (!src) return ''
+  const queryStart = src.indexOf('?')
+  if (queryStart === -1) {
+    return `${src}/docx-html`
+  }
+  return `${src.slice(0, queryStart)}/docx-html${src.slice(queryStart)}`
+}
+
+export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired }) {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const videoRef = useRef(null)
+  const audioRef = useRef(null)
+
+  function forceAudible(mediaEl) {
+    if (!mediaEl) return
+    try {
+      mediaEl.defaultMuted = false
+      mediaEl.muted = false
+      mediaEl.volume = 1.0
+    } catch (err) {
+      console.error('[FilePreviewModal] Failed to enforce audible media state:', err)
+    }
+  }
 
   // Reset state when file changes
   React.useEffect(() => {
@@ -966,24 +987,12 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
 	// Force unmute and set volume
 	const handleCanPlay = () => {
-		try {
-			videoEl.muted = false
-			videoEl.volume = 1.0
-		} catch (err) {
-			console.error('[FilePreviewModal] Failed to unmute video:', err)
-		}
+    forceAudible(videoEl)
 	}
 	
 	// Some browsers require user interaction before unmuting
 	const handlePlay = () => {
-		try {
-			if (videoEl.muted) {
-				videoEl.muted = false
-				videoEl.volume = 1.0
-			}
-		} catch (err) {
-			console.error('[FilePreviewModal] Failed to unmute on play:', err)
-		}
+    forceAudible(videoEl)
 	}
 	
 	videoEl.addEventListener('error', handleError)
@@ -995,7 +1004,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 		videoEl.removeEventListener('canplay', handleCanPlay)
 		videoEl.removeEventListener('play', handlePlay)
 	}
-  }, [open, file, fileIndex, code, password, senderKey])
+  }, [open, file, fileIndex, code, password])
 
   if (!open || !file) return null
 
@@ -1056,7 +1065,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   }
 
   const type = getPreviewType(file)
-  const src = previewUrl(code, fileIndex, password, senderKey)
+  const src = previewUrl(code, fileIndex, password)
+  const docxSrc = getDocxPreviewUrl(src)
 
   function openInNewTab() {
     if (!src) {
@@ -1107,6 +1117,12 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  className="btn-ghost text-xs"
+                  onClick={openInNewTab}
+                >
+                  <ExternalLink size={14} /> Open in new tab
+                </button>
                 {onDownload && (
                   <button
                     className="btn-ghost text-xs"
@@ -1185,22 +1201,35 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     ref={videoRef}
                     controls
                     playsInline
-                    preload="metadata"
+                    preload="auto"
                     muted={false}
                     className="max-w-full max-h-[65vh] rounded-xl"
                     style={{ background: '#000', display: loading ? 'none' : 'block' }}
                     onLoadedMetadata={(e) => {
 						try {
-							setLoading(false)
 							const videoEl = e.target
-							if (videoEl) {
-								videoEl.muted = false
-								videoEl.volume = 1.0
-							}
+							forceAudible(videoEl)
 						} catch (err) {
 							console.error('[FilePreviewModal] Video metadata load error:', err)
+						} finally {
 							setLoading(false)
 						}
+					}}
+          onLoadedData={(e) => {
+            try {
+              const videoEl = e.target
+              forceAudible(videoEl)
+            } catch (err) {
+              console.error('[FilePreviewModal] Video data load error:', err)
+            } finally {
+              setLoading(false)
+            }
+          }}
+                    onCanPlay={(e) => {
+						forceAudible(e.target)
+					}}
+                    onPlay={(e) => {
+						forceAudible(e.target)
 					}}
                     onError={(e) => {
 						console.error('[FilePreviewModal] Video error:', e)
@@ -1219,13 +1248,69 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 						// Video suspended - might be intentional pause
 						console.log('[FilePreviewModal] Video loading suspended')
 					}}
+                    src={src}
                   >
-                    <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
                     Your browser does not support video playback.
                   </video>
                 </div>
+              ) : type === 'audio' ? (
+                <div className="flex items-center justify-center min-h-[120px] relative">
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="shimmer-block w-full h-16 rounded-xl" />
+                    </div>
+                  )}
+                  <audio
+                    ref={audioRef}
+                    controls
+                    preload="auto"
+                    className="w-full max-w-xl"
+                    style={{ display: loading ? 'none' : 'block' }}
+                    onLoadedMetadata={(e) => {
+                      forceAudible(e.target)
+                      setLoading(false)
+                    }}
+                    onLoadedData={(e) => {
+                      forceAudible(e.target)
+                      setLoading(false)
+                    }}
+                    onCanPlay={(e) => {
+                      forceAudible(e.target)
+                    }}
+                    onPlay={(e) => {
+                      forceAudible(e.target)
+                    }}
+                    onError={() => {
+                      setLoading(false)
+                      setError(true)
+                    }}
+                    src={src}
+                  >
+                    Your browser does not support audio playback.
+                  </audio>
+                </div>
+              ) : type === 'docx' ? (
+                <div className="relative" style={{ height: '65vh' }}>
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="shimmer-block w-full h-full rounded-xl" />
+                    </div>
+                  )}
+                  <iframe
+                    src={docxSrc}
+                    className="w-full h-full rounded-xl"
+                    style={{ border: 'none', display: loading ? 'none' : 'block' }}
+                    title={file.name || 'DOCX Preview'}
+                    sandbox="allow-same-origin"
+                    onLoad={() => setLoading(false)}
+                    onError={() => {
+                      setLoading(false)
+                      setError(true)
+                    }}
+                  />
+                </div>
               ) : type === 'code' ? (
-                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} loading={loading} />
+                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <FileText size={40} style={{ color: 'var(--text-4)' }} className="mb-3" />
@@ -1253,7 +1338,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   )
 }
 
-function CodePreview({ src, onError, onLoad, loading: parentLoading }) {
+function CodePreview({ src, onError, onLoad }) {
   const [content, setContent] = useState(null)
   const [loading, setLoading] = useState(true)
   // Use refs to avoid re-rendering loops from callback deps
@@ -1269,25 +1354,26 @@ function CodePreview({ src, onError, onLoad, loading: parentLoading }) {
     }
     
     const controller = new AbortController()
-    
-    fetch(src, { signal: controller.signal })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.text()
-      })
-      .then(text => {
+
+    const run = async () => {
+      try {
+        const response = await fetch(src, { signal: controller.signal })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const text = await response.text()
+        if (controller.signal.aborted) return
+        setContent(text.slice(0, 50000)) // limit preview to 50KB
+        onLoadRef.current?.()
+      } catch (err) {
+        if (controller.signal.aborted) return
+        onErrorRef.current?.()
+      } finally {
         if (!controller.signal.aborted) {
-          setContent(text.slice(0, 50000)) // limit preview to 50KB
           setLoading(false)
-          onLoadRef.current?.()
         }
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          setLoading(false)
-          onErrorRef.current?.()
-        }
-      })
+      }
+    }
+
+    void run()
     
     return () => controller.abort()
   }, [src])
@@ -1730,7 +1816,7 @@ export default function QRModal({ open, onClose, value, code }) {
   )
 }
 
-===== FILE: src/components/RecentTransfers.jsx (7178 bytes) =====
+===== FILE: src/components/RecentTransfers.jsx (8405 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
@@ -1739,13 +1825,16 @@ import {
   getRecentTransfers,
   clearTransfers,
   removeTransfer,
+  updateTransferStatus,
   getCachedTransfer,
   mergeTransferData,
 } from '../utils/storage'
+import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
 const STATUS_STYLES = {
   ACTIVE: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Active' },
+  CLAIMED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Claimed' },
   EXPIRED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Expired' },
   CANCELLED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Cancelled' },
   DELETED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Deleted' },
@@ -1754,6 +1843,17 @@ const STATUS_STYLES = {
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase()
+}
+
+function normalizeStatus(status) {
+  return String(status || '').trim().toUpperCase()
+}
+
+function statusToExpiredReason(status) {
+  if (status === 'CANCELLED') return 'cancelled'
+  if (status === 'DELETED') return 'burned'
+  if (status === 'EXPIRED') return 'expired'
+  return 'expired'
 }
 
 export default function RecentTransfers() {
@@ -1774,8 +1874,8 @@ export default function RecentTransfers() {
   useEffect(() => {
     const timer = setInterval(() => {
       setTransfers(prev => prev.map(t => {
-        const status = String(t?.status || '').toUpperCase()
-        if (status === 'CANCELLED' || status === 'DELETED') return t
+        const status = normalizeStatus(t?.status)
+        if (status === 'CANCELLED' || status === 'DELETED' || status === 'EXPIRED') return t
         if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
           return { ...t, status: 'EXPIRED' }
         }
@@ -1805,19 +1905,41 @@ export default function RecentTransfers() {
     setTransfers(prev => prev.filter(t => normalizeCode(t.code) !== normalizedCode))
   }
 
-  function handleClick(t) {
+  async function handleClick(t) {
     const normalizedCode = normalizeCode(t.code)
     if (!normalizedCode) return
 
-    const status = String(t?.status || '').toUpperCase()
+    let status = normalizeStatus(t?.status) || 'ACTIVE'
+
+    if (!['EXPIRED', 'CANCELLED', 'DELETED'].includes(status)) {
+      try {
+        const live = await getTransferStatus(normalizedCode)
+        const liveStatus = normalizeStatus(live?.status)
+        if (liveStatus) {
+          status = liveStatus
+          if (liveStatus !== normalizeStatus(t?.status)) {
+            updateTransferStatus(normalizedCode, liveStatus)
+            setTransfers(prev => prev.map(item =>
+              normalizeCode(item?.code) === normalizedCode
+                ? { ...item, status: liveStatus }
+                : item
+            ))
+          }
+        }
+      } catch {
+        // Keep existing local status when status endpoint is unreachable.
+      }
+    }
+
     if (['EXPIRED', 'CANCELLED', 'DELETED'].includes(status)) {
-      navigate(`/expired?reason=${status.toLowerCase()}`)
+      navigate(`/expired?reason=${statusToExpiredReason(status)}`)
       return
     }
 
     const transferData = {
       ...t,
       code: normalizedCode,
+      status,
       files: Array.isArray(t?.files) && t.files.length
         ? t.files
         : (t?.filename ? [{ name: t.filename }] : []),
@@ -1829,7 +1951,7 @@ export default function RecentTransfers() {
     // Determine if this is a sender or receiver transfer
     // isSender === true means user sent this file (go to /sender)
     // isSender === false means user received this file (go to /download)
-    const isSender = t.isSender === true || t.role === 'sender'
+    const isSender = t.isSender === true || String(t?.role || '').toLowerCase() === 'sender'
 
     // Pass local transfer data so destination pages can render immediately.
     try {
@@ -1896,7 +2018,7 @@ export default function RecentTransfers() {
                     {t.filename || t.code}
                   </p>
                   <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
-                    {timeAgo(t.savedAt)} · {t.isSender ? 'Sent' : 'Received'}
+                    {timeAgo(t.savedAt)} · {t.isSender === true ? 'Sent' : 'Received'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -1967,7 +2089,7 @@ export default function ServerWakeup() {
   )
 }
 
-===== FILE: src/components/SettingsPanel.jsx (14152 bytes) =====
+===== FILE: src/components/SettingsPanel.jsx (14160 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2 } from 'lucide-react'
@@ -1982,14 +2104,14 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
-  { value: 'terracotta', label: 'Terracotta', color: '#E06D53' },
-  { value: 'dark', label: 'Dark', color: '#0F1014' },
-  { value: 'light', label: 'Light', color: '#F8F9FA' },
-  { value: 'ocean', label: 'Ocean', color: '#2B6CB0' },
+  { value: 'sunset', label: 'Sunset', color: '#F0522A' },
+  { value: 'dark', label: 'Dark', color: '#818CF8' },
+  { value: 'light', label: 'Light', color: '#4F46E5' },
+  { value: 'midnight', label: 'Midnight', color: '#3B82F6' },
   { value: 'sakura', label: 'Sakura', color: '#FF4D6D' },
-  { value: 'emerald', label: 'Emerald', color: '#10B981' },
-  { value: 'cyber', label: 'Cyber', color: '#A855F7' },
-  { value: 'amber', label: 'Amber', color: '#F59E0B' },
+  { value: 'lavender', label: 'Lavender', color: '#7C3AED' },
+  { value: 'forest', label: 'Forest', color: '#10D98A' },
+  { value: 'volcanic', label: 'Volcanic', color: '#F97316' },
 ]
 
 export default function SettingsPanel({ open, onClose }) {
@@ -2341,27 +2463,55 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
   )
 }
 
-===== FILE: src/context/SocketContext.jsx (4192 bytes) =====
+===== FILE: src/context/SocketContext.jsx (5193 bytes) =====
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
 
 const SocketContext = createContext(null)
+
+function isLoopbackHost(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1'
+}
+
+function targetsLoopback(urlValue) {
+  if (typeof urlValue !== 'string' || !urlValue.trim()) return false
+
+  try {
+    const parsed = new URL(urlValue)
+    return isLoopbackHost(parsed.hostname)
+  } catch {
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(urlValue.trim())
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ENVIRONMENT-AWARE SOCKET URL RESOLUTION (PRODUCTION SAFE)
 // ═══════════════════════════════════════════════════════════════════════════
 
 function getSocketUrl() {
+  const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : ''
+  const runtimeIsLocal = isLoopbackHost(runtimeHost)
+
   // Priority 1: Explicit VITE_SOCKET_URL
   const envSocketUrl = import.meta.env.VITE_SOCKET_URL
   if (envSocketUrl && envSocketUrl.trim()) {
-    return envSocketUrl.trim().replace(/\/+$/, '')
+    const candidate = envSocketUrl.trim().replace(/\/+$/, '')
+    if (!runtimeIsLocal && targetsLoopback(candidate) && typeof window !== 'undefined') {
+      console.warn('[Socket] Ignoring localhost VITE_SOCKET_URL in non-local runtime, using same-origin fallback')
+    } else {
+      return candidate
+    }
   }
   
   // Priority 2: Use VITE_API_URL
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
-    return envApiUrl.trim().replace(/\/+$/, '')
+    const candidate = envApiUrl.trim().replace(/\/+$/, '')
+    if (!runtimeIsLocal && targetsLoopback(candidate) && typeof window !== 'undefined') {
+      console.warn('[Socket] Ignoring localhost VITE_API_URL for socket in non-local runtime')
+    } else {
+      return candidate
+    }
   }
   
   // Priority 3: Runtime detection
@@ -2369,7 +2519,7 @@ function getSocketUrl() {
     const hostname = window.location.hostname
     
     // Local development
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    if (isLoopbackHost(hostname)) {
       return 'http://localhost:3001'
     }
     
@@ -2481,21 +2631,21 @@ export function useSocket() {
   return useContext(SocketContext) || {}
 }
 
-===== FILE: src/context/ThemeContext.jsx (1038 bytes) =====
+===== FILE: src/context/ThemeContext.jsx (1031 bytes) =====
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { getTheme, saveTheme } from '../utils/storage'
 
-const ThemeContext = createContext({ 
-  theme: 'terracotta', 
-  setTheme: () => {} 
+const ThemeContext = createContext({
+  theme: 'sunset',
+  setTheme: () => {}
 })
 
-const VALID_THEMES = ['terracotta', 'dark', 'light', 'ocean', 'sakura', 'emerald', 'cyber', 'amber']
+const VALID_THEMES = ['sunset', 'dark', 'light', 'midnight', 'sakura', 'lavender', 'forest', 'volcanic']
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
     const saved = getTheme()
-    return VALID_THEMES.includes(saved) ? saved : 'terracotta'
+    return VALID_THEMES.includes(saved) ? saved : 'sunset'
   })
 
   const setTheme = useCallback((newTheme) => {
@@ -2571,94 +2721,94 @@ export function useTransfer() {
   return useContext(TransferContext) || {}
 }
 
-===== FILE: src/index.css (21681 bytes) =====
+===== FILE: src/index.css (21731 bytes) =====
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════
-   THEME: TERRACOTTA (Signature Default)
+   THEME: SUNSET (Golden Hour)
    ═══════════════════════════════════════════ */
-[data-theme="terracotta"] {
-  --bg: #FFFAF5;
+[data-theme="sunset"] {
+  --bg: #FFF7F0;
   --bg-raised: #FFFFFF;
-  --bg-sunken: #FFF5EC;
-  --bg-overlay: rgba(255,250,245,0.92);
+  --bg-sunken: #FFEEDD;
+  --bg-overlay: rgba(255,247,240,0.92);
   --surface: #FFFFFF;
-  --surface-hover: #FFF8F1;
-  --surface-active: #FFEDE0;
-  --border: #F0E6DF;
-  --border-strong: #D4CEC6;
-  --text: #2D2825;
-  --text-2: #504840;
-  --text-3: #8A7F7A;
-  --text-4: #B5ADA2;
-  --accent: #E06D53;
+  --surface-hover: #FFF3E8;
+  --surface-active: #FFE5CC;
+  --border: #F5DECE;
+  --border-strong: #E8C4AA;
+  --text: #1C0A00;
+  --text-2: #3D1E0D;
+  --text-3: #7A4020;
+  --text-4: #AF7050;
+  --accent: #F0522A;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #C95A42;
-  --accent-soft: rgba(224,109,83,0.08);
-  --accent-medium: rgba(224,109,83,0.15);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
-  --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
-  --ring-track: #F0E6DF;
-  --shimmer-from: #F0E6DF;
-  --shimmer-to: #FFE8D3;
-  --toast-bg: #2D2825;
-  --toast-text: #FFF8F1;
-  --toast-border: #504840;
-  --code-bg: #FFF5EC;
+  --accent-hover: #D44020;
+  --accent-soft: rgba(240,82,42,0.08);
+  --accent-medium: rgba(240,82,42,0.16);
+  --success: #15803D;
+  --success-soft: rgba(21,128,61,0.08);
+  --warning: #C2410C;
+  --warning-soft: rgba(194,65,12,0.08);
+  --danger: #B91C1C;
+  --danger-soft: rgba(185,28,28,0.08);
+  --info: #0369A1;
+  --info-soft: rgba(3,105,161,0.08);
+  --ring-track: #F5DECE;
+  --shimmer-from: #F5DECE;
+  --shimmer-to: #FFE5CC;
+  --toast-bg: #1C0A00;
+  --toast-text: #FFF3E8;
+  --toast-border: #3D1E0D;
+  --code-bg: #FFEEDD;
   --code-char-bg: #FFFFFF;
-  --code-char-border: #FFCDB2;
+  --code-char-border: #F5DECE;
   --qr-bg: #FFFFFF;
-  --qr-fg: #2D2825;
-  --drop-zone-bg: #FFF8F1;
-  --drop-zone-border: #FFD4B8;
-  --drop-zone-active-bg: #FFEDE0;
-  --drop-zone-active-border: #E06D53;
-  --nav-bg: rgba(255,250,245,0.85);
-  --nav-border: #F0E6DF;
+  --qr-fg: #1C0A00;
+  --drop-zone-bg: #FFF3E8;
+  --drop-zone-border: #E8C4AA;
+  --drop-zone-active-bg: #FFE5CC;
+  --drop-zone-active-border: #F0522A;
+  --nav-bg: rgba(255,247,240,0.88);
+  --nav-border: #F5DECE;
   --settings-bg: #FFFFFF;
-  --file-icon-bg: rgba(224,109,83,0.08);
-  --file-icon-color: #E06D53;
-  --ai-bg: linear-gradient(135deg, #FFF7F0 0%, #FFEDE0 100%);
-  --ai-border: #FFD4B8;
-  --ai-icon: #E06D53;
-  --nearby-bg: #FFF8F1;
-  --tag-bg: #FFEDE0;
-  --tag-text: #C95A42;
-  --progress-track: #F0E6DF;
-  --progress-fill: #E06D53;
-  --skeleton: linear-gradient(90deg, #F0E6DF 25%, #FFE8D3 50%, #F0E6DF 75%);
+  --file-icon-bg: rgba(240,82,42,0.08);
+  --file-icon-color: #F0522A;
+  --ai-bg: linear-gradient(135deg, #FFF3E8 0%, #FFE5CC 100%);
+  --ai-border: #F5DECE;
+  --ai-icon: #F0522A;
+  --nearby-bg: #FFF3E8;
+  --tag-bg: #FFE5CC;
+  --tag-text: #D44020;
+  --progress-track: #F5DECE;
+  --progress-fill: #F0522A;
+  --skeleton: linear-gradient(90deg, #F5DECE 25%, #FFE5CC 50%, #F5DECE 75%);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: DARK (Deep Minimal)
+   THEME: DARK (Indigo Night)
    ═══════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg: #0F1014;
-  --bg-raised: #181A20;
-  --bg-sunken: #0A0B0E;
-  --bg-overlay: rgba(15,16,20,0.92);
-  --surface: #181A20;
-  --surface-hover: #1F2128;
-  --surface-active: #272A35;
-  --border: #272A35;
-  --border-strong: #3A3E4F;
-  --text: #F3F4F6;
-  --text-2: #D1D5DB;
-  --text-3: #9CA3AF;
-  --text-4: #6B7280;
-  --accent: #FFFFFF;
-  --accent-contrast: #0F1014;
-  --accent-hover: #E2E2E2;
-  --accent-soft: rgba(255,255,255,0.08);
-  --accent-medium: rgba(255,255,255,0.15);
+  --bg: #0E0F14;
+  --bg-raised: #16181F;
+  --bg-sunken: #09090D;
+  --bg-overlay: rgba(14,15,20,0.94);
+  --surface: #16181F;
+  --surface-hover: #1D2030;
+  --surface-active: #252840;
+  --border: #1D2030;
+  --border-strong: #2E3250;
+  --text: #EEEEF2;
+  --text-2: #C8CAD8;
+  --text-3: #8B8FA8;
+  --text-4: #555870;
+  --accent: #818CF8;
+  --accent-contrast: #0E0F14;
+  --accent-hover: #6366F1;
+  --accent-soft: rgba(129,140,248,0.09);
+  --accent-medium: rgba(129,140,248,0.18);
   --success: #34D399;
   --success-soft: rgba(52,211,153,0.1);
   --warning: #FBBF24;
@@ -2667,59 +2817,59 @@ export function useTransfer() {
   --danger-soft: rgba(248,113,113,0.1);
   --info: #22D3EE;
   --info-soft: rgba(34,211,238,0.1);
-  --ring-track: #272A35;
-  --shimmer-from: #272A35;
-  --shimmer-to: #3A3E4F;
-  --toast-bg: #1F2128;
-  --toast-text: #F3F4F6;
-  --toast-border: #3A3E4F;
-  --code-bg: #181A20;
-  --code-char-bg: #1F2128;
-  --code-char-border: #3A3E4F;
-  --qr-bg: #F3F4F6;
-  --qr-fg: #0F1014;
-  --drop-zone-bg: #181A20;
-  --drop-zone-border: #3A3E4F;
-  --drop-zone-active-bg: rgba(255,255,255,0.05);
-  --drop-zone-active-border: #FFFFFF;
-  --nav-bg: rgba(15,16,20,0.85);
-  --nav-border: #272A35;
-  --settings-bg: #181A20;
-  --file-icon-bg: rgba(255,255,255,0.08);
-  --file-icon-color: #FFFFFF;
-  --ai-bg: linear-gradient(135deg, #181A20 0%, #1F2128 100%);
-  --ai-border: #3A3E4F;
-  --ai-icon: #FFFFFF;
-  --nearby-bg: #181A20;
-  --tag-bg: rgba(255,255,255,0.12);
-  --tag-text: #F3F4F6;
-  --progress-track: #272A35;
-  --progress-fill: #FFFFFF;
-  --skeleton: linear-gradient(90deg, #272A35 25%, #3A3E4F 50%, #272A35 75%);
+  --ring-track: #1D2030;
+  --shimmer-from: #1D2030;
+  --shimmer-to: #2E3250;
+  --toast-bg: #1D2030;
+  --toast-text: #EEEEF2;
+  --toast-border: #2E3250;
+  --code-bg: #16181F;
+  --code-char-bg: #1D2030;
+  --code-char-border: #2E3250;
+  --qr-bg: #EEEEF2;
+  --qr-fg: #0E0F14;
+  --drop-zone-bg: #16181F;
+  --drop-zone-border: #2E3250;
+  --drop-zone-active-bg: rgba(129,140,248,0.06);
+  --drop-zone-active-border: #818CF8;
+  --nav-bg: rgba(14,15,20,0.88);
+  --nav-border: #1D2030;
+  --settings-bg: #16181F;
+  --file-icon-bg: rgba(129,140,248,0.09);
+  --file-icon-color: #818CF8;
+  --ai-bg: linear-gradient(135deg, #16181F 0%, #1D2030 100%);
+  --ai-border: #2E3250;
+  --ai-icon: #818CF8;
+  --nearby-bg: #16181F;
+  --tag-bg: rgba(129,140,248,0.12);
+  --tag-text: #C7D2FE;
+  --progress-track: #1D2030;
+  --progress-fill: #818CF8;
+  --skeleton: linear-gradient(90deg, #1D2030 25%, #2E3250 50%, #1D2030 75%);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: LIGHT (Crisp Studio)
+   THEME: LIGHT (Indigo Studio)
    ═══════════════════════════════════════════ */
 [data-theme="light"] {
-  --bg: #F8F9FA;
+  --bg: #F8F9FB;
   --bg-raised: #FFFFFF;
-  --bg-sunken: #F1F3F5;
-  --bg-overlay: rgba(248,249,250,0.92);
+  --bg-sunken: #F0F2F8;
+  --bg-overlay: rgba(248,249,251,0.92);
   --surface: #FFFFFF;
-  --surface-hover: #F8F9FA;
-  --surface-active: #F1F3F5;
-  --border: #E5E7EB;
-  --border-strong: #D1D5DB;
-  --text: #111827;
-  --text-2: #374151;
-  --text-3: #6B7280;
-  --text-4: #9CA3AF;
-  --accent: #000000;
+  --surface-hover: #F4F5FA;
+  --surface-active: #EAECF8;
+  --border: #E4E6F0;
+  --border-strong: #C9CCE0;
+  --text: #0D0F1A;
+  --text-2: #2A2D44;
+  --text-3: #5C6080;
+  --text-4: #9598B0;
+  --accent: #4F46E5;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #333333;
-  --accent-soft: rgba(0,0,0,0.05);
-  --accent-medium: rgba(0,0,0,0.1);
+  --accent-hover: #4338CA;
+  --accent-soft: rgba(79,70,229,0.07);
+  --accent-medium: rgba(79,70,229,0.13);
   --success: #16A34A;
   --success-soft: rgba(22,163,74,0.08);
   --warning: #D97706;
@@ -2728,96 +2878,96 @@ export function useTransfer() {
   --danger-soft: rgba(220,38,38,0.08);
   --info: #0891B2;
   --info-soft: rgba(8,145,178,0.08);
-  --ring-track: #E5E7EB;
-  --shimmer-from: #E5E7EB;
-  --shimmer-to: #D1D5DB;
-  --toast-bg: #111827;
-  --toast-text: #F9FAFB;
-  --toast-border: #374151;
-  --code-bg: #F1F3F5;
+  --ring-track: #E4E6F0;
+  --shimmer-from: #E4E6F0;
+  --shimmer-to: #C9CCE0;
+  --toast-bg: #0D0F1A;
+  --toast-text: #F4F5FA;
+  --toast-border: #2A2D44;
+  --code-bg: #F0F2F8;
   --code-char-bg: #FFFFFF;
-  --code-char-border: #D1D5DB;
+  --code-char-border: #C9CCE0;
   --qr-bg: #FFFFFF;
-  --qr-fg: #111827;
-  --drop-zone-bg: #F8F9FA;
-  --drop-zone-border: #D1D5DB;
-  --drop-zone-active-bg: #F1F3F5;
-  --drop-zone-active-border: #000000;
-  --nav-bg: rgba(248,249,250,0.85);
-  --nav-border: #E5E7EB;
+  --qr-fg: #0D0F1A;
+  --drop-zone-bg: #F4F5FA;
+  --drop-zone-border: #C9CCE0;
+  --drop-zone-active-bg: #EAECF8;
+  --drop-zone-active-border: #4F46E5;
+  --nav-bg: rgba(248,249,251,0.88);
+  --nav-border: #E4E6F0;
   --settings-bg: #FFFFFF;
-  --file-icon-bg: rgba(0,0,0,0.05);
-  --file-icon-color: #000000;
-  --ai-bg: linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%);
-  --ai-border: #E5E7EB;
-  --ai-icon: #000000;
-  --nearby-bg: #F8F9FA;
-  --tag-bg: #F1F3F5;
-  --tag-text: #111827;
-  --progress-track: #E5E7EB;
-  --progress-fill: #000000;
-  --skeleton: linear-gradient(90deg, #E5E7EB 25%, #D1D5DB 50%, #E5E7EB 75%);
+  --file-icon-bg: rgba(79,70,229,0.07);
+  --file-icon-color: #4F46E5;
+  --ai-bg: linear-gradient(135deg, #FFFFFF 0%, #F0F2F8 100%);
+  --ai-border: #E4E6F0;
+  --ai-icon: #4F46E5;
+  --nearby-bg: #F4F5FA;
+  --tag-bg: #EAECF8;
+  --tag-text: #4338CA;
+  --progress-track: #E4E6F0;
+  --progress-fill: #4F46E5;
+  --skeleton: linear-gradient(90deg, #E4E6F0 25%, #C9CCE0 50%, #E4E6F0 75%);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: OCEAN (Subtle Tech)
+   THEME: MIDNIGHT (Deep Navy)
    ═══════════════════════════════════════════ */
-[data-theme="ocean"] {
-  --bg: #F0F4F8;
-  --bg-raised: #FFFFFF;
-  --bg-sunken: #E6EDF3;
-  --bg-overlay: rgba(240,244,248,0.92);
-  --surface: #FFFFFF;
-  --surface-hover: #F7FAFC;
-  --surface-active: #EDF2F7;
-  --border: #E2E8F0;
-  --border-strong: #CBD5E0;
-  --text: #1A365D;
-  --text-2: #2D3748;
-  --text-3: #4A5568;
-  --text-4: #718096;
-  --accent: #2B6CB0;
+[data-theme="midnight"] {
+  --bg: #070B14;
+  --bg-raised: #0D1526;
+  --bg-sunken: #040810;
+  --bg-overlay: rgba(7,11,20,0.95);
+  --surface: #0D1526;
+  --surface-hover: #142035;
+  --surface-active: #1C2D4A;
+  --border: #1C2D4A;
+  --border-strong: #2A4270;
+  --text: #E2E8F4;
+  --text-2: #C8D4E8;
+  --text-3: #8A9CC0;
+  --text-4: #4A5C80;
+  --accent: #3B82F6;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #2C5282;
-  --accent-soft: rgba(43,108,176,0.08);
-  --accent-medium: rgba(43,108,176,0.15);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
-  --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
-  --ring-track: #E2E8F0;
-  --shimmer-from: #E2E8F0;
-  --shimmer-to: #CBD5E0;
-  --toast-bg: #1A365D;
-  --toast-text: #F7FAFC;
-  --toast-border: #2D3748;
-  --code-bg: #E6EDF3;
-  --code-char-bg: #FFFFFF;
-  --code-char-border: #CBD5E0;
-  --qr-bg: #FFFFFF;
-  --qr-fg: #1A365D;
-  --drop-zone-bg: #F7FAFC;
-  --drop-zone-border: #CBD5E0;
-  --drop-zone-active-bg: #EDF2F7;
-  --drop-zone-active-border: #2B6CB0;
-  --nav-bg: rgba(240,244,248,0.85);
-  --nav-border: #E2E8F0;
-  --settings-bg: #FFFFFF;
-  --file-icon-bg: rgba(43,108,176,0.08);
-  --file-icon-color: #2B6CB0;
-  --ai-bg: linear-gradient(135deg, #F7FAFC 0%, #EDF2F7 100%);
-  --ai-border: #CBD5E0;
-  --ai-icon: #2B6CB0;
-  --nearby-bg: #F7FAFC;
-  --tag-bg: #EDF2F7;
-  --tag-text: #2C5282;
-  --progress-track: #E2E8F0;
-  --progress-fill: #2B6CB0;
-  --skeleton: linear-gradient(90deg, #E2E8F0 25%, #CBD5E0 50%, #E2E8F0 75%);
+  --accent-hover: #2563EB;
+  --accent-soft: rgba(59,130,246,0.08);
+  --accent-medium: rgba(59,130,246,0.16);
+  --success: #34D399;
+  --success-soft: rgba(52,211,153,0.1);
+  --warning: #FBBF24;
+  --warning-soft: rgba(251,191,36,0.1);
+  --danger: #F87171;
+  --danger-soft: rgba(248,113,113,0.1);
+  --info: #38BDF8;
+  --info-soft: rgba(56,189,248,0.1);
+  --ring-track: #1C2D4A;
+  --shimmer-from: #1C2D4A;
+  --shimmer-to: #2A4270;
+  --toast-bg: #0D1526;
+  --toast-text: #E2E8F4;
+  --toast-border: #2A4270;
+  --code-bg: #0D1526;
+  --code-char-bg: #142035;
+  --code-char-border: #2A4270;
+  --qr-bg: #E2E8F4;
+  --qr-fg: #070B14;
+  --drop-zone-bg: #0D1526;
+  --drop-zone-border: #2A4270;
+  --drop-zone-active-bg: rgba(59,130,246,0.06);
+  --drop-zone-active-border: #3B82F6;
+  --nav-bg: rgba(7,11,20,0.92);
+  --nav-border: #1C2D4A;
+  --settings-bg: #0D1526;
+  --file-icon-bg: rgba(59,130,246,0.08);
+  --file-icon-color: #3B82F6;
+  --ai-bg: linear-gradient(135deg, #0D1526 0%, #142035 100%);
+  --ai-border: #2A4270;
+  --ai-icon: #3B82F6;
+  --nearby-bg: #0D1526;
+  --tag-bg: rgba(59,130,246,0.12);
+  --tag-text: #93C5FD;
+  --progress-track: #1C2D4A;
+  --progress-fill: #3B82F6;
+  --skeleton: linear-gradient(90deg, #1C2D4A 25%, #2A4270 50%, #1C2D4A 75%);
 }
 
 /* ═══════════════════════════════════════════
@@ -2882,27 +3032,27 @@ export function useTransfer() {
 }
 
 /* ═══════════════════════════════════════════
-   THEME: EMERALD (Vibrant Green)
+   THEME: LAVENDER (Soft Violet)
    ═══════════════════════════════════════════ */
-[data-theme="emerald"] {
-  --bg: #F0FDF4;
+[data-theme="lavender"] {
+  --bg: #F6F4FF;
   --bg-raised: #FFFFFF;
-  --bg-sunken: #DCFCE7;
-  --bg-overlay: rgba(240,253,244,0.92);
+  --bg-sunken: #EDE8FF;
+  --bg-overlay: rgba(246,244,255,0.92);
   --surface: #FFFFFF;
-  --surface-hover: #F7FEF9;
-  --surface-active: #ECFDF5;
-  --border: #D1FAE5;
-  --border-strong: #A7F3D0;
-  --text: #064E3B;
-  --text-2: #065F46;
-  --text-3: #047857;
-  --text-4: #059669;
-  --accent: #10B981;
+  --surface-hover: #FAF8FF;
+  --surface-active: #EDE8FF;
+  --border: #DDD5FF;
+  --border-strong: #C4B5FD;
+  --text: #1B0B40;
+  --text-2: #2D1060;
+  --text-3: #5B3A9A;
+  --text-4: #8B6AC0;
+  --accent: #7C3AED;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #059669;
-  --accent-soft: rgba(16,185,129,0.08);
-  --accent-medium: rgba(16,185,129,0.15);
+  --accent-hover: #6D28D9;
+  --accent-soft: rgba(124,58,237,0.08);
+  --accent-medium: rgba(124,58,237,0.15);
   --success: #16A34A;
   --success-soft: rgba(22,163,74,0.08);
   --warning: #D97706;
@@ -2911,157 +3061,157 @@ export function useTransfer() {
   --danger-soft: rgba(220,38,38,0.08);
   --info: #0891B2;
   --info-soft: rgba(8,145,178,0.08);
-  --ring-track: #D1FAE5;
-  --shimmer-from: #D1FAE5;
-  --shimmer-to: #A7F3D0;
-  --toast-bg: #064E3B;
-  --toast-text: #F7FEF9;
-  --toast-border: #065F46;
-  --code-bg: #DCFCE7;
+  --ring-track: #DDD5FF;
+  --shimmer-from: #DDD5FF;
+  --shimmer-to: #C4B5FD;
+  --toast-bg: #1B0B40;
+  --toast-text: #FAF8FF;
+  --toast-border: #4C1D95;
+  --code-bg: #EDE8FF;
   --code-char-bg: #FFFFFF;
-  --code-char-border: #D1FAE5;
+  --code-char-border: #DDD5FF;
   --qr-bg: #FFFFFF;
-  --qr-fg: #064E3B;
-  --drop-zone-bg: #F7FEF9;
-  --drop-zone-border: #A7F3D0;
-  --drop-zone-active-bg: #ECFDF5;
-  --drop-zone-active-border: #10B981;
-  --nav-bg: rgba(240,253,244,0.85);
-  --nav-border: #D1FAE5;
+  --qr-fg: #1B0B40;
+  --drop-zone-bg: #FAF8FF;
+  --drop-zone-border: #C4B5FD;
+  --drop-zone-active-bg: #EDE8FF;
+  --drop-zone-active-border: #7C3AED;
+  --nav-bg: rgba(246,244,255,0.88);
+  --nav-border: #DDD5FF;
   --settings-bg: #FFFFFF;
-  --file-icon-bg: rgba(16,185,129,0.08);
-  --file-icon-color: #10B981;
-  --ai-bg: linear-gradient(135deg, #F7FEF9 0%, #ECFDF5 100%);
-  --ai-border: #D1FAE5;
-  --ai-icon: #10B981;
-  --nearby-bg: #F7FEF9;
-  --tag-bg: #ECFDF5;
-  --tag-text: #059669;
-  --progress-track: #D1FAE5;
-  --progress-fill: #10B981;
-  --skeleton: linear-gradient(90deg, #D1FAE5 25%, #A7F3D0 50%, #D1FAE5 75%);
+  --file-icon-bg: rgba(124,58,237,0.08);
+  --file-icon-color: #7C3AED;
+  --ai-bg: linear-gradient(135deg, #FAF8FF 0%, #EDE8FF 100%);
+  --ai-border: #DDD5FF;
+  --ai-icon: #7C3AED;
+  --nearby-bg: #FAF8FF;
+  --tag-bg: #EDE8FF;
+  --tag-text: #6D28D9;
+  --progress-track: #DDD5FF;
+  --progress-fill: #7C3AED;
+  --skeleton: linear-gradient(90deg, #DDD5FF 25%, #C4B5FD 50%, #DDD5FF 75%);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: CYBER (Dark Neon Purple)
+   THEME: FOREST (Dark Emerald)
    ═══════════════════════════════════════════ */
-[data-theme="cyber"] {
-  --bg: #09090B;
-  --bg-raised: #18181B;
-  --bg-sunken: #000000;
-  --bg-overlay: rgba(9,9,11,0.92);
-  --surface: #18181B;
-  --surface-hover: #27272A;
-  --surface-active: #3F3F46;
-  --border: #27272A;
-  --border-strong: #52525B;
-  --text: #FAFAFA;
-  --text-2: #E4E4E7;
-  --text-3: #A1A1AA;
-  --text-4: #71717A;
-  --accent: #A855F7;
-  --accent-contrast: #FFFFFF;
-  --accent-hover: #9333EA;
-  --accent-soft: rgba(168,85,247,0.08);
-  --accent-medium: rgba(168,85,247,0.15);
-  --success: #34D399;
-  --success-soft: rgba(52,211,153,0.1);
-  --warning: #FBBF24;
-  --warning-soft: rgba(251,191,36,0.1);
-  --danger: #F87171;
-  --danger-soft: rgba(248,113,113,0.1);
-  --info: #22D3EE;
-  --info-soft: rgba(34,211,238,0.1);
-  --ring-track: #27272A;
-  --shimmer-from: #27272A;
-  --shimmer-to: #52525B;
-  --toast-bg: #27272A;
-  --toast-text: #FAFAFA;
-  --toast-border: #52525B;
-  --code-bg: #18181B;
-  --code-char-bg: #27272A;
-  --code-char-border: #52525B;
-  --qr-bg: #FAFAFA;
-  --qr-fg: #09090B;
-  --drop-zone-bg: #18181B;
-  --drop-zone-border: #52525B;
-  --drop-zone-active-bg: rgba(168,85,247,0.05);
-  --drop-zone-active-border: #A855F7;
-  --nav-bg: rgba(9,9,11,0.85);
-  --nav-border: #27272A;
-  --settings-bg: #18181B;
-  --file-icon-bg: rgba(168,85,247,0.08);
-  --file-icon-color: #A855F7;
-  --ai-bg: linear-gradient(135deg, #18181B 0%, #27272A 100%);
-  --ai-border: #52525B;
-  --ai-icon: #A855F7;
-  --nearby-bg: #18181B;
-  --tag-bg: rgba(168,85,247,0.12);
-  --tag-text: #E9D5FF;
-  --progress-track: #27272A;
-  --progress-fill: #A855F7;
-  --skeleton: linear-gradient(90deg, #27272A 25%, #52525B 50%, #27272A 75%);
+[data-theme="forest"] {
+  --bg: #080F0C;
+  --bg-raised: #0F1A14;
+  --bg-sunken: #050A07;
+  --bg-overlay: rgba(8,15,12,0.95);
+  --surface: #0F1A14;
+  --surface-hover: #16251A;
+  --surface-active: #1E3328;
+  --border: #1E3328;
+  --border-strong: #2C4D3E;
+  --text: #E4F5EC;
+  --text-2: #C0E0CC;
+  --text-3: #78B898;
+  --text-4: #3C7855;
+  --accent: #10D98A;
+  --accent-contrast: #050A07;
+  --accent-hover: #0BB875;
+  --accent-soft: rgba(16,217,138,0.08);
+  --accent-medium: rgba(16,217,138,0.15);
+  --success: #4ADE80;
+  --success-soft: rgba(74,222,128,0.1);
+  --warning: #FCD34D;
+  --warning-soft: rgba(252,211,77,0.1);
+  --danger: #FCA5A5;
+  --danger-soft: rgba(252,165,165,0.1);
+  --info: #67E8F9;
+  --info-soft: rgba(103,232,249,0.1);
+  --ring-track: #1E3328;
+  --shimmer-from: #1E3328;
+  --shimmer-to: #2C4D3E;
+  --toast-bg: #0F1A14;
+  --toast-text: #E4F5EC;
+  --toast-border: #2C4D3E;
+  --code-bg: #0F1A14;
+  --code-char-bg: #16251A;
+  --code-char-border: #2C4D3E;
+  --qr-bg: #E4F5EC;
+  --qr-fg: #080F0C;
+  --drop-zone-bg: #0F1A14;
+  --drop-zone-border: #2C4D3E;
+  --drop-zone-active-bg: rgba(16,217,138,0.05);
+  --drop-zone-active-border: #10D98A;
+  --nav-bg: rgba(8,15,12,0.92);
+  --nav-border: #1E3328;
+  --settings-bg: #0F1A14;
+  --file-icon-bg: rgba(16,217,138,0.08);
+  --file-icon-color: #10D98A;
+  --ai-bg: linear-gradient(135deg, #0F1A14 0%, #16251A 100%);
+  --ai-border: #2C4D3E;
+  --ai-icon: #10D98A;
+  --nearby-bg: #0F1A14;
+  --tag-bg: rgba(16,217,138,0.12);
+  --tag-text: #6EF5BC;
+  --progress-track: #1E3328;
+  --progress-fill: #10D98A;
+  --skeleton: linear-gradient(90deg, #1E3328 25%, #2C4D3E 50%, #1E3328 75%);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: AMBER (Warm Sunset Gold)
+   THEME: VOLCANIC (Obsidian Ember)
    ═══════════════════════════════════════════ */
-[data-theme="amber"] {
-  --bg: #FFFBEB;
-  --bg-raised: #FFFFFF;
-  --bg-sunken: #FEF3C7;
-  --bg-overlay: rgba(255,251,235,0.92);
-  --surface: #FFFFFF;
-  --surface-hover: #FEFCE8;
-  --surface-active: #FEF9C3;
-  --border: #FEF3C7;
-  --border-strong: #FDE68A;
-  --text: #78350F;
-  --text-2: #92400E;
-  --text-3: #B45309;
-  --text-4: #D97706;
-  --accent: #F59E0B;
-  --accent-contrast: #111827;
-  --accent-hover: #D97706;
-  --accent-soft: rgba(245,158,11,0.08);
-  --accent-medium: rgba(245,158,11,0.15);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
-  --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
-  --ring-track: #FEF3C7;
-  --shimmer-from: #FEF3C7;
-  --shimmer-to: #FDE68A;
-  --toast-bg: #78350F;
-  --toast-text: #FEFCE8;
-  --toast-border: #92400E;
-  --code-bg: #FEF3C7;
-  --code-char-bg: #FFFFFF;
-  --code-char-border: #FDE68A;
-  --qr-bg: #FFFFFF;
-  --qr-fg: #78350F;
-  --drop-zone-bg: #FEFCE8;
-  --drop-zone-border: #FDE68A;
-  --drop-zone-active-bg: #FEF9C3;
-  --drop-zone-active-border: #F59E0B;
-  --nav-bg: rgba(255,251,235,0.85);
-  --nav-border: #FEF3C7;
-  --settings-bg: #FFFFFF;
-  --file-icon-bg: rgba(245,158,11,0.08);
-  --file-icon-color: #F59E0B;
-  --ai-bg: linear-gradient(135deg, #FEFCE8 0%, #FEF9C3 100%);
-  --ai-border: #FEF3C7;
-  --ai-icon: #F59E0B;
-  --nearby-bg: #FEFCE8;
-  --tag-bg: #FEF9C3;
-  --tag-text: #D97706;
-  --progress-track: #FEF3C7;
-  --progress-fill: #F59E0B;
-  --skeleton: linear-gradient(90deg, #FEF3C7 25%, #FDE68A 50%, #FEF3C7 75%);
+[data-theme="volcanic"] {
+  --bg: #0C0A08;
+  --bg-raised: #1C1917;
+  --bg-sunken: #090807;
+  --bg-overlay: rgba(12,10,8,0.95);
+  --surface: #1C1917;
+  --surface-hover: #28241F;
+  --surface-active: #3C3632;
+  --border: #28241F;
+  --border-strong: #52484A;
+  --text: #F7F0EA;
+  --text-2: #E8DDD4;
+  --text-3: #A89080;
+  --text-4: #6E5A50;
+  --accent: #F97316;
+  --accent-contrast: #0C0A08;
+  --accent-hover: #EA6010;
+  --accent-soft: rgba(249,115,22,0.08);
+  --accent-medium: rgba(249,115,22,0.16);
+  --success: #86EFAC;
+  --success-soft: rgba(134,239,172,0.1);
+  --warning: #FDE047;
+  --warning-soft: rgba(253,224,71,0.1);
+  --danger: #FCA5A5;
+  --danger-soft: rgba(252,165,165,0.1);
+  --info: #67E8F9;
+  --info-soft: rgba(103,232,249,0.1);
+  --ring-track: #28241F;
+  --shimmer-from: #28241F;
+  --shimmer-to: #3C3632;
+  --toast-bg: #28241F;
+  --toast-text: #F7F0EA;
+  --toast-border: #52484A;
+  --code-bg: #1C1917;
+  --code-char-bg: #28241F;
+  --code-char-border: #52484A;
+  --qr-bg: #F7F0EA;
+  --qr-fg: #0C0A08;
+  --drop-zone-bg: #1C1917;
+  --drop-zone-border: #52484A;
+  --drop-zone-active-bg: rgba(249,115,22,0.05);
+  --drop-zone-active-border: #F97316;
+  --nav-bg: rgba(12,10,8,0.92);
+  --nav-border: #28241F;
+  --settings-bg: #1C1917;
+  --file-icon-bg: rgba(249,115,22,0.08);
+  --file-icon-color: #F97316;
+  --ai-bg: linear-gradient(135deg, #1C1917 0%, #28241F 100%);
+  --ai-border: #52484A;
+  --ai-icon: #F97316;
+  --nearby-bg: #1C1917;
+  --tag-bg: rgba(249,115,22,0.12);
+  --tag-text: #FDBA74;
+  --progress-track: #28241F;
+  --progress-fill: #F97316;
+  --skeleton: linear-gradient(90deg, #28241F 25%, #3C3632 50%, #28241F 75%);
 }
 
 /* ═══════════════════════════════════════════
@@ -3301,7 +3451,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (30388 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (33220 bytes) =====
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -3310,10 +3460,11 @@ import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
+import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile, finalizeBurnTransfer } from '../services/api'
 import { smartDownload } from '../utils/download'
 import {
   saveTransfer,
+  updateTransferStatus,
   getSettings,
   getCachedTransfer,
   saveCachedTransfer,
@@ -3344,7 +3495,7 @@ const REQUEST_STATE = {
 }
 
 const RETRY_DELAY_MS = 2000
-const MAX_AUTO_RETRIES = 3
+const MAX_AUTO_RETRIES = 2
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -3396,11 +3547,35 @@ export default function DownloadPage() {
   const downloadingRef = useRef(false)
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
+  const transferStatusRef = useRef(initialCachedTransfer?.status || 'ACTIVE')
+  const downloadedAnyRef = useRef(false)
+  const burnFinalizeRequestedRef = useRef(false)
   const requestInFlightRef = useRef(false)
   const requestTokenRef = useRef(0)
   const retryTimerRef = useRef(null)
+  const terminalNavigatedRef = useRef(false)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
+  useEffect(() => { transferStatusRef.current = transferStatus }, [transferStatus])
+
+  const finalizeBurnSessionIfNeeded = useCallback(async () => {
+    if (burnFinalizeRequestedRef.current) return
+
+    const transfer = metaRef.current
+    if (!transfer?.burnAfterDownload) return
+    if (!downloadedAnyRef.current) return
+
+    const status = String(transferStatusRef.current || transfer?.status || '').toUpperCase()
+    if (status === 'DELETED' || status === 'CANCELLED' || status === 'EXPIRED') return
+
+    burnFinalizeRequestedRef.current = true
+    try {
+      await finalizeBurnTransfer(normalizedCode)
+      updateTransferStatus(normalizedCode, 'DELETED')
+    } catch {
+      // Cleanup service will finalize stale claimed sessions if this request fails during tab close.
+    }
+  }, [normalizedCode])
 
   useEffect(() => {
     verifiedPasswordRef.current = ''
@@ -3532,7 +3707,9 @@ export default function DownloadPage() {
         const data = outcome.data
         const status = String(data?.status || '').toUpperCase()
         if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
-          navigate(`/expired?reason=${status.toLowerCase()}`, { replace: true })
+          updateTransferStatus(normalizedCode, status)
+          const reason = status === 'DELETED' ? 'burned' : status.toLowerCase()
+          navigate(`/expired?reason=${reason}`, { replace: true })
           return
         }
 
@@ -3546,10 +3723,12 @@ export default function DownloadPage() {
       if (outcome.type === 'SERVER') {
         const errCode = outcome.errorCode || 'SERVER_ERROR'
         if (errCode === 'TRANSFER_EXPIRED') {
+          updateTransferStatus(normalizedCode, 'EXPIRED')
           navigate('/expired?reason=expired', { replace: true })
           return
         }
         if (errCode === 'ALREADY_DOWNLOADED') {
+          updateTransferStatus(normalizedCode, 'DELETED')
           navigate('/expired?reason=burned', { replace: true })
           return
         }
@@ -3644,6 +3823,21 @@ export default function DownloadPage() {
     }
   }, [clearRetryTimer])
 
+  useEffect(() => {
+    const finalizeOnPageExit = () => {
+      void finalizeBurnSessionIfNeeded()
+    }
+
+    window.addEventListener('pagehide', finalizeOnPageExit)
+    window.addEventListener('beforeunload', finalizeOnPageExit)
+
+    return () => {
+      window.removeEventListener('pagehide', finalizeOnPageExit)
+      window.removeEventListener('beforeunload', finalizeOnPageExit)
+      void finalizeBurnSessionIfNeeded()
+    }
+  }, [finalizeBurnSessionIfNeeded])
+
   // Socket
   useEffect(() => {
     if (!socket || !normalizedCode) return
@@ -3672,22 +3866,40 @@ export default function DownloadPage() {
       setDownloadPercent(percent || 0)
     }
     const onDownComplete = () => {
+      if (metaRef.current?.burnAfterDownload) {
+        downloadedAnyRef.current = true
+      }
       if (!downloadingRef.current) return
       setDownloadPercent(100)
       setDownloading(false)
       setDownloaded(true)
     }
     const onCancelled = () => {
+      if (terminalNavigatedRef.current) return
+      terminalNavigatedRef.current = true
       setTransferStatus('CANCELLED')
       patchCachedTransfer({ status: 'CANCELLED' })
+      updateTransferStatus(normalizedCode, 'CANCELLED')
+      navigate('/expired?reason=cancelled', { replace: true })
     }
     const onDeleted = ({ reason } = {}) => {
+      if (terminalNavigatedRef.current) return
       setTransferStatus('DELETED')
       patchCachedTransfer({ status: 'DELETED' })
+      updateTransferStatus(normalizedCode, 'DELETED')
       // Only show error if user hasn't downloaded and isn't currently downloading
-      if (reason === 'burn' && !downloaded && !downloadingRef.current) {
+      if (reason === 'burn' && !downloadedAnyRef.current && !downloadingRef.current) {
         toast.error('This file was burned after being downloaded by someone else')
       }
+      if (!downloadedAnyRef.current && !downloadingRef.current) {
+        terminalNavigatedRef.current = true
+        navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
+      }
+    }
+    const onClaimed = () => {
+      setTransferStatus('CLAIMED')
+      patchCachedTransfer({ status: 'CLAIMED' })
+      updateTransferStatus(normalizedCode, 'CLAIMED')
     }
     const onReceipt = (data) => setReceipt(data)
 
@@ -3699,6 +3911,7 @@ export default function DownloadPage() {
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-cancelled', onCancelled)
     socket.on('transfer-deleted', onDeleted)
+    socket.on('transfer-claimed', onClaimed)
     socket.on('transfer-receipt', onReceipt)
 
     return () => {
@@ -3710,17 +3923,20 @@ export default function DownloadPage() {
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
+      socket.off('transfer-claimed', onClaimed)
       socket.off('transfer-receipt', onReceipt)
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, downloaded, patchCachedTransfer])
+  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, patchCachedTransfer])
 
   // Password verification
   async function handlePasswordSubmit(e) {
     e?.preventDefault()
     if (!password.trim() || verifying) return
+
     setVerifying(true)
     setPasswordError('')
+
     try {
       const result = await verifyPassword(normalizedCode, password)
       if (result?.verified) {
@@ -3742,22 +3958,26 @@ export default function DownloadPage() {
       } else {
         setPasswordError('Verification failed. Please try again.')
       }
+    } finally {
+      setVerifying(false)
     }
-    setVerifying(false)
   }
 
   // Download
   async function handleDownload() {
     if (downloading || downloaded) return
     setDownloading(true)
+
+    let downloadSucceeded = false
     try {
       await smartDownload(normalizedCode, {
-        aiName: ai?.suggestedName,
         originalName: meta?.files?.[0]?.name,
         password: verifiedPasswordRef.current || undefined,
       })
+
+      downloadSucceeded = true
+      downloadedAnyRef.current = true
       setDownloaded(true)
-      setDownloading(false)
 
       const currentSettings = getSettings()
 
@@ -3776,8 +3996,12 @@ export default function DownloadPage() {
         playDownloadSuccess()
       }
     } catch {
-      setDownloading(false)
       toast.error('Download failed')
+    } finally {
+      setDownloading(false)
+      if (!downloadSucceeded) {
+        setDownloadPercent(0)
+      }
     }
   }
 
@@ -3948,7 +4172,7 @@ export default function DownloadPage() {
                 alt="Preview"
                 className="w-full max-h-64 object-contain"
                 style={{ background: 'var(--bg-sunken)' }}
-                loading="lazy"
+                loading="eager"
               />
             </motion.div>
           )}
@@ -3978,7 +4202,7 @@ export default function DownloadPage() {
           </motion.div>
 
           {/* Burn badge */}
-          {meta?.burnAfterDownload && !downloaded && !isUnavailable && (
+          {meta?.burnAfterDownload && !isUnavailable && (
             <motion.div
               className="mb-4 p-3 rounded-xl text-center"
               style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
@@ -3986,7 +4210,7 @@ export default function DownloadPage() {
               animate={{ opacity: 1 }}
             >
               <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
-                🔥 One-time download — this file will be deleted after you download it
+                🔥 Burn mode is active. This transfer stays available for this device until you leave this page.
               </p>
             </motion.div>
           )}
@@ -4886,7 +5110,7 @@ export default function HomePage() {
   )
 }
 
-===== FILE: src/pages/JoinPage.jsx (10265 bytes) =====
+===== FILE: src/pages/JoinPage.jsx (10760 bytes) =====
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -4900,6 +5124,8 @@ import { saveTransfer } from '../utils/storage'
 
 const CODE_LENGTH = 6
 const JOIN_REQUEST_HARD_TIMEOUT_MS = 20000 // Increased to 20s for Render cold starts
+const MAX_JOIN_RETRIES = 2
+const JOIN_RETRY_DELAY_MS = 300
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
 const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
 
@@ -4920,6 +5146,7 @@ export default function JoinPage() {
   const mountedRef = useRef(true)
 
   useEffect(() => {
+    mountedRef.current = true
     return () => {
       mountedRef.current = false
     }
@@ -4946,20 +5173,37 @@ export default function JoinPage() {
     console.log('[JoinPage] Submitting code:', normalizedCode)
 
     try {
-      let hardTimeoutId
-      const timeoutFallback = new Promise((resolve) => {
-        hardTimeoutId = window.setTimeout(() => {
-          console.warn('[JoinPage] Hard timeout reached after 20s')
-          resolve({ ok: false, type: 'TIMEOUT' })
-        }, JOIN_REQUEST_HARD_TIMEOUT_MS)
-      })
+      let outcome = null
+      for (let attempt = 0; attempt <= MAX_JOIN_RETRIES; attempt += 1) {
+        let hardTimeoutId
+        const timeoutFallback = new Promise((resolve) => {
+          hardTimeoutId = window.setTimeout(() => {
+            console.warn('[JoinPage] Hard timeout reached after 20s')
+            resolve({ ok: false, type: 'TIMEOUT' })
+          }, JOIN_REQUEST_HARD_TIMEOUT_MS)
+        })
 
-      const outcome = await Promise.race([
-        getFileMetadataOutcome(normalizedCode, { timeout: 18000, noRetry: true }), // Increased to 18s
-        timeoutFallback,
-      ])
+        try {
+          outcome = await Promise.race([
+            getFileMetadataOutcome(normalizedCode, { timeout: 18000, noRetry: true }),
+            timeoutFallback,
+          ])
+        } finally {
+          window.clearTimeout(hardTimeoutId)
+        }
 
-      window.clearTimeout(hardTimeoutId)
+        const isTransient = outcome?.type === 'TIMEOUT' || outcome?.type === 'NETWORK'
+        if (outcome?.ok || !isTransient || attempt === MAX_JOIN_RETRIES) {
+          break
+        }
+
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, JOIN_RETRY_DELAY_MS)
+        })
+
+        if (!mountedRef.current) return
+      }
+
       if (!mountedRef.current) return
 
       console.log('[JoinPage] Outcome:', outcome)
@@ -5025,10 +5269,8 @@ export default function JoinPage() {
       }
     } finally {
       submitInFlightRef.current = false
-      if (mountedRef.current) {
-        setLoading(false)
-        console.log('[JoinPage] Request complete, loading set to false')
-      }
+      setLoading(false)
+      console.log('[JoinPage] Request complete, loading set to false')
     }
   }, [navigate])
 
@@ -5159,7 +5401,7 @@ export default function JoinPage() {
                   const code = chars.join('')
                   if (code.length === CODE_LENGTH) void handleSubmit(code)
                 }}
-                autoRetry={error === 'NETWORK_ERROR' || error === 'TIMEOUT_ERROR'}
+                autoRetry={false}
               />
             </motion.div>
           )}
@@ -5192,14 +5434,14 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (32641 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (42431 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Copy, Check, ExternalLink, Share2, Clock, Trash2,
+  Copy, Check, Share2, Clock, Trash2,
   MessageCircle, Mail, Maximize2, Send,
-  QrCode, AlertTriangle
+  QrCode, AlertTriangle, Lock, Eye, EyeOff, Loader2
 } from 'lucide-react'
 import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
@@ -5207,7 +5449,7 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import {
   getFileMetadata, getTransferActivity,
-  extendTransfer, deleteTransfer, downloadSingleFile
+  extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword
 } from '../services/api'
 import {
   getCachedTransfer,
@@ -5216,6 +5458,7 @@ import {
   saveCachedAI,
   mergeTransferData,
   saveTransfer,
+  updateTransferStatus,
 } from '../utils/storage'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
@@ -5237,7 +5480,7 @@ export default function SenderPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transferData || null
-  const { socket, socketId, registerSender, rejoinRoom, leaveRoom } = useSocket()
+  const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
   const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
@@ -5275,11 +5518,47 @@ export default function SenderPage() {
   )
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [passwordVerified, setPasswordVerified] = useState(!Boolean(initialCachedTransfer?.passwordProtected))
+  const [previewPassword, setPreviewPassword] = useState('')
+  const [showPreviewPassword, setShowPreviewPassword] = useState(false)
+  const [previewPasswordError, setPreviewPasswordError] = useState('')
+  const [previewUnlocking, setPreviewUnlocking] = useState(false)
+  const [extending, setExtending] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
+  const verifiedPreviewPasswordRef = useRef('')
+  const activityRefreshTimerRef = useRef(null)
+  const terminalNavigatedRef = useRef(false)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
+
+  useEffect(() => {
+    return () => {
+      if (activityRefreshTimerRef.current) {
+        window.clearTimeout(activityRefreshTimerRef.current)
+        activityRefreshTimerRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const protectedTransfer = Boolean(getCachedTransfer(normalizedCode)?.passwordProtected)
+    setPasswordVerified(!protectedTransfer)
+    setPreviewPassword('')
+    setShowPreviewPassword(false)
+    setPreviewPasswordError('')
+    verifiedPreviewPasswordRef.current = ''
+  }, [normalizedCode])
+
+  useEffect(() => {
+    if (!meta?.passwordProtected) {
+      setPasswordVerified(true)
+    } else if (!verifiedPreviewPasswordRef.current) {
+      setPasswordVerified(false)
+    }
+  }, [meta?.passwordProtected])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
@@ -5409,11 +5688,19 @@ export default function SenderPage() {
         
         // Check for expired/not found BEFORE setting any state
         if (data.status === 'EXPIRED') {
+          updateTransferStatus(normalizedCode, 'EXPIRED')
           navigate('/expired?reason=expired', { replace: true })
           return
         }
-        if (data.status === 'CANCELLED' || data.status === 'DELETED') {
-          setCancelled(true)
+        if (data.status === 'CANCELLED') {
+          updateTransferStatus(normalizedCode, 'CANCELLED')
+          navigate('/expired?reason=cancelled', { replace: true })
+          return
+        }
+        if (data.status === 'DELETED') {
+          updateTransferStatus(normalizedCode, 'DELETED')
+          navigate('/expired?reason=burned', { replace: true })
+          return
         }
 
         applyTransferSnapshot(data, { persist: true })
@@ -5427,10 +5714,12 @@ export default function SenderPage() {
           return
         }
         if (errCode === 'TRANSFER_EXPIRED') {
+          updateTransferStatus(normalizedCode, 'EXPIRED')
           navigate('/expired?reason=expired', { replace: true })
           return
         }
         if (errCode === 'ALREADY_DOWNLOADED') {
+          updateTransferStatus(normalizedCode, 'DELETED')
           navigate('/expired?reason=burned', { replace: true })
           return
         }
@@ -5458,10 +5747,10 @@ export default function SenderPage() {
     return () => window.clearTimeout(timer)
   }, [loading])
 
-  // Fetch activity — poll at relaxed interval, skip when tab hidden
+  // Fetch activity once per page load; subsequent refreshes are event-driven.
   const fetchingActivityRef = useRef(false)
   const loadActivity = useCallback(async () => {
-    if (!normalizedCode || document.hidden || fetchingActivityRef.current) return
+    if (!normalizedCode || fetchingActivityRef.current) return
     fetchingActivityRef.current = true
     try {
       const data = await getTransferActivity(normalizedCode)
@@ -5472,16 +5761,21 @@ export default function SenderPage() {
     }
   }, [normalizedCode])
 
+  const requestActivityRefresh = useCallback(() => {
+    if (activityRefreshTimerRef.current) {
+      window.clearTimeout(activityRefreshTimerRef.current)
+      activityRefreshTimerRef.current = null
+    }
+
+    activityRefreshTimerRef.current = window.setTimeout(() => {
+      activityRefreshTimerRef.current = null
+      void loadActivity()
+    }, 300)
+  }, [loadActivity])
+
   useEffect(() => {
     if (!normalizedCode) return
-    loadActivity()
-    const iv = setInterval(loadActivity, 20000)
-    const onVisibility = () => { if (!document.hidden) loadActivity() }
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => {
-      clearInterval(iv)
-      document.removeEventListener('visibilitychange', onVisibility)
-    }
+    void loadActivity()
   }, [normalizedCode, loadActivity])
 
   // Socket
@@ -5498,6 +5792,7 @@ export default function SenderPage() {
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     const onExpired = () => {
       if (!mountedRef.current) return
+      updateTransferStatus(normalizedCode, 'EXPIRED')
       navigate('/expired?reason=expired', { replace: true })
     }
     const onAi = (data) => {
@@ -5510,7 +5805,11 @@ export default function SenderPage() {
     const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
     const onDownComplete = () => {
       setDownloadProgress(100)
-      void loadActivity()
+      if (metaRef.current?.burnAfterDownload) {
+        patchCachedTransfer({ status: 'CLAIMED' })
+        updateTransferStatus(normalizedCode, 'CLAIMED')
+      }
+      requestActivityRefresh()
       window.setTimeout(() => setDownloadProgress(null), 1500)
     }
     const onReceipt = (receipt) => {
@@ -5520,16 +5819,25 @@ export default function SenderPage() {
       if (receipt?.receiver) {
         toast.success(`Downloaded by ${receipt.receiver}`)
       }
+      requestActivityRefresh()
     }
     const onCancelled = () => {
+      if (!mountedRef.current || terminalNavigatedRef.current) return
+      terminalNavigatedRef.current = true
       setCancelled(true)
       patchCachedTransfer({ status: 'CANCELLED' })
-      void loadActivity()
+      updateTransferStatus(normalizedCode, 'CANCELLED')
+      requestActivityRefresh()
+      navigate('/expired?reason=cancelled', { replace: true })
     }
-    const onDeleted = () => {
+    const onDeleted = ({ reason } = {}) => {
+      if (!mountedRef.current || terminalNavigatedRef.current) return
+      terminalNavigatedRef.current = true
       setCancelled(true)
       patchCachedTransfer({ status: 'DELETED' })
-      void loadActivity()
+      updateTransferStatus(normalizedCode, 'DELETED')
+      requestActivityRefresh()
+      navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
     }
     const onExtended = ({ expiresAt }) => {
       if (expiresAt) {
@@ -5539,6 +5847,10 @@ export default function SenderPage() {
         setTotalSeconds(600)
         patchCachedTransfer({ expiresAt, secondsRemaining: newSeconds })
       }
+      requestActivityRefresh()
+    }
+    const onActivityUpdated = () => {
+      requestActivityRefresh()
     }
 
     socket.on('connect', connectRoom)
@@ -5551,6 +5863,7 @@ export default function SenderPage() {
     socket.on('transfer-cancelled', onCancelled)
     socket.on('transfer-deleted', onDeleted)
     socket.on('transfer-extended', onExtended)
+    socket.on('activity-updated', onActivityUpdated)
 
     return () => {
       socket.off('connect', connectRoom)
@@ -5563,9 +5876,10 @@ export default function SenderPage() {
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-extended', onExtended)
+      socket.off('activity-updated', onActivityUpdated)
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity, patchCachedTransfer])
+  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh])
 
   // Copy helpers
   const copyCode = useCallback(() => {
@@ -5576,12 +5890,41 @@ export default function SenderPage() {
     })
   }, [normalizedCode])
 
-  const copyLink = useCallback(() => {
-    navigator.clipboard.writeText(shareLink).then(() => {
+  const copyLink = useCallback(async () => {
+    const setCopied = () => {
       setCopiedLink(true)
       toast.success('Link copied')
       setTimeout(() => setCopiedLink(false), 2000)
-    })
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink)
+        setCopied()
+        return true
+      }
+    } catch {}
+
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = shareLink
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      ta.style.pointerEvents = 'none'
+      document.body.appendChild(ta)
+      ta.select()
+      ta.setSelectionRange(0, ta.value.length)
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      if (ok) {
+        setCopied()
+        return true
+      }
+    } catch {}
+
+    toast.error('Could not copy link on this browser')
+    return false
   }, [shareLink])
 
   // Ctrl+C shortcut
@@ -5597,11 +5940,14 @@ export default function SenderPage() {
 
   // Extend
   async function handleExtend() {
+    if (extending) return
     if (!confirmExtend) {
       setConfirmExtend(true)
       setTimeout(() => setConfirmExtend(false), 3000)
       return
     }
+
+    setExtending(true)
     try {
       const result = await extendTransfer(normalizedCode)
       setExtended(true)
@@ -5613,22 +5959,74 @@ export default function SenderPage() {
         setTotalSeconds(600)
       }
       toast.success('Extended by 10 minutes')
-    } catch { toast.error('Failed to extend') }
+    } catch {
+      toast.error('Failed to extend')
+    } finally {
+      setExtending(false)
+    }
   }
 
   // Delete
   async function handleDelete() {
+    if (deleting) return
     if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
+
+    setDeleting(true)
     try {
       await deleteTransfer(normalizedCode)
       toast.success('Transfer cancelled permanently')
+      terminalNavigatedRef.current = true
       setCancelled(true)
+      patchCachedTransfer({ status: 'CANCELLED' })
+      updateTransferStatus(normalizedCode, 'CANCELLED')
       setConfirmDelete(false)
-    } catch { toast.error('Failed to cancel') }
+      navigate('/expired?reason=cancelled', { replace: true })
+    } catch {
+      toast.error('Failed to cancel')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handlePreviewUnlock(e) {
+    e?.preventDefault()
+    if (!meta?.passwordProtected || previewUnlocking || !previewPassword.trim()) return
+
+    setPreviewUnlocking(true)
+    setPreviewPasswordError('')
+
+    try {
+      const result = await verifyPassword(normalizedCode, previewPassword)
+      if (result?.verified) {
+        verifiedPreviewPasswordRef.current = previewPassword
+        setPasswordVerified(true)
+        setPreviewPassword('')
+        toast.success('Preview unlocked')
+        return
+      }
+
+      setPreviewPasswordError('Verification failed. Please try again.')
+    } catch (err) {
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'INVALID_PASSWORD') {
+        setPreviewPasswordError('Wrong password. Please try again.')
+      } else if (err?.response?.status === 429) {
+        setPreviewPasswordError('Too many attempts. This transfer is locked.')
+      } else {
+        setPreviewPasswordError('Verification failed. Please try again.')
+      }
+    } finally {
+      setPreviewUnlocking(false)
+    }
   }
 
   // Per-file operations
   function handlePreview(index) {
+    if (meta?.passwordProtected && !passwordVerified) {
+      toast.error('Unlock preview first')
+      return
+    }
+
     const file = meta?.files?.[index]
     if (file) {
       setPreviewFile(file)
@@ -5637,19 +6035,40 @@ export default function SenderPage() {
   }
 
   function handleDownloadSingle(index) {
-    downloadSingleFile(normalizedCode, index)
+    const protectedTransfer = Boolean(meta?.passwordProtected)
+    const password = protectedTransfer ? (verifiedPreviewPasswordRef.current || undefined) : undefined
+    downloadSingleFile(normalizedCode, index, password)
   }
 
   // Share helpers
-  function handleWebShare() {
+  async function handleWebShare() {
+    const shareData = {
+      title: 'SwiftShare',
+      text: `Download my file: ${normalizedCode}`,
+      url: shareLink,
+    }
+
     if (canUseWebShare) {
-      navigator.share({
-        title: 'SwiftShare',
-        text: `Download my file: ${normalizedCode}`,
-        url: shareLink,
-      }).catch(() => {})
-    } else {
-      copyLink()
+      try {
+        const canSharePayload = typeof navigator.canShare === 'function' ? navigator.canShare(shareData) : true
+        if (canSharePayload) {
+          await navigator.share(shareData)
+          return
+        }
+      } catch (err) {
+        if (err?.name === 'AbortError') return
+      }
+    }
+
+    const copied = await copyLink()
+    if (copied) return
+
+    const mailto = `mailto:?subject=${encodeURIComponent('File for you')}&body=${encodeURIComponent(`Download here: ${shareLink}`)}`
+    try {
+      window.location.href = mailto
+      toast.success('Opened share app')
+    } catch {
+      toast.error('Share is not supported on this browser')
     }
   }
 
@@ -5753,19 +6172,33 @@ export default function SenderPage() {
       const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
       if (!mountedRef.current) return
       if (data.status === 'EXPIRED') {
+        updateTransferStatus(normalizedCode, 'EXPIRED')
         navigate('/expired?reason=expired', { replace: true })
         return
       }
-      if (data.status === 'CANCELLED' || data.status === 'DELETED') {
-        setCancelled(true)
+      if (data.status === 'CANCELLED') {
+        updateTransferStatus(normalizedCode, 'CANCELLED')
+        navigate('/expired?reason=cancelled', { replace: true })
+        return
+      }
+      if (data.status === 'DELETED') {
+        updateTransferStatus(normalizedCode, 'DELETED')
+        navigate('/expired?reason=burned', { replace: true })
+        return
       }
       applyTransferSnapshot(data, { persist: true })
     } catch (err) {
       if (!mountedRef.current) return
       const errCode = err?.response?.data?.error?.code
       if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-      else if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
-      else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
+      else if (errCode === 'TRANSFER_EXPIRED') {
+        updateTransferStatus(normalizedCode, 'EXPIRED')
+        navigate('/expired?reason=expired', { replace: true })
+      }
+      else if (errCode === 'ALREADY_DOWNLOADED') {
+        updateTransferStatus(normalizedCode, 'DELETED')
+        navigate('/expired?reason=burned', { replace: true })
+      }
       else setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
     } finally {
       if (mountedRef.current) setLoading(false)
@@ -5791,7 +6224,7 @@ export default function SenderPage() {
           <ErrorState
             code={error}
             onRetry={handleRetry}
-            autoRetry={error === 'NETWORK_ERROR'}
+            autoRetry={false}
           />
         </div>
       </div>
@@ -5842,7 +6275,8 @@ export default function SenderPage() {
           code={normalizedCode}
           fileIndex={previewIndex}
           onDownload={handleDownloadSingle}
-          senderKey={socketId}
+          password={verifiedPreviewPasswordRef.current || undefined}
+          passwordRequired={Boolean(meta?.passwordProtected) && !passwordVerified}
         />
       </Suspense>
 
@@ -5869,6 +6303,65 @@ export default function SenderPage() {
 
             {/* ═══ LEFT: scrolling content ═══ */}
             <div className="lg:col-span-3 space-y-5">
+              {meta?.passwordProtected && !passwordVerified && (
+                <motion.div
+                  className="surface-card p-4"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lock size={16} style={{ color: 'var(--accent)' }} />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                      Password required to preview files
+                    </p>
+                  </div>
+                  <form onSubmit={handlePreviewUnlock}>
+                    <div className="relative mb-3">
+                      <input
+                        type={showPreviewPassword ? 'text' : 'password'}
+                        value={previewPassword}
+                        onChange={(e) => {
+                          setPreviewPassword(e.target.value)
+                          setPreviewPasswordError('')
+                        }}
+                        placeholder="Enter transfer password"
+                        maxLength={64}
+                        className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
+                        style={{
+                          background: 'var(--bg-sunken)',
+                          border: `1.5px solid ${previewPasswordError ? 'var(--danger)' : 'var(--border)'}`,
+                          color: 'var(--text)',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
+                        onClick={() => setShowPreviewPassword(!showPreviewPassword)}
+                        tabIndex={-1}
+                      >
+                        {showPreviewPassword
+                          ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
+                          : <Eye size={16} style={{ color: 'var(--text-4)' }} />
+                        }
+                      </button>
+                    </div>
+                    {previewPasswordError && (
+                      <p className="text-xs mb-3" style={{ color: 'var(--danger)' }}>
+                        {previewPasswordError}
+                      </p>
+                    )}
+                    <button
+                      type="submit"
+                      className="btn-primary text-sm"
+                      disabled={!previewPassword.trim() || previewUnlocking}
+                    >
+                      {previewUnlocking ? <Loader2 size={15} className="animate-spin" /> : <Lock size={15} />}
+                      {previewUnlocking ? 'Verifying...' : 'Unlock preview'}
+                    </button>
+                  </form>
+                </motion.div>
+              )}
+
               {/* Files */}
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                 <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
@@ -5880,9 +6373,9 @@ export default function SenderPage() {
                       key={i}
                       file={f}
                       index={i}
-                      showDownload={!cancelled}
-                      onPreview={() => handlePreview(i)}
-                      onDownloadSingle={() => handleDownloadSingle(i)}
+                      showDownload={!cancelled && (!meta?.passwordProtected || passwordVerified)}
+                      onPreview={(!meta?.passwordProtected || passwordVerified) ? () => handlePreview(i) : undefined}
+                      onDownloadSingle={(!meta?.passwordProtected || passwordVerified) ? () => handleDownloadSingle(i) : undefined}
                     />
                   ))}
                 </div>
@@ -5951,9 +6444,9 @@ export default function SenderPage() {
                       {copiedCode ? <Check size={14} /> : <Copy size={14} />}
                       {copiedCode ? 'Copied!' : 'Copy code'}
                     </button>
-                    <button className="btn-secondary flex-1 text-xs" onClick={copyLink}>
-                      {copiedLink ? <Check size={14} /> : <ExternalLink size={14} />}
-                      {copiedLink ? 'Copied!' : 'Copy link'}
+                    <button className="btn-secondary flex-1 text-xs" onClick={handleWebShare}>
+                      {copiedLink ? <Check size={14} /> : <Share2 size={14} />}
+                      {copiedLink ? 'Link copied' : 'Share'}
                     </button>
                   </div>
                 </motion.div>
@@ -5991,7 +6484,7 @@ export default function SenderPage() {
                     </button>
                     <button className="btn-ghost justify-center col-span-2" onClick={handleWebShare}>
                       <Share2 size={14} />
-                      {canUseWebShare ? 'Share...' : 'Copy link'}
+                      {canUseWebShare ? 'Share' : 'Share (copy link)'}
                     </button>
                   </div>
                 </div>
@@ -6013,22 +6506,23 @@ export default function SenderPage() {
                       <button
                         className="btn-ghost flex-1 text-xs"
                         onClick={handleExtend}
-                        disabled={extended}
+                        disabled={extended || extending}
                         style={confirmExtend ? { borderColor: 'var(--warning)', color: 'var(--warning)' } : undefined}
                       >
                         {confirmExtend ? (
                           <><AlertTriangle size={13} />Confirm extend?</>
                         ) : (
-                          <><Clock size={13} />{extended ? 'Extended' : '+10 min'}</>
+                          <><Clock size={13} />{extending ? 'Extending...' : (extended ? 'Extended' : '+10 min')}</>
                         )}
                       </button>
                       <button
                         className="btn-ghost flex-1 text-xs hover:!text-red-500"
                         onClick={handleDelete}
+                        disabled={deleting}
                         style={confirmDelete ? { borderColor: 'var(--danger)', color: 'var(--danger)' } : undefined}
                       >
                         <Trash2 size={13} />
-                        {confirmDelete ? 'Delete forever?' : 'Cancel'}
+                        {deleting ? 'Cancelling...' : (confirmDelete ? 'Delete forever?' : 'Cancel')}
                       </button>
                     </div>
 
@@ -6061,8 +6555,25 @@ export default function SenderPage() {
   )
 }
 
-===== FILE: src/services/api.js (9737 bytes) =====
+===== FILE: src/services/api.js (10451 bytes) =====
 import axios from 'axios'
+
+function isLoopbackHost(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1'
+}
+
+function targetsLoopback(urlValue) {
+  if (typeof urlValue !== 'string' || !urlValue.trim()) {
+    return false
+  }
+
+  try {
+    const parsed = new URL(urlValue)
+    return isLoopbackHost(parsed.hostname)
+  } catch {
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(urlValue.trim())
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ENVIRONMENT-AWARE API URL RESOLUTION (PRODUCTION SAFE)
@@ -6072,7 +6583,18 @@ function getApiBaseUrl() {
   // Priority 1: Explicit VITE_API_URL from environment
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
-    return envApiUrl.trim().replace(/\/+$/, '')
+    const candidate = envApiUrl.trim().replace(/\/+$/, '')
+
+    if (typeof window !== 'undefined') {
+      const runtimeHost = window.location.hostname
+      if (!isLoopbackHost(runtimeHost) && targetsLoopback(candidate)) {
+        console.warn('[API] Ignoring localhost VITE_API_URL in non-local runtime, using same-origin instead')
+      } else {
+        return candidate
+      }
+    } else {
+      return candidate
+    }
   }
   
   // Priority 2: Runtime detection
@@ -6080,7 +6602,7 @@ function getApiBaseUrl() {
     const hostname = window.location.hostname
     
     // Local development
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    if (isLoopbackHost(hostname)) {
       return 'http://localhost:3001'
     }
     
@@ -6302,6 +6824,11 @@ export async function deleteTransfer(code) {
   return unwrapResponse(data)
 }
 
+export async function finalizeBurnTransfer(code) {
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/burn-finalize`)
+  return unwrapResponse(data)
+}
+
 // ── Nearby ──────────────────────────────────
 export async function getNearbyDevices(socketId) {
   const safeSocketId = String(socketId || '').trim()
@@ -6338,21 +6865,16 @@ export function downloadSingleFile(code, index, password) {
   window.location.href = getSingleDownloadUrl(code, index, password)
 }
 
-export function previewUrl(code, index, password, senderKey) {
+export function previewUrl(code, index, password) {
   const safeIndex = Number(index)
   let url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
-  url = appendPasswordQuery(url, password)
-  if (typeof senderKey === 'string' && senderKey.trim()) {
-    const separator = url.includes('?') ? '&' : '?'
-    url = `${url}${separator}senderKey=${encodeURIComponent(senderKey)}`
-  }
-  return url
+  return appendPasswordQuery(url, password)
 }
 
 ===== FILE: src/utils/constants.js (55 bytes) =====
 export const APP_MOTTO = 'Simple, yet too effective.';
 
-===== FILE: src/utils/download.js (1892 bytes) =====
+===== FILE: src/utils/download.js (1848 bytes) =====
 import {
   downloadFile,
   downloadSingleFile,
@@ -6368,9 +6890,9 @@ function buildPasswordHeaders(password) {
   return { 'x-transfer-password': password }
 }
 
-export async function smartDownload(code, { aiName, index, originalName, password } = {}) {
-  // For simple full-transfer downloads with no rename, use direct navigation (streaming, no memory pressure)
-  if (typeof index !== 'number' && !aiName) {
+export async function smartDownload(code, { index, originalName, password } = {}) {
+  // For simple full-transfer downloads, use direct navigation (streaming, no memory pressure)
+  if (typeof index !== 'number') {
     downloadFile(code, password)
     return true
   }
@@ -6394,7 +6916,7 @@ export async function smartDownload(code, { aiName, index, originalName, passwor
     }
 
     const blob = await resp.blob()
-    const filename = aiName || originalName || `swiftshare_${code}`
+    const filename = originalName || `swiftshare_${code}`
     triggerBlobDownload(blob, filename)
     return true
   } catch {
@@ -6727,7 +7249,7 @@ export function playSuccess() {
   playUploadSuccess()
 }
 
-===== FILE: src/utils/storage.js (10293 bytes) =====
+===== FILE: src/utils/storage.js (11241 bytes) =====
 const KEYS = {
   RECENT: 'swiftshare_recent',
   SETTINGS: 'swiftshare_settings',
@@ -6947,11 +7469,19 @@ export function getRecentTransfers() {
     const cachedTransfer = getCachedTransfer(normalizedCode)
     const cachedAI = getCachedAI(normalizedCode)
     const mergedTransfer = mergeTransferData(entry?.transfer || entry, cachedTransfer)
+    const isSender = Boolean(
+      entry?.isSender === true
+      || mergedTransfer?.isSender === true
+      || String(entry?.role || '').toLowerCase() === 'sender'
+      || String(mergedTransfer?.role || '').toLowerCase() === 'sender'
+    )
 
     return {
       ...entry,
       ...(mergedTransfer || {}),
       code: normalizedCode,
+      isSender,
+      role: isSender ? 'sender' : 'receiver',
       transfer: mergedTransfer || entry?.transfer || null,
       files: Array.isArray(mergedTransfer?.files) ? mergedTransfer.files : (Array.isArray(entry?.files) ? entry.files : []),
       ai: cachedAI || mergedTransfer?.ai || entry?.ai || null,
@@ -6963,8 +7493,20 @@ export function saveTransfer(entry) {
   const normalizedCode = normalizeCode(entry?.code)
   if (!normalizedCode) return
 
+  const currentRecent = getRecentTransfers()
+  const previousEntry = currentRecent.find((t) => t.code === normalizedCode) || null
+
+  const shouldKeepSender = Boolean(
+    entry?.isSender === true
+    || previousEntry?.isSender === true
+    || String(entry?.role || '').toLowerCase() === 'sender'
+    || String(previousEntry?.role || '').toLowerCase() === 'sender'
+  )
+  const role = shouldKeepSender ? 'sender' : 'receiver'
+
   const transferSource = isObject(entry?.transfer) ? entry.transfer : (isObject(entry) ? entry : null)
-  const mergedTransfer = transferSource ? saveCachedTransfer(normalizedCode, transferSource) : getCachedTransfer(normalizedCode)
+  const transferPayload = transferSource ? { ...transferSource, isSender: shouldKeepSender, role } : null
+  const mergedTransfer = transferPayload ? saveCachedTransfer(normalizedCode, transferPayload) : getCachedTransfer(normalizedCode)
 
   const aiFromEntry = entry?.ai || transferSource?.ai || null
   if (aiFromEntry) {
@@ -6976,17 +7518,19 @@ export function saveTransfer(entry) {
     ? mergedTransfer.files
     : (Array.isArray(entry?.files) ? entry.files : [])
 
-  const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
+  const list = currentRecent.filter(t => t.code !== normalizedCode)
   list.unshift({
     ...entry,
     code: normalizedCode,
+    isSender: shouldKeepSender,
+    role,
     filename: entry?.filename || filesSnapshot?.[0]?.name || normalizedCode,
     files: filesSnapshot,
     status: entry?.status || mergedTransfer?.status,
     expiresAt: entry?.expiresAt || mergedTransfer?.expiresAt,
     createdAt: entry?.createdAt || mergedTransfer?.createdAt,
     ai: aiSnapshot,
-    transfer: mergedTransfer,
+    transfer: mergedTransfer ? { ...mergedTransfer, isSender: shouldKeepSender, role } : mergedTransfer,
     savedAt: new Date().toISOString(),
   })
   safeSet(KEYS.RECENT, list.slice(0, 10))
@@ -7205,4 +7749,4 @@ export default defineConfig({
 ===== SUMMARY =====
 Included files: 43
 Skipped (too large): 0
-Total source bytes included: 258023
+Total source bytes included: 278523
