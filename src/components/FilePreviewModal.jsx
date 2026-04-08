@@ -24,6 +24,7 @@ function getPreviewType(file) {
 export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired, senderKey }) {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const videoRef = useRef(null)
 
   // Reset state when file changes
   React.useEffect(() => {
@@ -32,6 +33,54 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       setLoading(true)
     }
   }, [open, file, fileIndex])
+
+  React.useEffect(() => {
+	if (!open || !file) return
+	if (getPreviewType(file) !== 'video') return
+
+	// Ensure video is unmuted when modal opens
+	const videoEl = videoRef.current
+	if (!videoEl) return
+
+	// Add error handling for video loading
+	const handleError = (e) => {
+		console.error('[FilePreviewModal] Video load error:', e)
+		setLoading(false)
+		setError(true)
+	}
+
+	// Force unmute and set volume
+	const handleCanPlay = () => {
+		try {
+			videoEl.muted = false
+			videoEl.volume = 1.0
+		} catch (err) {
+			console.error('[FilePreviewModal] Failed to unmute video:', err)
+		}
+	}
+	
+	// Some browsers require user interaction before unmuting
+	const handlePlay = () => {
+		try {
+			if (videoEl.muted) {
+				videoEl.muted = false
+				videoEl.volume = 1.0
+			}
+		} catch (err) {
+			console.error('[FilePreviewModal] Failed to unmute on play:', err)
+		}
+	}
+	
+	videoEl.addEventListener('error', handleError)
+	videoEl.addEventListener('canplay', handleCanPlay)
+	videoEl.addEventListener('play', handlePlay)
+	
+	return () => {
+		videoEl.removeEventListener('error', handleError)
+		videoEl.removeEventListener('canplay', handleCanPlay)
+		videoEl.removeEventListener('play', handlePlay)
+	}
+  }, [open, file, fileIndex, code, password, senderKey])
 
   if (!open || !file) return null
 
@@ -185,7 +234,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     alt={file.name || 'Preview'}
                     className="max-w-full max-h-[65vh] object-contain rounded-xl"
                     style={{ display: loading ? 'none' : 'block' }}
-                    loading="lazy"
+                    loading="eager"
                     onLoad={() => setLoading(false)}
                     onError={() => { 
                       setLoading(false)
@@ -218,14 +267,43 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     <div className="shimmer-block w-full h-64 rounded-xl" />
                   )}
                   <video
+                    ref={videoRef}
                     controls
+                    playsInline
+                    preload="metadata"
+                    muted={false}
                     className="max-w-full max-h-[65vh] rounded-xl"
                     style={{ background: '#000', display: loading ? 'none' : 'block' }}
-                    onLoadedData={() => setLoading(false)}
-                    onError={() => { 
-                      setLoading(false)
-                      setError(true)
-                    }}
+                    onLoadedMetadata={(e) => {
+						try {
+							setLoading(false)
+							const videoEl = e.target
+							if (videoEl) {
+								videoEl.muted = false
+								videoEl.volume = 1.0
+							}
+						} catch (err) {
+							console.error('[FilePreviewModal] Video metadata load error:', err)
+							setLoading(false)
+						}
+					}}
+                    onError={(e) => {
+						console.error('[FilePreviewModal] Video error:', e)
+						setLoading(false)
+						setError(true)
+					}}
+					onLoadStart={() => {
+						// Video started loading
+						console.log('[FilePreviewModal] Video load started')
+					}}
+					onStalled={() => {
+						// Video stalled - might be network issue
+						console.warn('[FilePreviewModal] Video loading stalled')
+					}}
+					onSuspend={() => {
+						// Video suspended - might be intentional pause
+						console.log('[FilePreviewModal] Video loading suspended')
+					}}
                   >
                     <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
                     Your browser does not support video playback.

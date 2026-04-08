@@ -27,12 +27,12 @@ const MAX_SIZE = 100 * 1024 * 1024 // 100MB
 const MAX_FILES = 5
 
 const FEATURES = [
-  { icon: Shield, title: 'Zero Login', desc: 'No accounts, ever' },
-  { icon: Clock, title: 'Auto-Delete', desc: 'Files vanish on schedule' },
-  { icon: Flame, title: 'Burn Mode', desc: 'One download, then gone' },
-  { icon: Cpu, title: 'AI Analysis', desc: 'Smart file summaries' },
-  { icon: QrCode, title: 'QR Sharing', desc: 'Scan to download' },
-  { icon: Zap, title: 'Real-time', desc: 'Live progress tracking' },
+  { icon: Shield, title: 'No Sign-Up', desc: 'Share without accounts' },
+  { icon: Clock, title: 'Self-Destruct', desc: 'Gone when the timer ends' },
+  { icon: Flame, title: 'Burn Mode', desc: 'Vanishes after one grab' },
+  { icon: Cpu, title: 'AI Insights', desc: 'Understands your files' },
+  { icon: QrCode, title: 'QR Codes', desc: 'Point, scan, done' },
+  { icon: Zap, title: 'Live Updates', desc: 'Real-time progress' },
 ]
 
 export default function HomePage() {
@@ -106,7 +106,7 @@ export default function HomePage() {
   }, [files, navigate])
 
   // Title
-  useEffect(() => { document.title = 'SwiftShare — Share files instantly' }, [])
+  useEffect(() => { document.title = 'SwiftShare — Files sent, not stored' }, [])
 
   // Socket listeners for upload
   useEffect(() => {
@@ -149,7 +149,9 @@ export default function HomePage() {
               handleUploadSuccess(response)
             } catch (err) {
               setUploading(false)
-              toast.error(getUploadErrorMessage(err))
+              if (!shouldSuppressUploadError(err)) {
+                toast.error(getUploadErrorMessage(err))
+              }
             }
           }
           reader.readAsDataURL(blob)
@@ -199,12 +201,28 @@ export default function HomePage() {
     const backendMessage = typeof backendError === 'string'
       ? backendError
       : (backendError?.message || err?.response?.data?.message || '')
+    const errorCode = String(err?.code || '').toUpperCase()
+    const transportMessage = String(err?.message || '').toLowerCase()
+
+    if (!err?.response) {
+      if (errorCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
+        return 'Upload is taking longer than expected. Please wait a moment and retry.'
+      }
+      return 'Upload connection was interrupted. Please retry once.'
+    }
 
     if (status === 429) {
       return backendMessage || 'Rate limit active: Please wait a moment before sending more files.'
     }
 
-    return backendMessage || err?.message || 'Upload failed'
+    return backendMessage || 'Upload failed. Please try again.'
+  }
+
+  function shouldSuppressUploadError(err) {
+    // If socket already confirmed completion, ignore late transport-level failures.
+    if (uploadHandledRef.current) return true
+    if (String(err?.code || '').toUpperCase() === 'ERR_CANCELED') return true
+    return false
   }
 
   async function handleUpload() {
@@ -238,7 +256,9 @@ export default function HomePage() {
       uploadSucceeded = true
       handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
-      toast.error(getUploadErrorMessage(err))
+      if (!shouldSuppressUploadError(err)) {
+        toast.error(getUploadErrorMessage(err))
+      }
     } finally {
       // Always release spinner on failure; successful path is handled by handleUploadSuccess/navigation.
       if (!uploadSucceeded) {
@@ -269,21 +289,21 @@ export default function HomePage() {
                 transition={{ duration: 0.4 }}
               >
                 <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl leading-tight mb-2" style={{ color: 'var(--text)' }}>
-                  Share files<br />
-                  <span style={{ color: 'var(--accent)' }}>instantly.</span>
+                  Simple,<br />
+                  <span style={{ color: 'var(--accent)' }}>yet too effective.</span>
                 </h1>
                 <p className="text-base sm:text-lg mb-2" style={{ color: 'var(--text-3)' }}>
-                  Drop a file, get a code. No sign-up. Auto-delete is built in.
+                  Send files instantly like a message.
                 </p>
-                <p 
+                <p
                   className="text-sm font-medium tracking-wide bg-clip-text text-transparent bg-gradient-to-r"
-                  style={{ 
+                  style={{
                     backgroundImage: 'linear-gradient(to right, var(--accent), var(--accent-hover))',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                   }}
                 >
-                  Simple, yet too effective.
+                  Works on any device, anywhere.
                 </p>
               </motion.div>
 
@@ -566,7 +586,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Receive a file</p>
-                  <p className="text-xs" style={{ color: 'var(--text-3)' }}>Enter a 6-digit code to download</p>
+                  <p className="text-xs" style={{ color: 'var(--text-3)' }}>Enter a code to grab your file</p>
                 </div>
                 <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--accent)' }} />
               </motion.button>
@@ -611,14 +631,14 @@ export default function HomePage() {
                 <h3 className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-4)' }}>How it works</h3>
                 <div className="space-y-4">
                   {[
-                    { step: '1', label: 'Drop your file', desc: 'Drag & drop or click to upload' },
-                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or QR before leaving' },
-                    { step: '3', label: 'They download', desc: 'Files auto-delete after expiry or burn' },
+                    { step: '1', label: 'Drop your file', desc: 'Drag, drop, or paste — that\'s it' },
+                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or scan the QR' },
+                    { step: '3', label: 'Done', desc: 'They download, then the file disappears' },
                   ].map(({ step, label, desc }) => (
                     <div key={step} className="flex items-start gap-3">
                       <div
                         className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-display font-bold text-xs"
-                        style={{ background: 'var(--accent)', color: '#fff' }}
+                        style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
                       >
                         {step}
                       </div>

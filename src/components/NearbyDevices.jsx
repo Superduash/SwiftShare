@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, Download, Clock, Send } from 'lucide-react'
-import { getNearbyDevices } from '../services/api'
 import { formatBytes, formatRelativeExpiry } from '../utils/format'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -26,6 +25,8 @@ function dedupeDevices(list, selfSocketId) {
     })
 }
 
+const POLL_INTERVAL = 30000 // 30 seconds instead of 10
+
 export default function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
@@ -33,6 +34,7 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
   const { socket, socketId } = useSocket()
   const normalizedTransferCode = normalizeCode(currentTransferCode)
   const isSenderShareMode = Boolean(normalizedTransferCode)
+  const lastPingRef = useRef(0)
 
   const handleShareToDevice = (targetSocketId) => {
     const safeTargetSocketId = String(targetSocketId || '').trim()
@@ -47,40 +49,12 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     toast.success('Share prompt sent!')
   }
 
+  // Single unified polling via socket only (no duplicate API calls)
   useEffect(() => {
-    let mounted = true
-
-    if (socket) {
+    if (!socket) {
       setLoading(false)
-      return () => {
-        mounted = false
-      }
+      return
     }
-
-    async function fetch() {
-      if (document.hidden) {
-        if (mounted) setLoading(false)
-        return
-      }
-      try {
-        const data = await getNearbyDevices(socketId)
-        if (mounted) {
-          setDevices(dedupeDevices(data?.devices, socketId))
-        }
-      } catch {
-        if (mounted) {
-          setDevices([])
-        }
-      }
-      if (mounted) setLoading(false)
-    }
-    fetch()
-    const iv = setInterval(fetch, 10000)
-    return () => { mounted = false; clearInterval(iv) }
-  }, [socket, socketId])
-
-  useEffect(() => {
-    if (!socket) return undefined
 
     const onNearbyDevices = (payload = {}) => {
       setDevices(dedupeDevices(payload.devices, socketId))
@@ -88,16 +62,32 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     }
 
     const requestNearby = () => {
+      if (document.hidden) return
+      const now = Date.now()
+      // Debounce: don't ping more than once every 5 seconds
+      if (now - lastPingRef.current < 5000) return
+      lastPingRef.current = now
       socket.emit('nearby-ping', {})
     }
 
     socket.on('nearby-devices', onNearbyDevices)
     socket.on('connect', requestNearby)
+
+    // Initial request
     requestNearby()
-    const iv = setInterval(requestNearby, 10000)
+
+    // Poll at reduced interval
+    const iv = setInterval(requestNearby, POLL_INTERVAL)
+
+    // Pause polling when tab is hidden
+    const onVisibility = () => {
+      if (!document.hidden) requestNearby()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       clearInterval(iv)
+      document.removeEventListener('visibilitychange', onVisibility)
       socket.off('connect', requestNearby)
       socket.off('nearby-devices', onNearbyDevices)
     }

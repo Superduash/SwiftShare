@@ -42,17 +42,26 @@ export default function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-1">
-            {/* Connection dot */}
-            <div className="flex items-center gap-1.5 px-2 py-1 mr-1">
+            {/* Connection status */}
+            <div 
+              className="flex items-center gap-1.5 px-2 py-1 mr-1 rounded-lg transition-colors"
+              style={{
+                background: isConnected ? 'var(--success-soft)' : 'var(--warning-soft)',
+              }}
+              title={isConnected ? 'Connected to server' : 'Connecting to server...'}
+            >
               <div
-                className="w-2 h-2 rounded-full"
+                className="w-2 h-2 rounded-full transition-all duration-500"
                 style={{
                   background: isConnected ? 'var(--success)' : 'var(--warning)',
-                  boxShadow: isConnected ? '0 0 6px rgba(22,163,74,0.4)' : '0 0 6px rgba(217,119,6,0.4)',
+                  boxShadow: isConnected ? '0 0 6px rgba(22,163,74,0.4)' : '0 0 6px rgba(234,179,8,0.4)',
+                  animation: isConnected ? 'none' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                 }}
               />
-              <span className="text-xs font-medium hidden sm:inline" style={{ color: 'var(--text-3)' }}>
-                {isConnected ? 'Connected' : 'Connecting'}
+              <span className="text-xs font-medium hidden sm:inline" style={{ 
+                color: isConnected ? 'var(--success)' : 'var(--warning)' 
+              }}>
+                {isConnected ? 'Live' : 'Syncing'}
               </span>
             </div>
 

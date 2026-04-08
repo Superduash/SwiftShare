@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-08T05:10:17Z
+Generated: 2026-04-08T09:54:43Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (118 bytes) =====
@@ -12,10 +12,18 @@ VITE_API_URL=http://localhost:3001
 VITE_SOCKET_URL=http://localhost:3001
 VITE_SHARE_BASE_URL=http://localhost:5173
 
-===== FILE: .env.production (159 bytes) =====
-VITE_API_URL=https://swiftshare-backend.onrender.com
-VITE_SOCKET_URL=https://swiftshare-backend.onrender.com
-VITE_SHARE_BASE_URL=https://swiftshare.vercel.app
+===== FILE: .env.production (348 bytes) =====
+# Production Environment Variables
+# Replace with your actual production URLs
+
+# Backend API URL (REQUIRED)
+VITE_API_URL=https://your-backend.onrender.com
+
+# WebSocket URL (optional, defaults to API_URL)
+VITE_SOCKET_URL=https://your-backend.onrender.com
+
+# Share base URL for QR codes and links
+VITE_SHARE_BASE_URL=https://your-frontend.vercel.app
 
 ===== FILE: index.html (1971 bytes) =====
 <!DOCTYPE html>
@@ -101,16 +109,17 @@ export default {
   },
 }
 
-===== FILE: src/App.jsx (5861 bytes) =====
+===== FILE: src/App.jsx (7219 bytes) =====
 import React, { Suspense, lazy, useEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
-  useLocation, useParams,
+  useLocation, useNavigate, useParams,
 } from 'react-router-dom'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
+import toast from 'react-hot-toast'
 
-import { SocketProvider } from './context/SocketContext'
+import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
 import { pingServer } from './services/api'
 import { getSettings } from './utils/storage'
@@ -205,6 +214,54 @@ function AnimatedRoutes() {
   )
 }
 
+function NearbyOfferListener() {
+  const { socket } = useSocket()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!socket) return undefined
+
+    const handleOffer = ({ code, filename } = {}) => {
+      const safeCode = String(code || '').trim().toUpperCase()
+      if (!safeCode) return
+
+      toast((t) => (
+        <div className="flex flex-col gap-2">
+          <span className="font-semibold text-sm">Nearby Share</span>
+          <span className="text-xs text-gray-500">Receive {filename || 'file'}?</span>
+
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => {
+                navigate(`/download/${safeCode}`)
+                toast.dismiss(t.id)
+              }}
+              className="btn-primary text-xs py-1"
+            >
+              Accept
+            </button>
+
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="btn-secondary text-xs py-1"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      ), { duration: 10000 })
+    }
+
+    socket.on('receive-transfer-offer', handleOffer)
+
+    return () => {
+      socket.off('receive-transfer-offer', handleOffer)
+    }
+  }, [socket, navigate])
+
+  return null
+}
+
 // ── Root ─────────────────────────────────────
 export default function App() {
   const [reducedMotion, setReducedMotion] = React.useState(() => getSettings().reducedMotion)
@@ -229,6 +286,7 @@ export default function App() {
       <SocketProvider>
         <TransferProvider>
           <BrowserRouter>
+            <NearbyOfferListener />
             <AnimatedRoutes />
           </BrowserRouter>
           <Toaster
@@ -256,7 +314,7 @@ export default function App() {
   )
 }
 
-===== FILE: src/components/AISummaryCard.jsx (9314 bytes) =====
+===== FILE: src/components/AISummaryCard.jsx (9511 bytes) =====
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -280,12 +338,12 @@ function getCategoryIcon(cat) {
   return CATEGORY_ICONS.default
 }
 
-const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic)\b/gi
+const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic|captured text reads|media shared for media sharing|context derived from)\b/gi
 
 function cleanSummary(text) {
   return String(text || '')
     .replace(BANNED_PHRASES_RE, '')
-    .replace(/\b(mime|format|extension|file size|size)\b\s*[:\-]?/gi, '')
+    .replace(/\b(mime|format|extension|file size)\b\s*[:\-]?/gi, '')
     .replace(/\b\d+(?:\.\d+)?\s*(kb|mb|gb|bytes?)\b/gi, '')
     .replace(/\bmetadata\b/gi, '')
     .replace(/\s+/g, ' ')
@@ -305,9 +363,10 @@ function cleanKeyPoints(points) {
 export default function AISummaryCard({ ai, loading = false }) {
   const [copied, setCopied] = useState(false)
   const [showFiles, setShowFiles] = useState(false)
+  const activeAi = ai
 
   function copySuggestedName() {
-    const name = ai?.suggestedName || ai?.suggested_filename
+    const name = activeAi?.suggestedName || activeAi?.suggested_filename
     if (!name) return
     navigator.clipboard.writeText(name).then(() => {
       setCopied(true)
@@ -316,12 +375,12 @@ export default function AISummaryCard({ ai, loading = false }) {
     }).catch(() => {})
   }
 
-  const CatIcon = ai?.category ? getCategoryIcon(ai.category) : Sparkles
-  const summary = cleanSummary(ai?.summary || ai?.overall_summary)
-  const suggestedName = ai?.suggestedName || ai?.suggested_filename
-  const detectedIntent = ai?.detectedIntent || ai?.detected_intent
-  const riskFlags = ai?.riskFlags || ai?.risk_flags || []
-  const fileAnalysis = (ai?.files || []).map((file) => ({
+  const CatIcon = activeAi?.category ? getCategoryIcon(activeAi.category) : Sparkles
+  const summary = cleanSummary(activeAi?.summary || activeAi?.overall_summary)
+  const suggestedName = activeAi?.suggestedName || activeAi?.suggested_filename
+  const detectedIntent = activeAi?.detectedIntent || activeAi?.detected_intent
+  const riskFlags = activeAi?.riskFlags || activeAi?.risk_flags || []
+  const fileAnalysis = (activeAi?.files || []).map((file) => ({
     ...file,
     summary: cleanSummary(file?.summary),
     key_points: cleanKeyPoints(file?.key_points),
@@ -363,14 +422,14 @@ export default function AISummaryCard({ ai, loading = false }) {
               Analyzing with AI...
             </p>
           </motion.div>
-        ) : ai ? (
+        ) : activeAi ? (
           <motion.div key="data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             {/* Category + Intent */}
             <div className="flex flex-wrap items-center gap-1.5 mb-3">
-              {ai.category && (
+              {activeAi.category && (
                 <div className="badge">
                   <CatIcon size={12} />
-                  {ai.category}
+                  {activeAi.category}
                 </div>
               )}
               {detectedIntent && (
@@ -402,10 +461,10 @@ export default function AISummaryCard({ ai, loading = false }) {
             )}
 
             {/* Image description */}
-            {ai.imageDescription && (
+            {activeAi.imageDescription && (
               <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--info-soft)', border: '1px solid rgba(8,145,178,0.15)' }}>
                 <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--info)' }}>What's in the image</p>
-                <p className="text-xs" style={{ color: 'var(--text-2)' }}>{ai.imageDescription}</p>
+                <p className="text-xs" style={{ color: 'var(--text-2)' }}>{activeAi.imageDescription}</p>
               </div>
             )}
 
@@ -627,23 +686,67 @@ export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600
   )
 }
 
-===== FILE: src/components/ErrorState.jsx (1467 bytes) =====
-import React from 'react'
+===== FILE: src/components/ErrorState.jsx (3004 bytes) =====
+import React, { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { getErrorInfo } from '../utils/errors'
 
-export default function ErrorState({ code, title, description, action, onAction }) {
+export default function ErrorState({ code, title, description, action, onAction, onRetry, autoRetry = false }) {
   const navigate = useNavigate()
   const info = code ? getErrorInfo(code) : null
   const Icon = info?.icon
   const displayTitle = title || info?.title || 'Error'
   const displayDesc = description || info?.description || 'Something went wrong.'
-  const displayAction = action || info?.action || 'Go home'
+  const displayAction = action || (onRetry ? 'Retry' : info?.action || 'Go home')
   const color = info?.color || 'var(--danger)'
+  const isRetryable = code === 'NETWORK_ERROR' || code === 'TIMEOUT_ERROR' || code === 'SERVER_ERROR'
+  const [retrying, setRetrying] = useState(false)
+  const [countdown, setCountdown] = useState(autoRetry && isRetryable ? 5 : 0)
+  const retryInFlightRef = useRef(false)
+
+  useEffect(() => {
+    setCountdown(autoRetry && isRetryable ? 5 : 0)
+  }, [autoRetry, isRetryable, code])
+
+  // Auto-retry countdown for network errors
+  useEffect(() => {
+    if (!autoRetry || !isRetryable || !onRetry) return
+    if (countdown <= 0) return
+
+    const timer = setTimeout(() => {
+      if (countdown === 1) {
+        handleRetry()
+      } else {
+        setCountdown(countdown - 1)
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [countdown, autoRetry, isRetryable, onRetry])
+
+  async function handleRetry() {
+    if (retryInFlightRef.current) return
+
+    if (onRetry) {
+      retryInFlightRef.current = true
+      setRetrying(true)
+      setCountdown(0)
+      try {
+        await onRetry()
+      } catch {
+        // onRetry handles its own error state
+      }
+      setRetrying(false)
+      retryInFlightRef.current = false
+      return
+    }
+    handleAction()
+  }
 
   function handleAction() {
     if (onAction) return onAction()
+    if (onRetry) return handleRetry()
     navigate('/')
   }
 
@@ -664,9 +767,18 @@ export default function ErrorState({ code, title, description, action, onAction 
       )}
       <h2 className="font-display font-bold text-xl mb-2" style={{ color: 'var(--text)' }}>{displayTitle}</h2>
       <p className="text-sm max-w-xs mx-auto mb-6" style={{ color: 'var(--text-3)' }}>{displayDesc}</p>
-      <button className="btn-primary mx-auto" onClick={handleAction}>
-        {displayAction}
+      <button
+        className="btn-primary mx-auto"
+        onClick={handleAction}
+        disabled={retrying}
+      >
+        {retrying ? 'Retrying...' : displayAction}
       </button>
+      {countdown > 0 && (
+        <p className="text-xs mt-3" style={{ color: 'var(--text-4)' }}>
+          Auto-retrying in {countdown}s...
+        </p>
+      )}
     </motion.div>
   )
 }
@@ -800,7 +912,7 @@ export default function FileCard({
   )
 }
 
-===== FILE: src/components/FilePreviewModal.jsx (12918 bytes) =====
+===== FILE: src/components/FilePreviewModal.jsx (15048 bytes) =====
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Download, FileText, AlertTriangle, Lock } from 'lucide-react'
@@ -827,6 +939,7 @@ function getPreviewType(file) {
 export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired, senderKey }) {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const videoRef = useRef(null)
 
   // Reset state when file changes
   React.useEffect(() => {
@@ -835,6 +948,54 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       setLoading(true)
     }
   }, [open, file, fileIndex])
+
+  React.useEffect(() => {
+	if (!open || !file) return
+	if (getPreviewType(file) !== 'video') return
+
+	// Ensure video is unmuted when modal opens
+	const videoEl = videoRef.current
+	if (!videoEl) return
+
+	// Add error handling for video loading
+	const handleError = (e) => {
+		console.error('[FilePreviewModal] Video load error:', e)
+		setLoading(false)
+		setError(true)
+	}
+
+	// Force unmute and set volume
+	const handleCanPlay = () => {
+		try {
+			videoEl.muted = false
+			videoEl.volume = 1.0
+		} catch (err) {
+			console.error('[FilePreviewModal] Failed to unmute video:', err)
+		}
+	}
+	
+	// Some browsers require user interaction before unmuting
+	const handlePlay = () => {
+		try {
+			if (videoEl.muted) {
+				videoEl.muted = false
+				videoEl.volume = 1.0
+			}
+		} catch (err) {
+			console.error('[FilePreviewModal] Failed to unmute on play:', err)
+		}
+	}
+	
+	videoEl.addEventListener('error', handleError)
+	videoEl.addEventListener('canplay', handleCanPlay)
+	videoEl.addEventListener('play', handlePlay)
+	
+	return () => {
+		videoEl.removeEventListener('error', handleError)
+		videoEl.removeEventListener('canplay', handleCanPlay)
+		videoEl.removeEventListener('play', handlePlay)
+	}
+  }, [open, file, fileIndex, code, password, senderKey])
 
   if (!open || !file) return null
 
@@ -988,7 +1149,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     alt={file.name || 'Preview'}
                     className="max-w-full max-h-[65vh] object-contain rounded-xl"
                     style={{ display: loading ? 'none' : 'block' }}
-                    loading="lazy"
+                    loading="eager"
                     onLoad={() => setLoading(false)}
                     onError={() => { 
                       setLoading(false)
@@ -1021,14 +1182,43 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     <div className="shimmer-block w-full h-64 rounded-xl" />
                   )}
                   <video
+                    ref={videoRef}
                     controls
+                    playsInline
+                    preload="metadata"
+                    muted={false}
                     className="max-w-full max-h-[65vh] rounded-xl"
                     style={{ background: '#000', display: loading ? 'none' : 'block' }}
-                    onLoadedData={() => setLoading(false)}
-                    onError={() => { 
-                      setLoading(false)
-                      setError(true)
-                    }}
+                    onLoadedMetadata={(e) => {
+						try {
+							setLoading(false)
+							const videoEl = e.target
+							if (videoEl) {
+								videoEl.muted = false
+								videoEl.volume = 1.0
+							}
+						} catch (err) {
+							console.error('[FilePreviewModal] Video metadata load error:', err)
+							setLoading(false)
+						}
+					}}
+                    onError={(e) => {
+						console.error('[FilePreviewModal] Video error:', e)
+						setLoading(false)
+						setError(true)
+					}}
+					onLoadStart={() => {
+						// Video started loading
+						console.log('[FilePreviewModal] Video load started')
+					}}
+					onStalled={() => {
+						// Video stalled - might be network issue
+						console.warn('[FilePreviewModal] Video loading stalled')
+					}}
+					onSuspend={() => {
+						// Video suspended - might be intentional pause
+						console.log('[FilePreviewModal] Video loading suspended')
+					}}
                   >
                     <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
                     Your browser does not support video playback.
@@ -1172,7 +1362,7 @@ export default function LoadingScreen({ message = 'Loading...' }) {
   )
 }
 
-===== FILE: src/components/Navbar.jsx (2805 bytes) =====
+===== FILE: src/components/Navbar.jsx (3268 bytes) =====
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -1217,17 +1407,26 @@ export default function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-1">
-            {/* Connection dot */}
-            <div className="flex items-center gap-1.5 px-2 py-1 mr-1">
+            {/* Connection status */}
+            <div 
+              className="flex items-center gap-1.5 px-2 py-1 mr-1 rounded-lg transition-colors"
+              style={{
+                background: isConnected ? 'var(--success-soft)' : 'var(--warning-soft)',
+              }}
+              title={isConnected ? 'Connected to server' : 'Connecting to server...'}
+            >
               <div
-                className="w-2 h-2 rounded-full"
+                className="w-2 h-2 rounded-full transition-all duration-500"
                 style={{
                   background: isConnected ? 'var(--success)' : 'var(--warning)',
-                  boxShadow: isConnected ? '0 0 6px rgba(22,163,74,0.4)' : '0 0 6px rgba(217,119,6,0.4)',
+                  boxShadow: isConnected ? '0 0 6px rgba(22,163,74,0.4)' : '0 0 6px rgba(234,179,8,0.4)',
+                  animation: isConnected ? 'none' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                 }}
               />
-              <span className="text-xs font-medium hidden sm:inline" style={{ color: 'var(--text-3)' }}>
-                {isConnected ? 'Connected' : 'Connecting'}
+              <span className="text-xs font-medium hidden sm:inline" style={{ 
+                color: isConnected ? 'var(--success)' : 'var(--warning)' 
+              }}>
+                {isConnected ? 'Live' : 'Syncing'}
               </span>
             </div>
 
@@ -1244,46 +1443,101 @@ export default function Navbar() {
   )
 }
 
-===== FILE: src/components/NearbyDevices.jsx (3955 bytes) =====
-import React, { useEffect, useState } from 'react'
+===== FILE: src/components/NearbyDevices.jsx (6485 bytes) =====
+import React, { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Wifi, Download, Clock } from 'lucide-react'
-import { getNearbyDevices } from '../services/api'
+import { Wifi, Download, Clock, Send } from 'lucide-react'
 import { formatBytes, formatRelativeExpiry } from '../utils/format'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import { useSocket } from '../context/SocketContext'
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase()
 }
 
-export default function NearbyDevices() {
+function dedupeDevices(list, selfSocketId) {
+  const seen = new Set()
+  return (Array.isArray(list) ? list : [])
+    .filter(Boolean)
+    .filter((device) => {
+      const candidateSocketId = String(device.socketId || '').trim()
+      if (!candidateSocketId) return true
+      if (selfSocketId && candidateSocketId === selfSocketId) return false
+      const key = candidateSocketId || normalizeCode(device.code)
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
+const POLL_INTERVAL = 30000 // 30 seconds instead of 10
+
+export default function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { socket, socketId } = useSocket()
+  const normalizedTransferCode = normalizeCode(currentTransferCode)
+  const isSenderShareMode = Boolean(normalizedTransferCode)
+  const lastPingRef = useRef(0)
 
+  const handleShareToDevice = (targetSocketId) => {
+    const safeTargetSocketId = String(targetSocketId || '').trim()
+    if (!socket || !safeTargetSocketId || !normalizedTransferCode) return
+
+    socket.emit('push-transfer-offer', {
+      targetSocketId: safeTargetSocketId,
+      code: normalizedTransferCode,
+      filename: currentFilename || 'shared file',
+    })
+
+    toast.success('Share prompt sent!')
+  }
+
+  // Single unified polling via socket only (no duplicate API calls)
   useEffect(() => {
-    let mounted = true
-    async function fetch() {
-      if (document.hidden) {
-        if (mounted) setLoading(false)
-        return
-      }
-      try {
-        const data = await getNearbyDevices()
-        if (mounted) {
-          setDevices(Array.isArray(data?.devices) ? data.devices : [])
-        }
-      } catch {
-        if (mounted) {
-          setDevices([])
-        }
-      }
-      if (mounted) setLoading(false)
+    if (!socket) {
+      setLoading(false)
+      return
     }
-    fetch()
-    const iv = setInterval(fetch, 10000)
-    return () => { mounted = false; clearInterval(iv) }
-  }, [])
+
+    const onNearbyDevices = (payload = {}) => {
+      setDevices(dedupeDevices(payload.devices, socketId))
+      setLoading(false)
+    }
+
+    const requestNearby = () => {
+      if (document.hidden) return
+      const now = Date.now()
+      // Debounce: don't ping more than once every 5 seconds
+      if (now - lastPingRef.current < 5000) return
+      lastPingRef.current = now
+      socket.emit('nearby-ping', {})
+    }
+
+    socket.on('nearby-devices', onNearbyDevices)
+    socket.on('connect', requestNearby)
+
+    // Initial request
+    requestNearby()
+
+    // Poll at reduced interval
+    const iv = setInterval(requestNearby, POLL_INTERVAL)
+
+    // Pause polling when tab is hidden
+    const onVisibility = () => {
+      if (!document.hidden) requestNearby()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      clearInterval(iv)
+      document.removeEventListener('visibilitychange', onVisibility)
+      socket.off('connect', requestNearby)
+      socket.off('nearby-devices', onNearbyDevices)
+    }
+  }, [socket, socketId])
 
   if (loading) return null
 
@@ -1322,27 +1576,40 @@ export default function NearbyDevices() {
         <AnimatePresence>
           {devices.map((dev, idx) => (
             <motion.button
-              key={dev.code}
+              key={dev.socketId || dev.code}
               className="w-full surface-card-flat p-3 flex items-center gap-3 text-left hover:border-[var(--accent)] transition-colors"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ delay: idx * 0.05 }}
               onClick={() => {
+                if (isSenderShareMode) {
+                  if (dev.socketId) {
+                    handleShareToDevice(dev.socketId)
+                  } else {
+                    toast.error('This device is not ready for direct prompt sharing yet.')
+                  }
+                  return
+                }
+
                 const normalizedCode = normalizeCode(dev.code)
                 if (!normalizedCode) return
                 navigate(`/download/${normalizedCode}`)
               }}
             >
               <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--success-soft)' }}>
-                <Download size={16} style={{ color: 'var(--success)' }} />
+                {isSenderShareMode
+                  ? <Send size={16} style={{ color: 'var(--success)' }} />
+                  : <Download size={16} style={{ color: 'var(--success)' }} />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                   {dev.deviceName || dev.code}
                 </p>
                 <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-                  {dev.fileCount} file{dev.fileCount !== 1 ? 's' : ''} · {formatBytes(dev.totalSize)}
+                  {isSenderShareMode
+                    ? (dev.socketId ? 'Tap to send share prompt' : 'Direct prompt unavailable')
+                    : `${dev.fileCount} file${dev.fileCount !== 1 ? 's' : ''} · ${formatBytes(dev.totalSize)}`}
                 </p>
               </div>
               <div className="flex items-center gap-1 text-[10px] shrink-0" style={{ color: 'var(--text-4)' }}>
@@ -1463,7 +1730,7 @@ export default function QRModal({ open, onClose, value, code }) {
   )
 }
 
-===== FILE: src/components/RecentTransfers.jsx (7938 bytes) =====
+===== FILE: src/components/RecentTransfers.jsx (7178 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
@@ -1475,7 +1742,6 @@ import {
   getCachedTransfer,
   mergeTransferData,
 } from '../utils/storage'
-import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
 const STATUS_STYLES = {
@@ -1504,37 +1770,19 @@ export default function RecentTransfers() {
   const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
 
+  // Recalculate statuses locally from expiry time — no API spam
   useEffect(() => {
-    let mounted = true
-    const list = getRecentTransfers()
-    const checks = list.filter((t) => {
-      const status = String(t?.status || '').toUpperCase()
-      if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') return false
-      if (t?.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) return false
-      return true
-    })
-
-    if (!checks.length) return
-
-    const indexByCode = new Map(checks.map((t, idx) => [normalizeCode(t.code), idx]))
-
-    Promise.allSettled(checks.map(t => getTransferStatus(t.code))).then(results => {
-      if (!mounted) return
-      setTransfers(prev => prev.map((p) => {
-        const resultIndex = indexByCode.get(normalizeCode(p.code))
-        if (typeof resultIndex !== 'number') return p
-
-        const result = results[resultIndex]
-        if (result?.status === 'fulfilled') {
-          const data = result.value
-          return { ...p, status: data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED') }
+    const timer = setInterval(() => {
+      setTransfers(prev => prev.map(t => {
+        const status = String(t?.status || '').toUpperCase()
+        if (status === 'CANCELLED' || status === 'DELETED') return t
+        if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
+          return { ...t, status: 'EXPIRED' }
         }
-        // On network failure, keep the previous status instead of assuming expired.
-        // This prevents active files from showing "Expired" during cold-start or transient errors.
-        return p
+        return t
       }))
-    })
-    return () => { mounted = false }
+    }, 30000) // check every 30s
+    return () => clearInterval(timer)
   }, [])
 
   if (!transfers.length) return null
@@ -1562,10 +1810,8 @@ export default function RecentTransfers() {
     if (!normalizedCode) return
 
     const status = String(t?.status || '').toUpperCase()
-    // Only redirect for definitively terminal states — NOT for 'unknown' or empty status
-    if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
-      const reason = status === 'EXPIRED' ? 'expired' : 'notfound'
-      navigate(`/expired?reason=${reason}`)
+    if (['EXPIRED', 'CANCELLED', 'DELETED'].includes(status)) {
+      navigate(`/expired?reason=${status.toLowerCase()}`)
       return
     }
 
@@ -1580,19 +1826,20 @@ export default function RecentTransfers() {
     const cachedTransfer = getCachedTransfer(normalizedCode)
     const resolvedTransferData = mergeTransferData(cachedTransfer || t?.transfer, transferData) || transferData
 
+    // Determine if this is a sender or receiver transfer
+    // isSender === true means user sent this file (go to /sender)
+    // isSender === false means user received this file (go to /download)
+    const isSender = t.isSender === true || t.role === 'sender'
+
     // Pass local transfer data so destination pages can render immediately.
     try {
-      navigate(t.isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`, {
+      navigate(isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`, {
         state: { transferData: resolvedTransferData }
       })
     } catch (err) {
       console.error('[RecentTransfers] Navigation error:', err)
       // Fallback: navigate without state
-      if (t.isSender) {
-        navigate(`/sender/${normalizedCode}`)
-      } else {
-        navigate(`/download/${normalizedCode}`)
-      }
+      navigate(isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`)
     }
   }
 
@@ -2094,11 +2341,45 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
   )
 }
 
-===== FILE: src/context/SocketContext.jsx (2321 bytes) =====
+===== FILE: src/context/SocketContext.jsx (4192 bytes) =====
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
 
 const SocketContext = createContext(null)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENVIRONMENT-AWARE SOCKET URL RESOLUTION (PRODUCTION SAFE)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function getSocketUrl() {
+  // Priority 1: Explicit VITE_SOCKET_URL
+  const envSocketUrl = import.meta.env.VITE_SOCKET_URL
+  if (envSocketUrl && envSocketUrl.trim()) {
+    return envSocketUrl.trim().replace(/\/+$/, '')
+  }
+  
+  // Priority 2: Use VITE_API_URL
+  const envApiUrl = import.meta.env.VITE_API_URL
+  if (envApiUrl && envApiUrl.trim()) {
+    return envApiUrl.trim().replace(/\/+$/, '')
+  }
+  
+  // Priority 3: Runtime detection
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    
+    // Local development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001'
+    }
+    
+    // Production: same-origin
+    return window.location.origin
+  }
+  
+  // Fallback
+  return ''
+}
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase()
@@ -2111,32 +2392,56 @@ export function SocketProvider({ children }) {
   const [socketId, setSocketId] = useState(null)
 
   useEffect(() => {
-    const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : undefined
-    const url = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || fallbackOrigin || '').replace(/\/+$/, '')
+    const url = getSocketUrl()
+    console.log('[Socket] Connecting to:', url)
+    
     const s = io(url, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
       reconnectionAttempts: Infinity,
+      timeout: 20000,
     })
+    
     socketRef.current = s
     setSocket(s)
 
     s.on('connect', () => {
+      console.log('[Socket] Connected:', s.id)
       setIsConnected(true)
       setSocketId(s.id)
     })
 
-    s.on('disconnect', () => {
+    s.on('disconnect', (reason) => {
+      console.log('[Socket] Disconnected:', reason)
       setIsConnected(false)
     })
 
-    s.on('reconnect', () => {
+    s.on('connect_error', (error) => {
+      console.error('[Socket] Connection error:', error.message)
+      setIsConnected(false)
+    })
+
+    s.on('reconnect_error', (error) => {
+      console.error('[Socket] Reconnection error:', error.message)
+      setIsConnected(false)
+    })
+
+    s.on('reconnect', (attemptNumber) => {
+      console.log('[Socket] Reconnected after', attemptNumber, 'attempts')
       setIsConnected(true)
       setSocketId(s.id)
     })
 
-    return () => { s.disconnect() }
+    s.on('reconnect_attempt', (attemptNumber) => {
+      console.log('[Socket] Reconnection attempt:', attemptNumber)
+    })
+
+    return () => { 
+      console.log('[Socket] Disconnecting')
+      s.disconnect() 
+    }
   }, [])
 
   const joinRoom = useCallback((code) => {
@@ -2996,16 +3301,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (26425 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (30388 bytes) =====
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadata, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
+import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
 import { smartDownload } from '../utils/download'
 import {
   saveTransfer,
@@ -3017,7 +3322,6 @@ import {
   mergeTransferData,
 } from '../utils/storage'
 import { formatBytes } from '../utils/format'
-import { extractErrorCode } from '../utils/errors'
 import { playDownloadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
@@ -3030,6 +3334,17 @@ import ErrorState from '../components/ErrorState'
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
 )
+
+const REQUEST_STATE = {
+  IDLE: 'idle',
+  LOADING: 'loading',
+  RETRYING: 'retrying',
+  SUCCESS: 'success',
+  FAILED: 'failed',
+}
+
+const RETRY_DELAY_MS = 2000
+const MAX_AUTO_RETRIES = 3
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -3060,7 +3375,9 @@ export default function DownloadPage() {
     }
     return 600
   })
-  const [loading, setLoading] = useState(!initialCachedTransfer)
+  const [requestState, setRequestState] = useState(initialCachedTransfer ? REQUEST_STATE.SUCCESS : REQUEST_STATE.IDLE)
+  const [requestError, setRequestError] = useState(null)
+  const [retryAttempt, setRetryAttempt] = useState(0)
   const [downloading, setDownloading] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
@@ -3072,7 +3389,6 @@ export default function DownloadPage() {
   const [passwordError, setPasswordError] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [transferStatus, setTransferStatus] = useState(initialCachedTransfer?.status || 'ACTIVE')
-  const [error, setError] = useState(null)
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
   const [receipt, setReceipt] = useState(null)
@@ -3080,8 +3396,18 @@ export default function DownloadPage() {
   const downloadingRef = useRef(false)
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
+  const requestInFlightRef = useRef(false)
+  const requestTokenRef = useRef(0)
+  const retryTimerRef = useRef(null)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
+
+  useEffect(() => {
+    verifiedPasswordRef.current = ''
+    setPassword('')
+    setPasswordVerified(false)
+    setPasswordError('')
+  }, [normalizedCode])
 
   useEffect(() => {
     downloadingRef.current = downloading
@@ -3180,6 +3506,84 @@ export default function DownloadPage() {
     return merged
   }, [normalizedCode])
 
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      window.clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
+    }
+  }, [])
+
+  const loadMetadata = useCallback(async () => {
+    if (!normalizedCode || requestInFlightRef.current) return
+
+    requestInFlightRef.current = true
+    clearRetryTimer()
+    const requestToken = ++requestTokenRef.current
+
+    setRequestState(REQUEST_STATE.LOADING)
+    setRequestError(null)
+
+    try {
+      const outcome = await getFileMetadataOutcome(normalizedCode, { timeout: 12000, noRetry: true })
+
+      if (!mountedRef.current || requestToken !== requestTokenRef.current) return
+
+      if (outcome.ok) {
+        const data = outcome.data
+        const status = String(data?.status || '').toUpperCase()
+        if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
+          navigate(`/expired?reason=${status.toLowerCase()}`, { replace: true })
+          return
+        }
+
+        applyTransferSnapshot(data, { persist: true })
+        setRetryAttempt(0)
+        setRequestError(null)
+        setRequestState(REQUEST_STATE.SUCCESS)
+        return
+      }
+
+      if (outcome.type === 'SERVER') {
+        const errCode = outcome.errorCode || 'SERVER_ERROR'
+        if (errCode === 'TRANSFER_EXPIRED') {
+          navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (errCode === 'ALREADY_DOWNLOADED') {
+          navigate('/expired?reason=burned', { replace: true })
+          return
+        }
+        if (errCode === 'TRANSFER_NOT_FOUND') {
+          navigate('/expired?reason=notfound', { replace: true })
+          return
+        }
+
+        setRequestError(errCode)
+        setRequestState(REQUEST_STATE.FAILED)
+        return
+      }
+
+      if (outcome.type === 'EMPTY_RESPONSE') {
+        setRequestError('EMPTY_RESPONSE')
+        setRequestState(REQUEST_STATE.FAILED)
+        return
+      }
+
+      if (outcome.type === 'TIMEOUT') {
+        setRequestError('TIMEOUT_ERROR')
+        setRequestState(REQUEST_STATE.RETRYING)
+        return
+      }
+
+      setRequestError('NETWORK_ERROR')
+      setRequestState(REQUEST_STATE.RETRYING)
+    } finally {
+      if (requestToken === requestTokenRef.current) {
+        requestInFlightRef.current = false
+      }
+    }
+  }, [normalizedCode, applyTransferSnapshot, navigate, clearRetryTimer])
+
   // Fetch metadata
   useEffect(() => {
     if (!normalizedCode) return
@@ -3194,8 +3598,8 @@ export default function DownloadPage() {
     const seed = mergeTransferData(cachedTransfer, navTransfer)
 
     if (seed) {
-      setError(null)
-      setLoading(false)
+      setRequestError(null)
+      setRequestState(REQUEST_STATE.SUCCESS)
       applyTransferSnapshot(seed, { persist: true })
     }
 
@@ -3209,41 +3613,36 @@ export default function DownloadPage() {
       return
     }
 
-    async function load() {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
-        if (!mountedRef.current) return
-        applyTransferSnapshot(data, { persist: true })
-      } catch (err) {
-        if (!mountedRef.current) return
-        const errCode = extractErrorCode(err)
-        if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
-        else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
-        else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-        else {
-          // For network errors / timeouts, show a retry-able error instead of redirecting
-          setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
-        }
-      } finally {
-        if (mountedRef.current) setLoading(false)
-      }
-    }
-    load()
-  }, [normalizedCode, navState, navigate, applyTransferSnapshot])
+    setRetryAttempt(0)
+    void loadMetadata()
+  }, [normalizedCode, navState, applyTransferSnapshot, loadMetadata])
 
-  // Safety net: never keep skeleton forever if request hangs unexpectedly.
+  // Auto retry transient failures with a bounded retry budget.
   useEffect(() => {
-    if (!loading) return
-    const timer = window.setTimeout(() => {
-      if (!mountedRef.current) return
-      setError(prev => prev || 'NETWORK_ERROR')
-      setLoading(false)
-    }, 25000)
+    if (requestState !== REQUEST_STATE.RETRYING) return
 
-    return () => window.clearTimeout(timer)
-  }, [loading])
+    if (retryAttempt >= MAX_AUTO_RETRIES) {
+      setRequestState(REQUEST_STATE.FAILED)
+      return
+    }
+
+    clearRetryTimer()
+    retryTimerRef.current = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      setRetryAttempt((prev) => prev + 1)
+      void loadMetadata()
+    }, RETRY_DELAY_MS)
+
+    return () => {
+      clearRetryTimer()
+    }
+  }, [requestState, retryAttempt, clearRetryTimer, loadMetadata])
+
+  useEffect(() => {
+    return () => {
+      clearRetryTimer()
+    }
+  }, [clearRetryTimer])
 
   // Socket
   useEffect(() => {
@@ -3396,10 +3795,19 @@ export default function DownloadPage() {
     downloadSingleFile(normalizedCode, index, pw)
   }
 
-  const isUnavailable = transferStatus === 'CANCELLED' || transferStatus === 'DELETED' || transferStatus === 'EXPIRED'
-  const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
+  // Retry handler for network/server errors (must be before conditional returns for hooks rules)
+  const handleRetry = useCallback(async () => {
+    setRetryAttempt(0)
+    await loadMetadata()
+  }, [loadMetadata])
 
-  if (loading) {
+  const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
+  const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED'
+  const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
+  const isInitialLoading = requestState === REQUEST_STATE.LOADING && !meta
+  const isRetrying = requestState === REQUEST_STATE.RETRYING
+
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
@@ -3412,13 +3820,23 @@ export default function DownloadPage() {
     )
   }
 
-  if (error) {
+  if (requestState === REQUEST_STATE.FAILED && requestError) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
-        <div className="pt-20"><ErrorState code={error} /></div>
+        <div className="pt-20">
+          <ErrorState
+            code={requestError}
+            onRetry={handleRetry}
+            autoRetry={false}
+          />
+        </div>
       </div>
     )
+  }
+
+  if (isUnavailable) {
+    return <Navigate to={`/expired?reason=${terminalStatus.toLowerCase()}`} replace />
   }
 
   return (
@@ -3443,6 +3861,27 @@ export default function DownloadPage() {
 
           {/* Status banner */}
           <AnimatePresence>
+            {isRetrying && (
+              <motion.div
+                className="mb-4 p-3 rounded-xl"
+                style={{ background: 'var(--info-soft)', border: '1px solid rgba(8,145,178,0.15)' }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--info)' }}>
+                    Trying again...
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs !py-1 !px-2"
+                    onClick={handleRetry}
+                  >
+                    Retry now
+                  </button>
+                </div>
+              </motion.div>
+            )}
             {transferStatus === 'CANCELLED' && (
               <motion.div
                 className="mb-4 p-3 rounded-xl text-center"
@@ -3527,7 +3966,7 @@ export default function DownloadPage() {
                 file={f}
                 index={i}
                 showDownload={canDownload}
-                onPreview={() => handlePreview(i)}
+                onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
                 onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
               />
             ))}
@@ -3691,7 +4130,7 @@ export default function DownloadPage() {
   )
 }
 
-===== FILE: src/pages/ExpiredPage.jsx (2722 bytes) =====
+===== FILE: src/pages/ExpiredPage.jsx (3107 bytes) =====
 import React, { useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -3702,23 +4141,37 @@ const STATES = {
   expired: {
     icon: Clock,
     color: 'var(--warning)',
-    title: 'Transfer expired',
-    desc: 'This file has been automatically deleted. Ask the sender to share it again.',
+    title: 'Time\'s up',
+    desc: 'This transfer expired and the files were cleaned up automatically. Ask the sender to share again.',
     emoji: '⏰',
   },
   burned: {
     icon: Flame,
     color: 'var(--danger)',
-    title: 'Burned after download',
-    desc: 'This was a one-time transfer. The file was permanently deleted after the first download.',
+    title: 'Already claimed',
+    desc: 'This was a one-time download. The file was removed after someone grabbed it.',
     emoji: '🔥',
   },
   notfound: {
     icon: FileQuestion,
     color: 'var(--text-3)',
-    title: 'Transfer not found',
-    desc: 'This code doesn\'t match any active transfer. It may have expired or the code might be wrong.',
+    title: 'Not found',
+    desc: 'That code doesn\'t match anything active. It may have expired, or check if the code is right.',
     emoji: '🔍',
+  },
+  cancelled: {
+    icon: FileQuestion,
+    color: 'var(--danger)',
+    title: 'Transfer cancelled',
+    desc: 'The sender removed this transfer. The files are no longer available.',
+    emoji: '🚫',
+  },
+  deleted: {
+    icon: FileQuestion,
+    color: 'var(--danger)',
+    title: 'Transfer removed',
+    desc: 'This transfer was removed and is no longer available.',
+    emoji: '🗑️',
   },
 }
 
@@ -3772,7 +4225,7 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (28378 bytes) =====
+===== FILE: src/pages/HomePage.jsx (29185 bytes) =====
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -3802,12 +4255,12 @@ const MAX_SIZE = 100 * 1024 * 1024 // 100MB
 const MAX_FILES = 5
 
 const FEATURES = [
-  { icon: Shield, title: 'Zero Login', desc: 'No accounts, ever' },
-  { icon: Clock, title: 'Auto-Delete', desc: 'Files vanish on schedule' },
-  { icon: Flame, title: 'Burn Mode', desc: 'One download, then gone' },
-  { icon: Cpu, title: 'AI Analysis', desc: 'Smart file summaries' },
-  { icon: QrCode, title: 'QR Sharing', desc: 'Scan to download' },
-  { icon: Zap, title: 'Real-time', desc: 'Live progress tracking' },
+  { icon: Shield, title: 'No Sign-Up', desc: 'Share without accounts' },
+  { icon: Clock, title: 'Self-Destruct', desc: 'Gone when the timer ends' },
+  { icon: Flame, title: 'Burn Mode', desc: 'Vanishes after one grab' },
+  { icon: Cpu, title: 'AI Insights', desc: 'Understands your files' },
+  { icon: QrCode, title: 'QR Codes', desc: 'Point, scan, done' },
+  { icon: Zap, title: 'Live Updates', desc: 'Real-time progress' },
 ]
 
 export default function HomePage() {
@@ -3881,7 +4334,7 @@ export default function HomePage() {
   }, [files, navigate])
 
   // Title
-  useEffect(() => { document.title = 'SwiftShare — Share files instantly' }, [])
+  useEffect(() => { document.title = 'SwiftShare — Files sent, not stored' }, [])
 
   // Socket listeners for upload
   useEffect(() => {
@@ -3924,7 +4377,9 @@ export default function HomePage() {
               handleUploadSuccess(response)
             } catch (err) {
               setUploading(false)
-              toast.error(getUploadErrorMessage(err))
+              if (!shouldSuppressUploadError(err)) {
+                toast.error(getUploadErrorMessage(err))
+              }
             }
           }
           reader.readAsDataURL(blob)
@@ -3974,12 +4429,28 @@ export default function HomePage() {
     const backendMessage = typeof backendError === 'string'
       ? backendError
       : (backendError?.message || err?.response?.data?.message || '')
+    const errorCode = String(err?.code || '').toUpperCase()
+    const transportMessage = String(err?.message || '').toLowerCase()
+
+    if (!err?.response) {
+      if (errorCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
+        return 'Upload is taking longer than expected. Please wait a moment and retry.'
+      }
+      return 'Upload connection was interrupted. Please retry once.'
+    }
 
     if (status === 429) {
       return backendMessage || 'Rate limit active: Please wait a moment before sending more files.'
     }
 
-    return backendMessage || err?.message || 'Upload failed'
+    return backendMessage || 'Upload failed. Please try again.'
+  }
+
+  function shouldSuppressUploadError(err) {
+    // If socket already confirmed completion, ignore late transport-level failures.
+    if (uploadHandledRef.current) return true
+    if (String(err?.code || '').toUpperCase() === 'ERR_CANCELED') return true
+    return false
   }
 
   async function handleUpload() {
@@ -4013,7 +4484,9 @@ export default function HomePage() {
       uploadSucceeded = true
       handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
-      toast.error(getUploadErrorMessage(err))
+      if (!shouldSuppressUploadError(err)) {
+        toast.error(getUploadErrorMessage(err))
+      }
     } finally {
       // Always release spinner on failure; successful path is handled by handleUploadSuccess/navigation.
       if (!uploadSucceeded) {
@@ -4044,21 +4517,21 @@ export default function HomePage() {
                 transition={{ duration: 0.4 }}
               >
                 <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl leading-tight mb-2" style={{ color: 'var(--text)' }}>
-                  Share files<br />
-                  <span style={{ color: 'var(--accent)' }}>instantly.</span>
+                  Simple,<br />
+                  <span style={{ color: 'var(--accent)' }}>yet too effective.</span>
                 </h1>
                 <p className="text-base sm:text-lg mb-2" style={{ color: 'var(--text-3)' }}>
-                  Drop a file, get a code. No sign-up. Auto-delete is built in.
+                  Send files instantly like a message.
                 </p>
-                <p 
+                <p
                   className="text-sm font-medium tracking-wide bg-clip-text text-transparent bg-gradient-to-r"
-                  style={{ 
+                  style={{
                     backgroundImage: 'linear-gradient(to right, var(--accent), var(--accent-hover))',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                   }}
                 >
-                  Simple, yet too effective.
+                  Works on any device, anywhere.
                 </p>
               </motion.div>
 
@@ -4341,7 +4814,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Receive a file</p>
-                  <p className="text-xs" style={{ color: 'var(--text-3)' }}>Enter a 6-digit code to download</p>
+                  <p className="text-xs" style={{ color: 'var(--text-3)' }}>Enter a code to grab your file</p>
                 </div>
                 <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--accent)' }} />
               </motion.button>
@@ -4386,14 +4859,14 @@ export default function HomePage() {
                 <h3 className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-4)' }}>How it works</h3>
                 <div className="space-y-4">
                   {[
-                    { step: '1', label: 'Drop your file', desc: 'Drag & drop or click to upload' },
-                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or QR before leaving' },
-                    { step: '3', label: 'They download', desc: 'Files auto-delete after expiry or burn' },
+                    { step: '1', label: 'Drop your file', desc: 'Drag, drop, or paste — that\'s it' },
+                    { step: '2', label: 'Share the code', desc: 'Send the 6-digit code or scan the QR' },
+                    { step: '3', label: 'Done', desc: 'They download, then the file disappears' },
                   ].map(({ step, label, desc }) => (
                     <div key={step} className="flex items-start gap-3">
                       <div
                         className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-display font-bold text-xs"
-                        style={{ background: 'var(--accent)', color: '#fff' }}
+                        style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
                       >
                         {step}
                       </div>
@@ -4413,21 +4886,20 @@ export default function HomePage() {
   )
 }
 
-===== FILE: src/pages/JoinPage.jsx (7682 bytes) =====
-import React, { useState, useRef, useEffect } from 'react'
+===== FILE: src/pages/JoinPage.jsx (10265 bytes) =====
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Loader2 } from 'lucide-react'
-import toast from 'react-hot-toast'
 
-import { getFileMetadata } from '../services/api'
+import { getFileMetadataOutcome } from '../services/api'
 import Navbar from '../components/Navbar'
 import NearbyDevices from '../components/NearbyDevices'
 import ErrorState from '../components/ErrorState'
-import { extractErrorCode } from '../utils/errors'
 import { saveTransfer } from '../utils/storage'
 
 const CODE_LENGTH = 6
+const JOIN_REQUEST_HARD_TIMEOUT_MS = 20000 // Increased to 20s for Render cold starts
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
 const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
 
@@ -4444,6 +4916,14 @@ export default function JoinPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const inputRefs = useRef([])
+  const submitInFlightRef = useRef(false)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     document.title = 'Receive a file · SwiftShare'
@@ -4455,12 +4935,109 @@ export default function JoinPage() {
     if (firstEmpty >= 0) inputRefs.current[firstEmpty]?.focus()
   }, [])
 
+  const handleSubmit = useCallback(async (rawCode) => {
+    const normalizedCode = String(rawCode || '').trim().toUpperCase()
+    if (normalizedCode.length !== CODE_LENGTH || submitInFlightRef.current) return
+
+    submitInFlightRef.current = true
+    setLoading(true)
+    setError(null)
+
+    console.log('[JoinPage] Submitting code:', normalizedCode)
+
+    try {
+      let hardTimeoutId
+      const timeoutFallback = new Promise((resolve) => {
+        hardTimeoutId = window.setTimeout(() => {
+          console.warn('[JoinPage] Hard timeout reached after 20s')
+          resolve({ ok: false, type: 'TIMEOUT' })
+        }, JOIN_REQUEST_HARD_TIMEOUT_MS)
+      })
+
+      const outcome = await Promise.race([
+        getFileMetadataOutcome(normalizedCode, { timeout: 18000, noRetry: true }), // Increased to 18s
+        timeoutFallback,
+      ])
+
+      window.clearTimeout(hardTimeoutId)
+      if (!mountedRef.current) return
+
+      console.log('[JoinPage] Outcome:', outcome)
+
+      if (outcome?.ok) {
+        const data = outcome.data
+        console.log('[JoinPage] Success, navigating to download page')
+        saveTransfer({
+          code: normalizedCode,
+          filename: data?.files?.[0]?.name || normalizedCode,
+          isSender: false,
+          role: 'receiver',
+          status: data?.status,
+          expiresAt: data?.expiresAt,
+          createdAt: data?.createdAt,
+          files: data?.files,
+          ai: data?.ai || null,
+          transfer: { ...data, code: normalizedCode },
+        })
+        navigate(`/download/${normalizedCode}`, { state: { transferData: { ...data, code: normalizedCode } } })
+        return
+      }
+
+      // Handle all error cases
+      console.error('[JoinPage] Request failed:', outcome)
+      
+      if (outcome?.type === 'SERVER') {
+        const errCode = outcome.errorCode || 'SERVER_ERROR'
+        if (errCode === 'TRANSFER_EXPIRED') {
+          navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (errCode === 'ALREADY_DOWNLOADED') {
+          navigate('/expired?reason=burned', { replace: true })
+          return
+        }
+        setError(errCode)
+      } else if (outcome?.type === 'TIMEOUT') {
+        console.error('[JoinPage] Timeout error - backend may be cold starting')
+        setError('TIMEOUT_ERROR')
+      } else if (outcome?.type === 'EMPTY_RESPONSE') {
+        console.error('[JoinPage] Empty response from server')
+        setError('EMPTY_RESPONSE')
+      } else {
+        console.error('[JoinPage] Network error')
+        setError('NETWORK_ERROR')
+      }
+
+      // Shake animation
+      const el = document.getElementById('code-input-row')
+      if (el) {
+        el.classList.add('animate-shake')
+        setTimeout(() => el.classList.remove('animate-shake'), 500)
+      }
+    } catch (err) {
+      console.error('[JoinPage] Unexpected error:', err)
+      if (!mountedRef.current) return
+      setError('SERVER_ERROR')
+      const el = document.getElementById('code-input-row')
+      if (el) {
+        el.classList.add('animate-shake')
+        setTimeout(() => el.classList.remove('animate-shake'), 500)
+      }
+    } finally {
+      submitInFlightRef.current = false
+      if (mountedRef.current) {
+        setLoading(false)
+        console.log('[JoinPage] Request complete, loading set to false')
+      }
+    }
+  }, [navigate])
+
   // Auto-submit when complete
   useEffect(() => {
     if (chars.every(c => c) && chars.length === CODE_LENGTH) {
-      handleSubmit(chars.join(''))
+      void handleSubmit(chars.join(''))
     }
-  }, [chars])
+  }, [chars, handleSubmit])
 
   function handleChange(idx, value) {
     const ch = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -4504,42 +5081,7 @@ export default function JoinPage() {
     }
     if (e.key === 'Enter') {
       const code = chars.join('')
-      if (code.length === CODE_LENGTH) handleSubmit(code)
-    }
-  }
-
-  async function handleSubmit(code) {
-    if (loading || code.length !== CODE_LENGTH) return
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await getFileMetadata(code, { timeout: 12000, noRetry: true })
-      const normalizedCode = String(code || '').trim().toUpperCase()
-      saveTransfer({
-        code: normalizedCode,
-        filename: data?.files?.[0]?.name || normalizedCode,
-        isSender: false,
-        status: data?.status,
-        expiresAt: data?.expiresAt,
-        createdAt: data?.createdAt,
-        files: data?.files,
-        ai: data?.ai || null,
-        transfer: { ...data, code: normalizedCode },
-      })
-      navigate(`/download/${normalizedCode}`, { state: { transferData: { ...data, code: normalizedCode } } })
-    } catch (err) {
-      const errCode = extractErrorCode(err)
-      if (errCode === 'TRANSFER_EXPIRED') {
-        navigate('/expired?reason=expired', { replace: true })
-      } else if (errCode === 'ALREADY_DOWNLOADED') {
-        navigate('/expired?reason=burned', { replace: true })
-      } else {
-        setError(errCode)
-        setLoading(false)
-        // Shake animation
-        const el = document.getElementById('code-input-row')
-        if (el) { el.classList.add('animate-shake'); setTimeout(() => el.classList.remove('animate-shake'), 500) }
-      }
+      if (code.length === CODE_LENGTH) void handleSubmit(code)
     }
   }
 
@@ -4609,7 +5151,16 @@ export default function JoinPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <ErrorState code={error} />
+              <ErrorState
+                code={error}
+                onRetry={() => {
+                  setError(null)
+                  setLoading(false)
+                  const code = chars.join('')
+                  if (code.length === CODE_LENGTH) void handleSubmit(code)
+                }}
+                autoRetry={error === 'NETWORK_ERROR' || error === 'TIMEOUT_ERROR'}
+              />
             </motion.div>
           )}
 
@@ -4622,7 +5173,7 @@ export default function JoinPage() {
           >
             <button
               className="btn-primary mx-auto px-10"
-              onClick={() => handleSubmit(chars.join(''))}
+              onClick={() => { void handleSubmit(chars.join('')) }}
               disabled={loading || chars.some(c => !c)}
             >
               {loading ? (
@@ -4641,7 +5192,7 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (30465 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (32641 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -4674,6 +5225,7 @@ import ActivityLog from '../components/ActivityLog'
 import ProgressBar from '../components/ProgressBar'
 import QRModal from '../components/QRModal'
 import ErrorState from '../components/ErrorState'
+import NearbyDevices from '../components/NearbyDevices'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -4892,32 +5444,44 @@ export default function SenderPage() {
     load()
   }, [normalizedCode, navState, navigate, applyTransferSnapshot])
 
-  // Safety net: never keep skeleton forever if request hangs unexpectedly.
+  // Safety net: stop showing skeleton if request hangs too long.
   useEffect(() => {
     if (!loading) return
     const timer = window.setTimeout(() => {
       if (!mountedRef.current) return
-      setError(prev => prev || 'NETWORK_ERROR')
+      if (!metaRef.current) {
+        setError(prev => prev || 'NETWORK_ERROR')
+      }
       setLoading(false)
-    }, 25000)
+    }, 15000)
 
     return () => window.clearTimeout(timer)
   }, [loading])
 
-  // Fetch activity
+  // Fetch activity — poll at relaxed interval, skip when tab hidden
+  const fetchingActivityRef = useRef(false)
   const loadActivity = useCallback(async () => {
-    if (!normalizedCode || document.hidden) return
+    if (!normalizedCode || document.hidden || fetchingActivityRef.current) return
+    fetchingActivityRef.current = true
     try {
       const data = await getTransferActivity(normalizedCode)
       if (data?.activity) setActivity(data.activity)
     } catch {}
+    finally {
+      fetchingActivityRef.current = false
+    }
   }, [normalizedCode])
 
   useEffect(() => {
     if (!normalizedCode) return
     loadActivity()
-    const iv = setInterval(loadActivity, 8000)
-    return () => clearInterval(iv)
+    const iv = setInterval(loadActivity, 20000)
+    const onVisibility = () => { if (!document.hidden) loadActivity() }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(iv)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [normalizedCode, loadActivity])
 
   // Socket
@@ -5181,6 +5745,33 @@ export default function SenderPage() {
     }
   }
 
+  // Retry handler for network/server errors (must be before conditional returns for hooks rules)
+  const handleRetry = useCallback(async () => {
+    setError(null)
+    setLoading(true)
+    try {
+      const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
+      if (!mountedRef.current) return
+      if (data.status === 'EXPIRED') {
+        navigate('/expired?reason=expired', { replace: true })
+        return
+      }
+      if (data.status === 'CANCELLED' || data.status === 'DELETED') {
+        setCancelled(true)
+      }
+      applyTransferSnapshot(data, { persist: true })
+    } catch (err) {
+      if (!mountedRef.current) return
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
+      else if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
+      else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
+      else setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
+    } finally {
+      if (mountedRef.current) setLoading(false)
+    }
+  }, [normalizedCode, navigate, applyTransferSnapshot])
+
   if (loading) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -5196,7 +5787,13 @@ export default function SenderPage() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
-        <div className="pt-20"><ErrorState code={error} /></div>
+        <div className="pt-20">
+          <ErrorState
+            code={error}
+            onRetry={handleRetry}
+            autoRetry={error === 'NETWORK_ERROR'}
+          />
+        </div>
       </div>
     )
   }
@@ -5399,6 +5996,14 @@ export default function SenderPage() {
                   </div>
                 </div>
 
+                {/* Nearby share prompts */}
+                {!cancelled && (
+                  <NearbyDevices
+                    currentTransferCode={normalizedCode}
+                    currentFilename={meta?.files?.[0]?.name || 'file'}
+                  />
+                )}
+
                 {/* Countdown */}
                 {!cancelled && (
                   <div className="surface-card p-5 text-center">
@@ -5456,17 +6061,78 @@ export default function SenderPage() {
   )
 }
 
-===== FILE: src/services/api.js (6665 bytes) =====
+===== FILE: src/services/api.js (9737 bytes) =====
 import axios from 'axios'
 
-const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-const rawBaseURL = import.meta.env.VITE_API_URL || fallbackOrigin
-const baseURL = rawBaseURL.replace(/\/+$/, '')
+// ═══════════════════════════════════════════════════════════════════════════
+// ENVIRONMENT-AWARE API URL RESOLUTION (PRODUCTION SAFE)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function getApiBaseUrl() {
+  // Priority 1: Explicit VITE_API_URL from environment
+  const envApiUrl = import.meta.env.VITE_API_URL
+  if (envApiUrl && envApiUrl.trim()) {
+    return envApiUrl.trim().replace(/\/+$/, '')
+  }
+  
+  // Priority 2: Runtime detection
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    
+    // Local development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001'
+    }
+    
+    // Production: same-origin (frontend and backend on same domain)
+    // OR use window.location.origin if backend is on same domain
+    return window.location.origin
+  }
+  
+  // Fallback
+  return ''
+}
+
+const baseURL = getApiBaseUrl()
+
+console.log('[API] Base URL:', baseURL)
 
 const API = axios.create({
   baseURL,
   timeout: 30000,
+  withCredentials: false, // Set to true if using cookies
 })
+
+function classifyTransportError(error) {
+  if (error?.response) {
+    return {
+      type: 'SERVER',
+      status: Number(error.response.status || 500),
+      errorCode: error?.response?.data?.error?.code || null,
+      message: error?.response?.data?.error?.message || error?.message || 'Server error',
+    }
+  }
+
+  const code = String(error?.code || '').toUpperCase()
+  const message = String(error?.message || '')
+
+  if (code === 'ECONNABORTED' || /timeout/i.test(message)) {
+    return { type: 'TIMEOUT', message: 'Request timed out' }
+  }
+
+  return { type: 'NETWORK', message: 'Network request failed' }
+}
+
+function isObjectPayload(payload) {
+  return payload !== null && typeof payload === 'object' && !Array.isArray(payload)
+}
+
+function hasUsableMetadataPayload(payload) {
+  if (!isObjectPayload(payload)) return false
+  if (typeof payload.code !== 'string') return false
+  if (!Array.isArray(payload.files)) return false
+  return true
+}
 
 // Retry interceptor for transient failures
 API.interceptors.response.use(null, async (error) => {
@@ -5478,12 +6144,16 @@ API.interceptors.response.use(null, async (error) => {
   }
 
   config.__retryCount = config.__retryCount || 0
-  const isRetryable = !error.response || error.response.status === 503 || error.code === 'ERR_NETWORK'
+  
+  // Distinguish between real network errors and server responses
+  const isRealNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED')
+  const isServerError = error.response && (error.response.status === 503 || error.response.status >= 500)
+  const isRetryable = isRealNetworkError || isServerError
   const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
 
   if (isRetryable && isIdempotent && config.__retryCount < 2) {
     config.__retryCount += 1
-    const delay = config.__retryCount * 1000
+    const delay = config.__retryCount * 1500
     await new Promise(r => setTimeout(r, delay))
     return API(config)
   }
@@ -5581,6 +6251,30 @@ export async function getFileMetadata(code, requestConfig = undefined) {
   return unwrapResponse(data)
 }
 
+export async function getFileMetadataOutcome(code, requestConfig = undefined) {
+  try {
+    const payload = await getFileMetadata(code, requestConfig)
+
+    if (!hasUsableMetadataPayload(payload)) {
+      return {
+        ok: false,
+        type: 'EMPTY_RESPONSE',
+        errorCode: 'EMPTY_RESPONSE',
+        message: 'Metadata response was empty or invalid',
+      }
+    }
+
+    return { ok: true, data: payload }
+  } catch (error) {
+    const classified = classifyTransportError(error)
+    return {
+      ok: false,
+      ...classified,
+      rawError: error,
+    }
+  }
+}
+
 export async function getTransferStatus(code) {
   const { data } = await API.get(`/api/transfer/${normalizeCode(code)}/status`)
   return unwrapResponse(data)
@@ -5609,8 +6303,12 @@ export async function deleteTransfer(code) {
 }
 
 // ── Nearby ──────────────────────────────────
-export async function getNearbyDevices() {
-  const { data } = await API.get('/api/nearby')
+export async function getNearbyDevices(socketId) {
+  const safeSocketId = String(socketId || '').trim()
+  const path = safeSocketId
+    ? `/api/nearby?socketId=${encodeURIComponent(safeSocketId)}`
+    : '/api/nearby'
+  const { data } = await API.get(path)
   return unwrapResponse(data)
 }
 
@@ -5719,7 +6417,7 @@ function triggerBlobDownload(blob, filename) {
   }, 100)
 }
 
-===== FILE: src/utils/errors.js (3643 bytes) =====
+===== FILE: src/utils/errors.js (4258 bytes) =====
 import {
   FileWarning, Clock, ShieldX, AlertTriangle, WifiOff,
   Ban, FileX, Server, Lock, Flame
@@ -5755,36 +6453,36 @@ const ERROR_MAP = {
     action: 'Select a file',
   },
   TRANSFER_NOT_FOUND: {
-    title: 'Transfer not found',
-    description: 'This code doesn\'t match any active transfer. Double-check and try again.',
+    title: 'No match found',
+    description: 'That code doesn\'t match any active transfer. Double-check the code and try again.',
     icon: FileX,
     color: 'var(--text-3)',
     action: 'Try another code',
   },
   TRANSFER_EXPIRED: {
-    title: 'Transfer expired',
-    description: 'This file has been automatically deleted. Ask the sender to share again.',
+    title: 'This transfer expired',
+    description: 'The timer ran out and the files were automatically cleaned up. Ask the sender to share again.',
     icon: Clock,
     color: 'var(--warning)',
     action: 'Go home',
   },
   TRANSFER_CANCELLED: {
-    title: 'Transfer cancelled',
-    description: 'The sender cancelled this transfer. Files have been permanently deleted.',
+    title: 'Transfer was cancelled',
+    description: 'The sender removed this transfer. The files are no longer available.',
     icon: Ban,
     color: 'var(--danger)',
     action: 'Go home',
   },
   TRANSFER_DELETED: {
-    title: 'Transfer deleted',
-    description: 'This transfer has been permanently deleted and is no longer available.',
+    title: 'Transfer removed',
+    description: 'This transfer is no longer available.',
     icon: FileX,
     color: 'var(--danger)',
     action: 'Go home',
   },
   ALREADY_DOWNLOADED: {
-    title: 'Already downloaded',
-    description: 'This was a burn-after-download transfer. The file was deleted after the first download.',
+    title: 'Already claimed',
+    description: 'This was a one-time download. The file was automatically removed after the first download.',
     icon: Flame,
     color: 'var(--danger)',
     action: 'Go home',
@@ -5818,17 +6516,31 @@ const ERROR_MAP = {
     action: 'Check the code',
   },
   SERVER_ERROR: {
-    title: 'Something went wrong',
-    description: 'An unexpected error occurred. Please try again in a moment.',
+    title: 'Hiccup on our end',
+    description: 'Something unexpected happened. Give it another try — it usually works.',
     icon: Server,
-    color: 'var(--danger)',
+    color: 'var(--warning)',
     action: 'Try again',
   },
   NETWORK_ERROR: {
-    title: 'Connection lost',
-    description: 'Can\'t reach the server. Check your internet connection.',
+    title: 'Taking a moment',
+    description: 'The server is warming up or your connection dropped briefly. This usually resolves in a few seconds.',
     icon: WifiOff,
-    color: 'var(--danger)',
+    color: 'var(--warning)',
+    action: 'Retry',
+  },
+  TIMEOUT_ERROR: {
+    title: 'Taking longer than expected',
+    description: 'The server is responding slowly right now. Try again in a moment.',
+    icon: Clock,
+    color: 'var(--warning)',
+    action: 'Retry',
+  },
+  EMPTY_RESPONSE: {
+    title: 'Temporary response issue',
+    description: 'We received an incomplete response. Please retry.',
+    icon: AlertTriangle,
+    color: 'var(--warning)',
     action: 'Retry',
   },
 }
@@ -5839,6 +6551,8 @@ export function getErrorInfo(code) {
 
 export function extractErrorCode(err) {
   if (err?.response?.data?.error?.code) return err.response.data.error.code
+  if (err?.code === 'ECONNABORTED') return 'TIMEOUT_ERROR'
+  if (/timeout/i.test(String(err?.message || ''))) return 'TIMEOUT_ERROR'
   if (err?.code === 'ERR_NETWORK') return 'NETWORK_ERROR'
   return 'SERVER_ERROR'
 }
@@ -6491,4 +7205,4 @@ export default defineConfig({
 ===== SUMMARY =====
 Included files: 43
 Skipped (too large): 0
-Total source bytes included: 234907
+Total source bytes included: 258023

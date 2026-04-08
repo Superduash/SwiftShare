@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { analyzeTransfer } from '../services/api'
 import {
   Sparkles, Copy, Check, FileText, Image, Video, FileArchive,
-  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target, RefreshCw
+  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -22,12 +21,12 @@ function getCategoryIcon(cat) {
   return CATEGORY_ICONS.default
 }
 
-const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic)\b/gi
+const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic|captured text reads|media shared for media sharing|context derived from)\b/gi
 
 function cleanSummary(text) {
   return String(text || '')
     .replace(BANNED_PHRASES_RE, '')
-    .replace(/\b(mime|format|extension|file size|size)\b\s*[:\-]?/gi, '')
+    .replace(/\b(mime|format|extension|file size)\b\s*[:\-]?/gi, '')
     .replace(/\b\d+(?:\.\d+)?\s*(kb|mb|gb|bytes?)\b/gi, '')
     .replace(/\bmetadata\b/gi, '')
     .replace(/\s+/g, ' ')
@@ -44,34 +43,10 @@ function cleanKeyPoints(points) {
     .filter((point) => !/^(pdf|image|video|audio|zip|txt|csv|docx?)\s*format$/i.test(point))
 }
 
-export default function AISummaryCard({ ai: initialAi, loading = false, code }) {
+export default function AISummaryCard({ ai, loading = false }) {
   const [copied, setCopied] = useState(false)
   const [showFiles, setShowFiles] = useState(false)
-  const [localAi, setLocalAi] = useState(null)
-  const [hasRegenerated, setHasRegenerated] = useState(false)
-  const [isRegenerating, setIsRegenerating] = useState(false)
-
-  const handleRegenerate = async () => {
-    if (!code || isRegenerating || hasRegenerated) return
-    setIsRegenerating(true)
-    try {
-      const response = await analyzeTransfer(code, true)
-      if (response && response.ai) {
-        setLocalAi(response.ai)
-        setHasRegenerated(true)
-        toast.success("Analysis regenerated with fallback model!")
-      } else {
-        toast.error("Failed to regenerate analysis.")
-      }
-    } catch (err) {
-      console.error(err)
-      toast.error("Error regenerating analysis.")
-    } finally {
-      setIsRegenerating(false)
-    }
-  }
-
-  const activeAi = localAi || initialAi
+  const activeAi = ai
 
   function copySuggestedName() {
     const name = activeAi?.suggestedName || activeAi?.suggested_filename
@@ -113,27 +88,13 @@ export default function AISummaryCard({ ai: initialAi, loading = false, code }) 
           </div>
           <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>AI Analysis</span>
         </div>
-        <div className="flex items-center gap-2">
-          {code && !hasRegenerated && (
-            <button
-              onClick={handleRegenerate}
-              disabled={isRegenerating || loading}
-              className="group flex items-center gap-1.5 transition-all text-[10px] font-medium px-2 py-1 rounded-full hover:bg-black/5 dark:hover:bg-white/5"
-              style={{ color: 'var(--text-3)' }}
-              title="Try Different AI Model"
-            >
-              <RefreshCw size={12} className={isRegenerating ? "animate-spin" : "transition-transform group-hover:rotate-180"} />
-              <span className="hidden sm:inline">{isRegenerating ? 'Analyzing...' : 'Try Different AI Model'}</span>
-            </button>
-          )}
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}>
-            {hasRegenerated ? "Groq / OpenRouter" : "Gemini 2.5 Flash"}
-          </span>
-        </div>
+        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}>
+          Gemini 2.5 Flash
+        </span>
       </div>
 
       <AnimatePresence mode="wait">
-        {loading || isRegenerating ? (
+        {loading ? (
           <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="space-y-2">
               <div className="shimmer-block h-4 w-3/4" />
@@ -141,7 +102,7 @@ export default function AISummaryCard({ ai: initialAi, loading = false, code }) 
               <div className="shimmer-block h-4 w-1/2" />
             </div>
             <p className="text-xs mt-3 animate-pulse-soft" style={{ color: 'var(--text-4)' }}>
-              {isRegenerating ? 'Analyzing with Fallback AI...' : 'Analyzing with AI...'}
+              Analyzing with AI...
             </p>
           </motion.div>
         ) : activeAi ? (

@@ -1,17 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Loader2 } from 'lucide-react'
-import toast from 'react-hot-toast'
 
-import { getFileMetadata } from '../services/api'
+import { getFileMetadataOutcome } from '../services/api'
 import Navbar from '../components/Navbar'
 import NearbyDevices from '../components/NearbyDevices'
 import ErrorState from '../components/ErrorState'
-import { extractErrorCode } from '../utils/errors'
 import { saveTransfer } from '../utils/storage'
 
 const CODE_LENGTH = 6
+const JOIN_REQUEST_HARD_TIMEOUT_MS = 20000 // Increased to 20s for Render cold starts
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
 const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
 
@@ -28,6 +27,14 @@ export default function JoinPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const inputRefs = useRef([])
+  const submitInFlightRef = useRef(false)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
     document.title = 'Receive a file · SwiftShare'
@@ -39,12 +46,109 @@ export default function JoinPage() {
     if (firstEmpty >= 0) inputRefs.current[firstEmpty]?.focus()
   }, [])
 
+  const handleSubmit = useCallback(async (rawCode) => {
+    const normalizedCode = String(rawCode || '').trim().toUpperCase()
+    if (normalizedCode.length !== CODE_LENGTH || submitInFlightRef.current) return
+
+    submitInFlightRef.current = true
+    setLoading(true)
+    setError(null)
+
+    console.log('[JoinPage] Submitting code:', normalizedCode)
+
+    try {
+      let hardTimeoutId
+      const timeoutFallback = new Promise((resolve) => {
+        hardTimeoutId = window.setTimeout(() => {
+          console.warn('[JoinPage] Hard timeout reached after 20s')
+          resolve({ ok: false, type: 'TIMEOUT' })
+        }, JOIN_REQUEST_HARD_TIMEOUT_MS)
+      })
+
+      const outcome = await Promise.race([
+        getFileMetadataOutcome(normalizedCode, { timeout: 18000, noRetry: true }), // Increased to 18s
+        timeoutFallback,
+      ])
+
+      window.clearTimeout(hardTimeoutId)
+      if (!mountedRef.current) return
+
+      console.log('[JoinPage] Outcome:', outcome)
+
+      if (outcome?.ok) {
+        const data = outcome.data
+        console.log('[JoinPage] Success, navigating to download page')
+        saveTransfer({
+          code: normalizedCode,
+          filename: data?.files?.[0]?.name || normalizedCode,
+          isSender: false,
+          role: 'receiver',
+          status: data?.status,
+          expiresAt: data?.expiresAt,
+          createdAt: data?.createdAt,
+          files: data?.files,
+          ai: data?.ai || null,
+          transfer: { ...data, code: normalizedCode },
+        })
+        navigate(`/download/${normalizedCode}`, { state: { transferData: { ...data, code: normalizedCode } } })
+        return
+      }
+
+      // Handle all error cases
+      console.error('[JoinPage] Request failed:', outcome)
+      
+      if (outcome?.type === 'SERVER') {
+        const errCode = outcome.errorCode || 'SERVER_ERROR'
+        if (errCode === 'TRANSFER_EXPIRED') {
+          navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (errCode === 'ALREADY_DOWNLOADED') {
+          navigate('/expired?reason=burned', { replace: true })
+          return
+        }
+        setError(errCode)
+      } else if (outcome?.type === 'TIMEOUT') {
+        console.error('[JoinPage] Timeout error - backend may be cold starting')
+        setError('TIMEOUT_ERROR')
+      } else if (outcome?.type === 'EMPTY_RESPONSE') {
+        console.error('[JoinPage] Empty response from server')
+        setError('EMPTY_RESPONSE')
+      } else {
+        console.error('[JoinPage] Network error')
+        setError('NETWORK_ERROR')
+      }
+
+      // Shake animation
+      const el = document.getElementById('code-input-row')
+      if (el) {
+        el.classList.add('animate-shake')
+        setTimeout(() => el.classList.remove('animate-shake'), 500)
+      }
+    } catch (err) {
+      console.error('[JoinPage] Unexpected error:', err)
+      if (!mountedRef.current) return
+      setError('SERVER_ERROR')
+      const el = document.getElementById('code-input-row')
+      if (el) {
+        el.classList.add('animate-shake')
+        setTimeout(() => el.classList.remove('animate-shake'), 500)
+      }
+    } finally {
+      submitInFlightRef.current = false
+      if (mountedRef.current) {
+        setLoading(false)
+        console.log('[JoinPage] Request complete, loading set to false')
+      }
+    }
+  }, [navigate])
+
   // Auto-submit when complete
   useEffect(() => {
     if (chars.every(c => c) && chars.length === CODE_LENGTH) {
-      handleSubmit(chars.join(''))
+      void handleSubmit(chars.join(''))
     }
-  }, [chars])
+  }, [chars, handleSubmit])
 
   function handleChange(idx, value) {
     const ch = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
@@ -88,42 +192,7 @@ export default function JoinPage() {
     }
     if (e.key === 'Enter') {
       const code = chars.join('')
-      if (code.length === CODE_LENGTH) handleSubmit(code)
-    }
-  }
-
-  async function handleSubmit(code) {
-    if (loading || code.length !== CODE_LENGTH) return
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await getFileMetadata(code, { timeout: 12000, noRetry: true })
-      const normalizedCode = String(code || '').trim().toUpperCase()
-      saveTransfer({
-        code: normalizedCode,
-        filename: data?.files?.[0]?.name || normalizedCode,
-        isSender: false,
-        status: data?.status,
-        expiresAt: data?.expiresAt,
-        createdAt: data?.createdAt,
-        files: data?.files,
-        ai: data?.ai || null,
-        transfer: { ...data, code: normalizedCode },
-      })
-      navigate(`/download/${normalizedCode}`, { state: { transferData: { ...data, code: normalizedCode } } })
-    } catch (err) {
-      const errCode = extractErrorCode(err)
-      if (errCode === 'TRANSFER_EXPIRED') {
-        navigate('/expired?reason=expired', { replace: true })
-      } else if (errCode === 'ALREADY_DOWNLOADED') {
-        navigate('/expired?reason=burned', { replace: true })
-      } else {
-        setError(errCode)
-        setLoading(false)
-        // Shake animation
-        const el = document.getElementById('code-input-row')
-        if (el) { el.classList.add('animate-shake'); setTimeout(() => el.classList.remove('animate-shake'), 500) }
-      }
+      if (code.length === CODE_LENGTH) void handleSubmit(code)
     }
   }
 
@@ -193,7 +262,16 @@ export default function JoinPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <ErrorState code={error} />
+              <ErrorState
+                code={error}
+                onRetry={() => {
+                  setError(null)
+                  setLoading(false)
+                  const code = chars.join('')
+                  if (code.length === CODE_LENGTH) void handleSubmit(code)
+                }}
+                autoRetry={error === 'NETWORK_ERROR' || error === 'TIMEOUT_ERROR'}
+              />
             </motion.div>
           )}
 
@@ -206,7 +284,7 @@ export default function JoinPage() {
           >
             <button
               className="btn-primary mx-auto px-10"
-              onClick={() => handleSubmit(chars.join(''))}
+              onClick={() => { void handleSubmit(chars.join('')) }}
               disabled={loading || chars.some(c => !c)}
             >
               {loading ? (

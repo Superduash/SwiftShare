@@ -8,23 +8,37 @@ const STATES = {
   expired: {
     icon: Clock,
     color: 'var(--warning)',
-    title: 'Transfer expired',
-    desc: 'This file has been automatically deleted. Ask the sender to share it again.',
+    title: 'Time\'s up',
+    desc: 'This transfer expired and the files were cleaned up automatically. Ask the sender to share again.',
     emoji: '⏰',
   },
   burned: {
     icon: Flame,
     color: 'var(--danger)',
-    title: 'Burned after download',
-    desc: 'This was a one-time transfer. The file was permanently deleted after the first download.',
+    title: 'Already claimed',
+    desc: 'This was a one-time download. The file was removed after someone grabbed it.',
     emoji: '🔥',
   },
   notfound: {
     icon: FileQuestion,
     color: 'var(--text-3)',
-    title: 'Transfer not found',
-    desc: 'This code doesn\'t match any active transfer. It may have expired or the code might be wrong.',
+    title: 'Not found',
+    desc: 'That code doesn\'t match anything active. It may have expired, or check if the code is right.',
     emoji: '🔍',
+  },
+  cancelled: {
+    icon: FileQuestion,
+    color: 'var(--danger)',
+    title: 'Transfer cancelled',
+    desc: 'The sender removed this transfer. The files are no longer available.',
+    emoji: '🚫',
+  },
+  deleted: {
+    icon: FileQuestion,
+    color: 'var(--danger)',
+    title: 'Transfer removed',
+    desc: 'This transfer was removed and is no longer available.',
+    emoji: '🗑️',
   },
 }
 

@@ -33,36 +33,36 @@ const ERROR_MAP = {
     action: 'Select a file',
   },
   TRANSFER_NOT_FOUND: {
-    title: 'Transfer not found',
-    description: 'This code doesn\'t match any active transfer. Double-check and try again.',
+    title: 'No match found',
+    description: 'That code doesn\'t match any active transfer. Double-check the code and try again.',
     icon: FileX,
     color: 'var(--text-3)',
     action: 'Try another code',
   },
   TRANSFER_EXPIRED: {
-    title: 'Transfer expired',
-    description: 'This file has been automatically deleted. Ask the sender to share again.',
+    title: 'This transfer expired',
+    description: 'The timer ran out and the files were automatically cleaned up. Ask the sender to share again.',
     icon: Clock,
     color: 'var(--warning)',
     action: 'Go home',
   },
   TRANSFER_CANCELLED: {
-    title: 'Transfer cancelled',
-    description: 'The sender cancelled this transfer. Files have been permanently deleted.',
+    title: 'Transfer was cancelled',
+    description: 'The sender removed this transfer. The files are no longer available.',
     icon: Ban,
     color: 'var(--danger)',
     action: 'Go home',
   },
   TRANSFER_DELETED: {
-    title: 'Transfer deleted',
-    description: 'This transfer has been permanently deleted and is no longer available.',
+    title: 'Transfer removed',
+    description: 'This transfer is no longer available.',
     icon: FileX,
     color: 'var(--danger)',
     action: 'Go home',
   },
   ALREADY_DOWNLOADED: {
-    title: 'Already downloaded',
-    description: 'This was a burn-after-download transfer. The file was deleted after the first download.',
+    title: 'Already claimed',
+    description: 'This was a one-time download. The file was automatically removed after the first download.',
     icon: Flame,
     color: 'var(--danger)',
     action: 'Go home',
@@ -96,17 +96,31 @@ const ERROR_MAP = {
     action: 'Check the code',
   },
   SERVER_ERROR: {
-    title: 'Something went wrong',
-    description: 'An unexpected error occurred. Please try again in a moment.',
+    title: 'Hiccup on our end',
+    description: 'Something unexpected happened. Give it another try — it usually works.',
     icon: Server,
-    color: 'var(--danger)',
+    color: 'var(--warning)',
     action: 'Try again',
   },
   NETWORK_ERROR: {
-    title: 'Connection lost',
-    description: 'Can\'t reach the server. Check your internet connection.',
+    title: 'Taking a moment',
+    description: 'The server is warming up or your connection dropped briefly. This usually resolves in a few seconds.',
     icon: WifiOff,
-    color: 'var(--danger)',
+    color: 'var(--warning)',
+    action: 'Retry',
+  },
+  TIMEOUT_ERROR: {
+    title: 'Taking longer than expected',
+    description: 'The server is responding slowly right now. Try again in a moment.',
+    icon: Clock,
+    color: 'var(--warning)',
+    action: 'Retry',
+  },
+  EMPTY_RESPONSE: {
+    title: 'Temporary response issue',
+    description: 'We received an incomplete response. Please retry.',
+    icon: AlertTriangle,
+    color: 'var(--warning)',
     action: 'Retry',
   },
 }
@@ -117,6 +131,8 @@ export function getErrorInfo(code) {
 
 export function extractErrorCode(err) {
   if (err?.response?.data?.error?.code) return err.response.data.error.code
+  if (err?.code === 'ECONNABORTED') return 'TIMEOUT_ERROR'
+  if (/timeout/i.test(String(err?.message || ''))) return 'TIMEOUT_ERROR'
   if (err?.code === 'ERR_NETWORK') return 'NETWORK_ERROR'
   return 'SERVER_ERROR'
 }
