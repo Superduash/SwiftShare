@@ -246,7 +246,7 @@ export default function SenderPage() {
       setLoading(true)
       setError(null)
       try {
-        const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
+        const data = await getFileMetadata(normalizedCode, { timeout: 45000, noRetry: true })
         if (!mountedRef.current) return
         
         // Check for expired/not found BEFORE setting any state
@@ -305,7 +305,7 @@ export default function SenderPage() {
         setError(prev => prev || 'NETWORK_ERROR')
       }
       setLoading(false)
-    }, 15000)
+    }, 50000)
 
     return () => window.clearTimeout(timer)
   }, [loading])
@@ -787,7 +787,7 @@ export default function SenderPage() {
           <ErrorState
             code={error}
             onRetry={handleRetry}
-            autoRetry={false}
+            autoRetry={true}
           />
         </div>
       </div>

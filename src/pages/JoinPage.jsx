@@ -10,9 +10,9 @@ import ErrorState from '../components/ErrorState'
 import { saveTransfer } from '../utils/storage'
 
 const CODE_LENGTH = 6
-const JOIN_REQUEST_HARD_TIMEOUT_MS = 20000 // Increased to 20s for Render cold starts
-const MAX_JOIN_RETRIES = 2
-const JOIN_RETRY_DELAY_MS = 300
+const JOIN_REQUEST_HARD_TIMEOUT_MS = 60000 // 60s for Render cold starts
+const MAX_JOIN_RETRIES = 3
+const JOIN_RETRY_DELAY_MS = 2000
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
 const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
 
@@ -72,7 +72,7 @@ export default function JoinPage() {
 
         try {
           outcome = await Promise.race([
-            getFileMetadataOutcome(normalizedCode, { timeout: 18000, noRetry: true }),
+            getFileMetadataOutcome(normalizedCode, { timeout: 50000, noRetry: true }),
             timeoutFallback,
           ])
         } finally {
@@ -288,7 +288,7 @@ export default function JoinPage() {
                   const code = chars.join('')
                   if (code.length === CODE_LENGTH) void handleSubmit(code)
                 }}
-                autoRetry={false}
+                autoRetry={true}
               />
             </motion.div>
           )}

@@ -40,8 +40,8 @@ const REQUEST_STATE = {
   FAILED: 'failed',
 }
 
-const RETRY_DELAY_MS = 2000
-const MAX_AUTO_RETRIES = 2
+const RETRY_DELAY_MS = 3000
+const MAX_AUTO_RETRIES = 5
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -245,7 +245,7 @@ export default function DownloadPage() {
     setRequestError(null)
 
     try {
-      const outcome = await getFileMetadataOutcome(normalizedCode, { timeout: 12000, noRetry: true })
+      const outcome = await getFileMetadataOutcome(normalizedCode, { timeout: 45000, noRetry: true })
 
       if (!mountedRef.current || requestToken !== requestTokenRef.current) return
 
@@ -334,8 +334,16 @@ export default function DownloadPage() {
     }
 
     const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
-    if (hasUsableCache) {
+    const hasCachedAi = Boolean(cachedAi || seed?.ai)
+
+    if (hasUsableCache && hasCachedAi) {
       return
+    }
+
+    // If we have cached files but no AI yet, keep the loading shimmer visible
+    // while we refetch metadata to pick up AI that may have completed since last visit
+    if (hasUsableCache && !hasCachedAi) {
+      setAiLoading(true)
     }
 
     setRetryAttempt(0)
@@ -598,7 +606,7 @@ export default function DownloadPage() {
           <ErrorState
             code={requestError}
             onRetry={handleRetry}
-            autoRetry={false}
+            autoRetry={true}
           />
         </div>
       </div>

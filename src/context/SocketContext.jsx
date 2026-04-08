@@ -142,10 +142,11 @@ export function SocketProvider({ children }) {
     const s = io(url, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionDelay: 2000,
-      reconnectionDelayMax: 10000,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 30000,
+      randomizationFactor: 0.3,
       reconnectionAttempts: Infinity,
-      timeout: 20000,
+      timeout: 45000,
     })
     
     socketRef.current = s

@@ -227,7 +227,7 @@ export default function HomePage() {
 
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
-    if (!isConnected) return toast.error('Not connected to server')
+    if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
 
     setUploading(true)
     setUploadPercent(0)
