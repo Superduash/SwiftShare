@@ -18,6 +18,7 @@ import FileCard from '../components/FileCard'
 import AISummaryCard from '../components/AISummaryCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
+import ErrorState from '../components/ErrorState'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -25,6 +26,7 @@ const FilePreviewModal = lazy(() =>
 
 export default function DownloadPage() {
   const { code } = useParams()
+  const normalizedCode = String(code || '').trim().toUpperCase()
   const navigate = useNavigate()
   const { socket, joinRoom, leaveRoom } = useSocket()
 
@@ -45,6 +47,7 @@ export default function DownloadPage() {
   const [passwordError, setPasswordError] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [transferStatus, setTransferStatus] = useState('ACTIVE')
+  const [error, setError] = useState(null)
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
   const [receipt, setReceipt] = useState(null)
@@ -66,10 +69,10 @@ export default function DownloadPage() {
 
   // Fetch metadata
   useEffect(() => {
-    if (!code) return
+    if (!normalizedCode) return
     async function load() {
       try {
-        const data = await getFileMetadata(code)
+        const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
         if (!mountedRef.current) return
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
@@ -85,30 +88,45 @@ export default function DownloadPage() {
         const firstFile = data?.files?.[0]
         const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
         if (firstFile && firstFileType.startsWith('image/') && !data.passwordProtected) {
-          setPreviewSrc(previewUrl(code, 0))
+          setPreviewSrc(previewUrl(normalizedCode, 0))
         }
 
-        saveTransfer({ code, filename: firstFile?.name || code, isSender: false })
+        saveTransfer({ code: normalizedCode, filename: firstFile?.name || normalizedCode, isSender: false })
       } catch (err) {
         if (!mountedRef.current) return
         const errCode = extractErrorCode(err)
         if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
         else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
         else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-        else toast.error('Failed to load transfer')
+        else {
+          // For network errors / timeouts, show a retry-able error instead of redirecting
+          setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
+        }
       } finally {
         if (mountedRef.current) setLoading(false)
       }
     }
     load()
-  }, [code, navigate])
+  }, [normalizedCode, navigate])
+
+  // Safety net: never keep skeleton forever if request hangs unexpectedly.
+  useEffect(() => {
+    if (!loading) return
+    const timer = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      setError(prev => prev || 'NETWORK_ERROR')
+      setLoading(false)
+    }, 25000)
+
+    return () => window.clearTimeout(timer)
+  }, [loading])
 
   // Socket
   useEffect(() => {
-    if (!socket || !code) return
+    if (!socket || !normalizedCode) return
 
     const connectRoom = () => {
-      joinRoom(code)
+      joinRoom(normalizedCode)
     }
 
     connectRoom()
@@ -161,9 +179,9 @@ export default function DownloadPage() {
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-receipt', onReceipt)
-      leaveRoom(code)
+      leaveRoom(normalizedCode)
     }
-  }, [socket, code, joinRoom, leaveRoom, navigate, downloaded])
+  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, downloaded])
 
   // Password verification
   async function handlePasswordSubmit(e) {
@@ -172,7 +190,7 @@ export default function DownloadPage() {
     setVerifying(true)
     setPasswordError('')
     try {
-      const result = await verifyPassword(code, password)
+      const result = await verifyPassword(normalizedCode, password)
       if (result?.verified) {
         setPasswordVerified(true)
         verifiedPasswordRef.current = password
@@ -180,7 +198,7 @@ export default function DownloadPage() {
         const firstFile = meta?.files?.[0]
         const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
         if (firstFile && firstFileType.startsWith('image/')) {
-          setPreviewSrc(previewUrl(code, 0, password))
+          setPreviewSrc(previewUrl(normalizedCode, 0, password))
         }
       }
     } catch (err) {
@@ -201,7 +219,7 @@ export default function DownloadPage() {
     if (downloading || downloaded) return
     setDownloading(true)
     try {
-      await smartDownload(code, {
+      await smartDownload(normalizedCode, {
         aiName: ai?.suggestedName,
         originalName: meta?.files?.[0]?.name,
         password: verifiedPasswordRef.current || undefined,
@@ -242,7 +260,7 @@ export default function DownloadPage() {
 
   function handleDownloadSingle(index) {
     const pw = verifiedPasswordRef.current || undefined
-    downloadSingleFile(code, index, pw)
+    downloadSingleFile(normalizedCode, index, pw)
   }
 
   const isUnavailable = transferStatus === 'CANCELLED' || transferStatus === 'DELETED' || transferStatus === 'EXPIRED'
@@ -261,6 +279,15 @@ export default function DownloadPage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <Navbar />
+        <div className="pt-20"><ErrorState code={error} /></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
@@ -270,7 +297,7 @@ export default function DownloadPage() {
           open={!!previewFile}
           onClose={() => setPreviewFile(null)}
           file={previewFile}
-          code={code}
+          code={normalizedCode}
           fileIndex={previewIndex}
           onDownload={canDownload ? handleDownloadSingle : undefined}
           password={verifiedPasswordRef.current || undefined}
@@ -331,7 +358,7 @@ export default function DownloadPage() {
               {downloaded ? 'Download complete!' : isUnavailable ? 'Transfer unavailable' : 'Ready to download'}
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-              {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${code}`}
+              {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${normalizedCode}`}
             </p>
           </motion.div>
 
@@ -492,7 +519,7 @@ export default function DownloadPage() {
                 </div>
 
                 <TransferReceipt
-                  code={code}
+                  code={normalizedCode}
                   files={meta?.files}
                   senderDevice={meta?.senderDeviceName}
                   totalSize={meta?.totalSize}

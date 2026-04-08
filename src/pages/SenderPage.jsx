@@ -29,6 +29,7 @@ const FilePreviewModal = lazy(() =>
 
 export default function SenderPage() {
   const { code } = useParams()
+  const normalizedCode = String(code || '').trim().toUpperCase()
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transferData || null
@@ -57,7 +58,7 @@ export default function SenderPage() {
   useEffect(() => { return () => { mountedRef.current = false } }, [])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
-  const shareLink = `${baseShareUrl}/g/${code}`
+  const shareLink = `${baseShareUrl}/g/${normalizedCode}`
   const canUseWebShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   // Title
@@ -69,11 +70,19 @@ export default function SenderPage() {
 
   // Fetch metadata
   useEffect(() => {
-    if (!code) return
+    if (!normalizedCode) return
 
-    // If we have data from navigation state (just uploaded), use it directly
-    if (navState && navState.code === code) {
-      setMeta(navState)
+    const navStateCode = String(navState?.code || '').trim().toUpperCase()
+    const hasFreshNavState = Boolean(
+      navState &&
+      navStateCode === normalizedCode &&
+      Array.isArray(navState.files) &&
+      navState.files.length > 0
+    )
+
+    // If we have data from navigation state (just uploaded OR from recents), use it directly
+    if (hasFreshNavState) {
+      setMeta({ ...navState, code: normalizedCode })
       const secs = navState.secondsRemaining ||
         (navState.expiresAt
           ? Math.max(0, Math.ceil((new Date(navState.expiresAt).getTime() - Date.now()) / 1000))
@@ -85,14 +94,59 @@ export default function SenderPage() {
       setTotalSeconds(Math.max(sessionDuration, 60))
       if (navState.ai) { setAi(navState.ai); setAiLoading(false) }
       setLoading(false)
+      
+      // If we don't have full metadata (e.g., from recents), fetch it in background
+      if (!navState.expiresAt) {
+        async function loadFullMetadata() {
+          try {
+            const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
+            if (!mountedRef.current) return
+            
+            // Check for expired/not found
+            if (data.status === 'EXPIRED') {
+              navigate('/expired?reason=expired', { replace: true })
+              return
+            }
+            if (data.status === 'CANCELLED' || data.status === 'DELETED') {
+              setCancelled(true)
+            }
+            
+            // Update with full metadata
+            setMeta(data)
+            setSecondsRemaining(data.secondsRemaining || 0)
+            const sessionDuration = data.expiresAt && data.createdAt
+              ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
+              : 600
+            setTotalSeconds(Math.max(sessionDuration, 60))
+            if (data.ai) { setAi(data.ai); setAiLoading(false) }
+          } catch (err) {
+            // Silently fail - we already have basic data showing
+            console.error('[SenderPage] background metadata fetch error:', err)
+          }
+        }
+        loadFullMetadata()
+      }
       return
     }
 
     // Otherwise fetch from API
     async function load() {
+      if (!normalizedCode || !mountedRef.current) return
+      setLoading(true)
+      setError(null)
       try {
-        const data = await getFileMetadata(code, { timeout: 12000, noRetry: true })
+        const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
         if (!mountedRef.current) return
+        
+        // Check for expired/not found BEFORE setting any state
+        if (data.status === 'EXPIRED') {
+          navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (data.status === 'CANCELLED' || data.status === 'DELETED') {
+          setCancelled(true)
+        }
+        
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
         const sessionDuration = data.expiresAt && data.createdAt
@@ -100,49 +154,68 @@ export default function SenderPage() {
           : 600
         setTotalSeconds(Math.max(sessionDuration, 60))
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
-        if (data.status === 'CANCELLED' || data.status === 'DELETED') {
-          setCancelled(true)
-        }
       } catch (err) {
         if (!mountedRef.current) return
         console.error('[SenderPage] load error:', err)
         const errCode = err?.response?.data?.error?.code
-        if (errCode === 'TRANSFER_NOT_FOUND' || errCode === 'TRANSFER_EXPIRED') {
-          navigate('/expired?reason=' + (errCode === 'TRANSFER_EXPIRED' ? 'expired' : 'notfound'), { replace: true })
+        // Only redirect for definitive backend responses (not network/timeout errors)
+        if (errCode === 'TRANSFER_NOT_FOUND') {
+          navigate('/expired?reason=notfound', { replace: true })
           return
         }
-        setError(errCode || 'SERVER_ERROR')
+        if (errCode === 'TRANSFER_EXPIRED') {
+          navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (errCode === 'ALREADY_DOWNLOADED') {
+          navigate('/expired?reason=burned', { replace: true })
+          return
+        }
+        // For network errors / timeouts, show a retry-able error instead of redirecting
+        setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
       } finally {
         if (mountedRef.current) setLoading(false)
       }
     }
 
     load()
-  }, [code])
+  }, [normalizedCode, navState, navigate])
+
+  // Safety net: never keep skeleton forever if request hangs unexpectedly.
+  useEffect(() => {
+    if (!loading) return
+    const timer = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      setError(prev => prev || 'NETWORK_ERROR')
+      setLoading(false)
+    }, 25000)
+
+    return () => window.clearTimeout(timer)
+  }, [loading])
 
   // Fetch activity
   const loadActivity = useCallback(async () => {
-    if (!code || document.hidden) return
+    if (!normalizedCode || document.hidden) return
     try {
-      const data = await getTransferActivity(code)
+      const data = await getTransferActivity(normalizedCode)
       if (data?.activity) setActivity(data.activity)
     } catch {}
-  }, [code])
+  }, [normalizedCode])
 
   useEffect(() => {
-    if (!code) return
+    if (!normalizedCode) return
     loadActivity()
     const iv = setInterval(loadActivity, 8000)
     return () => clearInterval(iv)
-  }, [code, loadActivity])
+  }, [normalizedCode, loadActivity])
 
   // Socket
   useEffect(() => {
-    if (!socket || !code) return
+    if (!socket || !normalizedCode) return
 
     const connectRoom = () => {
-      registerSender(code)
-      rejoinRoom(code)
+      registerSender(normalizedCode)
+      rejoinRoom(normalizedCode)
     }
 
     connectRoom()
@@ -160,7 +233,7 @@ export default function SenderPage() {
       window.setTimeout(() => setDownloadProgress(null), 1500)
     }
     const onReceipt = (receipt) => {
-      const currentCode = String(code || '').trim().toUpperCase()
+      const currentCode = normalizedCode
       const receiptCode = String(receipt?.transferId || '').trim().toUpperCase()
       if (receiptCode && receiptCode !== currentCode) return
       if (receipt?.receiver) {
@@ -206,18 +279,18 @@ export default function SenderPage() {
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-extended', onExtended)
-      leaveRoom(code)
+      leaveRoom(normalizedCode)
     }
-  }, [socket, code, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity])
+  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity])
 
   // Copy helpers
   const copyCode = useCallback(() => {
-    navigator.clipboard.writeText(code).then(() => {
+    navigator.clipboard.writeText(normalizedCode).then(() => {
       setCopiedCode(true)
       toast.success('Code copied')
       setTimeout(() => setCopiedCode(false), 2000)
     })
-  }, [code])
+  }, [normalizedCode])
 
   const copyLink = useCallback(() => {
     navigator.clipboard.writeText(shareLink).then(() => {
@@ -246,7 +319,7 @@ export default function SenderPage() {
       return
     }
     try {
-      const result = await extendTransfer(code)
+      const result = await extendTransfer(normalizedCode)
       setExtended(true)
       setConfirmExtend(false)
       if (result?.expiresAt) {
@@ -263,7 +336,7 @@ export default function SenderPage() {
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
     try {
-      await deleteTransfer(code)
+      await deleteTransfer(normalizedCode)
       toast.success('Transfer cancelled permanently')
       setCancelled(true)
       setConfirmDelete(false)
@@ -280,7 +353,7 @@ export default function SenderPage() {
   }
 
   function handleDownloadSingle(index) {
-    downloadSingleFile(code, index)
+    downloadSingleFile(normalizedCode, index)
   }
 
   // Share helpers
@@ -288,7 +361,7 @@ export default function SenderPage() {
     if (canUseWebShare) {
       navigator.share({
         title: 'SwiftShare',
-        text: `Download my file: ${code}`,
+        text: `Download my file: ${normalizedCode}`,
         url: shareLink,
       }).catch(() => {})
     } else {
@@ -361,7 +434,7 @@ export default function SenderPage() {
             }
             
             const link = document.createElement('a')
-            link.download = `swiftshare-qr-${code}.png`
+            link.download = `swiftshare-qr-${normalizedCode}.png`
             link.href = URL.createObjectURL(blob)
             link.click()
             
@@ -442,14 +515,14 @@ export default function SenderPage() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
-      <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={code} />
+      <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={normalizedCode} />
 
       <Suspense fallback={null}>
         <FilePreviewModal
           open={!!previewFile}
           onClose={() => setPreviewFile(null)}
           file={previewFile}
-          code={code}
+          code={normalizedCode}
           fileIndex={previewIndex}
           onDownload={handleDownloadSingle}
           senderKey={socketId}
@@ -535,7 +608,7 @@ export default function SenderPage() {
 
                   {/* Code characters */}
                   <div className="flex justify-center gap-1.5 mb-4">
-                    {(code || '').split('').map((ch, i) => (
+                    {(normalizedCode || '').split('').map((ch, i) => (
                       <motion.button
                         key={i}
                         className="w-11 h-13 rounded-xl flex items-center justify-center font-mono font-bold text-xl cursor-pointer transition-colors"

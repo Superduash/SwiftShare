@@ -1,6 +1,11 @@
 # Frontend export
-Generated: 2026-04-08T01:46:36Z
+Generated: 2026-04-08T03:16:17Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
+
+===== FILE: .env (118 bytes) =====
+VITE_API_URL=http://localhost:3001
+VITE_SOCKET_URL=http://localhost:3001
+VITE_SHARE_BASE_URL=http://localhost:5173
 
 ===== FILE: .env.local (115 bytes) =====
 VITE_API_URL=http://localhost:3001
@@ -770,7 +775,7 @@ export default function FileCard({
   )
 }
 
-===== FILE: src/components/FilePreviewModal.jsx (12962 bytes) =====
+===== FILE: src/components/FilePreviewModal.jsx (12918 bytes) =====
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Download, FileText, AlertTriangle, Lock } from 'lucide-react'
@@ -959,7 +964,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     className="max-w-full max-h-[65vh] object-contain rounded-xl"
                     style={{ display: loading ? 'none' : 'block' }}
                     loading="lazy"
-                    crossOrigin="anonymous"
                     onLoad={() => setLoading(false)}
                     onError={() => { 
                       setLoading(false)
@@ -1215,13 +1219,17 @@ export default function Navbar() {
   )
 }
 
-===== FILE: src/components/NearbyDevices.jsx (2917 bytes) =====
+===== FILE: src/components/NearbyDevices.jsx (3955 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, Download, Clock } from 'lucide-react'
 import { getNearbyDevices } from '../services/api'
 import { formatBytes, formatRelativeExpiry } from '../utils/format'
 import { useNavigate } from 'react-router-dom'
+
+function normalizeCode(code) {
+  return String(code || '').trim().toUpperCase()
+}
 
 export default function NearbyDevices() {
   const [devices, setDevices] = useState([])
@@ -1231,11 +1239,20 @@ export default function NearbyDevices() {
   useEffect(() => {
     let mounted = true
     async function fetch() {
-      if (document.hidden) return
+      if (document.hidden) {
+        if (mounted) setLoading(false)
+        return
+      }
       try {
         const data = await getNearbyDevices()
-        if (mounted && data?.devices?.length) setDevices(data.devices)
-      } catch {}
+        if (mounted) {
+          setDevices(Array.isArray(data?.devices) ? data.devices : [])
+        }
+      } catch {
+        if (mounted) {
+          setDevices([])
+        }
+      }
       if (mounted) setLoading(false)
     }
     fetch()
@@ -1243,7 +1260,27 @@ export default function NearbyDevices() {
     return () => { mounted = false; clearInterval(iv) }
   }, [])
 
-  if (loading || !devices.length) return null
+  if (loading) return null
+
+  if (!devices.length) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Wifi size={14} style={{ color: 'var(--text-4)' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Nearby Devices</h3>
+        </div>
+        <div className="surface-card-flat p-4 text-center">
+          <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+            No devices found on same WiFi
+          </p>
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
@@ -1266,7 +1303,11 @@ export default function NearbyDevices() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ delay: idx * 0.05 }}
-              onClick={() => navigate(`/download/${dev.code}`)}
+              onClick={() => {
+                const normalizedCode = normalizeCode(dev.code)
+                if (!normalizedCode) return
+                navigate(`/download/${normalizedCode}`)
+              }}
             >
               <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--success-soft)' }}>
                 <Download size={16} style={{ color: 'var(--success)' }} />
@@ -1397,7 +1438,7 @@ export default function QRModal({ open, onClose, value, code }) {
   )
 }
 
-===== FILE: src/components/RecentTransfers.jsx (5618 bytes) =====
+===== FILE: src/components/RecentTransfers.jsx (6780 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
@@ -1412,6 +1453,10 @@ const STATUS_STYLES = {
   CANCELLED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Cancelled' },
   DELETED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Deleted' },
   unknown: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: '...' },
+}
+
+function normalizeCode(code) {
+  return String(code || '').trim().toUpperCase()
 }
 
 export default function RecentTransfers() {
@@ -1432,7 +1477,9 @@ export default function RecentTransfers() {
           const data = results[i].value
           return { ...p, status: data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED') }
         }
-        return { ...p, status: 'EXPIRED' }
+        // On network failure, keep the previous status instead of assuming expired.
+        // This prevents active files from showing "Expired" during cold-start or transient errors.
+        return p
       }))
     })
     return () => { mounted = false }
@@ -1453,16 +1500,39 @@ export default function RecentTransfers() {
 
   function handleRemove(e, code) {
     e.stopPropagation()
-    removeTransfer(code)
-    setTransfers(prev => prev.filter(t => t.code !== code))
+    const normalizedCode = normalizeCode(code)
+    removeTransfer(normalizedCode)
+    setTransfers(prev => prev.filter(t => normalizeCode(t.code) !== normalizedCode))
   }
 
   function handleClick(t) {
+    const normalizedCode = normalizeCode(t.code)
+    if (!normalizedCode) return
+
+    const status = String(t?.status || '').toUpperCase()
+    // Only redirect for definitively terminal states — NOT for 'unknown' or empty status
+    if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
+      const reason = status === 'EXPIRED' ? 'expired' : 'notfound'
+      navigate(`/expired?reason=${reason}`)
+      return
+    }
+
     // Role-based routing: sender → sender page, receiver → download page
-    if (t.isSender) {
-      navigate(`/sender/${t.code}`)
-    } else {
-      navigate(`/download/${t.code}`)
+    try {
+      if (t.isSender) {
+        // Always re-fetch metadata for recents to avoid stale/incomplete nav state.
+        navigate(`/sender/${normalizedCode}`)
+      } else {
+        navigate(`/download/${normalizedCode}`)
+      }
+    } catch (err) {
+      console.error('[RecentTransfers] Navigation error:', err)
+      // Fallback: navigate without state
+      if (t.isSender) {
+        navigate(`/sender/${normalizedCode}`)
+      } else {
+        navigate(`/download/${normalizedCode}`)
+      }
     }
   }
 
@@ -2866,7 +2936,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (20288 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (22217 bytes) =====
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -2887,6 +2957,7 @@ import FileCard from '../components/FileCard'
 import AISummaryCard from '../components/AISummaryCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
+import ErrorState from '../components/ErrorState'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -2894,6 +2965,7 @@ const FilePreviewModal = lazy(() =>
 
 export default function DownloadPage() {
   const { code } = useParams()
+  const normalizedCode = String(code || '').trim().toUpperCase()
   const navigate = useNavigate()
   const { socket, joinRoom, leaveRoom } = useSocket()
 
@@ -2914,6 +2986,7 @@ export default function DownloadPage() {
   const [passwordError, setPasswordError] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [transferStatus, setTransferStatus] = useState('ACTIVE')
+  const [error, setError] = useState(null)
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
   const [receipt, setReceipt] = useState(null)
@@ -2935,10 +3008,10 @@ export default function DownloadPage() {
 
   // Fetch metadata
   useEffect(() => {
-    if (!code) return
+    if (!normalizedCode) return
     async function load() {
       try {
-        const data = await getFileMetadata(code)
+        const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
         if (!mountedRef.current) return
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
@@ -2954,30 +3027,45 @@ export default function DownloadPage() {
         const firstFile = data?.files?.[0]
         const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
         if (firstFile && firstFileType.startsWith('image/') && !data.passwordProtected) {
-          setPreviewSrc(previewUrl(code, 0))
+          setPreviewSrc(previewUrl(normalizedCode, 0))
         }
 
-        saveTransfer({ code, filename: firstFile?.name || code, isSender: false })
+        saveTransfer({ code: normalizedCode, filename: firstFile?.name || normalizedCode, isSender: false })
       } catch (err) {
         if (!mountedRef.current) return
         const errCode = extractErrorCode(err)
         if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
         else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
         else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-        else toast.error('Failed to load transfer')
+        else {
+          // For network errors / timeouts, show a retry-able error instead of redirecting
+          setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
+        }
       } finally {
         if (mountedRef.current) setLoading(false)
       }
     }
     load()
-  }, [code, navigate])
+  }, [normalizedCode, navigate])
+
+  // Safety net: never keep skeleton forever if request hangs unexpectedly.
+  useEffect(() => {
+    if (!loading) return
+    const timer = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      setError(prev => prev || 'NETWORK_ERROR')
+      setLoading(false)
+    }, 25000)
+
+    return () => window.clearTimeout(timer)
+  }, [loading])
 
   // Socket
   useEffect(() => {
-    if (!socket || !code) return
+    if (!socket || !normalizedCode) return
 
     const connectRoom = () => {
-      joinRoom(code)
+      joinRoom(normalizedCode)
     }
 
     connectRoom()
@@ -3030,9 +3118,9 @@ export default function DownloadPage() {
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-receipt', onReceipt)
-      leaveRoom(code)
+      leaveRoom(normalizedCode)
     }
-  }, [socket, code, joinRoom, leaveRoom, navigate, downloaded])
+  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, downloaded])
 
   // Password verification
   async function handlePasswordSubmit(e) {
@@ -3041,7 +3129,7 @@ export default function DownloadPage() {
     setVerifying(true)
     setPasswordError('')
     try {
-      const result = await verifyPassword(code, password)
+      const result = await verifyPassword(normalizedCode, password)
       if (result?.verified) {
         setPasswordVerified(true)
         verifiedPasswordRef.current = password
@@ -3049,7 +3137,7 @@ export default function DownloadPage() {
         const firstFile = meta?.files?.[0]
         const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
         if (firstFile && firstFileType.startsWith('image/')) {
-          setPreviewSrc(previewUrl(code, 0, password))
+          setPreviewSrc(previewUrl(normalizedCode, 0, password))
         }
       }
     } catch (err) {
@@ -3070,7 +3158,7 @@ export default function DownloadPage() {
     if (downloading || downloaded) return
     setDownloading(true)
     try {
-      await smartDownload(code, {
+      await smartDownload(normalizedCode, {
         aiName: ai?.suggestedName,
         originalName: meta?.files?.[0]?.name,
         password: verifiedPasswordRef.current || undefined,
@@ -3111,7 +3199,7 @@ export default function DownloadPage() {
 
   function handleDownloadSingle(index) {
     const pw = verifiedPasswordRef.current || undefined
-    downloadSingleFile(code, index, pw)
+    downloadSingleFile(normalizedCode, index, pw)
   }
 
   const isUnavailable = transferStatus === 'CANCELLED' || transferStatus === 'DELETED' || transferStatus === 'EXPIRED'
@@ -3130,6 +3218,15 @@ export default function DownloadPage() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <Navbar />
+        <div className="pt-20"><ErrorState code={error} /></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
@@ -3139,7 +3236,7 @@ export default function DownloadPage() {
           open={!!previewFile}
           onClose={() => setPreviewFile(null)}
           file={previewFile}
-          code={code}
+          code={normalizedCode}
           fileIndex={previewIndex}
           onDownload={canDownload ? handleDownloadSingle : undefined}
           password={verifiedPasswordRef.current || undefined}
@@ -3200,7 +3297,7 @@ export default function DownloadPage() {
               {downloaded ? 'Download complete!' : isUnavailable ? 'Transfer unavailable' : 'Ready to download'}
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-              {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${code}`}
+              {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${normalizedCode}`}
             </p>
           </motion.div>
 
@@ -3361,7 +3458,7 @@ export default function DownloadPage() {
                 </div>
 
                 <TransferReceipt
-                  code={code}
+                  code={normalizedCode}
                   files={meta?.files}
                   senderDevice={meta?.senderDeviceName}
                   totalSize={meta?.totalSize}
@@ -3374,7 +3471,25 @@ export default function DownloadPage() {
 
           {/* AI Summary */}
           <div className="mt-6">
-            <AISummaryCard ai={ai} loading={aiLoading} />
+            {needsPassword && !passwordVerified ? (
+              <motion.div
+                className="surface-card p-5 text-center"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--accent-soft)' }}>
+                  <Lock size={20} style={{ color: 'var(--accent)' }} />
+                </div>
+                <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-2)' }}>
+                  AI Summary Locked
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+                  AI summary is disabled for password-protected files
+                </p>
+              </motion.div>
+            ) : (
+              <AISummaryCard ai={ai} loading={aiLoading} />
+            )}
           </div>
         </div>
       </main>
@@ -4307,7 +4422,7 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (24188 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (27049 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -4339,6 +4454,7 @@ const FilePreviewModal = lazy(() =>
 
 export default function SenderPage() {
   const { code } = useParams()
+  const normalizedCode = String(code || '').trim().toUpperCase()
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transferData || null
@@ -4367,7 +4483,7 @@ export default function SenderPage() {
   useEffect(() => { return () => { mountedRef.current = false } }, [])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
-  const shareLink = `${baseShareUrl}/g/${code}`
+  const shareLink = `${baseShareUrl}/g/${normalizedCode}`
   const canUseWebShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   // Title
@@ -4379,11 +4495,20 @@ export default function SenderPage() {
 
   // Fetch metadata
   useEffect(() => {
-    if (!code) return
+    if (!normalizedCode) return
+
+    const navStateCode = String(navState?.code || '').trim().toUpperCase()
+    const hasFreshNavState = Boolean(
+      navState &&
+      navStateCode === normalizedCode &&
+      Array.isArray(navState.files) &&
+      navState.files.length > 0 &&
+      navState.expiresAt,
+    )
 
     // If we have data from navigation state (just uploaded), use it directly
-    if (navState && navState.code === code) {
-      setMeta(navState)
+    if (hasFreshNavState) {
+      setMeta({ ...navState, code: normalizedCode })
       const secs = navState.secondsRemaining ||
         (navState.expiresAt
           ? Math.max(0, Math.ceil((new Date(navState.expiresAt).getTime() - Date.now()) / 1000))
@@ -4401,8 +4526,18 @@ export default function SenderPage() {
     // Otherwise fetch from API
     async function load() {
       try {
-        const data = await getFileMetadata(code, { timeout: 12000, noRetry: true })
+        const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
         if (!mountedRef.current) return
+        
+        // Check for expired/not found BEFORE setting any state
+        if (data.status === 'EXPIRED') {
+          navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (data.status === 'CANCELLED' || data.status === 'DELETED') {
+          setCancelled(true)
+        }
+        
         setMeta(data)
         setSecondsRemaining(data.secondsRemaining || 0)
         const sessionDuration = data.expiresAt && data.createdAt
@@ -4410,49 +4545,68 @@ export default function SenderPage() {
           : 600
         setTotalSeconds(Math.max(sessionDuration, 60))
         if (data.ai) { setAi(data.ai); setAiLoading(false) }
-        if (data.status === 'CANCELLED' || data.status === 'DELETED') {
-          setCancelled(true)
-        }
       } catch (err) {
         if (!mountedRef.current) return
         console.error('[SenderPage] load error:', err)
         const errCode = err?.response?.data?.error?.code
-        if (errCode === 'TRANSFER_NOT_FOUND' || errCode === 'TRANSFER_EXPIRED') {
-          navigate('/expired?reason=' + (errCode === 'TRANSFER_EXPIRED' ? 'expired' : 'notfound'), { replace: true })
+        // Only redirect for definitive backend responses (not network/timeout errors)
+        if (errCode === 'TRANSFER_NOT_FOUND') {
+          navigate('/expired?reason=notfound', { replace: true })
           return
         }
-        setError(errCode || 'SERVER_ERROR')
+        if (errCode === 'TRANSFER_EXPIRED') {
+          navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (errCode === 'ALREADY_DOWNLOADED') {
+          navigate('/expired?reason=burned', { replace: true })
+          return
+        }
+        // For network errors / timeouts, show a retry-able error instead of redirecting
+        setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
       } finally {
         if (mountedRef.current) setLoading(false)
       }
     }
 
     load()
-  }, [code])
+  }, [normalizedCode, navState, navigate])
+
+  // Safety net: never keep skeleton forever if request hangs unexpectedly.
+  useEffect(() => {
+    if (!loading) return
+    const timer = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      setError(prev => prev || 'NETWORK_ERROR')
+      setLoading(false)
+    }, 25000)
+
+    return () => window.clearTimeout(timer)
+  }, [loading])
 
   // Fetch activity
   const loadActivity = useCallback(async () => {
-    if (!code || document.hidden) return
+    if (!normalizedCode || document.hidden) return
     try {
-      const data = await getTransferActivity(code)
+      const data = await getTransferActivity(normalizedCode)
       if (data?.activity) setActivity(data.activity)
     } catch {}
-  }, [code])
+  }, [normalizedCode])
 
   useEffect(() => {
-    if (!code) return
+    if (!normalizedCode) return
     loadActivity()
     const iv = setInterval(loadActivity, 8000)
     return () => clearInterval(iv)
-  }, [code, loadActivity])
+  }, [normalizedCode, loadActivity])
 
   // Socket
   useEffect(() => {
-    if (!socket || !code) return
+    if (!socket || !normalizedCode) return
 
     const connectRoom = () => {
-      registerSender(code)
-      rejoinRoom(code)
+      registerSender(normalizedCode)
+      rejoinRoom(normalizedCode)
     }
 
     connectRoom()
@@ -4470,7 +4624,7 @@ export default function SenderPage() {
       window.setTimeout(() => setDownloadProgress(null), 1500)
     }
     const onReceipt = (receipt) => {
-      const currentCode = String(code || '').trim().toUpperCase()
+      const currentCode = normalizedCode
       const receiptCode = String(receipt?.transferId || '').trim().toUpperCase()
       if (receiptCode && receiptCode !== currentCode) return
       if (receipt?.receiver) {
@@ -4516,18 +4670,18 @@ export default function SenderPage() {
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-extended', onExtended)
-      leaveRoom(code)
+      leaveRoom(normalizedCode)
     }
-  }, [socket, code, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity])
+  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity])
 
   // Copy helpers
   const copyCode = useCallback(() => {
-    navigator.clipboard.writeText(code).then(() => {
+    navigator.clipboard.writeText(normalizedCode).then(() => {
       setCopiedCode(true)
       toast.success('Code copied')
       setTimeout(() => setCopiedCode(false), 2000)
     })
-  }, [code])
+  }, [normalizedCode])
 
   const copyLink = useCallback(() => {
     navigator.clipboard.writeText(shareLink).then(() => {
@@ -4556,7 +4710,7 @@ export default function SenderPage() {
       return
     }
     try {
-      const result = await extendTransfer(code)
+      const result = await extendTransfer(normalizedCode)
       setExtended(true)
       setConfirmExtend(false)
       if (result?.expiresAt) {
@@ -4573,7 +4727,7 @@ export default function SenderPage() {
   async function handleDelete() {
     if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
     try {
-      await deleteTransfer(code)
+      await deleteTransfer(normalizedCode)
       toast.success('Transfer cancelled permanently')
       setCancelled(true)
       setConfirmDelete(false)
@@ -4590,7 +4744,7 @@ export default function SenderPage() {
   }
 
   function handleDownloadSingle(index) {
-    downloadSingleFile(code, index)
+    downloadSingleFile(normalizedCode, index)
   }
 
   // Share helpers
@@ -4598,7 +4752,7 @@ export default function SenderPage() {
     if (canUseWebShare) {
       navigator.share({
         title: 'SwiftShare',
-        text: `Download my file: ${code}`,
+        text: `Download my file: ${normalizedCode}`,
         url: shareLink,
       }).catch(() => {})
     } else {
@@ -4671,7 +4825,7 @@ export default function SenderPage() {
             }
             
             const link = document.createElement('a')
-            link.download = `swiftshare-qr-${code}.png`
+            link.download = `swiftshare-qr-${normalizedCode}.png`
             link.href = URL.createObjectURL(blob)
             link.click()
             
@@ -4718,17 +4872,48 @@ export default function SenderPage() {
     )
   }
 
+  // Handle expired/deleted transfers
+  if (!meta || meta.status === 'EXPIRED' || cancelled) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <Navbar />
+        <div className="pt-20 max-w-2xl mx-auto px-4">
+          <motion.div
+            className="surface-card p-8 text-center"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--warning-soft)' }}>
+              <Clock size={32} style={{ color: 'var(--warning)' }} />
+            </div>
+            <h1 className="font-display font-bold text-2xl mb-2" style={{ color: 'var(--text)' }}>
+              {cancelled ? 'Transfer Cancelled' : 'Transfer Expired'}
+            </h1>
+            <p className="text-sm mb-6" style={{ color: 'var(--text-3)' }}>
+              {cancelled 
+                ? 'This transfer has been permanently deleted.'
+                : 'This transfer has expired and is no longer available.'}
+            </p>
+            <button className="btn-primary" onClick={() => navigate('/')}>
+              Create New Transfer
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
-      <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={code} />
+      <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={normalizedCode} />
 
       <Suspense fallback={null}>
         <FilePreviewModal
           open={!!previewFile}
           onClose={() => setPreviewFile(null)}
           file={previewFile}
-          code={code}
+          code={normalizedCode}
           fileIndex={previewIndex}
           onDownload={handleDownloadSingle}
           senderKey={socketId}
@@ -4814,7 +4999,7 @@ export default function SenderPage() {
 
                   {/* Code characters */}
                   <div className="flex justify-center gap-1.5 mb-4">
-                    {(code || '').split('').map((ch, i) => (
+                    {(normalizedCode || '').split('').map((ch, i) => (
                       <motion.button
                         key={i}
                         className="w-11 h-13 rounded-xl flex items-center justify-center font-mono font-bold text-xl cursor-pointer transition-colors"
@@ -5499,12 +5684,16 @@ export function playSuccess() {
   playUploadSuccess()
 }
 
-===== FILE: src/utils/storage.js (2311 bytes) =====
+===== FILE: src/utils/storage.js (2689 bytes) =====
 const KEYS = {
   RECENT: 'swiftshare_recent',
   SETTINGS: 'swiftshare_settings',
   THEME: 'swiftshare_theme',
   PWA_DISMISSED: 'swiftshare_pwa_dismissed',
+}
+
+function normalizeCode(code) {
+  return String(code || '').trim().toUpperCase()
 }
 
 function safeGet(key, fallback) {
@@ -5519,20 +5708,28 @@ function safeSet(key, value) {
 
 // ── Recent Transfers ───────────────────────
 export function getRecentTransfers() {
-  return safeGet(KEYS.RECENT, [])
+  return safeGet(KEYS.RECENT, []).map((entry) => ({
+    ...entry,
+    code: normalizeCode(entry?.code),
+  }))
 }
 export function saveTransfer(entry) {
-  const list = getRecentTransfers().filter(t => t.code !== entry.code)
-  list.unshift({ ...entry, savedAt: new Date().toISOString() })
+  const normalizedCode = normalizeCode(entry?.code)
+  if (!normalizedCode) return
+
+  const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
+  list.unshift({ ...entry, code: normalizedCode, savedAt: new Date().toISOString() })
   safeSet(KEYS.RECENT, list.slice(0, 10))
 }
 export function removeTransfer(code) {
-  const list = getRecentTransfers().filter(t => t.code !== code)
+  const normalizedCode = normalizeCode(code)
+  const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
   safeSet(KEYS.RECENT, list)
 }
 export function updateTransferStatus(code, status) {
+  const normalizedCode = normalizeCode(code)
   const list = getRecentTransfers().map(t =>
-    t.code === code ? { ...t, status } : t
+    t.code === normalizedCode ? { ...t, status } : t
   )
   safeSet(KEYS.RECENT, list)
 }
@@ -5697,15 +5894,28 @@ export default {
   ]
 }
 
-===== FILE: vite.config.js (240 bytes) =====
+===== FILE: vite.config.js (549 bytes) =====
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+
+const backendTarget = (process.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')
 
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      '/api': {
+        target: backendTarget,
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: backendTarget,
+        changeOrigin: true,
+        ws: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',
@@ -5714,6 +5924,6 @@ export default defineConfig({
 })
 
 ===== SUMMARY =====
-Included files: 42
+Included files: 43
 Skipped (too large): 0
-Total source bytes included: 208815
+Total source bytes included: 216566
