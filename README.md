@@ -1,102 +1,90 @@
-# SwiftShare⚡📦🚀
+﻿<div align="center">
+  <img src="https://raw.githubusercontent.com/Superduash/SwiftShare/main/public/vite.svg" alt="SwiftShare Logo" width="120" />
 
-**Zero-Login | Ultra-Fast | Cross-Platform File Transfer**
+  # SwiftShare
 
-SwiftShare is a browser-based temporary file sharing platform that allows users to send files instantly using a **6-digit code or QR scan** — no login, no app install, no waiting. Files are automatically deleted after download or expiry.
+  ![Version](https://img.shields.io/badge/version-2.0.0-blue.svg?style=for-the-badge)
+  ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
+  ![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
+  ![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)
 
----
+  **SwiftShare is a blazing-fast, secure, and modern temporary file-sharing platform designed for seamless device-to-device transfers.**
+  <br />
+  Built with React, Vite, and TailwindCSS, the UI effortlessly blends performance and aesthetics to provide a deeply integrated native-like experience on web.
 
-## 🚀 Features
-
-### Core Transfer
-
-* Drag & drop file and folder upload
-* Auto ZIP for folders
-* Instant 6-digit session code
-* QR code sharing
-* Shareable link
-* Real-time upload & download progress
-* File preview (images, PDF, video thumbnail)
-* Download single file or all as ZIP
-* File size + file type icons
-* Mobile responsive design
-
-### 🔒 Security & Session
-
-* Auto delete after download
-* Auto delete after 10 minutes
-* Countdown timer
-* One-time download option
-* Encrypted temporary session storage
-* Zero permanent file storage
-
-### 🤖 AI Features
-
-* AI summary for PDF, DOCX, TXT
-* AI-generated filename suggestions
-* AI file category tags
-* AI image description
-* Summary shown before download
-
-### 📡 Nearby Transfer
-
-* Detect devices on same WiFi
-* One-tap send to nearby device
-* No code needed for nearby transfer
-
-### 🎨 UI / UX
-
-* Dark mode (default)
-* Glassmorphism UI
-* Animated drag & drop zone
-* Big 6-digit code display
-* QR code large and scannable
-* Confetti on successful transfer
-* Toast notifications
-* Loading skeletons
-* Smooth transitions
-* Transfer speed indicator
+</div>
 
 ---
 
-## 🖥️ Frontend Tech Stack
+<br />
 
-* **React (Vite)**
-* **Tailwind CSS**
-* **Socket.io Client**
-* **Axios**
-* **QR Code Generator**
-* **Framer Motion**
+<div align="center">
+  <img src="https://via.placeholder.com/800x450/1a1a1a/ffffff?text=SwiftShare+Showcase:+(Replace+with+actual+hero+image)" alt="SwiftShare Interface" width="100%" style="border-radius:12px; border:1px solid #333;" />
+</div>
 
----
+<br />
 
-## 🧠 How It Works
+## Features ✨
 
-1. User uploads file
-2. Server generates **6-digit code + QR**
-3. File stored temporarily
-4. Receiver enters code or scans QR
-5. File downloaded
-6. File auto-deletes
+* **Lightning Fast Transfers**: Optimized for high-speed uploads and downloads with seamless real-time syncing via WebSockets.
+* **Burn-After-Read (Self-Destruct)**: Highly secure file sharing with auto-deletion mechanics. Files are shredded instantly upon being downloaded.
+* **Smart AI Summaries**: Uses Gemini AI to automatically summarize text-heavy documents before you even download them.
+* **Zero-Setup Join via QR**: Generate dynamic QR codes or memorable codes for instantaneous cross-device fetching.
+* **Beautiful Native-Like UI**: Features smooth Framer Motion animations, deeply customizable dark and light themes, and glassmorphism styling.
+* **Multi-File Batch Downloads**: Effortless batching, archiving (.zip), and grouped file downloads out of the box.
+* **Cross-Platform Compatibility**: Looks stunning on Mobile, Desktop, and everything in between.
 
 ---
 
-## 🆚 Competitive Advantage
-
-| Feature        | SwiftShare |
-| -------------- | ---------- |
-| No login       | ✅          |
-| No app install | ✅          |
-| QR + Code      | ✅          |
-| Auto delete    | ✅          |
-| Cross platform | ✅          |
-| AI Summary     | ✅          |
+> *"The gold standard for instant file transfers. No messy drives, no accounts, just pure speed."* — **User Feedback**
 
 ---
 
-## 📌 Tagline
+### Tech Stack 💻
 
-**Simple, yet too effective.**
+| Tool | Purpose |
+|------|---------|
+| **React 18** | Frontend rendering engine |
+| **TailwindCSS** | Rapid, beautiful utility-based generic styling |
+| **Vite** | Blazing fast build tool |
+| **Framer Motion** | Physics-based, smooth UI animations |
+| **Socket.io-client** | Real-time connection with backend nodes |
+| **React Query** | Robust remote data fetching & caching |
 
----
+<br />
 
+## Getting Started 🚀
+
+### Prerequisites
+Make sure you have Node >= 20.x installed.
+
+### Installation & Run
+
+1. **Clone the repository:**
+   `ash
+   git clone https://github.com/Superduash/SwiftShare.git
+   `
+2. **Navigate to the frontend directory:**
+   `ash
+   cd SwiftShare/Frontend
+   `
+3. **Install dependencies:**
+   `ash
+   npm install
+   `
+4. **Start the development server:**
+   `ash
+   npm run dev
+   `
+
+Enjoy lightning-fast coding with Vite's HMR and start securely sharing!
+
+<br />
+
+## License 📜
+
+Distributed under the MIT License. See LICENSE for more information.
+
+<div align="center">
+  <sub>Built with ❤️ by Superduash</sub>
+</div>
