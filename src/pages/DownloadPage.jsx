@@ -6,10 +6,11 @@ import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
+import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile, finalizeBurnTransfer } from '../services/api'
 import { smartDownload } from '../utils/download'
 import {
   saveTransfer,
+  updateTransferStatus,
   getSettings,
   getCachedTransfer,
   saveCachedTransfer,
@@ -92,11 +93,35 @@ export default function DownloadPage() {
   const downloadingRef = useRef(false)
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
+  const transferStatusRef = useRef(initialCachedTransfer?.status || 'ACTIVE')
+  const downloadedAnyRef = useRef(false)
+  const burnFinalizeRequestedRef = useRef(false)
   const requestInFlightRef = useRef(false)
   const requestTokenRef = useRef(0)
   const retryTimerRef = useRef(null)
+  const terminalNavigatedRef = useRef(false)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
+  useEffect(() => { transferStatusRef.current = transferStatus }, [transferStatus])
+
+  const finalizeBurnSessionIfNeeded = useCallback(async () => {
+    if (burnFinalizeRequestedRef.current) return
+
+    const transfer = metaRef.current
+    if (!transfer?.burnAfterDownload) return
+    if (!downloadedAnyRef.current) return
+
+    const status = String(transferStatusRef.current || transfer?.status || '').toUpperCase()
+    if (status === 'DELETED' || status === 'CANCELLED' || status === 'EXPIRED') return
+
+    burnFinalizeRequestedRef.current = true
+    try {
+      await finalizeBurnTransfer(normalizedCode)
+      updateTransferStatus(normalizedCode, 'DELETED')
+    } catch {
+      // Cleanup service will finalize stale claimed sessions if this request fails during tab close.
+    }
+  }, [normalizedCode])
 
   useEffect(() => {
     verifiedPasswordRef.current = ''
@@ -228,7 +253,9 @@ export default function DownloadPage() {
         const data = outcome.data
         const status = String(data?.status || '').toUpperCase()
         if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
-          navigate(`/expired?reason=${status.toLowerCase()}`, { replace: true })
+          updateTransferStatus(normalizedCode, status)
+          const reason = status === 'DELETED' ? 'burned' : status.toLowerCase()
+          navigate(`/expired?reason=${reason}`, { replace: true })
           return
         }
 
@@ -242,10 +269,12 @@ export default function DownloadPage() {
       if (outcome.type === 'SERVER') {
         const errCode = outcome.errorCode || 'SERVER_ERROR'
         if (errCode === 'TRANSFER_EXPIRED') {
+          updateTransferStatus(normalizedCode, 'EXPIRED')
           navigate('/expired?reason=expired', { replace: true })
           return
         }
         if (errCode === 'ALREADY_DOWNLOADED') {
+          updateTransferStatus(normalizedCode, 'DELETED')
           navigate('/expired?reason=burned', { replace: true })
           return
         }
@@ -340,6 +369,21 @@ export default function DownloadPage() {
     }
   }, [clearRetryTimer])
 
+  useEffect(() => {
+    const finalizeOnPageExit = () => {
+      void finalizeBurnSessionIfNeeded()
+    }
+
+    window.addEventListener('pagehide', finalizeOnPageExit)
+    window.addEventListener('beforeunload', finalizeOnPageExit)
+
+    return () => {
+      window.removeEventListener('pagehide', finalizeOnPageExit)
+      window.removeEventListener('beforeunload', finalizeOnPageExit)
+      void finalizeBurnSessionIfNeeded()
+    }
+  }, [finalizeBurnSessionIfNeeded])
+
   // Socket
   useEffect(() => {
     if (!socket || !normalizedCode) return
@@ -368,22 +412,40 @@ export default function DownloadPage() {
       setDownloadPercent(percent || 0)
     }
     const onDownComplete = () => {
+      if (metaRef.current?.burnAfterDownload) {
+        downloadedAnyRef.current = true
+      }
       if (!downloadingRef.current) return
       setDownloadPercent(100)
       setDownloading(false)
       setDownloaded(true)
     }
     const onCancelled = () => {
+      if (terminalNavigatedRef.current) return
+      terminalNavigatedRef.current = true
       setTransferStatus('CANCELLED')
       patchCachedTransfer({ status: 'CANCELLED' })
+      updateTransferStatus(normalizedCode, 'CANCELLED')
+      navigate('/expired?reason=cancelled', { replace: true })
     }
     const onDeleted = ({ reason } = {}) => {
+      if (terminalNavigatedRef.current) return
       setTransferStatus('DELETED')
       patchCachedTransfer({ status: 'DELETED' })
+      updateTransferStatus(normalizedCode, 'DELETED')
       // Only show error if user hasn't downloaded and isn't currently downloading
-      if (reason === 'burn' && !downloaded && !downloadingRef.current) {
+      if (reason === 'burn' && !downloadedAnyRef.current && !downloadingRef.current) {
         toast.error('This file was burned after being downloaded by someone else')
       }
+      if (!downloadedAnyRef.current && !downloadingRef.current) {
+        terminalNavigatedRef.current = true
+        navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
+      }
+    }
+    const onClaimed = () => {
+      setTransferStatus('CLAIMED')
+      patchCachedTransfer({ status: 'CLAIMED' })
+      updateTransferStatus(normalizedCode, 'CLAIMED')
     }
     const onReceipt = (data) => setReceipt(data)
 
@@ -395,6 +457,7 @@ export default function DownloadPage() {
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-cancelled', onCancelled)
     socket.on('transfer-deleted', onDeleted)
+    socket.on('transfer-claimed', onClaimed)
     socket.on('transfer-receipt', onReceipt)
 
     return () => {
@@ -406,10 +469,11 @@ export default function DownloadPage() {
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
+      socket.off('transfer-claimed', onClaimed)
       socket.off('transfer-receipt', onReceipt)
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, downloaded, patchCachedTransfer])
+  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, patchCachedTransfer])
 
   // Password verification
   async function handlePasswordSubmit(e) {
@@ -458,6 +522,7 @@ export default function DownloadPage() {
       })
 
       downloadSucceeded = true
+      downloadedAnyRef.current = true
       setDownloaded(true)
 
       const currentSettings = getSettings()
@@ -683,7 +748,7 @@ export default function DownloadPage() {
           </motion.div>
 
           {/* Burn badge */}
-          {meta?.burnAfterDownload && !downloaded && !isUnavailable && (
+          {meta?.burnAfterDownload && !isUnavailable && (
             <motion.div
               className="mb-4 p-3 rounded-xl text-center"
               style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
@@ -691,7 +756,7 @@ export default function DownloadPage() {
               animate={{ opacity: 1 }}
             >
               <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
-                🔥 One-time download — this file will be deleted after you download it
+                🔥 Burn mode is active. This transfer stays available for this device until you leave this page.
               </p>
             </motion.div>
           )}
