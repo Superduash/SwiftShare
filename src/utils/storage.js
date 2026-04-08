@@ -5,6 +5,10 @@ const KEYS = {
   PWA_DISMISSED: 'swiftshare_pwa_dismissed',
 }
 
+function normalizeCode(code) {
+  return String(code || '').trim().toUpperCase()
+}
+
 function safeGet(key, fallback) {
   try {
     const raw = localStorage.getItem(key)
@@ -17,20 +21,28 @@ function safeSet(key, value) {
 
 // ── Recent Transfers ───────────────────────
 export function getRecentTransfers() {
-  return safeGet(KEYS.RECENT, [])
+  return safeGet(KEYS.RECENT, []).map((entry) => ({
+    ...entry,
+    code: normalizeCode(entry?.code),
+  }))
 }
 export function saveTransfer(entry) {
-  const list = getRecentTransfers().filter(t => t.code !== entry.code)
-  list.unshift({ ...entry, savedAt: new Date().toISOString() })
+  const normalizedCode = normalizeCode(entry?.code)
+  if (!normalizedCode) return
+
+  const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
+  list.unshift({ ...entry, code: normalizedCode, savedAt: new Date().toISOString() })
   safeSet(KEYS.RECENT, list.slice(0, 10))
 }
 export function removeTransfer(code) {
-  const list = getRecentTransfers().filter(t => t.code !== code)
+  const normalizedCode = normalizeCode(code)
+  const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
   safeSet(KEYS.RECENT, list)
 }
 export function updateTransferStatus(code, status) {
+  const normalizedCode = normalizeCode(code)
   const list = getRecentTransfers().map(t =>
-    t.code === code ? { ...t, status } : t
+    t.code === normalizedCode ? { ...t, status } : t
   )
   safeSet(KEYS.RECENT, list)
 }

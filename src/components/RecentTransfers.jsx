@@ -14,16 +14,27 @@ const STATUS_STYLES = {
   unknown: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: '...' },
 }
 
+function normalizeCode(code) {
+  return String(code || '').trim().toUpperCase()
+}
+
 export default function RecentTransfers() {
-  const [transfers, setTransfers] = useState([])
+  const [transfers, setTransfers] = useState(() => {
+    const list = getRecentTransfers()
+    // Instantly calculate status based on the local clock so the UI doesn't wait for the backend.
+    return list.map(t => {
+      if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
+        return { ...t, status: 'EXPIRED' }
+      }
+      return { ...t, status: t.status || 'ACTIVE' }
+    })
+  })
   const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     let mounted = true
     const list = getRecentTransfers()
-    const initial = list.map(t => ({ ...t, status: t.status || 'unknown' }))
-    setTransfers(initial)
     if (!list.length) return
     Promise.allSettled(list.map(t => getTransferStatus(t.code))).then(results => {
       if (!mounted) return
@@ -32,7 +43,9 @@ export default function RecentTransfers() {
           const data = results[i].value
           return { ...p, status: data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED') }
         }
-        return { ...p, status: 'EXPIRED' }
+        // On network failure, keep the previous status instead of assuming expired.
+        // This prevents active files from showing "Expired" during cold-start or transient errors.
+        return p
       }))
     })
     return () => { mounted = false }
@@ -53,16 +66,44 @@ export default function RecentTransfers() {
 
   function handleRemove(e, code) {
     e.stopPropagation()
-    removeTransfer(code)
-    setTransfers(prev => prev.filter(t => t.code !== code))
+    const normalizedCode = normalizeCode(code)
+    removeTransfer(normalizedCode)
+    setTransfers(prev => prev.filter(t => normalizeCode(t.code) !== normalizedCode))
   }
 
   function handleClick(t) {
-    // Role-based routing: sender → sender page, receiver → download page
-    if (t.isSender) {
-      navigate(`/sender/${t.code}`)
-    } else {
-      navigate(`/download/${t.code}`)
+    const normalizedCode = normalizeCode(t.code)
+    if (!normalizedCode) return
+
+    const status = String(t?.status || '').toUpperCase()
+    // Only redirect for definitively terminal states — NOT for 'unknown' or empty status
+    if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
+      const reason = status === 'EXPIRED' ? 'expired' : 'notfound'
+      navigate(`/expired?reason=${reason}`)
+      return
+    }
+
+    const transferData = {
+      ...t,
+      code: normalizedCode,
+      files: Array.isArray(t?.files) && t.files.length
+        ? t.files
+        : (t?.filename ? [{ name: t.filename }] : []),
+    }
+
+    // Pass local transfer data so destination pages can render immediately.
+    try {
+      navigate(t.isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`, {
+        state: { transferData }
+      })
+    } catch (err) {
+      console.error('[RecentTransfers] Navigation error:', err)
+      // Fallback: navigate without state
+      if (t.isSender) {
+        navigate(`/sender/${normalizedCode}`)
+      } else {
+        navigate(`/download/${normalizedCode}`)
+      }
     }
   }
 

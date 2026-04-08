@@ -5,6 +5,10 @@ import { getNearbyDevices } from '../services/api'
 import { formatBytes, formatRelativeExpiry } from '../utils/format'
 import { useNavigate } from 'react-router-dom'
 
+function normalizeCode(code) {
+  return String(code || '').trim().toUpperCase()
+}
+
 export default function NearbyDevices() {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
@@ -13,11 +17,20 @@ export default function NearbyDevices() {
   useEffect(() => {
     let mounted = true
     async function fetch() {
-      if (document.hidden) return
+      if (document.hidden) {
+        if (mounted) setLoading(false)
+        return
+      }
       try {
         const data = await getNearbyDevices()
-        if (mounted && data?.devices?.length) setDevices(data.devices)
-      } catch {}
+        if (mounted) {
+          setDevices(Array.isArray(data?.devices) ? data.devices : [])
+        }
+      } catch {
+        if (mounted) {
+          setDevices([])
+        }
+      }
       if (mounted) setLoading(false)
     }
     fetch()
@@ -25,7 +38,27 @@ export default function NearbyDevices() {
     return () => { mounted = false; clearInterval(iv) }
   }, [])
 
-  if (loading || !devices.length) return null
+  if (loading) return null
+
+  if (!devices.length) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Wifi size={14} style={{ color: 'var(--text-4)' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Nearby Devices</h3>
+        </div>
+        <div className="surface-card-flat p-4 text-center">
+          <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+            No devices found on same WiFi
+          </p>
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
@@ -48,7 +81,11 @@ export default function NearbyDevices() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ delay: idx * 0.05 }}
-              onClick={() => navigate(`/download/${dev.code}`)}
+              onClick={() => {
+                const normalizedCode = normalizeCode(dev.code)
+                if (!normalizedCode) return
+                navigate(`/download/${normalizedCode}`)
+              }}
             >
               <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--success-soft)' }}>
                 <Download size={16} style={{ color: 'var(--success)' }} />

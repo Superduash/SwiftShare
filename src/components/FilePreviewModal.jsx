@@ -186,7 +186,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     className="max-w-full max-h-[65vh] object-contain rounded-xl"
                     style={{ display: loading ? 'none' : 'block' }}
                     loading="lazy"
-                    crossOrigin="anonymous"
                     onLoad={() => setLoading(false)}
                     onError={() => { 
                       setLoading(false)
