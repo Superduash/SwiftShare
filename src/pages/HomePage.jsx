@@ -79,10 +79,22 @@ export default function HomePage() {
     setUploading(false)
 
     const fname = files[0]?.name || 'file'
-    saveTransfer({ code: transferCode, filename: fname, isSender: true })
+    const normalizedTransferCode = String(transferCode).trim().toUpperCase()
+    const transferSnapshot = { ...payload, code: normalizedTransferCode }
+    saveTransfer({
+      code: normalizedTransferCode,
+      filename: fname,
+      isSender: true,
+      status: transferSnapshot?.status,
+      expiresAt: transferSnapshot?.expiresAt,
+      createdAt: transferSnapshot?.createdAt,
+      files: transferSnapshot?.files,
+      ai: transferSnapshot?.ai,
+      transfer: transferSnapshot,
+    })
 
     // Navigate first to avoid any transient audio API issues blocking route transition.
-    navigate(`/sender/${transferCode}`, { state: { transferData: payload } })
+    navigate(`/sender/${normalizedTransferCode}`, { state: { transferData: transferSnapshot } })
 
     // Play success sound after navigation commit.
     window.setTimeout(() => {

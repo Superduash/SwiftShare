@@ -1,14 +1,22 @@
-import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, AlertTriangle } from 'lucide-react'
+import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
 import { getFileMetadata, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
 import { smartDownload } from '../utils/download'
-import { saveTransfer, getSettings } from '../utils/storage'
+import {
+  saveTransfer,
+  getSettings,
+  getCachedTransfer,
+  saveCachedTransfer,
+  getCachedAI,
+  saveCachedAI,
+  mergeTransferData,
+} from '../utils/storage'
 import { formatBytes } from '../utils/format'
 import { extractErrorCode } from '../utils/errors'
 import { playDownloadSuccess } from '../utils/sound'
@@ -28,25 +36,43 @@ export default function DownloadPage() {
   const { code } = useParams()
   const normalizedCode = String(code || '').trim().toUpperCase()
   const navigate = useNavigate()
+  const location = useLocation()
+  const navState = location.state?.transferData || null
   const { socket, joinRoom, leaveRoom } = useSocket()
 
-  const [meta, setMeta] = useState(null)
-  const [ai, setAi] = useState(null)
-  const [aiLoading, setAiLoading] = useState(true)
-  const [secondsRemaining, setSecondsRemaining] = useState(0)
-  const [totalSeconds, setTotalSeconds] = useState(600)
-  const [loading, setLoading] = useState(true)
+  const initialCachedTransfer = getCachedTransfer(normalizedCode)
+  const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
+
+  const [meta, setMeta] = useState(initialCachedTransfer)
+  const [ai, setAi] = useState(initialCachedAI)
+  const [aiLoading, setAiLoading] = useState(!initialCachedAI)
+  const [secondsRemaining, setSecondsRemaining] = useState(() => {
+    const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
+    if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
+    if (initialCachedTransfer?.expiresAt) {
+      return Math.max(0, Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - Date.now()) / 1000))
+    }
+    return 0
+  })
+  const [totalSeconds, setTotalSeconds] = useState(() => {
+    if (initialCachedTransfer?.expiresAt && initialCachedTransfer?.createdAt) {
+      const span = Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - new Date(initialCachedTransfer.createdAt).getTime()) / 1000)
+      return Math.max(span, 60)
+    }
+    return 600
+  })
+  const [loading, setLoading] = useState(!initialCachedTransfer)
   const [downloading, setDownloading] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
   const [previewSrc, setPreviewSrc] = useState(null)
-  const [needsPassword, setNeedsPassword] = useState(false)
+  const [needsPassword, setNeedsPassword] = useState(Boolean(initialCachedTransfer?.passwordProtected))
   const [passwordVerified, setPasswordVerified] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [verifying, setVerifying] = useState(false)
-  const [transferStatus, setTransferStatus] = useState('ACTIVE')
+  const [transferStatus, setTransferStatus] = useState(initialCachedTransfer?.status || 'ACTIVE')
   const [error, setError] = useState(null)
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
@@ -54,7 +80,9 @@ export default function DownloadPage() {
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
   const mountedRef = useRef(true)
+  const metaRef = useRef(initialCachedTransfer)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
+  useEffect(() => { metaRef.current = meta }, [meta])
 
   useEffect(() => {
     downloadingRef.current = downloading
@@ -67,31 +95,128 @@ export default function DownloadPage() {
     }
   }, [meta])
 
+  const patchCachedTransfer = useCallback((patch) => {
+    setMeta((prev) => {
+      const merged = mergeTransferData(prev, patch)
+      if (!merged) return prev
+
+      metaRef.current = merged
+      const persisted = saveCachedTransfer(normalizedCode, merged) || merged
+      saveTransfer({
+        code: normalizedCode,
+        filename: persisted?.files?.[0]?.name || normalizedCode,
+        isSender: false,
+        status: persisted?.status,
+        expiresAt: persisted?.expiresAt,
+        createdAt: persisted?.createdAt,
+        files: persisted?.files,
+        ai: persisted?.ai || getCachedAI(normalizedCode) || null,
+        transfer: persisted,
+      })
+
+      return persisted
+    })
+  }, [normalizedCode])
+
+  const applyTransferSnapshot = useCallback((incoming, options = {}) => {
+    const { persist = true } = options
+    if (!incoming) return null
+
+    const merged = mergeTransferData(metaRef.current, incoming)
+    if (!merged) return null
+
+    metaRef.current = merged
+    setMeta(merged)
+
+    const directSeconds = Number(merged.secondsRemaining)
+    if (Number.isFinite(directSeconds) && directSeconds >= 0) {
+      setSecondsRemaining(directSeconds)
+    } else if (merged.expiresAt) {
+      const inferred = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
+      setSecondsRemaining(inferred)
+    }
+
+    const sessionDuration = merged.expiresAt && merged.createdAt
+      ? Math.ceil((new Date(merged.expiresAt).getTime() - new Date(merged.createdAt).getTime()) / 1000)
+      : 600
+    setTotalSeconds(Math.max(sessionDuration, 60))
+
+    setNeedsPassword(Boolean(merged.passwordProtected))
+    if (merged.status) {
+      setTransferStatus(merged.status)
+    }
+
+    const firstFile = merged?.files?.[0]
+    const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
+    if (firstFile && firstFileType.startsWith('image/') && !merged.passwordProtected) {
+      setPreviewSrc(previewUrl(normalizedCode, 0))
+    } else if (!merged.passwordProtected) {
+      setPreviewSrc(null)
+    }
+
+    const aiPayload = merged.ai || getCachedAI(normalizedCode) || null
+    if (aiPayload) {
+      setAi(aiPayload)
+      setAiLoading(false)
+      saveCachedAI(normalizedCode, aiPayload)
+    } else {
+      setAiLoading(false)
+    }
+
+    if (persist) {
+      const persisted = saveCachedTransfer(normalizedCode, merged) || merged
+      saveTransfer({
+        code: normalizedCode,
+        filename: persisted?.files?.[0]?.name || normalizedCode,
+        isSender: false,
+        status: persisted?.status,
+        expiresAt: persisted?.expiresAt,
+        createdAt: persisted?.createdAt,
+        files: persisted?.files,
+        ai: aiPayload || persisted?.ai || null,
+        transfer: persisted,
+      })
+    }
+
+    return merged
+  }, [normalizedCode])
+
   // Fetch metadata
   useEffect(() => {
     if (!normalizedCode) return
+
+    const navStateCode = String(navState?.code || '').trim().toUpperCase()
+    const navTransfer = navState && navStateCode === normalizedCode
+      ? { ...navState, code: normalizedCode }
+      : null
+
+    const cachedTransfer = getCachedTransfer(normalizedCode)
+    const cachedAi = getCachedAI(normalizedCode)
+    const seed = mergeTransferData(cachedTransfer, navTransfer)
+
+    if (seed) {
+      setError(null)
+      setLoading(false)
+      applyTransferSnapshot(seed, { persist: true })
+    }
+
+    if (cachedAi) {
+      setAi(cachedAi)
+      setAiLoading(false)
+    }
+
+    const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
+    if (hasUsableCache) {
+      return
+    }
+
     async function load() {
       try {
+        setLoading(true)
+        setError(null)
         const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
         if (!mountedRef.current) return
-        setMeta(data)
-        setSecondsRemaining(data.secondsRemaining || 0)
-        const sessionDuration = data.expiresAt && data.createdAt
-          ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
-          : 600
-        setTotalSeconds(Math.max(sessionDuration, 60))
-        if (data.passwordProtected) { setNeedsPassword(true) }
-        if (data.ai) { setAi(data.ai); setAiLoading(false) }
-        if (data.status) { setTransferStatus(data.status) }
-
-        // Preview for images — skip if password-protected (will set after verification)
-        const firstFile = data?.files?.[0]
-        const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
-        if (firstFile && firstFileType.startsWith('image/') && !data.passwordProtected) {
-          setPreviewSrc(previewUrl(normalizedCode, 0))
-        }
-
-        saveTransfer({ code: normalizedCode, filename: firstFile?.name || normalizedCode, isSender: false })
+        applyTransferSnapshot(data, { persist: true })
       } catch (err) {
         if (!mountedRef.current) return
         const errCode = extractErrorCode(err)
@@ -107,7 +232,7 @@ export default function DownloadPage() {
       }
     }
     load()
-  }, [normalizedCode, navigate])
+  }, [normalizedCode, navState, navigate, applyTransferSnapshot])
 
   // Safety net: never keep skeleton forever if request hangs unexpectedly.
   useEffect(() => {
@@ -135,8 +260,15 @@ export default function DownloadPage() {
     const onExpired = () => {
       setTransferStatus('EXPIRED')
       setSecondsRemaining(0)
+      patchCachedTransfer({ status: 'EXPIRED', secondsRemaining: 0 })
     }
-    const onAi = (data) => { setAi(data); setAiLoading(false) }
+    const onAi = (data) => {
+      if (!data) return
+      setAi(data)
+      setAiLoading(false)
+      saveCachedAI(normalizedCode, data)
+      patchCachedTransfer({ ai: data })
+    }
     const onDownProg = ({ percent }) => {
       if (!downloadingRef.current) return
       setDownloadPercent(percent || 0)
@@ -149,9 +281,11 @@ export default function DownloadPage() {
     }
     const onCancelled = () => {
       setTransferStatus('CANCELLED')
+      patchCachedTransfer({ status: 'CANCELLED' })
     }
     const onDeleted = ({ reason } = {}) => {
       setTransferStatus('DELETED')
+      patchCachedTransfer({ status: 'DELETED' })
       // Only show error if user hasn't downloaded and isn't currently downloading
       if (reason === 'burn' && !downloaded && !downloadingRef.current) {
         toast.error('This file was burned after being downloaded by someone else')
@@ -181,7 +315,7 @@ export default function DownloadPage() {
       socket.off('transfer-receipt', onReceipt)
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, downloaded])
+  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, downloaded, patchCachedTransfer])
 
   // Password verification
   async function handlePasswordSubmit(e) {

@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 const CATEGORY_ICONS = {
   document: FileText, image: Image, video: Video, archive: FileArchive,
   audio: Music, ebook: BookOpen, code: Code, presentation: Presentation,
-  spreadsheet: Table2, default: FileText,
+  spreadsheet: Table2, media: Video, mixed: FileArchive, default: FileText,
 }
 
 function getCategoryIcon(cat) {
@@ -19,6 +19,24 @@ function getCategoryIcon(cat) {
     if (key.includes(k)) return v
   }
   return CATEGORY_ICONS.default
+}
+
+function cleanSummary(text) {
+  return String(text || '')
+    .replace(/\b(this file contains|this file is a|appears to be)\b/gi, '')
+    .replace(/\b(mime|format|extension|file size|size)\b\s*[:\-]?/gi, '')
+    .replace(/\b\d+(?:\.\d+)?\s*(kb|mb|gb|bytes?)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function cleanKeyPoints(points) {
+  if (!Array.isArray(points)) return []
+
+  return points
+    .map((point) => cleanSummary(point))
+    .filter((point) => point.length > 2)
+    .filter((point) => !/^(pdf|image|video|audio|zip|txt|csv|docx?)\s*format$/i.test(point))
 }
 
 export default function AISummaryCard({ ai, loading = false }) {
@@ -36,11 +54,15 @@ export default function AISummaryCard({ ai, loading = false }) {
   }
 
   const CatIcon = ai?.category ? getCategoryIcon(ai.category) : Sparkles
-  const summary = ai?.summary || ai?.overall_summary
+  const summary = cleanSummary(ai?.summary || ai?.overall_summary)
   const suggestedName = ai?.suggestedName || ai?.suggested_filename
   const detectedIntent = ai?.detectedIntent || ai?.detected_intent
   const riskFlags = ai?.riskFlags || ai?.risk_flags || []
-  const fileAnalysis = ai?.files || []
+  const fileAnalysis = (ai?.files || []).map((file) => ({
+    ...file,
+    summary: cleanSummary(file?.summary),
+    key_points: cleanKeyPoints(file?.key_points),
+  }))
 
   return (
     <motion.div
@@ -146,7 +168,6 @@ export default function AISummaryCard({ ai, loading = false }) {
                       {fileAnalysis.map((f, i) => (
                         <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
                           <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
-                          {f.type && <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>{f.type}</p>}
                           <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary}</p>
                           {f.key_points && f.key_points.length > 0 && (
                             <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
