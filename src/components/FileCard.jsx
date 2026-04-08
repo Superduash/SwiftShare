@@ -2,7 +2,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import {
   FileText, Image, Video, FileArchive, File, FileSpreadsheet,
-  Download, Eye, X, Music
+  Download, Eye, X, Music, FileCode, Presentation
 } from 'lucide-react'
 import { formatBytes } from '../utils/format'
 
@@ -14,6 +14,9 @@ const ICON_MAP = {
   doc: { icon: FileText, color: '#2563EB' },
   spreadsheet: { icon: FileSpreadsheet, color: '#16A34A' },
   audio: { icon: Music, color: '#EC4899' },
+  ppt: { icon: Presentation, color: '#D95240' },
+  code: { icon: FileCode, color: '#0D9488' },
+  txt: { icon: FileText, color: '#6B7280' },
   file: { icon: File, color: 'var(--text-3)' },
 }
 
@@ -24,10 +27,32 @@ function getFileCategory(file) {
   if (mime.startsWith('image/')) return 'image'
   if (mime.startsWith('video/')) return 'video'
   if (mime.startsWith('audio/')) return 'audio'
-  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('archive')) return 'zip'
-  if (mime.includes('word') || mime.includes('document')) return 'doc'
-  if (mime.includes('sheet') || mime.includes('csv') || mime.includes('excel')) return 'spreadsheet'
+  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('archive') || /\.(zip|rar|7z|tar|gz|bz2|tgz)$/i.test(name)) return 'zip'
+  if (mime.includes('presentationml') || mime.includes('powerpoint') || /\.(ppt|pptx|odp|key)$/i.test(name)) return 'ppt'
+  if (mime.includes('wordprocessingml') || mime.includes('msword') || mime.includes('document') || /\.(doc|docx|odt|rtf)$/i.test(name)) return 'doc'
+  if (mime.includes('spreadsheetml') || mime.includes('sheet') || mime.includes('csv') || mime.includes('excel') || /\.(xls|xlsx|csv|ods|numbers)$/i.test(name)) return 'spreadsheet'
+  if (/\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|cs|swift|kt|r|sh|bash|zsh|ps1|sql|html|css|scss|sass|vue|svelte|json|yaml|yml|xml|toml|env|config)$/i.test(name)) return 'code'
+  if (mime === 'text/plain' || /\.(txt|log|md|readme|cfg|conf|ini)$/i.test(name)) return 'txt'
   return 'file'
+}
+
+function canPreview(file) {
+  const mime = (file?.mimeType || file?.type || '').toLowerCase()
+  const name = (file?.name || '').toLowerCase()
+  if (mime.startsWith('image/')) return true
+  if (mime.includes('pdf') || name.endsWith('.pdf')) return true
+  if (mime.startsWith('video/')) return true
+  if (mime.startsWith('audio/')) return true
+  if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return true
+  if (
+    mime.startsWith('text/') ||
+    mime.includes('json') ||
+    mime.includes('javascript') ||
+    mime.includes('xml') ||
+    mime.includes('yaml') ||
+    /\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|css|html|md|txt|log|sql|json|yaml|yml|xml|csv)$/i.test(name)
+  ) return true
+  return false
 }
 
 export default function FileCard({
@@ -63,7 +88,7 @@ export default function FileCard({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        {onPreview && (
+        {onPreview && canPreview(file) && (
           <button className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onPreview(index)} aria-label="Preview">
             <Eye size={15} />
           </button>

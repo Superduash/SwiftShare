@@ -96,7 +96,7 @@ export default function RecentTransfers() {
     // Determine if this is a sender or receiver transfer
     // isSender === true means user sent this file (go to /sender)
     // isSender === false means user received this file (go to /download)
-    const isSender = t.isSender === true
+    const isSender = t.isSender === true || String(t?.role || '').toLowerCase() === 'sender'
 
     // Pass local transfer data so destination pages can render immediately.
     try {

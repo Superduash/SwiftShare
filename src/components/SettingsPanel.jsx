@@ -12,14 +12,14 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
-  { value: 'terracotta', label: 'Terracotta', color: '#E06D53' },
-  { value: 'dark', label: 'Dark', color: '#0F1014' },
-  { value: 'light', label: 'Light', color: '#F8F9FA' },
-  { value: 'ocean', label: 'Ocean', color: '#2B6CB0' },
+  { value: 'sunset', label: 'Sunset', color: '#F0522A' },
+  { value: 'dark', label: 'Dark', color: '#818CF8' },
+  { value: 'light', label: 'Light', color: '#4F46E5' },
+  { value: 'midnight', label: 'Midnight', color: '#3B82F6' },
   { value: 'sakura', label: 'Sakura', color: '#FF4D6D' },
-  { value: 'emerald', label: 'Emerald', color: '#10B981' },
-  { value: 'cyber', label: 'Cyber', color: '#A855F7' },
-  { value: 'amber', label: 'Amber', color: '#F59E0B' },
+  { value: 'lavender', label: 'Lavender', color: '#7C3AED' },
+  { value: 'forest', label: 'Forest', color: '#10D98A' },
+  { value: 'volcanic', label: 'Volcanic', color: '#F97316' },
 ]
 
 export default function SettingsPanel({ open, onClose }) {

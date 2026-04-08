@@ -217,11 +217,19 @@ export function getRecentTransfers() {
     const cachedTransfer = getCachedTransfer(normalizedCode)
     const cachedAI = getCachedAI(normalizedCode)
     const mergedTransfer = mergeTransferData(entry?.transfer || entry, cachedTransfer)
+    const isSender = Boolean(
+      entry?.isSender === true
+      || mergedTransfer?.isSender === true
+      || String(entry?.role || '').toLowerCase() === 'sender'
+      || String(mergedTransfer?.role || '').toLowerCase() === 'sender'
+    )
 
     return {
       ...entry,
       ...(mergedTransfer || {}),
       code: normalizedCode,
+      isSender,
+      role: isSender ? 'sender' : 'receiver',
       transfer: mergedTransfer || entry?.transfer || null,
       files: Array.isArray(mergedTransfer?.files) ? mergedTransfer.files : (Array.isArray(entry?.files) ? entry.files : []),
       ai: cachedAI || mergedTransfer?.ai || entry?.ai || null,
@@ -233,8 +241,20 @@ export function saveTransfer(entry) {
   const normalizedCode = normalizeCode(entry?.code)
   if (!normalizedCode) return
 
+  const currentRecent = getRecentTransfers()
+  const previousEntry = currentRecent.find((t) => t.code === normalizedCode) || null
+
+  const shouldKeepSender = Boolean(
+    entry?.isSender === true
+    || previousEntry?.isSender === true
+    || String(entry?.role || '').toLowerCase() === 'sender'
+    || String(previousEntry?.role || '').toLowerCase() === 'sender'
+  )
+  const role = shouldKeepSender ? 'sender' : 'receiver'
+
   const transferSource = isObject(entry?.transfer) ? entry.transfer : (isObject(entry) ? entry : null)
-  const mergedTransfer = transferSource ? saveCachedTransfer(normalizedCode, transferSource) : getCachedTransfer(normalizedCode)
+  const transferPayload = transferSource ? { ...transferSource, isSender: shouldKeepSender, role } : null
+  const mergedTransfer = transferPayload ? saveCachedTransfer(normalizedCode, transferPayload) : getCachedTransfer(normalizedCode)
 
   const aiFromEntry = entry?.ai || transferSource?.ai || null
   if (aiFromEntry) {
@@ -246,17 +266,19 @@ export function saveTransfer(entry) {
     ? mergedTransfer.files
     : (Array.isArray(entry?.files) ? entry.files : [])
 
-  const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
+  const list = currentRecent.filter(t => t.code !== normalizedCode)
   list.unshift({
     ...entry,
     code: normalizedCode,
+    isSender: shouldKeepSender,
+    role,
     filename: entry?.filename || filesSnapshot?.[0]?.name || normalizedCode,
     files: filesSnapshot,
     status: entry?.status || mergedTransfer?.status,
     expiresAt: entry?.expiresAt || mergedTransfer?.expiresAt,
     createdAt: entry?.createdAt || mergedTransfer?.createdAt,
     ai: aiSnapshot,
-    transfer: mergedTransfer,
+    transfer: mergedTransfer ? { ...mergedTransfer, isSender: shouldKeepSender, role } : mergedTransfer,
     savedAt: new Date().toISOString(),
   })
   safeSet(KEYS.RECENT, list.slice(0, 10))
