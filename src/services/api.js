@@ -4,6 +4,24 @@ function isLoopbackHost(hostname) {
   return hostname === 'localhost' || hostname === '127.0.0.1'
 }
 
+function isPrivateNetworkHost(hostname) {
+  if (!hostname) return false
+  if (/^10\./.test(hostname)) return true
+  if (/^192\.168\./.test(hostname)) return true
+
+  const match172 = /^172\.(\d{1,3})\./.exec(hostname)
+  if (match172) {
+    const second = Number(match172[1])
+    return Number.isFinite(second) && second >= 16 && second <= 31
+  }
+
+  return false
+}
+
+function isLocalRuntimeHost(hostname) {
+  return isLoopbackHost(hostname) || isPrivateNetworkHost(hostname)
+}
+
 function targetsLoopback(urlValue) {
   if (typeof urlValue !== 'string' || !urlValue.trim()) {
     return false
@@ -17,6 +35,26 @@ function targetsLoopback(urlValue) {
   }
 }
 
+function normalizeUrl(urlValue) {
+  return String(urlValue || '').trim().replace(/\/+$/, '')
+}
+
+function rewriteLoopbackUrlForLanRuntime(urlValue) {
+  if (typeof window === 'undefined') return null
+
+  const runtimeHost = window.location.hostname
+  if (!isLocalRuntimeHost(runtimeHost)) return null
+  if (!targetsLoopback(urlValue)) return null
+
+  try {
+    const parsed = new URL(urlValue)
+    parsed.hostname = runtimeHost
+    return normalizeUrl(parsed.toString())
+  } catch {
+    return null
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ENVIRONMENT-AWARE API URL RESOLUTION (PRODUCTION SAFE)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -25,11 +63,17 @@ function getApiBaseUrl() {
   // Priority 1: Explicit VITE_API_URL from environment
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
-    const candidate = envApiUrl.trim().replace(/\/+$/, '')
+    const candidate = normalizeUrl(envApiUrl)
 
     if (typeof window !== 'undefined') {
       const runtimeHost = window.location.hostname
-      if (!isLoopbackHost(runtimeHost) && targetsLoopback(candidate)) {
+
+      const rewrittenLanUrl = rewriteLoopbackUrlForLanRuntime(candidate)
+      if (rewrittenLanUrl) {
+        return rewrittenLanUrl
+      }
+
+      if (!isLocalRuntimeHost(runtimeHost) && targetsLoopback(candidate)) {
         console.warn('[API] Ignoring localhost VITE_API_URL in non-local runtime, using same-origin instead')
       } else {
         return candidate
@@ -44,8 +88,8 @@ function getApiBaseUrl() {
     const hostname = window.location.hostname
     
     // Local development
-    if (isLoopbackHost(hostname)) {
-      return 'http://localhost:3001'
+    if (isLocalRuntimeHost(hostname)) {
+      return `${window.location.protocol}//${hostname}:3001`
     }
     
     // Production: same-origin (frontend and backend on same domain)
@@ -58,8 +102,6 @@ function getApiBaseUrl() {
 }
 
 const baseURL = getApiBaseUrl()
-
-console.log('[API] Base URL:', baseURL)
 
 const API = axios.create({
   baseURL,
