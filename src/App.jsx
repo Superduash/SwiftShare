@@ -13,6 +13,32 @@ import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
 
+// ── Error boundary for lazy routes ───────────
+class RouteErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, info) {
+    console.error('[SwiftShare] Route failed to load:', error, info)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px' }}>
+          <p style={{ color: 'var(--text)', fontWeight: 600 }}>Something went wrong loading this page.</p>
+          <p style={{ color: 'var(--text-3)', fontSize: '13px', fontFamily: 'monospace' }}>{this.state.error?.message}</p>
+          <button style={{ padding: '10px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Go Home</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 // Eager — critical path
 import HomePage from './pages/HomePage'
 import JoinPage from './pages/JoinPage'
@@ -57,17 +83,19 @@ function AnimatedRoutes() {
     <>
       <ScrollToTop />
       <AnimatePresence mode="wait">
-        <Suspense fallback={<LoadingScreen message="Loading..." />}>
-          <Routes location={location} key={location.pathname}>
-            <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
-            <Route path="/sender/:code" element={<PageWrapper><SenderPage /></PageWrapper>} />
-            <Route path="/join" element={<PageWrapper><JoinPage /></PageWrapper>} />
-            <Route path="/g/:code" element={<LegacyShareRedirect />} />
-            <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
-            <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+        <RouteErrorBoundary>
+          <Suspense fallback={<LoadingScreen message="Loading..." />}>
+            <Routes location={location} key={location.pathname}>
+              <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
+              <Route path="/sender/:code" element={<PageWrapper><SenderPage /></PageWrapper>} />
+              <Route path="/join" element={<PageWrapper><JoinPage /></PageWrapper>} />
+              <Route path="/g/:code" element={<LegacyShareRedirect />} />
+              <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
+              <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </RouteErrorBoundary>
       </AnimatePresence>
     </>
   )

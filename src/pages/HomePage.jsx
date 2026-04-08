@@ -82,7 +82,7 @@ export default function HomePage() {
     saveTransfer({ code: transferCode, filename: fname, isSender: true })
 
     // Navigate first to avoid any transient audio API issues blocking route transition.
-    navigate(`/sender/${transferCode}`)
+    navigate(`/sender/${transferCode}`, { state: { transferData: payload } })
 
     // Play success sound after navigation commit.
     window.setTimeout(() => {
@@ -137,7 +137,7 @@ export default function HomePage() {
               handleUploadSuccess(response)
             } catch (err) {
               setUploading(false)
-              toast.error('Failed to upload clipboard image')
+              toast.error(getUploadErrorMessage(err))
             }
           }
           reader.readAsDataURL(blob)
@@ -181,12 +181,29 @@ export default function HomePage() {
     return files.reduce((s, f) => s + (f.size || 0), 0)
   }
 
+  function getUploadErrorMessage(err) {
+    const status = Number(err?.response?.status || 0)
+    const backendError = err?.response?.data?.error
+    const backendMessage = typeof backendError === 'string'
+      ? backendError
+      : (backendError?.message || err?.response?.data?.message || '')
+
+    if (status === 429) {
+      return backendMessage || 'Rate limit active: Please wait a moment before sending more files.'
+    }
+
+    return backendMessage || err?.message || 'Upload failed'
+  }
+
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
     if (!isConnected) return toast.error('Not connected to server')
+
     setUploading(true)
     setUploadPercent(0)
     uploadHandledRef.current = false
+
+    let uploadSucceeded = false
     try {
       const formData = new FormData()
       files.forEach(f => formData.append('files', f))
@@ -197,12 +214,24 @@ export default function HomePage() {
         formData.append('password', password)
       }
       if (socketId) formData.append('socketId', socketId)
+
       const response = await uploadFiles(formData)
-      handleUploadSuccess(response)
+
+      // Strict success validation: never navigate without a valid transfer code.
+      const transferCode = typeof response?.code === 'string' ? response.code.trim() : ''
+      if (!transferCode) {
+        throw new Error('Upload response was incomplete. Please try again.')
+      }
+
+      uploadSucceeded = true
+      handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
-      setUploading(false)
-      const msg = err?.response?.data?.error?.message || 'Upload failed'
-      toast.error(msg)
+      toast.error(getUploadErrorMessage(err))
+    } finally {
+      // Always release spinner on failure; successful path is handled by handleUploadSuccess/navigation.
+      if (!uploadSucceeded) {
+        setUploading(false)
+      }
     }
   }
 

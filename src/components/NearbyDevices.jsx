@@ -13,6 +13,7 @@ export default function NearbyDevices() {
   useEffect(() => {
     let mounted = true
     async function fetch() {
+      if (document.hidden) return
       try {
         const data = await getNearbyDevices()
         if (mounted && data?.devices?.length) setDevices(data.devices)

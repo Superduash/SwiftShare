@@ -14,6 +14,10 @@ API.interceptors.response.use(null, async (error) => {
   const config = error.config
   if (!config) return Promise.reject(error)
 
+  if (config.noRetry) {
+    return Promise.reject(error)
+  }
+
   config.__retryCount = config.__retryCount || 0
   const isRetryable = !error.response || error.response.status === 503 || error.code === 'ERR_NETWORK'
   const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
@@ -113,8 +117,8 @@ export async function uploadClipboard(imageBase64, burnAfterDownload, senderSock
 }
 
 // ── Metadata & Status ───────────────────────
-export async function getFileMetadata(code) {
-  const { data } = await API.get(`/api/file/${normalizeCode(code)}`)
+export async function getFileMetadata(code, requestConfig = undefined) {
+  const { data } = await API.get(`/api/file/${normalizeCode(code)}`, requestConfig)
   return unwrapResponse(data)
 }
 
