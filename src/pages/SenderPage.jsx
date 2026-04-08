@@ -408,6 +408,37 @@ export default function SenderPage() {
     )
   }
 
+  // Handle expired/deleted transfers
+  if (!meta || meta.status === 'EXPIRED' || cancelled) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <Navbar />
+        <div className="pt-20 max-w-2xl mx-auto px-4">
+          <motion.div
+            className="surface-card p-8 text-center"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--warning-soft)' }}>
+              <Clock size={32} style={{ color: 'var(--warning)' }} />
+            </div>
+            <h1 className="font-display font-bold text-2xl mb-2" style={{ color: 'var(--text)' }}>
+              {cancelled ? 'Transfer Cancelled' : 'Transfer Expired'}
+            </h1>
+            <p className="text-sm mb-6" style={{ color: 'var(--text-3)' }}>
+              {cancelled 
+                ? 'This transfer has been permanently deleted.'
+                : 'This transfer has expired and is no longer available.'}
+            </p>
+            <button className="btn-primary" onClick={() => navigate('/')}>
+              Create New Transfer
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
