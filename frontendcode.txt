@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-08T03:16:17Z
+Generated: 2026-04-08T05:10:17Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (118 bytes) =====
@@ -256,7 +256,7 @@ export default function App() {
   )
 }
 
-===== FILE: src/components/AISummaryCard.jsx (8395 bytes) =====
+===== FILE: src/components/AISummaryCard.jsx (9314 bytes) =====
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -268,7 +268,7 @@ import toast from 'react-hot-toast'
 const CATEGORY_ICONS = {
   document: FileText, image: Image, video: Video, archive: FileArchive,
   audio: Music, ebook: BookOpen, code: Code, presentation: Presentation,
-  spreadsheet: Table2, default: FileText,
+  spreadsheet: Table2, media: Video, mixed: FileArchive, default: FileText,
 }
 
 function getCategoryIcon(cat) {
@@ -278,6 +278,28 @@ function getCategoryIcon(cat) {
     if (key.includes(k)) return v
   }
   return CATEGORY_ICONS.default
+}
+
+const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic)\b/gi
+
+function cleanSummary(text) {
+  return String(text || '')
+    .replace(BANNED_PHRASES_RE, '')
+    .replace(/\b(mime|format|extension|file size|size)\b\s*[:\-]?/gi, '')
+    .replace(/\b\d+(?:\.\d+)?\s*(kb|mb|gb|bytes?)\b/gi, '')
+    .replace(/\bmetadata\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s.,;:]+/, '')
+    .trim()
+}
+
+function cleanKeyPoints(points) {
+  if (!Array.isArray(points)) return []
+
+  return points
+    .map((point) => cleanSummary(point))
+    .filter((point) => point.length > 2)
+    .filter((point) => !/^(pdf|image|video|audio|zip|txt|csv|docx?)\s*format$/i.test(point))
 }
 
 export default function AISummaryCard({ ai, loading = false }) {
@@ -295,11 +317,15 @@ export default function AISummaryCard({ ai, loading = false }) {
   }
 
   const CatIcon = ai?.category ? getCategoryIcon(ai.category) : Sparkles
-  const summary = ai?.summary || ai?.overall_summary
+  const summary = cleanSummary(ai?.summary || ai?.overall_summary)
   const suggestedName = ai?.suggestedName || ai?.suggested_filename
   const detectedIntent = ai?.detectedIntent || ai?.detected_intent
   const riskFlags = ai?.riskFlags || ai?.risk_flags || []
-  const fileAnalysis = ai?.files || []
+  const fileAnalysis = (ai?.files || []).map((file) => ({
+    ...file,
+    summary: cleanSummary(file?.summary),
+    key_points: cleanKeyPoints(file?.key_points),
+  }))
 
   return (
     <motion.div
@@ -405,7 +431,6 @@ export default function AISummaryCard({ ai, loading = false }) {
                       {fileAnalysis.map((f, i) => (
                         <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
                           <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
-                          {f.type && <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>{f.type}</p>}
                           <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary}</p>
                           {f.key_points && f.key_points.length > 0 && (
                             <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
@@ -1438,12 +1463,18 @@ export default function QRModal({ open, onClose, value, code }) {
   )
 }
 
-===== FILE: src/components/RecentTransfers.jsx (6780 bytes) =====
+===== FILE: src/components/RecentTransfers.jsx (7938 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { getRecentTransfers, clearTransfers, removeTransfer } from '../utils/storage'
+import {
+  getRecentTransfers,
+  clearTransfers,
+  removeTransfer,
+  getCachedTransfer,
+  mergeTransferData,
+} from '../utils/storage'
 import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
@@ -1460,21 +1491,42 @@ function normalizeCode(code) {
 }
 
 export default function RecentTransfers() {
-  const [transfers, setTransfers] = useState([])
+  const [transfers, setTransfers] = useState(() => {
+    const list = getRecentTransfers()
+    // Instantly calculate status based on the local clock so the UI doesn't wait for the backend.
+    return list.map(t => {
+      if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
+        return { ...t, status: 'EXPIRED' }
+      }
+      return { ...t, status: t.status || 'ACTIVE' }
+    })
+  })
   const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     let mounted = true
     const list = getRecentTransfers()
-    const initial = list.map(t => ({ ...t, status: t.status || 'unknown' }))
-    setTransfers(initial)
-    if (!list.length) return
-    Promise.allSettled(list.map(t => getTransferStatus(t.code))).then(results => {
+    const checks = list.filter((t) => {
+      const status = String(t?.status || '').toUpperCase()
+      if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') return false
+      if (t?.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) return false
+      return true
+    })
+
+    if (!checks.length) return
+
+    const indexByCode = new Map(checks.map((t, idx) => [normalizeCode(t.code), idx]))
+
+    Promise.allSettled(checks.map(t => getTransferStatus(t.code))).then(results => {
       if (!mounted) return
-      setTransfers(prev => prev.map((p, i) => {
-        if (results[i].status === 'fulfilled') {
-          const data = results[i].value
+      setTransfers(prev => prev.map((p) => {
+        const resultIndex = indexByCode.get(normalizeCode(p.code))
+        if (typeof resultIndex !== 'number') return p
+
+        const result = results[resultIndex]
+        if (result?.status === 'fulfilled') {
+          const data = result.value
           return { ...p, status: data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED') }
         }
         // On network failure, keep the previous status instead of assuming expired.
@@ -1517,14 +1569,22 @@ export default function RecentTransfers() {
       return
     }
 
-    // Role-based routing: sender → sender page, receiver → download page
+    const transferData = {
+      ...t,
+      code: normalizedCode,
+      files: Array.isArray(t?.files) && t.files.length
+        ? t.files
+        : (t?.filename ? [{ name: t.filename }] : []),
+    }
+
+    const cachedTransfer = getCachedTransfer(normalizedCode)
+    const resolvedTransferData = mergeTransferData(cachedTransfer || t?.transfer, transferData) || transferData
+
+    // Pass local transfer data so destination pages can render immediately.
     try {
-      if (t.isSender) {
-        // Always re-fetch metadata for recents to avoid stale/incomplete nav state.
-        navigate(`/sender/${normalizedCode}`)
-      } else {
-        navigate(`/download/${normalizedCode}`)
-      }
+      navigate(t.isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`, {
+        state: { transferData: resolvedTransferData }
+      })
     } catch (err) {
       console.error('[RecentTransfers] Navigation error:', err)
       // Fallback: navigate without state
@@ -2936,18 +2996,26 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (22217 bytes) =====
-import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+===== FILE: src/pages/DownloadPage.jsx (26425 bytes) =====
+import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, AlertTriangle } from 'lucide-react'
+import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
 import { getFileMetadata, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
 import { smartDownload } from '../utils/download'
-import { saveTransfer, getSettings } from '../utils/storage'
+import {
+  saveTransfer,
+  getSettings,
+  getCachedTransfer,
+  saveCachedTransfer,
+  getCachedAI,
+  saveCachedAI,
+  mergeTransferData,
+} from '../utils/storage'
 import { formatBytes } from '../utils/format'
 import { extractErrorCode } from '../utils/errors'
 import { playDownloadSuccess } from '../utils/sound'
@@ -2967,25 +3035,43 @@ export default function DownloadPage() {
   const { code } = useParams()
   const normalizedCode = String(code || '').trim().toUpperCase()
   const navigate = useNavigate()
+  const location = useLocation()
+  const navState = location.state?.transferData || null
   const { socket, joinRoom, leaveRoom } = useSocket()
 
-  const [meta, setMeta] = useState(null)
-  const [ai, setAi] = useState(null)
-  const [aiLoading, setAiLoading] = useState(true)
-  const [secondsRemaining, setSecondsRemaining] = useState(0)
-  const [totalSeconds, setTotalSeconds] = useState(600)
-  const [loading, setLoading] = useState(true)
+  const initialCachedTransfer = getCachedTransfer(normalizedCode)
+  const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
+
+  const [meta, setMeta] = useState(initialCachedTransfer)
+  const [ai, setAi] = useState(initialCachedAI)
+  const [aiLoading, setAiLoading] = useState(!initialCachedAI)
+  const [secondsRemaining, setSecondsRemaining] = useState(() => {
+    const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
+    if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
+    if (initialCachedTransfer?.expiresAt) {
+      return Math.max(0, Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - Date.now()) / 1000))
+    }
+    return 0
+  })
+  const [totalSeconds, setTotalSeconds] = useState(() => {
+    if (initialCachedTransfer?.expiresAt && initialCachedTransfer?.createdAt) {
+      const span = Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - new Date(initialCachedTransfer.createdAt).getTime()) / 1000)
+      return Math.max(span, 60)
+    }
+    return 600
+  })
+  const [loading, setLoading] = useState(!initialCachedTransfer)
   const [downloading, setDownloading] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
   const [previewSrc, setPreviewSrc] = useState(null)
-  const [needsPassword, setNeedsPassword] = useState(false)
+  const [needsPassword, setNeedsPassword] = useState(Boolean(initialCachedTransfer?.passwordProtected))
   const [passwordVerified, setPasswordVerified] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [verifying, setVerifying] = useState(false)
-  const [transferStatus, setTransferStatus] = useState('ACTIVE')
+  const [transferStatus, setTransferStatus] = useState(initialCachedTransfer?.status || 'ACTIVE')
   const [error, setError] = useState(null)
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
@@ -2993,7 +3079,9 @@ export default function DownloadPage() {
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
   const mountedRef = useRef(true)
+  const metaRef = useRef(initialCachedTransfer)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
+  useEffect(() => { metaRef.current = meta }, [meta])
 
   useEffect(() => {
     downloadingRef.current = downloading
@@ -3006,31 +3094,128 @@ export default function DownloadPage() {
     }
   }, [meta])
 
+  const patchCachedTransfer = useCallback((patch) => {
+    setMeta((prev) => {
+      const merged = mergeTransferData(prev, patch)
+      if (!merged) return prev
+
+      metaRef.current = merged
+      const persisted = saveCachedTransfer(normalizedCode, merged) || merged
+      saveTransfer({
+        code: normalizedCode,
+        filename: persisted?.files?.[0]?.name || normalizedCode,
+        isSender: false,
+        status: persisted?.status,
+        expiresAt: persisted?.expiresAt,
+        createdAt: persisted?.createdAt,
+        files: persisted?.files,
+        ai: persisted?.ai || getCachedAI(normalizedCode) || null,
+        transfer: persisted,
+      })
+
+      return persisted
+    })
+  }, [normalizedCode])
+
+  const applyTransferSnapshot = useCallback((incoming, options = {}) => {
+    const { persist = true } = options
+    if (!incoming) return null
+
+    const merged = mergeTransferData(metaRef.current, incoming)
+    if (!merged) return null
+
+    metaRef.current = merged
+    setMeta(merged)
+
+    const directSeconds = Number(merged.secondsRemaining)
+    if (Number.isFinite(directSeconds) && directSeconds >= 0) {
+      setSecondsRemaining(directSeconds)
+    } else if (merged.expiresAt) {
+      const inferred = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
+      setSecondsRemaining(inferred)
+    }
+
+    const sessionDuration = merged.expiresAt && merged.createdAt
+      ? Math.ceil((new Date(merged.expiresAt).getTime() - new Date(merged.createdAt).getTime()) / 1000)
+      : 600
+    setTotalSeconds(Math.max(sessionDuration, 60))
+
+    setNeedsPassword(Boolean(merged.passwordProtected))
+    if (merged.status) {
+      setTransferStatus(merged.status)
+    }
+
+    const firstFile = merged?.files?.[0]
+    const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
+    if (firstFile && firstFileType.startsWith('image/') && !merged.passwordProtected) {
+      setPreviewSrc(previewUrl(normalizedCode, 0))
+    } else if (!merged.passwordProtected) {
+      setPreviewSrc(null)
+    }
+
+    const aiPayload = merged.ai || getCachedAI(normalizedCode) || null
+    if (aiPayload) {
+      setAi(aiPayload)
+      setAiLoading(false)
+      saveCachedAI(normalizedCode, aiPayload)
+    } else {
+      setAiLoading(false)
+    }
+
+    if (persist) {
+      const persisted = saveCachedTransfer(normalizedCode, merged) || merged
+      saveTransfer({
+        code: normalizedCode,
+        filename: persisted?.files?.[0]?.name || normalizedCode,
+        isSender: false,
+        status: persisted?.status,
+        expiresAt: persisted?.expiresAt,
+        createdAt: persisted?.createdAt,
+        files: persisted?.files,
+        ai: aiPayload || persisted?.ai || null,
+        transfer: persisted,
+      })
+    }
+
+    return merged
+  }, [normalizedCode])
+
   // Fetch metadata
   useEffect(() => {
     if (!normalizedCode) return
+
+    const navStateCode = String(navState?.code || '').trim().toUpperCase()
+    const navTransfer = navState && navStateCode === normalizedCode
+      ? { ...navState, code: normalizedCode }
+      : null
+
+    const cachedTransfer = getCachedTransfer(normalizedCode)
+    const cachedAi = getCachedAI(normalizedCode)
+    const seed = mergeTransferData(cachedTransfer, navTransfer)
+
+    if (seed) {
+      setError(null)
+      setLoading(false)
+      applyTransferSnapshot(seed, { persist: true })
+    }
+
+    if (cachedAi) {
+      setAi(cachedAi)
+      setAiLoading(false)
+    }
+
+    const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
+    if (hasUsableCache) {
+      return
+    }
+
     async function load() {
       try {
+        setLoading(true)
+        setError(null)
         const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
         if (!mountedRef.current) return
-        setMeta(data)
-        setSecondsRemaining(data.secondsRemaining || 0)
-        const sessionDuration = data.expiresAt && data.createdAt
-          ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
-          : 600
-        setTotalSeconds(Math.max(sessionDuration, 60))
-        if (data.passwordProtected) { setNeedsPassword(true) }
-        if (data.ai) { setAi(data.ai); setAiLoading(false) }
-        if (data.status) { setTransferStatus(data.status) }
-
-        // Preview for images — skip if password-protected (will set after verification)
-        const firstFile = data?.files?.[0]
-        const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
-        if (firstFile && firstFileType.startsWith('image/') && !data.passwordProtected) {
-          setPreviewSrc(previewUrl(normalizedCode, 0))
-        }
-
-        saveTransfer({ code: normalizedCode, filename: firstFile?.name || normalizedCode, isSender: false })
+        applyTransferSnapshot(data, { persist: true })
       } catch (err) {
         if (!mountedRef.current) return
         const errCode = extractErrorCode(err)
@@ -3046,7 +3231,7 @@ export default function DownloadPage() {
       }
     }
     load()
-  }, [normalizedCode, navigate])
+  }, [normalizedCode, navState, navigate, applyTransferSnapshot])
 
   // Safety net: never keep skeleton forever if request hangs unexpectedly.
   useEffect(() => {
@@ -3074,8 +3259,15 @@ export default function DownloadPage() {
     const onExpired = () => {
       setTransferStatus('EXPIRED')
       setSecondsRemaining(0)
+      patchCachedTransfer({ status: 'EXPIRED', secondsRemaining: 0 })
     }
-    const onAi = (data) => { setAi(data); setAiLoading(false) }
+    const onAi = (data) => {
+      if (!data) return
+      setAi(data)
+      setAiLoading(false)
+      saveCachedAI(normalizedCode, data)
+      patchCachedTransfer({ ai: data })
+    }
     const onDownProg = ({ percent }) => {
       if (!downloadingRef.current) return
       setDownloadPercent(percent || 0)
@@ -3088,9 +3280,11 @@ export default function DownloadPage() {
     }
     const onCancelled = () => {
       setTransferStatus('CANCELLED')
+      patchCachedTransfer({ status: 'CANCELLED' })
     }
     const onDeleted = ({ reason } = {}) => {
       setTransferStatus('DELETED')
+      patchCachedTransfer({ status: 'DELETED' })
       // Only show error if user hasn't downloaded and isn't currently downloading
       if (reason === 'burn' && !downloaded && !downloadingRef.current) {
         toast.error('This file was burned after being downloaded by someone else')
@@ -3120,7 +3314,7 @@ export default function DownloadPage() {
       socket.off('transfer-receipt', onReceipt)
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, downloaded])
+  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, downloaded, patchCachedTransfer])
 
   // Password verification
   async function handlePasswordSubmit(e) {
@@ -3578,7 +3772,7 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (27939 bytes) =====
+===== FILE: src/pages/HomePage.jsx (28378 bytes) =====
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -3660,10 +3854,22 @@ export default function HomePage() {
     setUploading(false)
 
     const fname = files[0]?.name || 'file'
-    saveTransfer({ code: transferCode, filename: fname, isSender: true })
+    const normalizedTransferCode = String(transferCode).trim().toUpperCase()
+    const transferSnapshot = { ...payload, code: normalizedTransferCode }
+    saveTransfer({
+      code: normalizedTransferCode,
+      filename: fname,
+      isSender: true,
+      status: transferSnapshot?.status,
+      expiresAt: transferSnapshot?.expiresAt,
+      createdAt: transferSnapshot?.createdAt,
+      files: transferSnapshot?.files,
+      ai: transferSnapshot?.ai,
+      transfer: transferSnapshot,
+    })
 
     // Navigate first to avoid any transient audio API issues blocking route transition.
-    navigate(`/sender/${transferCode}`, { state: { transferData: payload } })
+    navigate(`/sender/${normalizedTransferCode}`, { state: { transferData: transferSnapshot } })
 
     // Play success sound after navigation commit.
     window.setTimeout(() => {
@@ -4207,7 +4413,7 @@ export default function HomePage() {
   )
 }
 
-===== FILE: src/pages/JoinPage.jsx (7085 bytes) =====
+===== FILE: src/pages/JoinPage.jsx (7682 bytes) =====
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -4219,6 +4425,7 @@ import Navbar from '../components/Navbar'
 import NearbyDevices from '../components/NearbyDevices'
 import ErrorState from '../components/ErrorState'
 import { extractErrorCode } from '../utils/errors'
+import { saveTransfer } from '../utils/storage'
 
 const CODE_LENGTH = 6
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
@@ -4306,8 +4513,20 @@ export default function JoinPage() {
     setLoading(true)
     setError(null)
     try {
-      await getFileMetadata(code)
-      navigate(`/download/${code}`)
+      const data = await getFileMetadata(code, { timeout: 12000, noRetry: true })
+      const normalizedCode = String(code || '').trim().toUpperCase()
+      saveTransfer({
+        code: normalizedCode,
+        filename: data?.files?.[0]?.name || normalizedCode,
+        isSender: false,
+        status: data?.status,
+        expiresAt: data?.expiresAt,
+        createdAt: data?.createdAt,
+        files: data?.files,
+        ai: data?.ai || null,
+        transfer: { ...data, code: normalizedCode },
+      })
+      navigate(`/download/${normalizedCode}`, { state: { transferData: { ...data, code: normalizedCode } } })
     } catch (err) {
       const errCode = extractErrorCode(err)
       if (errCode === 'TRANSFER_EXPIRED') {
@@ -4422,14 +4641,14 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (27049 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (30465 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, ExternalLink, Share2, Clock, Trash2,
-  MessageCircle, Mail, Monitor, Maximize2, Send,
-  Download, QrCode, AlertTriangle
+  MessageCircle, Mail, Maximize2, Send,
+  QrCode, AlertTriangle
 } from 'lucide-react'
 import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
@@ -4439,6 +4658,14 @@ import {
   getFileMetadata, getTransferActivity,
   extendTransfer, deleteTransfer, downloadSingleFile
 } from '../services/api'
+import {
+  getCachedTransfer,
+  saveCachedTransfer,
+  getCachedAI,
+  saveCachedAI,
+  mergeTransferData,
+  saveTransfer,
+} from '../utils/storage'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
@@ -4460,27 +4687,47 @@ export default function SenderPage() {
   const navState = location.state?.transferData || null
   const { socket, socketId, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
-  const [meta, setMeta] = useState(null)
+  const initialCachedTransfer = getCachedTransfer(normalizedCode)
+  const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
+
+  const [meta, setMeta] = useState(initialCachedTransfer)
   const [activity, setActivity] = useState([])
-  const [ai, setAi] = useState(null)
-  const [aiLoading, setAiLoading] = useState(true)
-  const [secondsRemaining, setSecondsRemaining] = useState(0)
-  const [totalSeconds, setTotalSeconds] = useState(600)
+  const [ai, setAi] = useState(initialCachedAI)
+  const [aiLoading, setAiLoading] = useState(!initialCachedAI)
+  const [secondsRemaining, setSecondsRemaining] = useState(() => {
+    const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
+    if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
+    if (initialCachedTransfer?.expiresAt) {
+      return Math.max(0, Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - Date.now()) / 1000))
+    }
+    return 0
+  })
+  const [totalSeconds, setTotalSeconds] = useState(() => {
+    if (initialCachedTransfer?.expiresAt && initialCachedTransfer?.createdAt) {
+      const span = Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - new Date(initialCachedTransfer.createdAt).getTime()) / 1000)
+      return Math.max(span, 60)
+    }
+    return 600
+  })
   const [extended, setExtended] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [qrModal, setQrModal] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialCachedTransfer)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmExtend, setConfirmExtend] = useState(false)
-  const [cancelled, setCancelled] = useState(false)
+  const [cancelled, setCancelled] = useState(
+    initialCachedTransfer?.status === 'CANCELLED' || initialCachedTransfer?.status === 'DELETED'
+  )
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
 
   const mountedRef = useRef(true)
+  const metaRef = useRef(initialCachedTransfer)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
+  useEffect(() => { metaRef.current = meta }, [meta])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
@@ -4493,38 +4740,117 @@ export default function SenderPage() {
     }
   }, [meta])
 
+  const patchCachedTransfer = useCallback((patch) => {
+    setMeta((prev) => {
+      const merged = mergeTransferData(prev, patch)
+      if (!merged) return prev
+
+      metaRef.current = merged
+      const persisted = saveCachedTransfer(normalizedCode, merged) || merged
+      saveTransfer({
+        code: normalizedCode,
+        filename: persisted?.files?.[0]?.name || normalizedCode,
+        isSender: true,
+        status: persisted?.status,
+        expiresAt: persisted?.expiresAt,
+        createdAt: persisted?.createdAt,
+        files: persisted?.files,
+        ai: persisted?.ai || getCachedAI(normalizedCode) || null,
+        transfer: persisted,
+      })
+
+      return persisted
+    })
+  }, [normalizedCode])
+
+  const applyTransferSnapshot = useCallback((incoming, options = {}) => {
+    const { persist = true } = options
+    if (!incoming) return null
+
+    const merged = mergeTransferData(metaRef.current, incoming)
+    if (!merged) return null
+
+    metaRef.current = merged
+    setMeta(merged)
+
+    if (merged.status === 'CANCELLED' || merged.status === 'DELETED') {
+      setCancelled(true)
+    }
+
+    const directSeconds = Number(merged.secondsRemaining)
+    if (Number.isFinite(directSeconds) && directSeconds >= 0) {
+      setSecondsRemaining(directSeconds)
+    } else if (merged.expiresAt) {
+      const inferred = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
+      setSecondsRemaining(inferred)
+    }
+
+    const sessionDuration = merged.expiresAt && merged.createdAt
+      ? Math.ceil((new Date(merged.expiresAt).getTime() - new Date(merged.createdAt).getTime()) / 1000)
+      : 600
+    setTotalSeconds(Math.max(sessionDuration, 60))
+
+    const aiPayload = merged.ai || getCachedAI(normalizedCode) || null
+    if (aiPayload) {
+      setAi(aiPayload)
+      setAiLoading(false)
+      saveCachedAI(normalizedCode, aiPayload)
+    } else {
+      setAiLoading(false)
+    }
+
+    if (persist) {
+      const persisted = saveCachedTransfer(normalizedCode, merged) || merged
+      saveTransfer({
+        code: normalizedCode,
+        filename: persisted?.files?.[0]?.name || normalizedCode,
+        isSender: true,
+        status: persisted?.status,
+        expiresAt: persisted?.expiresAt,
+        createdAt: persisted?.createdAt,
+        files: persisted?.files,
+        ai: aiPayload || persisted?.ai || null,
+        transfer: persisted,
+      })
+    }
+
+    return merged
+  }, [normalizedCode])
+
   // Fetch metadata
   useEffect(() => {
     if (!normalizedCode) return
 
     const navStateCode = String(navState?.code || '').trim().toUpperCase()
-    const hasFreshNavState = Boolean(
-      navState &&
-      navStateCode === normalizedCode &&
-      Array.isArray(navState.files) &&
-      navState.files.length > 0 &&
-      navState.expiresAt,
-    )
+    const navTransfer = navState && navStateCode === normalizedCode
+      ? { ...navState, code: normalizedCode }
+      : null
 
-    // If we have data from navigation state (just uploaded), use it directly
-    if (hasFreshNavState) {
-      setMeta({ ...navState, code: normalizedCode })
-      const secs = navState.secondsRemaining ||
-        (navState.expiresAt
-          ? Math.max(0, Math.ceil((new Date(navState.expiresAt).getTime() - Date.now()) / 1000))
-          : 600)
-      setSecondsRemaining(secs)
-      const sessionDuration = navState.expiresAt && navState.createdAt
-        ? Math.ceil((new Date(navState.expiresAt).getTime() - new Date(navState.createdAt).getTime()) / 1000)
-        : 600
-      setTotalSeconds(Math.max(sessionDuration, 60))
-      if (navState.ai) { setAi(navState.ai); setAiLoading(false) }
+    const cachedTransfer = getCachedTransfer(normalizedCode)
+    const cachedAi = getCachedAI(normalizedCode)
+    const seed = mergeTransferData(cachedTransfer, navTransfer)
+
+    if (seed) {
+      setError(null)
       setLoading(false)
+      applyTransferSnapshot(seed, { persist: true })
+    }
+
+    if (cachedAi) {
+      setAi(cachedAi)
+      setAiLoading(false)
+    }
+
+    const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
+    if (hasUsableCache) {
       return
     }
 
     // Otherwise fetch from API
     async function load() {
+      if (!normalizedCode || !mountedRef.current) return
+      setLoading(true)
+      setError(null)
       try {
         const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
         if (!mountedRef.current) return
@@ -4537,14 +4863,8 @@ export default function SenderPage() {
         if (data.status === 'CANCELLED' || data.status === 'DELETED') {
           setCancelled(true)
         }
-        
-        setMeta(data)
-        setSecondsRemaining(data.secondsRemaining || 0)
-        const sessionDuration = data.expiresAt && data.createdAt
-          ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
-          : 600
-        setTotalSeconds(Math.max(sessionDuration, 60))
-        if (data.ai) { setAi(data.ai); setAiLoading(false) }
+
+        applyTransferSnapshot(data, { persist: true })
       } catch (err) {
         if (!mountedRef.current) return
         console.error('[SenderPage] load error:', err)
@@ -4570,7 +4890,7 @@ export default function SenderPage() {
     }
 
     load()
-  }, [normalizedCode, navState, navigate])
+  }, [normalizedCode, navState, navigate, applyTransferSnapshot])
 
   // Safety net: never keep skeleton forever if request hangs unexpectedly.
   useEffect(() => {
@@ -4616,7 +4936,13 @@ export default function SenderPage() {
       if (!mountedRef.current) return
       navigate('/expired?reason=expired', { replace: true })
     }
-    const onAi = (data) => { setAi(data); setAiLoading(false) }
+    const onAi = (data) => {
+      if (!data) return
+      setAi(data)
+      setAiLoading(false)
+      saveCachedAI(normalizedCode, data)
+      patchCachedTransfer({ ai: data })
+    }
     const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
     const onDownComplete = () => {
       setDownloadProgress(100)
@@ -4633,10 +4959,12 @@ export default function SenderPage() {
     }
     const onCancelled = () => {
       setCancelled(true)
+      patchCachedTransfer({ status: 'CANCELLED' })
       void loadActivity()
     }
     const onDeleted = () => {
       setCancelled(true)
+      patchCachedTransfer({ status: 'DELETED' })
       void loadActivity()
     }
     const onExtended = ({ expiresAt }) => {
@@ -4645,6 +4973,7 @@ export default function SenderPage() {
         setSecondsRemaining(newSeconds)
         // Extension duration is 10 minutes (600 seconds) by default
         setTotalSeconds(600)
+        patchCachedTransfer({ expiresAt, secondsRemaining: newSeconds })
       }
     }
 
@@ -4672,7 +5001,7 @@ export default function SenderPage() {
       socket.off('transfer-extended', onExtended)
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity])
+  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity, patchCachedTransfer])
 
   // Copy helpers
   const copyCode = useCallback(() => {
@@ -5684,16 +6013,163 @@ export function playSuccess() {
   playUploadSuccess()
 }
 
-===== FILE: src/utils/storage.js (2689 bytes) =====
+===== FILE: src/utils/storage.js (10293 bytes) =====
 const KEYS = {
   RECENT: 'swiftshare_recent',
   SETTINGS: 'swiftshare_settings',
   THEME: 'swiftshare_theme',
   PWA_DISMISSED: 'swiftshare_pwa_dismissed',
+  TRANSFER_PREFIX: 'transfer_',
+  AI_PREFIX: 'ai_',
 }
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase()
+}
+
+function transferKey(code) {
+  const normalized = normalizeCode(code)
+  return normalized ? `${KEYS.TRANSFER_PREFIX}${normalized}` : ''
+}
+
+function aiKey(code) {
+  const normalized = normalizeCode(code)
+  return normalized ? `${KEYS.AI_PREFIX}${normalized}` : ''
+}
+
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function toPositiveNumber(value) {
+  const num = Number(value)
+  return Number.isFinite(num) && num > 0 ? num : 0
+}
+
+function mergeDefined(prevObj, nextObj) {
+  const base = isObject(prevObj) ? { ...prevObj } : {}
+  const incoming = isObject(nextObj) ? nextObj : {}
+
+  Object.entries(incoming).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      base[key] = value
+    }
+  })
+
+  return base
+}
+
+function sumFileSizes(files) {
+  if (!Array.isArray(files) || !files.length) return 0
+  return files.reduce((sum, file) => {
+    const size = toPositiveNumber(file?.size)
+      || toPositiveNumber(file?.fileSize)
+      || toPositiveNumber(file?.bytes)
+    return sum + size
+  }, 0)
+}
+
+function mergeFileMetadata(prevFile, nextFile) {
+  const prevSafe = isObject(prevFile) ? prevFile : {}
+  const nextSafe = isObject(nextFile) ? nextFile : {}
+  const merged = { ...prevSafe, ...nextSafe }
+
+  const prevSize = toPositiveNumber(prevSafe.size) || toPositiveNumber(prevSafe.fileSize) || toPositiveNumber(prevSafe.bytes)
+  const nextSize = toPositiveNumber(nextSafe.size) || toPositiveNumber(nextSafe.fileSize) || toPositiveNumber(nextSafe.bytes)
+
+  if (!nextSize && prevSize) {
+    if (toPositiveNumber(prevSafe.size)) merged.size = prevSafe.size
+    if (toPositiveNumber(prevSafe.fileSize)) merged.fileSize = prevSafe.fileSize
+    if (toPositiveNumber(prevSafe.bytes)) merged.bytes = prevSafe.bytes
+    if (!toPositiveNumber(merged.size)) merged.size = prevSize
+  }
+
+  return merged
+}
+
+function mergeFiles(prevFiles, nextFiles) {
+  const prevList = Array.isArray(prevFiles) ? prevFiles : []
+  const nextList = Array.isArray(nextFiles) ? nextFiles : []
+
+  if (!nextList.length) {
+    return prevList
+  }
+
+  // If the next payload has fewer files than the current snapshot, keep unmatched previous files.
+  if (prevList.length > nextList.length) {
+    const merged = [...prevList]
+    for (let idx = 0; idx < nextList.length; idx += 1) {
+      const nextFile = nextList[idx]
+      const byName = prevList.find((file) => String(file?.name || '') === String(nextFile?.name || ''))
+      merged[idx] = mergeFileMetadata(byName || prevList[idx], nextFile)
+    }
+    return merged
+  }
+
+  return nextList.map((nextFile, idx) => {
+    const byName = prevList.find((file) => String(file?.name || '') === String(nextFile?.name || ''))
+    return mergeFileMetadata(byName || prevList[idx], nextFile)
+  })
+}
+
+export function mergeTransferData(prevData, nextData) {
+  const prevSafe = isObject(prevData) ? prevData : null
+  const nextSafe = isObject(nextData) ? nextData : null
+
+  if (!prevSafe && !nextSafe) return null
+  if (!prevSafe) {
+    const normalizedOnly = { ...nextSafe, code: normalizeCode(nextSafe?.code) }
+    if (!Array.isArray(normalizedOnly.files)) {
+      normalizedOnly.files = []
+    }
+    return normalizedOnly
+  }
+  if (!nextSafe) {
+    const normalizedOnly = { ...prevSafe, code: normalizeCode(prevSafe?.code) }
+    if (!Array.isArray(normalizedOnly.files)) {
+      normalizedOnly.files = []
+    }
+    return normalizedOnly
+  }
+
+  const merged = mergeDefined(prevSafe, nextSafe)
+
+  merged.code = normalizeCode(nextSafe.code || prevSafe.code)
+  merged.files = mergeFiles(prevSafe.files, nextSafe.files)
+
+  if (!nextSafe.ai && prevSafe.ai) {
+    merged.ai = prevSafe.ai
+  }
+
+  const nextTotal = toPositiveNumber(nextSafe.totalSize)
+  const prevTotal = toPositiveNumber(prevSafe.totalSize)
+  if (!nextTotal && prevTotal) {
+    merged.totalSize = prevTotal
+  } else if (nextTotal) {
+    merged.totalSize = nextTotal
+  }
+
+  if (!toPositiveNumber(merged.totalSize)) {
+    const inferred = sumFileSizes(merged.files)
+    if (inferred > 0) {
+      merged.totalSize = inferred
+    }
+  }
+
+  return merged
+}
+
+function clearPrefix(prefix) {
+  try {
+    const keysToRemove = []
+    for (let idx = 0; idx < localStorage.length; idx += 1) {
+      const key = localStorage.key(idx)
+      if (key && key.startsWith(prefix)) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key))
+  } catch {}
 }
 
 function safeGet(key, fallback) {
@@ -5706,25 +6182,107 @@ function safeSet(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
 }
 
+export function getCachedTransfer(code) {
+  const key = transferKey(code)
+  if (!key) return null
+  const cached = safeGet(key, null)
+  return mergeTransferData(null, cached)
+}
+
+export function saveCachedTransfer(code, transferData) {
+  const normalizedCode = normalizeCode(code)
+  if (!normalizedCode || !isObject(transferData)) return null
+
+  const key = transferKey(normalizedCode)
+  const existing = getCachedTransfer(normalizedCode)
+  const merged = mergeTransferData(existing, { ...transferData, code: normalizedCode })
+  if (!merged) return null
+
+  safeSet(key, merged)
+  return merged
+}
+
+export function removeCachedTransfer(code) {
+  const key = transferKey(code)
+  if (!key) return
+  try { localStorage.removeItem(key) } catch {}
+}
+
+export function getCachedAI(code) {
+  const key = aiKey(code)
+  if (!key) return null
+  return safeGet(key, null)
+}
+
+export function saveCachedAI(code, aiData) {
+  const normalizedCode = normalizeCode(code)
+  if (!normalizedCode || !aiData) return
+  safeSet(aiKey(normalizedCode), aiData)
+}
+
+export function removeCachedAI(code) {
+  const key = aiKey(code)
+  if (!key) return
+  try { localStorage.removeItem(key) } catch {}
+}
+
 // ── Recent Transfers ───────────────────────
 export function getRecentTransfers() {
-  return safeGet(KEYS.RECENT, []).map((entry) => ({
-    ...entry,
-    code: normalizeCode(entry?.code),
-  }))
+  return safeGet(KEYS.RECENT, []).map((entry) => {
+    const normalizedCode = normalizeCode(entry?.code)
+    const cachedTransfer = getCachedTransfer(normalizedCode)
+    const cachedAI = getCachedAI(normalizedCode)
+    const mergedTransfer = mergeTransferData(entry?.transfer || entry, cachedTransfer)
+
+    return {
+      ...entry,
+      ...(mergedTransfer || {}),
+      code: normalizedCode,
+      transfer: mergedTransfer || entry?.transfer || null,
+      files: Array.isArray(mergedTransfer?.files) ? mergedTransfer.files : (Array.isArray(entry?.files) ? entry.files : []),
+      ai: cachedAI || mergedTransfer?.ai || entry?.ai || null,
+      filename: entry?.filename || mergedTransfer?.files?.[0]?.name || normalizedCode,
+    }
+  }).filter((entry) => Boolean(entry?.code))
 }
 export function saveTransfer(entry) {
   const normalizedCode = normalizeCode(entry?.code)
   if (!normalizedCode) return
 
+  const transferSource = isObject(entry?.transfer) ? entry.transfer : (isObject(entry) ? entry : null)
+  const mergedTransfer = transferSource ? saveCachedTransfer(normalizedCode, transferSource) : getCachedTransfer(normalizedCode)
+
+  const aiFromEntry = entry?.ai || transferSource?.ai || null
+  if (aiFromEntry) {
+    saveCachedAI(normalizedCode, aiFromEntry)
+  }
+
+  const aiSnapshot = aiFromEntry || getCachedAI(normalizedCode) || mergedTransfer?.ai || null
+  const filesSnapshot = Array.isArray(mergedTransfer?.files) && mergedTransfer.files.length
+    ? mergedTransfer.files
+    : (Array.isArray(entry?.files) ? entry.files : [])
+
   const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
-  list.unshift({ ...entry, code: normalizedCode, savedAt: new Date().toISOString() })
+  list.unshift({
+    ...entry,
+    code: normalizedCode,
+    filename: entry?.filename || filesSnapshot?.[0]?.name || normalizedCode,
+    files: filesSnapshot,
+    status: entry?.status || mergedTransfer?.status,
+    expiresAt: entry?.expiresAt || mergedTransfer?.expiresAt,
+    createdAt: entry?.createdAt || mergedTransfer?.createdAt,
+    ai: aiSnapshot,
+    transfer: mergedTransfer,
+    savedAt: new Date().toISOString(),
+  })
   safeSet(KEYS.RECENT, list.slice(0, 10))
 }
 export function removeTransfer(code) {
   const normalizedCode = normalizeCode(code)
   const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
   safeSet(KEYS.RECENT, list)
+  removeCachedTransfer(normalizedCode)
+  removeCachedAI(normalizedCode)
 }
 export function updateTransferStatus(code, status) {
   const normalizedCode = normalizeCode(code)
@@ -5732,9 +6290,16 @@ export function updateTransferStatus(code, status) {
     t.code === normalizedCode ? { ...t, status } : t
   )
   safeSet(KEYS.RECENT, list)
+
+  const cachedTransfer = getCachedTransfer(normalizedCode)
+  if (cachedTransfer) {
+    saveCachedTransfer(normalizedCode, { ...cachedTransfer, status })
+  }
 }
 export function clearTransfers() {
   localStorage.removeItem(KEYS.RECENT)
+  clearPrefix(KEYS.TRANSFER_PREFIX)
+  clearPrefix(KEYS.AI_PREFIX)
 }
 
 // ── Settings ───────────────────────────────
@@ -5926,4 +6491,4 @@ export default defineConfig({
 ===== SUMMARY =====
 Included files: 43
 Skipped (too large): 0
-Total source bytes included: 216566
+Total source bytes included: 234907
