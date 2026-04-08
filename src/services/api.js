@@ -266,6 +266,11 @@ export async function deleteTransfer(code) {
   return unwrapResponse(data)
 }
 
+export async function finalizeBurnTransfer(code) {
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/burn-finalize`)
+  return unwrapResponse(data)
+}
+
 // ── Nearby ──────────────────────────────────
 export async function getNearbyDevices(socketId) {
   const safeSocketId = String(socketId || '').trim()

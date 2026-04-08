@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Copy, Check, ExternalLink, Share2, Clock, Trash2,
+  Copy, Check, Share2, Clock, Trash2,
   MessageCircle, Mail, Maximize2, Send,
   QrCode, AlertTriangle, Lock, Eye, EyeOff, Loader2
 } from 'lucide-react'
@@ -21,6 +21,7 @@ import {
   saveCachedAI,
   mergeTransferData,
   saveTransfer,
+  updateTransferStatus,
 } from '../utils/storage'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
@@ -92,6 +93,7 @@ export default function SenderPage() {
   const metaRef = useRef(initialCachedTransfer)
   const verifiedPreviewPasswordRef = useRef('')
   const activityRefreshTimerRef = useRef(null)
+  const terminalNavigatedRef = useRef(false)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
 
@@ -249,11 +251,19 @@ export default function SenderPage() {
         
         // Check for expired/not found BEFORE setting any state
         if (data.status === 'EXPIRED') {
+          updateTransferStatus(normalizedCode, 'EXPIRED')
           navigate('/expired?reason=expired', { replace: true })
           return
         }
-        if (data.status === 'CANCELLED' || data.status === 'DELETED') {
-          setCancelled(true)
+        if (data.status === 'CANCELLED') {
+          updateTransferStatus(normalizedCode, 'CANCELLED')
+          navigate('/expired?reason=cancelled', { replace: true })
+          return
+        }
+        if (data.status === 'DELETED') {
+          updateTransferStatus(normalizedCode, 'DELETED')
+          navigate('/expired?reason=burned', { replace: true })
+          return
         }
 
         applyTransferSnapshot(data, { persist: true })
@@ -267,10 +277,12 @@ export default function SenderPage() {
           return
         }
         if (errCode === 'TRANSFER_EXPIRED') {
+          updateTransferStatus(normalizedCode, 'EXPIRED')
           navigate('/expired?reason=expired', { replace: true })
           return
         }
         if (errCode === 'ALREADY_DOWNLOADED') {
+          updateTransferStatus(normalizedCode, 'DELETED')
           navigate('/expired?reason=burned', { replace: true })
           return
         }
@@ -343,6 +355,7 @@ export default function SenderPage() {
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     const onExpired = () => {
       if (!mountedRef.current) return
+      updateTransferStatus(normalizedCode, 'EXPIRED')
       navigate('/expired?reason=expired', { replace: true })
     }
     const onAi = (data) => {
@@ -355,6 +368,10 @@ export default function SenderPage() {
     const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
     const onDownComplete = () => {
       setDownloadProgress(100)
+      if (metaRef.current?.burnAfterDownload) {
+        patchCachedTransfer({ status: 'CLAIMED' })
+        updateTransferStatus(normalizedCode, 'CLAIMED')
+      }
       requestActivityRefresh()
       window.setTimeout(() => setDownloadProgress(null), 1500)
     }
@@ -368,14 +385,22 @@ export default function SenderPage() {
       requestActivityRefresh()
     }
     const onCancelled = () => {
+      if (!mountedRef.current || terminalNavigatedRef.current) return
+      terminalNavigatedRef.current = true
       setCancelled(true)
       patchCachedTransfer({ status: 'CANCELLED' })
+      updateTransferStatus(normalizedCode, 'CANCELLED')
       requestActivityRefresh()
+      navigate('/expired?reason=cancelled', { replace: true })
     }
-    const onDeleted = () => {
+    const onDeleted = ({ reason } = {}) => {
+      if (!mountedRef.current || terminalNavigatedRef.current) return
+      terminalNavigatedRef.current = true
       setCancelled(true)
       patchCachedTransfer({ status: 'DELETED' })
+      updateTransferStatus(normalizedCode, 'DELETED')
       requestActivityRefresh()
+      navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
     }
     const onExtended = ({ expiresAt }) => {
       if (expiresAt) {
@@ -428,12 +453,41 @@ export default function SenderPage() {
     })
   }, [normalizedCode])
 
-  const copyLink = useCallback(() => {
-    navigator.clipboard.writeText(shareLink).then(() => {
+  const copyLink = useCallback(async () => {
+    const setCopied = () => {
       setCopiedLink(true)
       toast.success('Link copied')
       setTimeout(() => setCopiedLink(false), 2000)
-    })
+    }
+
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink)
+        setCopied()
+        return true
+      }
+    } catch {}
+
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = shareLink
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      ta.style.pointerEvents = 'none'
+      document.body.appendChild(ta)
+      ta.select()
+      ta.setSelectionRange(0, ta.value.length)
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      if (ok) {
+        setCopied()
+        return true
+      }
+    } catch {}
+
+    toast.error('Could not copy link on this browser')
+    return false
   }, [shareLink])
 
   // Ctrl+C shortcut
@@ -484,8 +538,12 @@ export default function SenderPage() {
     try {
       await deleteTransfer(normalizedCode)
       toast.success('Transfer cancelled permanently')
+      terminalNavigatedRef.current = true
       setCancelled(true)
+      patchCachedTransfer({ status: 'CANCELLED' })
+      updateTransferStatus(normalizedCode, 'CANCELLED')
       setConfirmDelete(false)
+      navigate('/expired?reason=cancelled', { replace: true })
     } catch {
       toast.error('Failed to cancel')
     } finally {
@@ -546,15 +604,34 @@ export default function SenderPage() {
   }
 
   // Share helpers
-  function handleWebShare() {
+  async function handleWebShare() {
+    const shareData = {
+      title: 'SwiftShare',
+      text: `Download my file: ${normalizedCode}`,
+      url: shareLink,
+    }
+
     if (canUseWebShare) {
-      navigator.share({
-        title: 'SwiftShare',
-        text: `Download my file: ${normalizedCode}`,
-        url: shareLink,
-      }).catch(() => {})
-    } else {
-      copyLink()
+      try {
+        const canSharePayload = typeof navigator.canShare === 'function' ? navigator.canShare(shareData) : true
+        if (canSharePayload) {
+          await navigator.share(shareData)
+          return
+        }
+      } catch (err) {
+        if (err?.name === 'AbortError') return
+      }
+    }
+
+    const copied = await copyLink()
+    if (copied) return
+
+    const mailto = `mailto:?subject=${encodeURIComponent('File for you')}&body=${encodeURIComponent(`Download here: ${shareLink}`)}`
+    try {
+      window.location.href = mailto
+      toast.success('Opened share app')
+    } catch {
+      toast.error('Share is not supported on this browser')
     }
   }
 
@@ -658,19 +735,33 @@ export default function SenderPage() {
       const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
       if (!mountedRef.current) return
       if (data.status === 'EXPIRED') {
+        updateTransferStatus(normalizedCode, 'EXPIRED')
         navigate('/expired?reason=expired', { replace: true })
         return
       }
-      if (data.status === 'CANCELLED' || data.status === 'DELETED') {
-        setCancelled(true)
+      if (data.status === 'CANCELLED') {
+        updateTransferStatus(normalizedCode, 'CANCELLED')
+        navigate('/expired?reason=cancelled', { replace: true })
+        return
+      }
+      if (data.status === 'DELETED') {
+        updateTransferStatus(normalizedCode, 'DELETED')
+        navigate('/expired?reason=burned', { replace: true })
+        return
       }
       applyTransferSnapshot(data, { persist: true })
     } catch (err) {
       if (!mountedRef.current) return
       const errCode = err?.response?.data?.error?.code
       if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-      else if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
-      else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
+      else if (errCode === 'TRANSFER_EXPIRED') {
+        updateTransferStatus(normalizedCode, 'EXPIRED')
+        navigate('/expired?reason=expired', { replace: true })
+      }
+      else if (errCode === 'ALREADY_DOWNLOADED') {
+        updateTransferStatus(normalizedCode, 'DELETED')
+        navigate('/expired?reason=burned', { replace: true })
+      }
       else setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
     } finally {
       if (mountedRef.current) setLoading(false)
@@ -916,9 +1007,9 @@ export default function SenderPage() {
                       {copiedCode ? <Check size={14} /> : <Copy size={14} />}
                       {copiedCode ? 'Copied!' : 'Copy code'}
                     </button>
-                    <button className="btn-secondary flex-1 text-xs" onClick={copyLink}>
-                      {copiedLink ? <Check size={14} /> : <ExternalLink size={14} />}
-                      {copiedLink ? 'Copied!' : 'Copy link'}
+                    <button className="btn-secondary flex-1 text-xs" onClick={handleWebShare}>
+                      {copiedLink ? <Check size={14} /> : <Share2 size={14} />}
+                      {copiedLink ? 'Link copied' : 'Share'}
                     </button>
                   </div>
                 </motion.div>
@@ -956,7 +1047,7 @@ export default function SenderPage() {
                     </button>
                     <button className="btn-ghost justify-center col-span-2" onClick={handleWebShare}>
                       <Share2 size={14} />
-                      {canUseWebShare ? 'Share...' : 'Copy link'}
+                      {canUseWebShare ? 'Share' : 'Share (copy link)'}
                     </button>
                   </div>
                 </div>

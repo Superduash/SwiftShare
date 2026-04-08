@@ -6,13 +6,16 @@ import {
   getRecentTransfers,
   clearTransfers,
   removeTransfer,
+  updateTransferStatus,
   getCachedTransfer,
   mergeTransferData,
 } from '../utils/storage'
+import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
 const STATUS_STYLES = {
   ACTIVE: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Active' },
+  CLAIMED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Claimed' },
   EXPIRED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Expired' },
   CANCELLED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Cancelled' },
   DELETED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Deleted' },
@@ -21,6 +24,17 @@ const STATUS_STYLES = {
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase()
+}
+
+function normalizeStatus(status) {
+  return String(status || '').trim().toUpperCase()
+}
+
+function statusToExpiredReason(status) {
+  if (status === 'CANCELLED') return 'cancelled'
+  if (status === 'DELETED') return 'burned'
+  if (status === 'EXPIRED') return 'expired'
+  return 'expired'
 }
 
 export default function RecentTransfers() {
@@ -41,8 +55,8 @@ export default function RecentTransfers() {
   useEffect(() => {
     const timer = setInterval(() => {
       setTransfers(prev => prev.map(t => {
-        const status = String(t?.status || '').toUpperCase()
-        if (status === 'CANCELLED' || status === 'DELETED') return t
+        const status = normalizeStatus(t?.status)
+        if (status === 'CANCELLED' || status === 'DELETED' || status === 'EXPIRED') return t
         if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
           return { ...t, status: 'EXPIRED' }
         }
@@ -72,19 +86,41 @@ export default function RecentTransfers() {
     setTransfers(prev => prev.filter(t => normalizeCode(t.code) !== normalizedCode))
   }
 
-  function handleClick(t) {
+  async function handleClick(t) {
     const normalizedCode = normalizeCode(t.code)
     if (!normalizedCode) return
 
-    const status = String(t?.status || '').toUpperCase()
+    let status = normalizeStatus(t?.status) || 'ACTIVE'
+
+    if (!['EXPIRED', 'CANCELLED', 'DELETED'].includes(status)) {
+      try {
+        const live = await getTransferStatus(normalizedCode)
+        const liveStatus = normalizeStatus(live?.status)
+        if (liveStatus) {
+          status = liveStatus
+          if (liveStatus !== normalizeStatus(t?.status)) {
+            updateTransferStatus(normalizedCode, liveStatus)
+            setTransfers(prev => prev.map(item =>
+              normalizeCode(item?.code) === normalizedCode
+                ? { ...item, status: liveStatus }
+                : item
+            ))
+          }
+        }
+      } catch {
+        // Keep existing local status when status endpoint is unreachable.
+      }
+    }
+
     if (['EXPIRED', 'CANCELLED', 'DELETED'].includes(status)) {
-      navigate('/expired')
+      navigate(`/expired?reason=${statusToExpiredReason(status)}`)
       return
     }
 
     const transferData = {
       ...t,
       code: normalizedCode,
+      status,
       files: Array.isArray(t?.files) && t.files.length
         ? t.files
         : (t?.filename ? [{ name: t.filename }] : []),
