@@ -9,10 +9,11 @@ import toast from 'react-hot-toast'
 
 import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
-import { pingServer } from './services/api'
+import { ConnectionHealthProvider } from './context/ConnectionHealthContext'
 import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
+import ConnectionBanner from './components/ConnectionBanner'
 
 // ── Error boundary for lazy routes ───────────
 class RouteErrorBoundary extends React.Component {
@@ -154,10 +155,7 @@ function NearbyOfferListener() {
 export default function App() {
   const [reducedMotion, setReducedMotion] = React.useState(() => getSettings().reducedMotion)
 
-  useEffect(() => {
-    // Warm backend once without blocking first paint.
-    void pingServer()
-  }, [])
+  // Backend warm-up is now handled by ConnectionHealthProvider
 
   useEffect(() => {
     const syncSettings = () => setReducedMotion(getSettings().reducedMotion)
@@ -171,13 +169,15 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
-      <SocketProvider>
-        <TransferProvider>
-          <BrowserRouter>
-            <NearbyOfferListener />
-            <AnimatedRoutes />
-          </BrowserRouter>
-          <Toaster
+      <ConnectionHealthProvider>
+        <SocketProvider>
+          <TransferProvider>
+            <BrowserRouter>
+              <ConnectionBanner />
+              <NearbyOfferListener />
+              <AnimatedRoutes />
+            </BrowserRouter>
+            <Toaster
             position="top-right"
             gutter={8}
             toastOptions={{
@@ -196,8 +196,9 @@ export default function App() {
               error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
             }}
           />
-        </TransferProvider>
-      </SocketProvider>
+          </TransferProvider>
+        </SocketProvider>
+      </ConnectionHealthProvider>
     </MotionConfig>
   )
 }

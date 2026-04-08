@@ -105,7 +105,7 @@ const baseURL = getApiBaseUrl()
 
 const API = axios.create({
   baseURL,
-  timeout: 30000,
+  timeout: 60000,
   withCredentials: false, // Set to true if using cookies
 })
 
@@ -140,32 +140,45 @@ function hasUsableMetadataPayload(payload) {
   return true
 }
 
-// Retry interceptor for transient failures
-API.interceptors.response.use(null, async (error) => {
-  const config = error.config
-  if (!config) return Promise.reject(error)
+// Cold-start detection: if the very first request fails, backend is likely waking up
+let _backendEverReached = false
 
-  if (config.noRetry) {
+// Retry interceptor for transient failures (cold-start aware)
+API.interceptors.response.use(
+  (response) => {
+    _backendEverReached = true
+    return response
+  },
+  async (error) => {
+    const config = error.config
+    if (!config) return Promise.reject(error)
+
+    if (config.noRetry) {
+      return Promise.reject(error)
+    }
+
+    config.__retryCount = config.__retryCount || 0
+
+    // Distinguish between real network errors and server responses
+    const isRealNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED')
+    const isServerError = error.response && (error.response.status === 503 || error.response.status >= 500)
+    const isRetryable = isRealNetworkError || isServerError
+    const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
+
+    // During cold start, be more patient — retry up to 4 times with longer delays
+    const maxRetries = _backendEverReached ? 2 : 4
+    const baseDelay = _backendEverReached ? 1500 : 3000
+
+    if (isRetryable && isIdempotent && config.__retryCount < maxRetries) {
+      config.__retryCount += 1
+      const delay = config.__retryCount * baseDelay
+      await new Promise(r => setTimeout(r, delay))
+      return API(config)
+    }
+
     return Promise.reject(error)
   }
-
-  config.__retryCount = config.__retryCount || 0
-  
-  // Distinguish between real network errors and server responses
-  const isRealNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED')
-  const isServerError = error.response && (error.response.status === 503 || error.response.status >= 500)
-  const isRetryable = isRealNetworkError || isServerError
-  const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
-
-  if (isRetryable && isIdempotent && config.__retryCount < 2) {
-    config.__retryCount += 1
-    const delay = config.__retryCount * 1500
-    await new Promise(r => setTimeout(r, delay))
-    return API(config)
-  }
-
-  return Promise.reject(error)
-})
+)
 
 function unwrapResponse(payload) {
   if (payload && typeof payload === 'object' && payload.success === true && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -208,7 +221,9 @@ function toDataUrl(base64OrDataUrl, mimeType = 'image/png') {
 export async function pingServer() {
   const start = Date.now()
   try {
-    await API.get('/api/ping')
+    // Longer timeout for ping — cold starts on Render free tier can take 30-60s
+    await API.get('/api/ping', { timeout: 60000, noRetry: true })
+    _backendEverReached = true
     return { ok: true, latencyMs: Date.now() - start }
   } catch {
     return { ok: false, latencyMs: Date.now() - start }
