@@ -1,9 +1,39 @@
+# Dependencies / builds
 node_modules/
 dist/
+.vite/
+
+# Secrets / local env
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+
+# Deployment manifests (must stay tracked)
+!vercel.json
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build/cache/test artifacts
+coverage/
+.cache/
+.eslintcache
+*.tsbuildinfo
+
+# Local deploy/tooling state
+.vercel/
+.render/
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 
 # Generated local export artifacts
 frontendcode.txt
