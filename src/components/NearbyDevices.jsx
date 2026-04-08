@@ -1,30 +1,71 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Wifi, Download, Clock } from 'lucide-react'
+import { Wifi, Download, Clock, Send } from 'lucide-react'
 import { getNearbyDevices } from '../services/api'
 import { formatBytes, formatRelativeExpiry } from '../utils/format'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import { useSocket } from '../context/SocketContext'
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase()
 }
 
-export default function NearbyDevices() {
+function dedupeDevices(list, selfSocketId) {
+  const seen = new Set()
+  return (Array.isArray(list) ? list : [])
+    .filter(Boolean)
+    .filter((device) => {
+      const candidateSocketId = String(device.socketId || '').trim()
+      if (!candidateSocketId) return true
+      if (selfSocketId && candidateSocketId === selfSocketId) return false
+      const key = candidateSocketId || normalizeCode(device.code)
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
+export default function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const { socket, socketId } = useSocket()
+  const normalizedTransferCode = normalizeCode(currentTransferCode)
+  const isSenderShareMode = Boolean(normalizedTransferCode)
+
+  const handleShareToDevice = (targetSocketId) => {
+    const safeTargetSocketId = String(targetSocketId || '').trim()
+    if (!socket || !safeTargetSocketId || !normalizedTransferCode) return
+
+    socket.emit('push-transfer-offer', {
+      targetSocketId: safeTargetSocketId,
+      code: normalizedTransferCode,
+      filename: currentFilename || 'shared file',
+    })
+
+    toast.success('Share prompt sent!')
+  }
 
   useEffect(() => {
     let mounted = true
+
+    if (socket) {
+      setLoading(false)
+      return () => {
+        mounted = false
+      }
+    }
+
     async function fetch() {
       if (document.hidden) {
         if (mounted) setLoading(false)
         return
       }
       try {
-        const data = await getNearbyDevices()
+        const data = await getNearbyDevices(socketId)
         if (mounted) {
-          setDevices(Array.isArray(data?.devices) ? data.devices : [])
+          setDevices(dedupeDevices(data?.devices, socketId))
         }
       } catch {
         if (mounted) {
@@ -36,7 +77,31 @@ export default function NearbyDevices() {
     fetch()
     const iv = setInterval(fetch, 10000)
     return () => { mounted = false; clearInterval(iv) }
-  }, [])
+  }, [socket, socketId])
+
+  useEffect(() => {
+    if (!socket) return undefined
+
+    const onNearbyDevices = (payload = {}) => {
+      setDevices(dedupeDevices(payload.devices, socketId))
+      setLoading(false)
+    }
+
+    const requestNearby = () => {
+      socket.emit('nearby-ping', {})
+    }
+
+    socket.on('nearby-devices', onNearbyDevices)
+    socket.on('connect', requestNearby)
+    requestNearby()
+    const iv = setInterval(requestNearby, 10000)
+
+    return () => {
+      clearInterval(iv)
+      socket.off('connect', requestNearby)
+      socket.off('nearby-devices', onNearbyDevices)
+    }
+  }, [socket, socketId])
 
   if (loading) return null
 
@@ -75,27 +140,40 @@ export default function NearbyDevices() {
         <AnimatePresence>
           {devices.map((dev, idx) => (
             <motion.button
-              key={dev.code}
+              key={dev.socketId || dev.code}
               className="w-full surface-card-flat p-3 flex items-center gap-3 text-left hover:border-[var(--accent)] transition-colors"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ delay: idx * 0.05 }}
               onClick={() => {
+                if (isSenderShareMode) {
+                  if (dev.socketId) {
+                    handleShareToDevice(dev.socketId)
+                  } else {
+                    toast.error('This device is not ready for direct prompt sharing yet.')
+                  }
+                  return
+                }
+
                 const normalizedCode = normalizeCode(dev.code)
                 if (!normalizedCode) return
                 navigate(`/download/${normalizedCode}`)
               }}
             >
               <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--success-soft)' }}>
-                <Download size={16} style={{ color: 'var(--success)' }} />
+                {isSenderShareMode
+                  ? <Send size={16} style={{ color: 'var(--success)' }} />
+                  : <Download size={16} style={{ color: 'var(--success)' }} />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                   {dev.deviceName || dev.code}
                 </p>
                 <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-                  {dev.fileCount} file{dev.fileCount !== 1 ? 's' : ''} · {formatBytes(dev.totalSize)}
+                  {isSenderShareMode
+                    ? (dev.socketId ? 'Tap to send share prompt' : 'Direct prompt unavailable')
+                    : `${dev.fileCount} file${dev.fileCount !== 1 ? 's' : ''} · ${formatBytes(dev.totalSize)}`}
                 </p>
               </div>
               <div className="flex items-center gap-1 text-[10px] shrink-0" style={{ color: 'var(--text-4)' }}>

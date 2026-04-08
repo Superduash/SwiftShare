@@ -155,8 +155,12 @@ export async function deleteTransfer(code) {
 }
 
 // ── Nearby ──────────────────────────────────
-export async function getNearbyDevices() {
-  const { data } = await API.get('/api/nearby')
+export async function getNearbyDevices(socketId) {
+  const safeSocketId = String(socketId || '').trim()
+  const path = safeSocketId
+    ? `/api/nearby?socketId=${encodeURIComponent(safeSocketId)}`
+    : '/api/nearby'
+  const { data } = await API.get(path)
   return unwrapResponse(data)
 }
 

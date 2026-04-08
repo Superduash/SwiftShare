@@ -1,12 +1,13 @@
 import React, { Suspense, lazy, useEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
-  useLocation, useParams,
+  useLocation, useNavigate, useParams,
 } from 'react-router-dom'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { Toaster } from 'react-hot-toast'
+import toast from 'react-hot-toast'
 
-import { SocketProvider } from './context/SocketContext'
+import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
 import { pingServer } from './services/api'
 import { getSettings } from './utils/storage'
@@ -101,6 +102,54 @@ function AnimatedRoutes() {
   )
 }
 
+function NearbyOfferListener() {
+  const { socket } = useSocket()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!socket) return undefined
+
+    const handleOffer = ({ code, filename } = {}) => {
+      const safeCode = String(code || '').trim().toUpperCase()
+      if (!safeCode) return
+
+      toast((t) => (
+        <div className="flex flex-col gap-2">
+          <span className="font-semibold text-sm">Nearby Share</span>
+          <span className="text-xs text-gray-500">Receive {filename || 'file'}?</span>
+
+          <div className="flex gap-2 mt-1">
+            <button
+              onClick={() => {
+                navigate(`/download/${safeCode}`)
+                toast.dismiss(t.id)
+              }}
+              className="btn-primary text-xs py-1"
+            >
+              Accept
+            </button>
+
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="btn-secondary text-xs py-1"
+            >
+              Decline
+            </button>
+          </div>
+        </div>
+      ), { duration: 10000 })
+    }
+
+    socket.on('receive-transfer-offer', handleOffer)
+
+    return () => {
+      socket.off('receive-transfer-offer', handleOffer)
+    }
+  }, [socket, navigate])
+
+  return null
+}
+
 // ── Root ─────────────────────────────────────
 export default function App() {
   const [reducedMotion, setReducedMotion] = React.useState(() => getSettings().reducedMotion)
@@ -125,6 +174,7 @@ export default function App() {
       <SocketProvider>
         <TransferProvider>
           <BrowserRouter>
+            <NearbyOfferListener />
             <AnimatedRoutes />
           </BrowserRouter>
           <Toaster

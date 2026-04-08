@@ -30,6 +30,7 @@ import ActivityLog from '../components/ActivityLog'
 import ProgressBar from '../components/ProgressBar'
 import QRModal from '../components/QRModal'
 import ErrorState from '../components/ErrorState'
+import NearbyDevices from '../components/NearbyDevices'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -754,6 +755,14 @@ export default function SenderPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Nearby share prompts */}
+                {!cancelled && (
+                  <NearbyDevices
+                    currentTransferCode={normalizedCode}
+                    currentFilename={meta?.files?.[0]?.name || 'file'}
+                  />
+                )}
 
                 {/* Countdown */}
                 {!cancelled && (

@@ -96,10 +96,8 @@ export default function RecentTransfers() {
     if (!normalizedCode) return
 
     const status = String(t?.status || '').toUpperCase()
-    // Only redirect for definitively terminal states — NOT for 'unknown' or empty status
-    if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
-      const reason = status === 'EXPIRED' ? 'expired' : 'notfound'
-      navigate(`/expired?reason=${reason}`)
+    if (['EXPIRED', 'CANCELLED', 'DELETED'].includes(status)) {
+      navigate(`/expired?reason=${status.toLowerCase()}`)
       return
     }
 
@@ -114,19 +112,17 @@ export default function RecentTransfers() {
     const cachedTransfer = getCachedTransfer(normalizedCode)
     const resolvedTransferData = mergeTransferData(cachedTransfer || t?.transfer, transferData) || transferData
 
+    const isReceiver = t.isSender === false || t.role === 'receiver'
+
     // Pass local transfer data so destination pages can render immediately.
     try {
-      navigate(t.isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`, {
+      navigate(isReceiver ? `/download/${normalizedCode}` : `/sender/${normalizedCode}`, {
         state: { transferData: resolvedTransferData }
       })
     } catch (err) {
       console.error('[RecentTransfers] Navigation error:', err)
       // Fallback: navigate without state
-      if (t.isSender) {
-        navigate(`/sender/${normalizedCode}`)
-      } else {
-        navigate(`/download/${normalizedCode}`)
-      }
+      navigate(isReceiver ? `/download/${normalizedCode}` : `/sender/${normalizedCode}`)
     }
   }
 
