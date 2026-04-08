@@ -36,6 +36,18 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const videoRef = useRef(null)
+  const audioRef = useRef(null)
+
+  function forceAudible(mediaEl) {
+    if (!mediaEl) return
+    try {
+      mediaEl.defaultMuted = false
+      mediaEl.muted = false
+      mediaEl.volume = 1.0
+    } catch (err) {
+      console.error('[FilePreviewModal] Failed to enforce audible media state:', err)
+    }
+  }
 
   // Reset state when file changes
   React.useEffect(() => {
@@ -62,24 +74,12 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
 	// Force unmute and set volume
 	const handleCanPlay = () => {
-		try {
-			videoEl.muted = false
-			videoEl.volume = 1.0
-		} catch (err) {
-			console.error('[FilePreviewModal] Failed to unmute video:', err)
-		}
+    forceAudible(videoEl)
 	}
 	
 	// Some browsers require user interaction before unmuting
 	const handlePlay = () => {
-		try {
-			if (videoEl.muted) {
-				videoEl.muted = false
-				videoEl.volume = 1.0
-			}
-		} catch (err) {
-			console.error('[FilePreviewModal] Failed to unmute on play:', err)
-		}
+    forceAudible(videoEl)
 	}
 	
 	videoEl.addEventListener('error', handleError)
@@ -282,34 +282,36 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     ref={videoRef}
                     controls
                     playsInline
-                    preload="metadata"
+                    preload="auto"
                     muted={false}
                     className="max-w-full max-h-[65vh] rounded-xl"
                     style={{ background: '#000', display: loading ? 'none' : 'block' }}
                     onLoadedMetadata={(e) => {
 						try {
 							const videoEl = e.target
-							if (videoEl) {
-								videoEl.muted = false
-								videoEl.volume = 1.0
-							}
+							forceAudible(videoEl)
 						} catch (err) {
 							console.error('[FilePreviewModal] Video metadata load error:', err)
+						} finally {
+							setLoading(false)
 						}
 					}}
           onLoadedData={(e) => {
             try {
               const videoEl = e.target
-              if (videoEl) {
-                videoEl.muted = false
-                videoEl.volume = 1.0
-              }
+              forceAudible(videoEl)
             } catch (err) {
               console.error('[FilePreviewModal] Video data load error:', err)
             } finally {
               setLoading(false)
             }
           }}
+                    onCanPlay={(e) => {
+						forceAudible(e.target)
+					}}
+                    onPlay={(e) => {
+						forceAudible(e.target)
+					}}
                     onError={(e) => {
 						console.error('[FilePreviewModal] Video error:', e)
 						setLoading(false)
@@ -327,8 +329,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 						// Video suspended - might be intentional pause
 						console.log('[FilePreviewModal] Video loading suspended')
 					}}
+                    src={src}
                   >
-                    <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
                     Your browser does not support video playback.
                   </video>
                 </div>
@@ -340,17 +342,31 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     </div>
                   )}
                   <audio
+                    ref={audioRef}
                     controls
-                    preload="metadata"
+                    preload="auto"
                     className="w-full max-w-xl"
                     style={{ display: loading ? 'none' : 'block' }}
-                    onLoadedData={() => setLoading(false)}
+                    onLoadedMetadata={(e) => {
+                      forceAudible(e.target)
+                      setLoading(false)
+                    }}
+                    onLoadedData={(e) => {
+                      forceAudible(e.target)
+                      setLoading(false)
+                    }}
+                    onCanPlay={(e) => {
+                      forceAudible(e.target)
+                    }}
+                    onPlay={(e) => {
+                      forceAudible(e.target)
+                    }}
                     onError={() => {
                       setLoading(false)
                       setError(true)
                     }}
+                    src={src}
                   >
-                    <source src={src} type={file.mimeType || file.type || 'audio/mpeg'} />
                     Your browser does not support audio playback.
                   </audio>
                 </div>
