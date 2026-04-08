@@ -1,90 +1,144 @@
-﻿<div align="center">
-  <img src="https://raw.githubusercontent.com/Superduash/SwiftShare/main/public/vite.svg" alt="SwiftShare Logo" width="120" />
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=220&color=0:00A6FB,100:005BEA&text=SwiftShare&fontSize=56&fontAlignY=38&fontColor=ffffff&desc=Secure%20temporary%20file%20sharing%20with%20real-time%20sync&descAlignY=62" alt="SwiftShare banner" />
+</p>
 
-  # SwiftShare
+<p align="center">
+  <strong>Fast, secure temporary file sharing with live updates, QR join, password protection, and burn-after-download controls.</strong>
+</p>
 
-  ![Version](https://img.shields.io/badge/version-2.0.0-blue.svg?style=for-the-badge)
-  ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
-  ![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
-  ![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)
+<p align="center">
+  <img src="https://img.shields.io/badge/Frontend-React%2018-20232A?style=for-the-badge&logo=react" alt="React 18" />
+  <img src="https://img.shields.io/badge/Build-Vite%208-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 8" />
+  <img src="https://img.shields.io/badge/Backend-Node%2022%20%2B%20Express-3C873A?style=for-the-badge&logo=node.js&logoColor=white" alt="Node 22 + Express" />
+  <img src="https://img.shields.io/badge/Database-MongoDB-0B7D3E?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" />
+  <img src="https://img.shields.io/badge/Realtime-Socket.IO-111111?style=for-the-badge&logo=socket.io" alt="Socket.IO" />
+</p>
 
-  **SwiftShare is a blazing-fast, secure, and modern temporary file-sharing platform designed for seamless device-to-device transfers.**
-  <br />
-  Built with React, Vite, and TailwindCSS, the UI effortlessly blends performance and aesthetics to provide a deeply integrated native-like experience on web.
-
-</div>
-
----
-
-<br />
-
-<div align="center">
-  <img src="https://via.placeholder.com/800x450/1a1a1a/ffffff?text=SwiftShare+Showcase:+(Replace+with+actual+hero+image)" alt="SwiftShare Interface" width="100%" style="border-radius:12px; border:1px solid #333;" />
-</div>
-
-<br />
-
-## Features ✨
-
-* **Lightning Fast Transfers**: Optimized for high-speed uploads and downloads with seamless real-time syncing via WebSockets.
-* **Burn-After-Read (Self-Destruct)**: Highly secure file sharing with auto-deletion mechanics. Files are shredded instantly upon being downloaded.
-* **Smart AI Summaries**: Uses Gemini AI to automatically summarize text-heavy documents before you even download them.
-* **Zero-Setup Join via QR**: Generate dynamic QR codes or memorable codes for instantaneous cross-device fetching.
-* **Beautiful Native-Like UI**: Features smooth Framer Motion animations, deeply customizable dark and light themes, and glassmorphism styling.
-* **Multi-File Batch Downloads**: Effortless batching, archiving (.zip), and grouped file downloads out of the box.
-* **Cross-Platform Compatibility**: Looks stunning on Mobile, Desktop, and everything in between.
+<p align="center">
+  <a href="#overview">Overview</a> |
+  <a href="#core-capabilities">Core Capabilities</a> |
+  <a href="#architecture">Architecture</a> |
+  <a href="#quick-start-local">Quick Start</a> |
+  <a href="#deployment-render--vercel">Deployment</a>
+</p>
 
 ---
 
-> *"The gold standard for instant file transfers. No messy drives, no accounts, just pure speed."* — **User Feedback**
+## Overview
+
+SwiftShare is a full-stack transfer app for short-lived file sharing between devices.
+It combines a modern React UI with an Express + Socket.IO backend to deliver:
+
+- one-time transfer codes and QR join links
+- real-time transfer status and countdown updates
+- password-protected sessions
+- optional burn-after-download behavior
+- preview + AI summary flows for supported files
+
+The frontend in this folder is the main user-facing application for senders and receivers.
+
+## Core Capabilities
+
+- Share multiple files in one session with an expiry timer.
+- Join from another device using transfer code or QR.
+- Track live events via websockets (countdown, progress, expiry, receipt).
+- Protect transfers with an optional password verification step.
+- Use burn-after-download mode with claimant ownership and finalize behavior.
+- Preview supported file types before download.
+- Request AI file analysis/summaries when enabled by backend env.
+- Use nearby transfer discovery in compatible network contexts.
+- Switch themes from built-in presets.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  A[Sender Browser] -->|Upload + socket| B[SwiftShare Backend]
+  C[Receiver Browser] -->|Code/QR + socket| B
+  B --> D[(MongoDB)]
+  B --> E[(Cloudflare R2)]
+  B --> F[(Upstash Redis)]
+  B --> G[Gemini API optional]
+```
+
+## Monorepo Layout
+
+```text
+SwiftShare/
+  Backend/   # Express API, socket server, transfer lifecycle
+  Frontend/  # React app (this folder)
+```
+
+## Quick Start (Local)
+
+### 1) Backend
+
+```bash
+cd Backend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Default backend URL: `http://localhost:3001`
+
+### 2) Frontend
+
+```bash
+cd Frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Default frontend URL: `http://localhost:5173`
+
+## Environment
+
+Frontend example (`Frontend/.env.example`):
+
+```env
+VITE_API_URL=http://localhost:3001
+VITE_SOCKET_URL=http://localhost:3001
+VITE_SHARE_BASE_URL=http://localhost:5173
+```
+
+Backend example (`Backend/.env.example`) includes required values for:
+
+- MongoDB (`MONGODB_URI`)
+- Cloudflare R2 (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`)
+- frontend/share URLs (`FRONTEND_URL`, `SHARE_BASE_URL`)
+- optional integrations (`GEMINI_API_KEY`, Upstash Redis, Sentry)
+
+## Deployment (Render + Vercel)
+
+- Deploy Backend to Render using `Backend/render.yaml`.
+- Deploy Frontend to Vercel using `Frontend/vercel.json`.
+- Set production env values in each platform dashboard.
+- Ensure backend `FRONTEND_URL` matches your frontend domain(s).
+
+## Scripts
+
+Frontend scripts:
+
+```bash
+npm run dev      # start Vite dev server
+npm run build    # production build
+npm run preview  # preview production build
+```
+
+Backend scripts are documented in `Backend/README.md`.
+
+## Notes
+
+- Node engine requirements:
+  - Frontend: `>=20`
+  - Backend: `>=22`
+- Health endpoint: `GET /api/health`
+- Ping endpoint: `GET /api/ping`
 
 ---
 
-### Tech Stack 💻
-
-| Tool | Purpose |
-|------|---------|
-| **React 18** | Frontend rendering engine |
-| **TailwindCSS** | Rapid, beautiful utility-based generic styling |
-| **Vite** | Blazing fast build tool |
-| **Framer Motion** | Physics-based, smooth UI animations |
-| **Socket.io-client** | Real-time connection with backend nodes |
-| **React Query** | Robust remote data fetching & caching |
-
-<br />
-
-## Getting Started 🚀
-
-### Prerequisites
-Make sure you have Node >= 20.x installed.
-
-### Installation & Run
-
-1. **Clone the repository:**
-   `ash
-   git clone https://github.com/Superduash/SwiftShare.git
-   `
-2. **Navigate to the frontend directory:**
-   `ash
-   cd SwiftShare/Frontend
-   `
-3. **Install dependencies:**
-   `ash
-   npm install
-   `
-4. **Start the development server:**
-   `ash
-   npm run dev
-   `
-
-Enjoy lightning-fast coding with Vite's HMR and start securely sharing!
-
-<br />
-
-## License 📜
-
-Distributed under the MIT License. See LICENSE for more information.
-
-<div align="center">
-  <sub>Built with ❤️ by Superduash</sub>
-</div>
+<p align="center">
+  Built by Superduash
+</p>
