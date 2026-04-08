@@ -1,10 +1,9 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Sparkles, Copy, Check, FileText, Image, Video, FileArchive,
+  Sparkles, FileText, Image, Video, FileArchive,
   Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target
 } from 'lucide-react'
-import toast from 'react-hot-toast'
 
 const CATEGORY_ICONS = {
   document: FileText, image: Image, video: Video, archive: FileArchive,
@@ -44,23 +43,11 @@ function cleanKeyPoints(points) {
 }
 
 export default function AISummaryCard({ ai, loading = false }) {
-  const [copied, setCopied] = useState(false)
   const [showFiles, setShowFiles] = useState(false)
   const activeAi = ai
 
-  function copySuggestedName() {
-    const name = activeAi?.suggestedName || activeAi?.suggested_filename
-    if (!name) return
-    navigator.clipboard.writeText(name).then(() => {
-      setCopied(true)
-      toast.success('Filename copied')
-      setTimeout(() => setCopied(false), 2000)
-    }).catch(() => {})
-  }
-
   const CatIcon = activeAi?.category ? getCategoryIcon(activeAi.category) : Sparkles
   const summary = cleanSummary(activeAi?.summary || activeAi?.overall_summary)
-  const suggestedName = activeAi?.suggestedName || activeAi?.suggested_filename
   const detectedIntent = activeAi?.detectedIntent || activeAi?.detected_intent
   const riskFlags = activeAi?.riskFlags || activeAi?.risk_flags || []
   const fileAnalysis = (activeAi?.files || []).map((file) => ({
@@ -189,20 +176,6 @@ export default function AISummaryCard({ ai, loading = false }) {
               </div>
             )}
 
-            {/* Suggested name */}
-            {suggestedName && (
-              <button
-                className="w-full flex items-center gap-2 p-2.5 rounded-lg text-left transition-all hover:opacity-80"
-                style={{ background: 'var(--accent-soft)', border: '1px solid transparent' }}
-                onClick={copySuggestedName}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-4)' }}>Suggested filename</p>
-                  <p className="text-xs font-mono font-medium truncate" style={{ color: 'var(--accent)' }}>{suggestedName}</p>
-                </div>
-                {copied ? <Check size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} style={{ color: 'var(--text-4)' }} />}
-              </button>
-            )}
           </motion.div>
         ) : (
           <motion.p key="empty" className="text-sm" style={{ color: 'var(--text-4)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

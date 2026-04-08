@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, ExternalLink, Share2, Clock, Trash2,
   MessageCircle, Mail, Maximize2, Send,
-  QrCode, AlertTriangle
+  QrCode, AlertTriangle, Lock, Eye, EyeOff, Loader2
 } from 'lucide-react'
 import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
@@ -12,7 +12,7 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import {
   getFileMetadata, getTransferActivity,
-  extendTransfer, deleteTransfer, downloadSingleFile
+  extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword
 } from '../services/api'
 import {
   getCachedTransfer,
@@ -42,7 +42,7 @@ export default function SenderPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transferData || null
-  const { socket, socketId, registerSender, rejoinRoom, leaveRoom } = useSocket()
+  const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
   const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
@@ -80,11 +80,46 @@ export default function SenderPage() {
   )
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [passwordVerified, setPasswordVerified] = useState(!Boolean(initialCachedTransfer?.passwordProtected))
+  const [previewPassword, setPreviewPassword] = useState('')
+  const [showPreviewPassword, setShowPreviewPassword] = useState(false)
+  const [previewPasswordError, setPreviewPasswordError] = useState('')
+  const [previewUnlocking, setPreviewUnlocking] = useState(false)
+  const [extending, setExtending] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
+  const verifiedPreviewPasswordRef = useRef('')
+  const activityRefreshTimerRef = useRef(null)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
+
+  useEffect(() => {
+    return () => {
+      if (activityRefreshTimerRef.current) {
+        window.clearTimeout(activityRefreshTimerRef.current)
+        activityRefreshTimerRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const protectedTransfer = Boolean(getCachedTransfer(normalizedCode)?.passwordProtected)
+    setPasswordVerified(!protectedTransfer)
+    setPreviewPassword('')
+    setShowPreviewPassword(false)
+    setPreviewPasswordError('')
+    verifiedPreviewPasswordRef.current = ''
+  }, [normalizedCode])
+
+  useEffect(() => {
+    if (!meta?.passwordProtected) {
+      setPasswordVerified(true)
+    } else if (!verifiedPreviewPasswordRef.current) {
+      setPasswordVerified(false)
+    }
+  }, [meta?.passwordProtected])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
@@ -263,10 +298,10 @@ export default function SenderPage() {
     return () => window.clearTimeout(timer)
   }, [loading])
 
-  // Fetch activity — poll at relaxed interval, skip when tab hidden
+  // Fetch activity once per page load; subsequent refreshes are event-driven.
   const fetchingActivityRef = useRef(false)
   const loadActivity = useCallback(async () => {
-    if (!normalizedCode || document.hidden || fetchingActivityRef.current) return
+    if (!normalizedCode || fetchingActivityRef.current) return
     fetchingActivityRef.current = true
     try {
       const data = await getTransferActivity(normalizedCode)
@@ -277,16 +312,21 @@ export default function SenderPage() {
     }
   }, [normalizedCode])
 
+  const requestActivityRefresh = useCallback(() => {
+    if (activityRefreshTimerRef.current) {
+      window.clearTimeout(activityRefreshTimerRef.current)
+      activityRefreshTimerRef.current = null
+    }
+
+    activityRefreshTimerRef.current = window.setTimeout(() => {
+      activityRefreshTimerRef.current = null
+      void loadActivity()
+    }, 300)
+  }, [loadActivity])
+
   useEffect(() => {
     if (!normalizedCode) return
-    loadActivity()
-    const iv = setInterval(loadActivity, 20000)
-    const onVisibility = () => { if (!document.hidden) loadActivity() }
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => {
-      clearInterval(iv)
-      document.removeEventListener('visibilitychange', onVisibility)
-    }
+    void loadActivity()
   }, [normalizedCode, loadActivity])
 
   // Socket
@@ -315,7 +355,7 @@ export default function SenderPage() {
     const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
     const onDownComplete = () => {
       setDownloadProgress(100)
-      void loadActivity()
+      requestActivityRefresh()
       window.setTimeout(() => setDownloadProgress(null), 1500)
     }
     const onReceipt = (receipt) => {
@@ -325,16 +365,17 @@ export default function SenderPage() {
       if (receipt?.receiver) {
         toast.success(`Downloaded by ${receipt.receiver}`)
       }
+      requestActivityRefresh()
     }
     const onCancelled = () => {
       setCancelled(true)
       patchCachedTransfer({ status: 'CANCELLED' })
-      void loadActivity()
+      requestActivityRefresh()
     }
     const onDeleted = () => {
       setCancelled(true)
       patchCachedTransfer({ status: 'DELETED' })
-      void loadActivity()
+      requestActivityRefresh()
     }
     const onExtended = ({ expiresAt }) => {
       if (expiresAt) {
@@ -344,6 +385,10 @@ export default function SenderPage() {
         setTotalSeconds(600)
         patchCachedTransfer({ expiresAt, secondsRemaining: newSeconds })
       }
+      requestActivityRefresh()
+    }
+    const onActivityUpdated = () => {
+      requestActivityRefresh()
     }
 
     socket.on('connect', connectRoom)
@@ -356,6 +401,7 @@ export default function SenderPage() {
     socket.on('transfer-cancelled', onCancelled)
     socket.on('transfer-deleted', onDeleted)
     socket.on('transfer-extended', onExtended)
+    socket.on('activity-updated', onActivityUpdated)
 
     return () => {
       socket.off('connect', connectRoom)
@@ -368,9 +414,10 @@ export default function SenderPage() {
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-extended', onExtended)
+      socket.off('activity-updated', onActivityUpdated)
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity, patchCachedTransfer])
+  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh])
 
   // Copy helpers
   const copyCode = useCallback(() => {
@@ -402,11 +449,14 @@ export default function SenderPage() {
 
   // Extend
   async function handleExtend() {
+    if (extending) return
     if (!confirmExtend) {
       setConfirmExtend(true)
       setTimeout(() => setConfirmExtend(false), 3000)
       return
     }
+
+    setExtending(true)
     try {
       const result = await extendTransfer(normalizedCode)
       setExtended(true)
@@ -418,22 +468,70 @@ export default function SenderPage() {
         setTotalSeconds(600)
       }
       toast.success('Extended by 10 minutes')
-    } catch { toast.error('Failed to extend') }
+    } catch {
+      toast.error('Failed to extend')
+    } finally {
+      setExtending(false)
+    }
   }
 
   // Delete
   async function handleDelete() {
+    if (deleting) return
     if (!confirmDelete) { setConfirmDelete(true); setTimeout(() => setConfirmDelete(false), 3000); return }
+
+    setDeleting(true)
     try {
       await deleteTransfer(normalizedCode)
       toast.success('Transfer cancelled permanently')
       setCancelled(true)
       setConfirmDelete(false)
-    } catch { toast.error('Failed to cancel') }
+    } catch {
+      toast.error('Failed to cancel')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handlePreviewUnlock(e) {
+    e?.preventDefault()
+    if (!meta?.passwordProtected || previewUnlocking || !previewPassword.trim()) return
+
+    setPreviewUnlocking(true)
+    setPreviewPasswordError('')
+
+    try {
+      const result = await verifyPassword(normalizedCode, previewPassword)
+      if (result?.verified) {
+        verifiedPreviewPasswordRef.current = previewPassword
+        setPasswordVerified(true)
+        setPreviewPassword('')
+        toast.success('Preview unlocked')
+        return
+      }
+
+      setPreviewPasswordError('Verification failed. Please try again.')
+    } catch (err) {
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'INVALID_PASSWORD') {
+        setPreviewPasswordError('Wrong password. Please try again.')
+      } else if (err?.response?.status === 429) {
+        setPreviewPasswordError('Too many attempts. This transfer is locked.')
+      } else {
+        setPreviewPasswordError('Verification failed. Please try again.')
+      }
+    } finally {
+      setPreviewUnlocking(false)
+    }
   }
 
   // Per-file operations
   function handlePreview(index) {
+    if (meta?.passwordProtected && !passwordVerified) {
+      toast.error('Unlock preview first')
+      return
+    }
+
     const file = meta?.files?.[index]
     if (file) {
       setPreviewFile(file)
@@ -442,7 +540,9 @@ export default function SenderPage() {
   }
 
   function handleDownloadSingle(index) {
-    downloadSingleFile(normalizedCode, index)
+    const protectedTransfer = Boolean(meta?.passwordProtected)
+    const password = protectedTransfer ? (verifiedPreviewPasswordRef.current || undefined) : undefined
+    downloadSingleFile(normalizedCode, index, password)
   }
 
   // Share helpers
@@ -596,7 +696,7 @@ export default function SenderPage() {
           <ErrorState
             code={error}
             onRetry={handleRetry}
-            autoRetry={error === 'NETWORK_ERROR'}
+            autoRetry={false}
           />
         </div>
       </div>
@@ -647,7 +747,8 @@ export default function SenderPage() {
           code={normalizedCode}
           fileIndex={previewIndex}
           onDownload={handleDownloadSingle}
-          senderKey={socketId}
+          password={verifiedPreviewPasswordRef.current || undefined}
+          passwordRequired={Boolean(meta?.passwordProtected) && !passwordVerified}
         />
       </Suspense>
 
@@ -674,6 +775,65 @@ export default function SenderPage() {
 
             {/* ═══ LEFT: scrolling content ═══ */}
             <div className="lg:col-span-3 space-y-5">
+              {meta?.passwordProtected && !passwordVerified && (
+                <motion.div
+                  className="surface-card p-4"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lock size={16} style={{ color: 'var(--accent)' }} />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                      Password required to preview files
+                    </p>
+                  </div>
+                  <form onSubmit={handlePreviewUnlock}>
+                    <div className="relative mb-3">
+                      <input
+                        type={showPreviewPassword ? 'text' : 'password'}
+                        value={previewPassword}
+                        onChange={(e) => {
+                          setPreviewPassword(e.target.value)
+                          setPreviewPasswordError('')
+                        }}
+                        placeholder="Enter transfer password"
+                        maxLength={64}
+                        className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
+                        style={{
+                          background: 'var(--bg-sunken)',
+                          border: `1.5px solid ${previewPasswordError ? 'var(--danger)' : 'var(--border)'}`,
+                          color: 'var(--text)',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
+                        onClick={() => setShowPreviewPassword(!showPreviewPassword)}
+                        tabIndex={-1}
+                      >
+                        {showPreviewPassword
+                          ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
+                          : <Eye size={16} style={{ color: 'var(--text-4)' }} />
+                        }
+                      </button>
+                    </div>
+                    {previewPasswordError && (
+                      <p className="text-xs mb-3" style={{ color: 'var(--danger)' }}>
+                        {previewPasswordError}
+                      </p>
+                    )}
+                    <button
+                      type="submit"
+                      className="btn-primary text-sm"
+                      disabled={!previewPassword.trim() || previewUnlocking}
+                    >
+                      {previewUnlocking ? <Loader2 size={15} className="animate-spin" /> : <Lock size={15} />}
+                      {previewUnlocking ? 'Verifying...' : 'Unlock preview'}
+                    </button>
+                  </form>
+                </motion.div>
+              )}
+
               {/* Files */}
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
                 <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
@@ -685,9 +845,9 @@ export default function SenderPage() {
                       key={i}
                       file={f}
                       index={i}
-                      showDownload={!cancelled}
-                      onPreview={() => handlePreview(i)}
-                      onDownloadSingle={() => handleDownloadSingle(i)}
+                      showDownload={!cancelled && (!meta?.passwordProtected || passwordVerified)}
+                      onPreview={(!meta?.passwordProtected || passwordVerified) ? () => handlePreview(i) : undefined}
+                      onDownloadSingle={(!meta?.passwordProtected || passwordVerified) ? () => handleDownloadSingle(i) : undefined}
                     />
                   ))}
                 </div>
@@ -818,22 +978,23 @@ export default function SenderPage() {
                       <button
                         className="btn-ghost flex-1 text-xs"
                         onClick={handleExtend}
-                        disabled={extended}
+                        disabled={extended || extending}
                         style={confirmExtend ? { borderColor: 'var(--warning)', color: 'var(--warning)' } : undefined}
                       >
                         {confirmExtend ? (
                           <><AlertTriangle size={13} />Confirm extend?</>
                         ) : (
-                          <><Clock size={13} />{extended ? 'Extended' : '+10 min'}</>
+                          <><Clock size={13} />{extending ? 'Extending...' : (extended ? 'Extended' : '+10 min')}</>
                         )}
                       </button>
                       <button
                         className="btn-ghost flex-1 text-xs hover:!text-red-500"
                         onClick={handleDelete}
+                        disabled={deleting}
                         style={confirmDelete ? { borderColor: 'var(--danger)', color: 'var(--danger)' } : undefined}
                       >
                         <Trash2 size={13} />
-                        {confirmDelete ? 'Delete forever?' : 'Cancel'}
+                        {deleting ? 'Cancelling...' : (confirmDelete ? 'Delete forever?' : 'Cancel')}
                       </button>
                     </div>
 

@@ -40,7 +40,7 @@ const REQUEST_STATE = {
 }
 
 const RETRY_DELAY_MS = 2000
-const MAX_AUTO_RETRIES = 3
+const MAX_AUTO_RETRIES = 2
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -415,8 +415,10 @@ export default function DownloadPage() {
   async function handlePasswordSubmit(e) {
     e?.preventDefault()
     if (!password.trim() || verifying) return
+
     setVerifying(true)
     setPasswordError('')
+
     try {
       const result = await verifyPassword(normalizedCode, password)
       if (result?.verified) {
@@ -438,22 +440,25 @@ export default function DownloadPage() {
       } else {
         setPasswordError('Verification failed. Please try again.')
       }
+    } finally {
+      setVerifying(false)
     }
-    setVerifying(false)
   }
 
   // Download
   async function handleDownload() {
     if (downloading || downloaded) return
     setDownloading(true)
+
+    let downloadSucceeded = false
     try {
       await smartDownload(normalizedCode, {
-        aiName: ai?.suggestedName,
         originalName: meta?.files?.[0]?.name,
         password: verifiedPasswordRef.current || undefined,
       })
+
+      downloadSucceeded = true
       setDownloaded(true)
-      setDownloading(false)
 
       const currentSettings = getSettings()
 
@@ -472,8 +477,12 @@ export default function DownloadPage() {
         playDownloadSuccess()
       }
     } catch {
-      setDownloading(false)
       toast.error('Download failed')
+    } finally {
+      setDownloading(false)
+      if (!downloadSucceeded) {
+        setDownloadPercent(0)
+      }
     }
   }
 
@@ -644,7 +653,7 @@ export default function DownloadPage() {
                 alt="Preview"
                 className="w-full max-h-64 object-contain"
                 style={{ background: 'var(--bg-sunken)' }}
-                loading="lazy"
+                loading="eager"
               />
             </motion.div>
           )}
