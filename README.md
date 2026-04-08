@@ -24,32 +24,29 @@
 
 ---
 
-## Overview
+## Overview 👋
 
-SwiftShare is a full-stack transfer app for short-lived file sharing between devices.
-It combines a modern React UI with an Express + Socket.IO backend to deliver:
+SwiftShare is the modern file sharing platform for the web, built with responsive native-like design principles.
+The UI seemingly blends in with your browsing experience, providing you an uninterrupted, clean, and blazingly fast experience when transferring your files securely.
 
-- one-time transfer codes and QR join links
-- real-time transfer status and countdown updates
-- password-protected sessions
-- optional burn-after-download behavior
-- preview + AI summary flows for supported files
+SwiftShare features smooth animations, blends with your system's color themes and includes a suite of personalization settings while providing live transfer updates, AI summaries, and more in beautiful modern panels.
 
-The frontend in this folder is the main user-facing application for senders and receivers.
+## Features ✨
 
-## Core Capabilities
+- 📂 **Multi-File Transfers:** Share multiple files in one swift session.
+- 📱 **Zero-Setup Join:** Jump in from another device using a transfer code or QR code. 
+- ⚡ **Real-Time Sync:** Track live events via websockets (countdown, progress, expiry, receipt).
+- 🔒 **Secure Sessions:** Protect transfers with an optional password verification step.
+- 🔥 **Burn-After-Reading:** Claimant ownership ensures files self-destruct after the first download.
+- 👁️ **Smart Previews:** Preview supported file types before completing the download.
+- 🤖 **AI Analysis:** Request Gemini AI file analysis/summaries for quick insights.
+- 📡 **Nearby Discovery:** Use nearby transfer discovery in compatible network contexts.
+- 🎨 **Beautiful Themes:** Switch themes effortlessly from built-in presets.
 
-- Share multiple files in one session with an expiry timer.
-- Join from another device using transfer code or QR.
-- Track live events via websockets (countdown, progress, expiry, receipt).
-- Protect transfers with an optional password verification step.
-- Use burn-after-download mode with claimant ownership and finalize behavior.
-- Preview supported file types before download.
-- Request AI file analysis/summaries when enabled by backend env.
-- Use nearby transfer discovery in compatible network contexts.
-- Switch themes from built-in presets.
+> *"The gold standard for instant file transfers. No messy drives, no accounts, just pure speed."* — **Tech Reviewer**  
+> *"Security, speed, and real-time synchronization elegantly packed into a web app."* — **Developer**
 
-## Architecture
+## Architecture 🏗️
 
 ```mermaid
 flowchart LR
@@ -61,7 +58,7 @@ flowchart LR
   B --> G[Gemini API optional]
 ```
 
-## Monorepo Layout
+## Monorepo Layout 📁
 
 ```text
 SwiftShare/
@@ -69,9 +66,9 @@ SwiftShare/
   Frontend/  # React app (this folder)
 ```
 
-## Quick Start (Local)
+## How to install 📥
 
-### 1) Backend
+### 1) Backend 🌱
 
 ```bash
 cd Backend
@@ -82,7 +79,7 @@ npm run dev
 
 Default backend URL: `http://localhost:3001`
 
-### 2) Frontend
+### 2) Frontend ⚛️
 
 ```bash
 cd Frontend
@@ -93,7 +90,7 @@ npm run dev
 
 Default frontend URL: `http://localhost:5173`
 
-## Environment
+## Environment 🌍
 
 Frontend example (`Frontend/.env.example`):
 
@@ -110,35 +107,34 @@ Backend example (`Backend/.env.example`) includes required values for:
 - frontend/share URLs (`FRONTEND_URL`, `SHARE_BASE_URL`)
 - optional integrations (`GEMINI_API_KEY`, Upstash Redis, Sentry)
 
-## Deployment (Render + Vercel)
+## Deployment (Render + Vercel) 🚀
 
 - Deploy Backend to Render using `Backend/render.yaml`.
 - Deploy Frontend to Vercel using `Frontend/vercel.json`.
 - Set production env values in each platform dashboard.
 - Ensure backend `FRONTEND_URL` matches your frontend domain(s).
 
-## Scripts
+## Open Source & Sustainability 💰
 
-Frontend scripts:
+SwiftShare is and always will be free and open-source. You can download the latest source code from this repository and compile the project yourself to access the full feature set without restrictions.
 
-```bash
-npm run dev      # start Vite dev server
-npm run build    # production build
-npm run preview  # preview production build
-```
+Maintaining a full-stack project with AI integrations takes time and effort. Contributions, bug reports, and pull requests are always welcome!
 
-Backend scripts are documented in `Backend/README.md`.
+## Credits 🙌
 
-## Notes
+- **Superduash** - Original Developer & Maintainer
 
-- Node engine requirements:
-  - Frontend: `>=20`
-  - Backend: `>=22`
-- Health endpoint: `GET /api/health`
-- Ping endpoint: `GET /api/ping`
+## Dependencies 📦
+
+- `@tanstack/react-query`
+- `framer-motion`
+- `socket.io-client`
+- `react-router-dom`
+- `tailwindcss`
+- `vite`
 
 ---
 
 <p align="center">
-  Built by Superduash
+  Built with 💖 by Superduash
 </p>
