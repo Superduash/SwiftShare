@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Download, FileText, AlertTriangle } from 'lucide-react'
+import { X, Download, FileText, AlertTriangle, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { previewUrl } from '../services/api'
 
@@ -21,7 +21,7 @@ function getPreviewType(file) {
   return 'unsupported'
 }
 
-export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload }) {
+export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired, senderKey }) {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -35,8 +35,64 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
   if (!open || !file) return null
 
+  // If password is required and not yet verified, show a clean gate
+  if (passwordRequired) {
+    return (
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="fixed inset-0 z-[80] flex items-center justify-center p-4 sm:p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{ background: 'rgba(0,0,0,0.75)' }}
+              onClick={onClose}
+            />
+            <motion.div
+              className="relative z-10 rounded-2xl overflow-hidden w-full max-w-md flex flex-col"
+              style={{ background: 'var(--bg-raised)' }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            >
+              <div className="flex items-center justify-between p-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText size={16} style={{ color: 'var(--accent)' }} />
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>
+                    {file.name || `File ${fileIndex + 1}`}
+                  </p>
+                </div>
+                <button className="btn-icon" onClick={onClose} aria-label="Close preview">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="flex flex-col items-center justify-center py-16 px-6 text-center" style={{ background: 'var(--bg-sunken)' }}>
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                  style={{ background: 'var(--accent-soft)' }}
+                >
+                  <Lock size={28} style={{ color: 'var(--accent)' }} />
+                </div>
+                <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
+                  Password required to preview
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-3)' }}>
+                  Enter the transfer password to unlock previews and downloads
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    )
+  }
+
   const type = getPreviewType(file)
-  const src = previewUrl(code, fileIndex)
+  const src = previewUrl(code, fileIndex, password, senderKey)
 
   function openInNewTab() {
     if (!src) {
@@ -130,11 +186,11 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     className="max-w-full max-h-[65vh] object-contain rounded-xl"
                     style={{ display: loading ? 'none' : 'block' }}
                     loading="lazy"
+                    crossOrigin="anonymous"
                     onLoad={() => setLoading(false)}
                     onError={() => { 
                       setLoading(false)
                       setError(true)
-                      toast.error('Image preview failed')
                     }}
                   />
                 </div>
@@ -154,7 +210,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     onError={() => { 
                       setLoading(false)
                       setError(true)
-                      toast.error('PDF preview failed')
                     }}
                   />
                 </div>
@@ -171,7 +226,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     onError={() => { 
                       setLoading(false)
                       setError(true)
-                      toast.error('Video preview failed')
                     }}
                   >
                     <source src={src} type={file.mimeType || file.type || 'video/mp4'} />
@@ -179,7 +233,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   </video>
                 </div>
               ) : type === 'code' ? (
-                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} />
+                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} loading={loading} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <FileText size={40} style={{ color: 'var(--text-4)' }} className="mb-3" />
@@ -207,13 +261,18 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   )
 }
 
-function CodePreview({ src, onError, onLoad }) {
+function CodePreview({ src, onError, onLoad, loading: parentLoading }) {
   const [content, setContent] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Use refs to avoid re-rendering loops from callback deps
+  const onErrorRef = useRef(onError)
+  const onLoadRef = useRef(onLoad)
+  onErrorRef.current = onError
+  onLoadRef.current = onLoad
 
   React.useEffect(() => {
     if (!src) {
-      onError?.()
+      onErrorRef.current?.()
       return
     }
     
@@ -228,19 +287,18 @@ function CodePreview({ src, onError, onLoad }) {
         if (!controller.signal.aborted) {
           setContent(text.slice(0, 50000)) // limit preview to 50KB
           setLoading(false)
-          onLoad?.()
+          onLoadRef.current?.()
         }
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
           setLoading(false)
-          onError?.()
-          toast.error('Failed to load code preview')
+          onErrorRef.current?.()
         }
       })
     
     return () => controller.abort()
-  }, [src, onError, onLoad])
+  }, [src])
 
   if (loading) {
     return (

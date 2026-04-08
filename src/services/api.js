@@ -181,8 +181,13 @@ export function downloadSingleFile(code, index, password) {
   window.location.href = getSingleDownloadUrl(code, index, password)
 }
 
-export function previewUrl(code, index, password) {
+export function previewUrl(code, index, password, senderKey) {
   const safeIndex = Number(index)
-  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
-  return appendPasswordQuery(url, password)
+  let url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  url = appendPasswordQuery(url, password)
+  if (typeof senderKey === 'string' && senderKey.trim()) {
+    const separator = url.includes('?') ? '&' : '?'
+    url = `${url}${separator}senderKey=${encodeURIComponent(senderKey)}`
+  }
+  return url
 }

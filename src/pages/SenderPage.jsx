@@ -32,7 +32,7 @@ export default function SenderPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transferData || null
-  const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
+  const { socket, socketId, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
   const [meta, setMeta] = useState(null)
   const [activity, setActivity] = useState([])
@@ -421,6 +421,7 @@ export default function SenderPage() {
           code={code}
           fileIndex={previewIndex}
           onDownload={handleDownloadSingle}
+          senderKey={socketId}
         />
       </Suspense>
 

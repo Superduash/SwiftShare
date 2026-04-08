@@ -176,8 +176,9 @@ export default function DownloadPage() {
       if (result?.verified) {
         setPasswordVerified(true)
         verifiedPasswordRef.current = password
+        // Now set preview for images with the verified password
         const firstFile = meta?.files?.[0]
-        const firstFileType = String(firstFile?.type || '').toLowerCase()
+        const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
         if (firstFile && firstFileType.startsWith('image/')) {
           setPreviewSrc(previewUrl(code, 0, password))
         }
@@ -272,6 +273,8 @@ export default function DownloadPage() {
           code={code}
           fileIndex={previewIndex}
           onDownload={canDownload ? handleDownloadSingle : undefined}
+          password={verifiedPasswordRef.current || undefined}
+          passwordRequired={needsPassword && !passwordVerified}
         />
       </Suspense>
 
