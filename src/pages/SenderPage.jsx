@@ -3,8 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, ExternalLink, Share2, Clock, Trash2,
-  MessageCircle, Mail, Monitor, Maximize2, Send,
-  Download, QrCode, AlertTriangle
+  MessageCircle, Mail, Maximize2, Send,
+  QrCode, AlertTriangle
 } from 'lucide-react'
 import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
@@ -14,6 +14,14 @@ import {
   getFileMetadata, getTransferActivity,
   extendTransfer, deleteTransfer, downloadSingleFile
 } from '../services/api'
+import {
+  getCachedTransfer,
+  saveCachedTransfer,
+  getCachedAI,
+  saveCachedAI,
+  mergeTransferData,
+  saveTransfer,
+} from '../utils/storage'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
@@ -35,27 +43,47 @@ export default function SenderPage() {
   const navState = location.state?.transferData || null
   const { socket, socketId, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
-  const [meta, setMeta] = useState(null)
+  const initialCachedTransfer = getCachedTransfer(normalizedCode)
+  const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
+
+  const [meta, setMeta] = useState(initialCachedTransfer)
   const [activity, setActivity] = useState([])
-  const [ai, setAi] = useState(null)
-  const [aiLoading, setAiLoading] = useState(true)
-  const [secondsRemaining, setSecondsRemaining] = useState(0)
-  const [totalSeconds, setTotalSeconds] = useState(600)
+  const [ai, setAi] = useState(initialCachedAI)
+  const [aiLoading, setAiLoading] = useState(!initialCachedAI)
+  const [secondsRemaining, setSecondsRemaining] = useState(() => {
+    const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
+    if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
+    if (initialCachedTransfer?.expiresAt) {
+      return Math.max(0, Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - Date.now()) / 1000))
+    }
+    return 0
+  })
+  const [totalSeconds, setTotalSeconds] = useState(() => {
+    if (initialCachedTransfer?.expiresAt && initialCachedTransfer?.createdAt) {
+      const span = Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - new Date(initialCachedTransfer.createdAt).getTime()) / 1000)
+      return Math.max(span, 60)
+    }
+    return 600
+  })
   const [extended, setExtended] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [qrModal, setQrModal] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialCachedTransfer)
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmExtend, setConfirmExtend] = useState(false)
-  const [cancelled, setCancelled] = useState(false)
+  const [cancelled, setCancelled] = useState(
+    initialCachedTransfer?.status === 'CANCELLED' || initialCachedTransfer?.status === 'DELETED'
+  )
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
 
   const mountedRef = useRef(true)
+  const metaRef = useRef(initialCachedTransfer)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
+  useEffect(() => { metaRef.current = meta }, [meta])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
@@ -68,64 +96,109 @@ export default function SenderPage() {
     }
   }, [meta])
 
+  const patchCachedTransfer = useCallback((patch) => {
+    setMeta((prev) => {
+      const merged = mergeTransferData(prev, patch)
+      if (!merged) return prev
+
+      metaRef.current = merged
+      const persisted = saveCachedTransfer(normalizedCode, merged) || merged
+      saveTransfer({
+        code: normalizedCode,
+        filename: persisted?.files?.[0]?.name || normalizedCode,
+        isSender: true,
+        status: persisted?.status,
+        expiresAt: persisted?.expiresAt,
+        createdAt: persisted?.createdAt,
+        files: persisted?.files,
+        ai: persisted?.ai || getCachedAI(normalizedCode) || null,
+        transfer: persisted,
+      })
+
+      return persisted
+    })
+  }, [normalizedCode])
+
+  const applyTransferSnapshot = useCallback((incoming, options = {}) => {
+    const { persist = true } = options
+    if (!incoming) return null
+
+    const merged = mergeTransferData(metaRef.current, incoming)
+    if (!merged) return null
+
+    metaRef.current = merged
+    setMeta(merged)
+
+    if (merged.status === 'CANCELLED' || merged.status === 'DELETED') {
+      setCancelled(true)
+    }
+
+    const directSeconds = Number(merged.secondsRemaining)
+    if (Number.isFinite(directSeconds) && directSeconds >= 0) {
+      setSecondsRemaining(directSeconds)
+    } else if (merged.expiresAt) {
+      const inferred = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
+      setSecondsRemaining(inferred)
+    }
+
+    const sessionDuration = merged.expiresAt && merged.createdAt
+      ? Math.ceil((new Date(merged.expiresAt).getTime() - new Date(merged.createdAt).getTime()) / 1000)
+      : 600
+    setTotalSeconds(Math.max(sessionDuration, 60))
+
+    const aiPayload = merged.ai || getCachedAI(normalizedCode) || null
+    if (aiPayload) {
+      setAi(aiPayload)
+      setAiLoading(false)
+      saveCachedAI(normalizedCode, aiPayload)
+    } else {
+      setAiLoading(false)
+    }
+
+    if (persist) {
+      const persisted = saveCachedTransfer(normalizedCode, merged) || merged
+      saveTransfer({
+        code: normalizedCode,
+        filename: persisted?.files?.[0]?.name || normalizedCode,
+        isSender: true,
+        status: persisted?.status,
+        expiresAt: persisted?.expiresAt,
+        createdAt: persisted?.createdAt,
+        files: persisted?.files,
+        ai: aiPayload || persisted?.ai || null,
+        transfer: persisted,
+      })
+    }
+
+    return merged
+  }, [normalizedCode])
+
   // Fetch metadata
   useEffect(() => {
     if (!normalizedCode) return
 
     const navStateCode = String(navState?.code || '').trim().toUpperCase()
-    const hasFreshNavState = Boolean(
-      navState &&
-      navStateCode === normalizedCode &&
-      Array.isArray(navState.files) &&
-      navState.files.length > 0
-    )
+    const navTransfer = navState && navStateCode === normalizedCode
+      ? { ...navState, code: normalizedCode }
+      : null
 
-    // If we have data from navigation state (just uploaded OR from recents), use it directly
-    if (hasFreshNavState) {
-      setMeta({ ...navState, code: normalizedCode })
-      const secs = navState.secondsRemaining ||
-        (navState.expiresAt
-          ? Math.max(0, Math.ceil((new Date(navState.expiresAt).getTime() - Date.now()) / 1000))
-          : 600)
-      setSecondsRemaining(secs)
-      const sessionDuration = navState.expiresAt && navState.createdAt
-        ? Math.ceil((new Date(navState.expiresAt).getTime() - new Date(navState.createdAt).getTime()) / 1000)
-        : 600
-      setTotalSeconds(Math.max(sessionDuration, 60))
-      if (navState.ai) { setAi(navState.ai); setAiLoading(false) }
+    const cachedTransfer = getCachedTransfer(normalizedCode)
+    const cachedAi = getCachedAI(normalizedCode)
+    const seed = mergeTransferData(cachedTransfer, navTransfer)
+
+    if (seed) {
+      setError(null)
       setLoading(false)
-      
-      // If we don't have full metadata (e.g., from recents), fetch it in background
-      if (!navState.expiresAt) {
-        async function loadFullMetadata() {
-          try {
-            const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
-            if (!mountedRef.current) return
-            
-            // Check for expired/not found
-            if (data.status === 'EXPIRED') {
-              navigate('/expired?reason=expired', { replace: true })
-              return
-            }
-            if (data.status === 'CANCELLED' || data.status === 'DELETED') {
-              setCancelled(true)
-            }
-            
-            // Update with full metadata
-            setMeta(data)
-            setSecondsRemaining(data.secondsRemaining || 0)
-            const sessionDuration = data.expiresAt && data.createdAt
-              ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
-              : 600
-            setTotalSeconds(Math.max(sessionDuration, 60))
-            if (data.ai) { setAi(data.ai); setAiLoading(false) }
-          } catch (err) {
-            // Silently fail - we already have basic data showing
-            console.error('[SenderPage] background metadata fetch error:', err)
-          }
-        }
-        loadFullMetadata()
-      }
+      applyTransferSnapshot(seed, { persist: true })
+    }
+
+    if (cachedAi) {
+      setAi(cachedAi)
+      setAiLoading(false)
+    }
+
+    const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
+    if (hasUsableCache) {
       return
     }
 
@@ -146,14 +219,8 @@ export default function SenderPage() {
         if (data.status === 'CANCELLED' || data.status === 'DELETED') {
           setCancelled(true)
         }
-        
-        setMeta(data)
-        setSecondsRemaining(data.secondsRemaining || 0)
-        const sessionDuration = data.expiresAt && data.createdAt
-          ? Math.ceil((new Date(data.expiresAt).getTime() - new Date(data.createdAt).getTime()) / 1000)
-          : 600
-        setTotalSeconds(Math.max(sessionDuration, 60))
-        if (data.ai) { setAi(data.ai); setAiLoading(false) }
+
+        applyTransferSnapshot(data, { persist: true })
       } catch (err) {
         if (!mountedRef.current) return
         console.error('[SenderPage] load error:', err)
@@ -179,7 +246,7 @@ export default function SenderPage() {
     }
 
     load()
-  }, [normalizedCode, navState, navigate])
+  }, [normalizedCode, navState, navigate, applyTransferSnapshot])
 
   // Safety net: never keep skeleton forever if request hangs unexpectedly.
   useEffect(() => {
@@ -225,7 +292,13 @@ export default function SenderPage() {
       if (!mountedRef.current) return
       navigate('/expired?reason=expired', { replace: true })
     }
-    const onAi = (data) => { setAi(data); setAiLoading(false) }
+    const onAi = (data) => {
+      if (!data) return
+      setAi(data)
+      setAiLoading(false)
+      saveCachedAI(normalizedCode, data)
+      patchCachedTransfer({ ai: data })
+    }
     const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
     const onDownComplete = () => {
       setDownloadProgress(100)
@@ -242,10 +315,12 @@ export default function SenderPage() {
     }
     const onCancelled = () => {
       setCancelled(true)
+      patchCachedTransfer({ status: 'CANCELLED' })
       void loadActivity()
     }
     const onDeleted = () => {
       setCancelled(true)
+      patchCachedTransfer({ status: 'DELETED' })
       void loadActivity()
     }
     const onExtended = ({ expiresAt }) => {
@@ -254,6 +329,7 @@ export default function SenderPage() {
         setSecondsRemaining(newSeconds)
         // Extension duration is 10 minutes (600 seconds) by default
         setTotalSeconds(600)
+        patchCachedTransfer({ expiresAt, secondsRemaining: newSeconds })
       }
     }
 
@@ -281,7 +357,7 @@ export default function SenderPage() {
       socket.off('transfer-extended', onExtended)
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity])
+  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, loadActivity, patchCachedTransfer])
 
   // Copy helpers
   const copyCode = useCallback(() => {

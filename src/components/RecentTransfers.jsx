@@ -2,7 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { getRecentTransfers, clearTransfers, removeTransfer } from '../utils/storage'
+import {
+  getRecentTransfers,
+  clearTransfers,
+  removeTransfer,
+  getCachedTransfer,
+  mergeTransferData,
+} from '../utils/storage'
 import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
@@ -35,12 +41,26 @@ export default function RecentTransfers() {
   useEffect(() => {
     let mounted = true
     const list = getRecentTransfers()
-    if (!list.length) return
-    Promise.allSettled(list.map(t => getTransferStatus(t.code))).then(results => {
+    const checks = list.filter((t) => {
+      const status = String(t?.status || '').toUpperCase()
+      if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') return false
+      if (t?.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) return false
+      return true
+    })
+
+    if (!checks.length) return
+
+    const indexByCode = new Map(checks.map((t, idx) => [normalizeCode(t.code), idx]))
+
+    Promise.allSettled(checks.map(t => getTransferStatus(t.code))).then(results => {
       if (!mounted) return
-      setTransfers(prev => prev.map((p, i) => {
-        if (results[i].status === 'fulfilled') {
-          const data = results[i].value
+      setTransfers(prev => prev.map((p) => {
+        const resultIndex = indexByCode.get(normalizeCode(p.code))
+        if (typeof resultIndex !== 'number') return p
+
+        const result = results[resultIndex]
+        if (result?.status === 'fulfilled') {
+          const data = result.value
           return { ...p, status: data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED') }
         }
         // On network failure, keep the previous status instead of assuming expired.
@@ -91,10 +111,13 @@ export default function RecentTransfers() {
         : (t?.filename ? [{ name: t.filename }] : []),
     }
 
+    const cachedTransfer = getCachedTransfer(normalizedCode)
+    const resolvedTransferData = mergeTransferData(cachedTransfer || t?.transfer, transferData) || transferData
+
     // Pass local transfer data so destination pages can render immediately.
     try {
       navigate(t.isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`, {
-        state: { transferData }
+        state: { transferData: resolvedTransferData }
       })
     } catch (err) {
       console.error('[RecentTransfers] Navigation error:', err)

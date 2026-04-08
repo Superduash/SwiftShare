@@ -9,6 +9,7 @@ import Navbar from '../components/Navbar'
 import NearbyDevices from '../components/NearbyDevices'
 import ErrorState from '../components/ErrorState'
 import { extractErrorCode } from '../utils/errors'
+import { saveTransfer } from '../utils/storage'
 
 const CODE_LENGTH = 6
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
@@ -96,8 +97,20 @@ export default function JoinPage() {
     setLoading(true)
     setError(null)
     try {
-      await getFileMetadata(code)
-      navigate(`/download/${code}`)
+      const data = await getFileMetadata(code, { timeout: 12000, noRetry: true })
+      const normalizedCode = String(code || '').trim().toUpperCase()
+      saveTransfer({
+        code: normalizedCode,
+        filename: data?.files?.[0]?.name || normalizedCode,
+        isSender: false,
+        status: data?.status,
+        expiresAt: data?.expiresAt,
+        createdAt: data?.createdAt,
+        files: data?.files,
+        ai: data?.ai || null,
+        transfer: { ...data, code: normalizedCode },
+      })
+      navigate(`/download/${normalizedCode}`, { state: { transferData: { ...data, code: normalizedCode } } })
     } catch (err) {
       const errCode = extractErrorCode(err)
       if (errCode === 'TRANSFER_EXPIRED') {
