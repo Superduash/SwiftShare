@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX } from 'lucide-react'
 import confetti from 'canvas-confetti'
@@ -216,6 +216,11 @@ export default function DownloadPage() {
         setError(null)
         const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
         if (!mountedRef.current) return
+        const status = String(data?.status || '').toUpperCase()
+        if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
+          navigate(`/expired?reason=${status.toLowerCase()}`, { replace: true })
+          return
+        }
         applyTransferSnapshot(data, { persist: true })
       } catch (err) {
         if (!mountedRef.current) return
@@ -397,7 +402,8 @@ export default function DownloadPage() {
     downloadSingleFile(normalizedCode, index, pw)
   }
 
-  const isUnavailable = transferStatus === 'CANCELLED' || transferStatus === 'DELETED' || transferStatus === 'EXPIRED'
+  const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
+  const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED'
   const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
 
   if (loading) {
@@ -420,6 +426,10 @@ export default function DownloadPage() {
         <div className="pt-20"><ErrorState code={error} /></div>
       </div>
     )
+  }
+
+  if (isUnavailable) {
+    return <Navigate to={`/expired?reason=${terminalStatus.toLowerCase()}`} replace />
   }
 
   return (
