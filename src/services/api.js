@@ -1,5 +1,22 @@
 import axios from 'axios'
 
+function isLoopbackHost(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1'
+}
+
+function targetsLoopback(urlValue) {
+  if (typeof urlValue !== 'string' || !urlValue.trim()) {
+    return false
+  }
+
+  try {
+    const parsed = new URL(urlValue)
+    return isLoopbackHost(parsed.hostname)
+  } catch {
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(urlValue.trim())
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ENVIRONMENT-AWARE API URL RESOLUTION (PRODUCTION SAFE)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -8,7 +25,18 @@ function getApiBaseUrl() {
   // Priority 1: Explicit VITE_API_URL from environment
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
-    return envApiUrl.trim().replace(/\/+$/, '')
+    const candidate = envApiUrl.trim().replace(/\/+$/, '')
+
+    if (typeof window !== 'undefined') {
+      const runtimeHost = window.location.hostname
+      if (!isLoopbackHost(runtimeHost) && targetsLoopback(candidate)) {
+        console.warn('[API] Ignoring localhost VITE_API_URL in non-local runtime, using same-origin instead')
+      } else {
+        return candidate
+      }
+    } else {
+      return candidate
+    }
   }
   
   // Priority 2: Runtime detection
@@ -16,7 +44,7 @@ function getApiBaseUrl() {
     const hostname = window.location.hostname
     
     // Local development
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    if (isLoopbackHost(hostname)) {
       return 'http://localhost:3001'
     }
     
@@ -274,13 +302,8 @@ export function downloadSingleFile(code, index, password) {
   window.location.href = getSingleDownloadUrl(code, index, password)
 }
 
-export function previewUrl(code, index, password, senderKey) {
+export function previewUrl(code, index, password) {
   const safeIndex = Number(index)
   let url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
-  url = appendPasswordQuery(url, password)
-  if (typeof senderKey === 'string' && senderKey.trim()) {
-    const separator = url.includes('?') ? '&' : '?'
-    url = `${url}${separator}senderKey=${encodeURIComponent(senderKey)}`
-  }
-  return url
+  return appendPasswordQuery(url, password)
 }

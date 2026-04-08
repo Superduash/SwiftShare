@@ -3,21 +3,49 @@ import { io } from 'socket.io-client'
 
 const SocketContext = createContext(null)
 
+function isLoopbackHost(hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1'
+}
+
+function targetsLoopback(urlValue) {
+  if (typeof urlValue !== 'string' || !urlValue.trim()) return false
+
+  try {
+    const parsed = new URL(urlValue)
+    return isLoopbackHost(parsed.hostname)
+  } catch {
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(urlValue.trim())
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ENVIRONMENT-AWARE SOCKET URL RESOLUTION (PRODUCTION SAFE)
 // ═══════════════════════════════════════════════════════════════════════════
 
 function getSocketUrl() {
+  const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : ''
+  const runtimeIsLocal = isLoopbackHost(runtimeHost)
+
   // Priority 1: Explicit VITE_SOCKET_URL
   const envSocketUrl = import.meta.env.VITE_SOCKET_URL
   if (envSocketUrl && envSocketUrl.trim()) {
-    return envSocketUrl.trim().replace(/\/+$/, '')
+    const candidate = envSocketUrl.trim().replace(/\/+$/, '')
+    if (!runtimeIsLocal && targetsLoopback(candidate) && typeof window !== 'undefined') {
+      console.warn('[Socket] Ignoring localhost VITE_SOCKET_URL in non-local runtime, using same-origin fallback')
+    } else {
+      return candidate
+    }
   }
   
   // Priority 2: Use VITE_API_URL
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
-    return envApiUrl.trim().replace(/\/+$/, '')
+    const candidate = envApiUrl.trim().replace(/\/+$/, '')
+    if (!runtimeIsLocal && targetsLoopback(candidate) && typeof window !== 'undefined') {
+      console.warn('[Socket] Ignoring localhost VITE_API_URL for socket in non-local runtime')
+    } else {
+      return candidate
+    }
   }
   
   // Priority 3: Runtime detection
@@ -25,7 +53,7 @@ function getSocketUrl() {
     const hostname = window.location.hostname
     
     // Local development
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    if (isLoopbackHost(hostname)) {
       return 'http://localhost:3001'
     }
     

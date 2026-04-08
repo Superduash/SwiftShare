@@ -10,6 +10,8 @@ function getPreviewType(file) {
   if (mime.startsWith('image/')) return 'image'
   if (mime.includes('pdf') || name.endsWith('.pdf')) return 'pdf'
   if (mime.startsWith('video/')) return 'video'
+  if (mime.startsWith('audio/')) return 'audio'
+  if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return 'docx'
   if (
     mime.startsWith('text/') ||
     mime.includes('json') ||
@@ -21,7 +23,16 @@ function getPreviewType(file) {
   return 'unsupported'
 }
 
-export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired, senderKey }) {
+function getDocxPreviewUrl(src) {
+  if (!src) return ''
+  const queryStart = src.indexOf('?')
+  if (queryStart === -1) {
+    return `${src}/docx-html`
+  }
+  return `${src.slice(0, queryStart)}/docx-html${src.slice(queryStart)}`
+}
+
+export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired }) {
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const videoRef = useRef(null)
@@ -80,7 +91,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 		videoEl.removeEventListener('canplay', handleCanPlay)
 		videoEl.removeEventListener('play', handlePlay)
 	}
-  }, [open, file, fileIndex, code, password, senderKey])
+  }, [open, file, fileIndex, code, password])
 
   if (!open || !file) return null
 
@@ -141,7 +152,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   }
 
   const type = getPreviewType(file)
-  const src = previewUrl(code, fileIndex, password, senderKey)
+  const src = previewUrl(code, fileIndex, password)
+  const docxSrc = getDocxPreviewUrl(src)
 
   function openInNewTab() {
     if (!src) {
@@ -276,7 +288,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     style={{ background: '#000', display: loading ? 'none' : 'block' }}
                     onLoadedMetadata={(e) => {
 						try {
-							setLoading(false)
 							const videoEl = e.target
 							if (videoEl) {
 								videoEl.muted = false
@@ -284,9 +295,21 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 							}
 						} catch (err) {
 							console.error('[FilePreviewModal] Video metadata load error:', err)
-							setLoading(false)
 						}
 					}}
+          onLoadedData={(e) => {
+            try {
+              const videoEl = e.target
+              if (videoEl) {
+                videoEl.muted = false
+                videoEl.volume = 1.0
+              }
+            } catch (err) {
+              console.error('[FilePreviewModal] Video data load error:', err)
+            } finally {
+              setLoading(false)
+            }
+          }}
                     onError={(e) => {
 						console.error('[FilePreviewModal] Video error:', e)
 						setLoading(false)
@@ -309,8 +332,50 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     Your browser does not support video playback.
                   </video>
                 </div>
+              ) : type === 'audio' ? (
+                <div className="flex items-center justify-center min-h-[120px] relative">
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="shimmer-block w-full h-16 rounded-xl" />
+                    </div>
+                  )}
+                  <audio
+                    controls
+                    preload="metadata"
+                    className="w-full max-w-xl"
+                    style={{ display: loading ? 'none' : 'block' }}
+                    onLoadedData={() => setLoading(false)}
+                    onError={() => {
+                      setLoading(false)
+                      setError(true)
+                    }}
+                  >
+                    <source src={src} type={file.mimeType || file.type || 'audio/mpeg'} />
+                    Your browser does not support audio playback.
+                  </audio>
+                </div>
+              ) : type === 'docx' ? (
+                <div className="relative" style={{ height: '65vh' }}>
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="shimmer-block w-full h-full rounded-xl" />
+                    </div>
+                  )}
+                  <iframe
+                    src={docxSrc}
+                    className="w-full h-full rounded-xl"
+                    style={{ border: 'none', display: loading ? 'none' : 'block' }}
+                    title={file.name || 'DOCX Preview'}
+                    sandbox="allow-same-origin"
+                    onLoad={() => setLoading(false)}
+                    onError={() => {
+                      setLoading(false)
+                      setError(true)
+                    }}
+                  />
+                </div>
               ) : type === 'code' ? (
-                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} loading={loading} />
+                <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} />
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <FileText size={40} style={{ color: 'var(--text-4)' }} className="mb-3" />
@@ -338,7 +403,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   )
 }
 
-function CodePreview({ src, onError, onLoad, loading: parentLoading }) {
+function CodePreview({ src, onError, onLoad }) {
   const [content, setContent] = useState(null)
   const [loading, setLoading] = useState(true)
   // Use refs to avoid re-rendering loops from callback deps
@@ -354,25 +419,26 @@ function CodePreview({ src, onError, onLoad, loading: parentLoading }) {
     }
     
     const controller = new AbortController()
-    
-    fetch(src, { signal: controller.signal })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.text()
-      })
-      .then(text => {
+
+    const run = async () => {
+      try {
+        const response = await fetch(src, { signal: controller.signal })
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        const text = await response.text()
+        if (controller.signal.aborted) return
+        setContent(text.slice(0, 50000)) // limit preview to 50KB
+        onLoadRef.current?.()
+      } catch (err) {
+        if (controller.signal.aborted) return
+        onErrorRef.current?.()
+      } finally {
         if (!controller.signal.aborted) {
-          setContent(text.slice(0, 50000)) // limit preview to 50KB
           setLoading(false)
-          onLoadRef.current?.()
         }
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          setLoading(false)
-          onErrorRef.current?.()
-        }
-      })
+      }
+    }
+
+    void run()
     
     return () => controller.abort()
   }, [src])

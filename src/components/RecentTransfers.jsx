@@ -78,7 +78,7 @@ export default function RecentTransfers() {
 
     const status = String(t?.status || '').toUpperCase()
     if (['EXPIRED', 'CANCELLED', 'DELETED'].includes(status)) {
-      navigate(`/expired?reason=${status.toLowerCase()}`)
+      navigate('/expired')
       return
     }
 
@@ -96,7 +96,7 @@ export default function RecentTransfers() {
     // Determine if this is a sender or receiver transfer
     // isSender === true means user sent this file (go to /sender)
     // isSender === false means user received this file (go to /download)
-    const isSender = t.isSender === true || t.role === 'sender'
+    const isSender = t.isSender === true
 
     // Pass local transfer data so destination pages can render immediately.
     try {
@@ -163,7 +163,7 @@ export default function RecentTransfers() {
                     {t.filename || t.code}
                   </p>
                   <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
-                    {timeAgo(t.savedAt)} · {t.isSender ? 'Sent' : 'Received'}
+                    {timeAgo(t.savedAt)} · {t.isSender === true ? 'Sent' : 'Received'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">

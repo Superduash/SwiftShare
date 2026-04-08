@@ -13,9 +13,9 @@ function buildPasswordHeaders(password) {
   return { 'x-transfer-password': password }
 }
 
-export async function smartDownload(code, { aiName, index, originalName, password } = {}) {
-  // For simple full-transfer downloads with no rename, use direct navigation (streaming, no memory pressure)
-  if (typeof index !== 'number' && !aiName) {
+export async function smartDownload(code, { index, originalName, password } = {}) {
+  // For simple full-transfer downloads, use direct navigation (streaming, no memory pressure)
+  if (typeof index !== 'number') {
     downloadFile(code, password)
     return true
   }
@@ -39,7 +39,7 @@ export async function smartDownload(code, { aiName, index, originalName, passwor
     }
 
     const blob = await resp.blob()
-    const filename = aiName || originalName || `swiftshare_${code}`
+    const filename = originalName || `swiftshare_${code}`
     triggerBlobDownload(blob, filename)
     return true
   } catch {

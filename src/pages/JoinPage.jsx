@@ -11,6 +11,8 @@ import { saveTransfer } from '../utils/storage'
 
 const CODE_LENGTH = 6
 const JOIN_REQUEST_HARD_TIMEOUT_MS = 20000 // Increased to 20s for Render cold starts
+const MAX_JOIN_RETRIES = 2
+const JOIN_RETRY_DELAY_MS = 300
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
 const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
 
@@ -31,6 +33,7 @@ export default function JoinPage() {
   const mountedRef = useRef(true)
 
   useEffect(() => {
+    mountedRef.current = true
     return () => {
       mountedRef.current = false
     }
@@ -57,20 +60,37 @@ export default function JoinPage() {
     console.log('[JoinPage] Submitting code:', normalizedCode)
 
     try {
-      let hardTimeoutId
-      const timeoutFallback = new Promise((resolve) => {
-        hardTimeoutId = window.setTimeout(() => {
-          console.warn('[JoinPage] Hard timeout reached after 20s')
-          resolve({ ok: false, type: 'TIMEOUT' })
-        }, JOIN_REQUEST_HARD_TIMEOUT_MS)
-      })
+      let outcome = null
+      for (let attempt = 0; attempt <= MAX_JOIN_RETRIES; attempt += 1) {
+        let hardTimeoutId
+        const timeoutFallback = new Promise((resolve) => {
+          hardTimeoutId = window.setTimeout(() => {
+            console.warn('[JoinPage] Hard timeout reached after 20s')
+            resolve({ ok: false, type: 'TIMEOUT' })
+          }, JOIN_REQUEST_HARD_TIMEOUT_MS)
+        })
 
-      const outcome = await Promise.race([
-        getFileMetadataOutcome(normalizedCode, { timeout: 18000, noRetry: true }), // Increased to 18s
-        timeoutFallback,
-      ])
+        try {
+          outcome = await Promise.race([
+            getFileMetadataOutcome(normalizedCode, { timeout: 18000, noRetry: true }),
+            timeoutFallback,
+          ])
+        } finally {
+          window.clearTimeout(hardTimeoutId)
+        }
 
-      window.clearTimeout(hardTimeoutId)
+        const isTransient = outcome?.type === 'TIMEOUT' || outcome?.type === 'NETWORK'
+        if (outcome?.ok || !isTransient || attempt === MAX_JOIN_RETRIES) {
+          break
+        }
+
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, JOIN_RETRY_DELAY_MS)
+        })
+
+        if (!mountedRef.current) return
+      }
+
       if (!mountedRef.current) return
 
       console.log('[JoinPage] Outcome:', outcome)
@@ -136,10 +156,8 @@ export default function JoinPage() {
       }
     } finally {
       submitInFlightRef.current = false
-      if (mountedRef.current) {
-        setLoading(false)
-        console.log('[JoinPage] Request complete, loading set to false')
-      }
+      setLoading(false)
+      console.log('[JoinPage] Request complete, loading set to false')
     }
   }, [navigate])
 
@@ -270,7 +288,7 @@ export default function JoinPage() {
                   const code = chars.join('')
                   if (code.length === CODE_LENGTH) void handleSubmit(code)
                 }}
-                autoRetry={error === 'NETWORK_ERROR' || error === 'TIMEOUT_ERROR'}
+                autoRetry={false}
               />
             </motion.div>
           )}
