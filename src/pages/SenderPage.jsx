@@ -249,32 +249,44 @@ export default function SenderPage() {
     load()
   }, [normalizedCode, navState, navigate, applyTransferSnapshot])
 
-  // Safety net: never keep skeleton forever if request hangs unexpectedly.
+  // Safety net: stop showing skeleton if request hangs too long.
   useEffect(() => {
     if (!loading) return
     const timer = window.setTimeout(() => {
       if (!mountedRef.current) return
-      setError(prev => prev || 'NETWORK_ERROR')
+      if (!metaRef.current) {
+        setError(prev => prev || 'NETWORK_ERROR')
+      }
       setLoading(false)
-    }, 25000)
+    }, 15000)
 
     return () => window.clearTimeout(timer)
   }, [loading])
 
-  // Fetch activity
+  // Fetch activity — poll at relaxed interval, skip when tab hidden
+  const fetchingActivityRef = useRef(false)
   const loadActivity = useCallback(async () => {
-    if (!normalizedCode || document.hidden) return
+    if (!normalizedCode || document.hidden || fetchingActivityRef.current) return
+    fetchingActivityRef.current = true
     try {
       const data = await getTransferActivity(normalizedCode)
       if (data?.activity) setActivity(data.activity)
     } catch {}
+    finally {
+      fetchingActivityRef.current = false
+    }
   }, [normalizedCode])
 
   useEffect(() => {
     if (!normalizedCode) return
     loadActivity()
-    const iv = setInterval(loadActivity, 8000)
-    return () => clearInterval(iv)
+    const iv = setInterval(loadActivity, 20000)
+    const onVisibility = () => { if (!document.hidden) loadActivity() }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(iv)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [normalizedCode, loadActivity])
 
   // Socket
@@ -538,6 +550,33 @@ export default function SenderPage() {
     }
   }
 
+  // Retry handler for network/server errors (must be before conditional returns for hooks rules)
+  const handleRetry = useCallback(async () => {
+    setError(null)
+    setLoading(true)
+    try {
+      const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
+      if (!mountedRef.current) return
+      if (data.status === 'EXPIRED') {
+        navigate('/expired?reason=expired', { replace: true })
+        return
+      }
+      if (data.status === 'CANCELLED' || data.status === 'DELETED') {
+        setCancelled(true)
+      }
+      applyTransferSnapshot(data, { persist: true })
+    } catch (err) {
+      if (!mountedRef.current) return
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
+      else if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
+      else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
+      else setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
+    } finally {
+      if (mountedRef.current) setLoading(false)
+    }
+  }, [normalizedCode, navigate, applyTransferSnapshot])
+
   if (loading) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -553,7 +592,13 @@ export default function SenderPage() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
-        <div className="pt-20"><ErrorState code={error} /></div>
+        <div className="pt-20">
+          <ErrorState
+            code={error}
+            onRetry={handleRetry}
+            autoRetry={error === 'NETWORK_ERROR'}
+          />
+        </div>
       </div>
     )
   }
@@ -656,7 +701,7 @@ export default function SenderPage() {
               )}
 
               {/* AI Summary */}
-              <AISummaryCard ai={ai} loading={aiLoading} code={code} />
+              <AISummaryCard ai={ai} loading={aiLoading} />
 
               {/* Activity */}
               <ActivityLog activity={activity} />

@@ -6,7 +6,7 @@ import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadata, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
+import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile } from '../services/api'
 import { smartDownload } from '../utils/download'
 import {
   saveTransfer,
@@ -18,7 +18,6 @@ import {
   mergeTransferData,
 } from '../utils/storage'
 import { formatBytes } from '../utils/format'
-import { extractErrorCode } from '../utils/errors'
 import { playDownloadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
@@ -31,6 +30,17 @@ import ErrorState from '../components/ErrorState'
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
 )
+
+const REQUEST_STATE = {
+  IDLE: 'idle',
+  LOADING: 'loading',
+  RETRYING: 'retrying',
+  SUCCESS: 'success',
+  FAILED: 'failed',
+}
+
+const RETRY_DELAY_MS = 2000
+const MAX_AUTO_RETRIES = 3
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -61,7 +71,9 @@ export default function DownloadPage() {
     }
     return 600
   })
-  const [loading, setLoading] = useState(!initialCachedTransfer)
+  const [requestState, setRequestState] = useState(initialCachedTransfer ? REQUEST_STATE.SUCCESS : REQUEST_STATE.IDLE)
+  const [requestError, setRequestError] = useState(null)
+  const [retryAttempt, setRetryAttempt] = useState(0)
   const [downloading, setDownloading] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
@@ -73,7 +85,6 @@ export default function DownloadPage() {
   const [passwordError, setPasswordError] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [transferStatus, setTransferStatus] = useState(initialCachedTransfer?.status || 'ACTIVE')
-  const [error, setError] = useState(null)
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
   const [receipt, setReceipt] = useState(null)
@@ -81,8 +92,18 @@ export default function DownloadPage() {
   const downloadingRef = useRef(false)
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
+  const requestInFlightRef = useRef(false)
+  const requestTokenRef = useRef(0)
+  const retryTimerRef = useRef(null)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
+
+  useEffect(() => {
+    verifiedPasswordRef.current = ''
+    setPassword('')
+    setPasswordVerified(false)
+    setPasswordError('')
+  }, [normalizedCode])
 
   useEffect(() => {
     downloadingRef.current = downloading
@@ -181,6 +202,84 @@ export default function DownloadPage() {
     return merged
   }, [normalizedCode])
 
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      window.clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
+    }
+  }, [])
+
+  const loadMetadata = useCallback(async () => {
+    if (!normalizedCode || requestInFlightRef.current) return
+
+    requestInFlightRef.current = true
+    clearRetryTimer()
+    const requestToken = ++requestTokenRef.current
+
+    setRequestState(REQUEST_STATE.LOADING)
+    setRequestError(null)
+
+    try {
+      const outcome = await getFileMetadataOutcome(normalizedCode, { timeout: 12000, noRetry: true })
+
+      if (!mountedRef.current || requestToken !== requestTokenRef.current) return
+
+      if (outcome.ok) {
+        const data = outcome.data
+        const status = String(data?.status || '').toUpperCase()
+        if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
+          navigate(`/expired?reason=${status.toLowerCase()}`, { replace: true })
+          return
+        }
+
+        applyTransferSnapshot(data, { persist: true })
+        setRetryAttempt(0)
+        setRequestError(null)
+        setRequestState(REQUEST_STATE.SUCCESS)
+        return
+      }
+
+      if (outcome.type === 'SERVER') {
+        const errCode = outcome.errorCode || 'SERVER_ERROR'
+        if (errCode === 'TRANSFER_EXPIRED') {
+          navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (errCode === 'ALREADY_DOWNLOADED') {
+          navigate('/expired?reason=burned', { replace: true })
+          return
+        }
+        if (errCode === 'TRANSFER_NOT_FOUND') {
+          navigate('/expired?reason=notfound', { replace: true })
+          return
+        }
+
+        setRequestError(errCode)
+        setRequestState(REQUEST_STATE.FAILED)
+        return
+      }
+
+      if (outcome.type === 'EMPTY_RESPONSE') {
+        setRequestError('EMPTY_RESPONSE')
+        setRequestState(REQUEST_STATE.FAILED)
+        return
+      }
+
+      if (outcome.type === 'TIMEOUT') {
+        setRequestError('TIMEOUT_ERROR')
+        setRequestState(REQUEST_STATE.RETRYING)
+        return
+      }
+
+      setRequestError('NETWORK_ERROR')
+      setRequestState(REQUEST_STATE.RETRYING)
+    } finally {
+      if (requestToken === requestTokenRef.current) {
+        requestInFlightRef.current = false
+      }
+    }
+  }, [normalizedCode, applyTransferSnapshot, navigate, clearRetryTimer])
+
   // Fetch metadata
   useEffect(() => {
     if (!normalizedCode) return
@@ -195,8 +294,8 @@ export default function DownloadPage() {
     const seed = mergeTransferData(cachedTransfer, navTransfer)
 
     if (seed) {
-      setError(null)
-      setLoading(false)
+      setRequestError(null)
+      setRequestState(REQUEST_STATE.SUCCESS)
       applyTransferSnapshot(seed, { persist: true })
     }
 
@@ -210,46 +309,36 @@ export default function DownloadPage() {
       return
     }
 
-    async function load() {
-      try {
-        setLoading(true)
-        setError(null)
-        const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
-        if (!mountedRef.current) return
-        const status = String(data?.status || '').toUpperCase()
-        if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
-          navigate(`/expired?reason=${status.toLowerCase()}`, { replace: true })
-          return
-        }
-        applyTransferSnapshot(data, { persist: true })
-      } catch (err) {
-        if (!mountedRef.current) return
-        const errCode = extractErrorCode(err)
-        if (errCode === 'TRANSFER_EXPIRED') navigate('/expired?reason=expired', { replace: true })
-        else if (errCode === 'ALREADY_DOWNLOADED') navigate('/expired?reason=burned', { replace: true })
-        else if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-        else {
-          // For network errors / timeouts, show a retry-able error instead of redirecting
-          setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
-        }
-      } finally {
-        if (mountedRef.current) setLoading(false)
-      }
-    }
-    load()
-  }, [normalizedCode, navState, navigate, applyTransferSnapshot])
+    setRetryAttempt(0)
+    void loadMetadata()
+  }, [normalizedCode, navState, applyTransferSnapshot, loadMetadata])
 
-  // Safety net: never keep skeleton forever if request hangs unexpectedly.
+  // Auto retry transient failures with a bounded retry budget.
   useEffect(() => {
-    if (!loading) return
-    const timer = window.setTimeout(() => {
-      if (!mountedRef.current) return
-      setError(prev => prev || 'NETWORK_ERROR')
-      setLoading(false)
-    }, 25000)
+    if (requestState !== REQUEST_STATE.RETRYING) return
 
-    return () => window.clearTimeout(timer)
-  }, [loading])
+    if (retryAttempt >= MAX_AUTO_RETRIES) {
+      setRequestState(REQUEST_STATE.FAILED)
+      return
+    }
+
+    clearRetryTimer()
+    retryTimerRef.current = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      setRetryAttempt((prev) => prev + 1)
+      void loadMetadata()
+    }, RETRY_DELAY_MS)
+
+    return () => {
+      clearRetryTimer()
+    }
+  }, [requestState, retryAttempt, clearRetryTimer, loadMetadata])
+
+  useEffect(() => {
+    return () => {
+      clearRetryTimer()
+    }
+  }, [clearRetryTimer])
 
   // Socket
   useEffect(() => {
@@ -402,11 +491,19 @@ export default function DownloadPage() {
     downloadSingleFile(normalizedCode, index, pw)
   }
 
+  // Retry handler for network/server errors (must be before conditional returns for hooks rules)
+  const handleRetry = useCallback(async () => {
+    setRetryAttempt(0)
+    await loadMetadata()
+  }, [loadMetadata])
+
   const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
   const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED'
   const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
+  const isInitialLoading = requestState === REQUEST_STATE.LOADING && !meta
+  const isRetrying = requestState === REQUEST_STATE.RETRYING
 
-  if (loading) {
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
@@ -419,11 +516,17 @@ export default function DownloadPage() {
     )
   }
 
-  if (error) {
+  if (requestState === REQUEST_STATE.FAILED && requestError) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
-        <div className="pt-20"><ErrorState code={error} /></div>
+        <div className="pt-20">
+          <ErrorState
+            code={requestError}
+            onRetry={handleRetry}
+            autoRetry={false}
+          />
+        </div>
       </div>
     )
   }
@@ -454,6 +557,27 @@ export default function DownloadPage() {
 
           {/* Status banner */}
           <AnimatePresence>
+            {isRetrying && (
+              <motion.div
+                className="mb-4 p-3 rounded-xl"
+                style={{ background: 'var(--info-soft)', border: '1px solid rgba(8,145,178,0.15)' }}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--info)' }}>
+                    Trying again...
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-secondary text-xs !py-1 !px-2"
+                    onClick={handleRetry}
+                  >
+                    Retry now
+                  </button>
+                </div>
+              </motion.div>
+            )}
             {transferStatus === 'CANCELLED' && (
               <motion.div
                 className="mb-4 p-3 rounded-xl text-center"
@@ -538,7 +662,7 @@ export default function DownloadPage() {
                 file={f}
                 index={i}
                 showDownload={canDownload}
-                onPreview={() => handlePreview(i)}
+                onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
                 onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
               />
             ))}
@@ -693,7 +817,7 @@ export default function DownloadPage() {
                 </p>
               </motion.div>
             ) : (
-              <AISummaryCard ai={ai} loading={aiLoading} code={code} />
+              <AISummaryCard ai={ai} loading={aiLoading} />
             )}
           </div>
         </div>

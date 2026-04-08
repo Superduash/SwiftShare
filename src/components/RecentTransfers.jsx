@@ -9,7 +9,6 @@ import {
   getCachedTransfer,
   mergeTransferData,
 } from '../utils/storage'
-import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
 const STATUS_STYLES = {
@@ -38,37 +37,19 @@ export default function RecentTransfers() {
   const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
 
+  // Recalculate statuses locally from expiry time — no API spam
   useEffect(() => {
-    let mounted = true
-    const list = getRecentTransfers()
-    const checks = list.filter((t) => {
-      const status = String(t?.status || '').toUpperCase()
-      if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') return false
-      if (t?.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) return false
-      return true
-    })
-
-    if (!checks.length) return
-
-    const indexByCode = new Map(checks.map((t, idx) => [normalizeCode(t.code), idx]))
-
-    Promise.allSettled(checks.map(t => getTransferStatus(t.code))).then(results => {
-      if (!mounted) return
-      setTransfers(prev => prev.map((p) => {
-        const resultIndex = indexByCode.get(normalizeCode(p.code))
-        if (typeof resultIndex !== 'number') return p
-
-        const result = results[resultIndex]
-        if (result?.status === 'fulfilled') {
-          const data = result.value
-          return { ...p, status: data?.status || (data?.secondsRemaining > 0 ? 'ACTIVE' : 'EXPIRED') }
+    const timer = setInterval(() => {
+      setTransfers(prev => prev.map(t => {
+        const status = String(t?.status || '').toUpperCase()
+        if (status === 'CANCELLED' || status === 'DELETED') return t
+        if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
+          return { ...t, status: 'EXPIRED' }
         }
-        // On network failure, keep the previous status instead of assuming expired.
-        // This prevents active files from showing "Expired" during cold-start or transient errors.
-        return p
+        return t
       }))
-    })
-    return () => { mounted = false }
+    }, 30000) // check every 30s
+    return () => clearInterval(timer)
   }, [])
 
   if (!transfers.length) return null
@@ -112,17 +93,20 @@ export default function RecentTransfers() {
     const cachedTransfer = getCachedTransfer(normalizedCode)
     const resolvedTransferData = mergeTransferData(cachedTransfer || t?.transfer, transferData) || transferData
 
-    const isReceiver = t.isSender === false || t.role === 'receiver'
+    // Determine if this is a sender or receiver transfer
+    // isSender === true means user sent this file (go to /sender)
+    // isSender === false means user received this file (go to /download)
+    const isSender = t.isSender === true || t.role === 'sender'
 
     // Pass local transfer data so destination pages can render immediately.
     try {
-      navigate(isReceiver ? `/download/${normalizedCode}` : `/sender/${normalizedCode}`, {
+      navigate(isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`, {
         state: { transferData: resolvedTransferData }
       })
     } catch (err) {
       console.error('[RecentTransfers] Navigation error:', err)
       // Fallback: navigate without state
-      navigate(isReceiver ? `/download/${normalizedCode}` : `/sender/${normalizedCode}`)
+      navigate(isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`)
     }
   }
 

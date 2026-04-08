@@ -1,13 +1,74 @@
 import axios from 'axios'
 
-const fallbackOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-const rawBaseURL = import.meta.env.VITE_API_URL || fallbackOrigin
-const baseURL = rawBaseURL.replace(/\/+$/, '')
+// ═══════════════════════════════════════════════════════════════════════════
+// ENVIRONMENT-AWARE API URL RESOLUTION (PRODUCTION SAFE)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function getApiBaseUrl() {
+  // Priority 1: Explicit VITE_API_URL from environment
+  const envApiUrl = import.meta.env.VITE_API_URL
+  if (envApiUrl && envApiUrl.trim()) {
+    return envApiUrl.trim().replace(/\/+$/, '')
+  }
+  
+  // Priority 2: Runtime detection
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    
+    // Local development
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001'
+    }
+    
+    // Production: same-origin (frontend and backend on same domain)
+    // OR use window.location.origin if backend is on same domain
+    return window.location.origin
+  }
+  
+  // Fallback
+  return ''
+}
+
+const baseURL = getApiBaseUrl()
+
+console.log('[API] Base URL:', baseURL)
 
 const API = axios.create({
   baseURL,
   timeout: 30000,
+  withCredentials: false, // Set to true if using cookies
 })
+
+function classifyTransportError(error) {
+  if (error?.response) {
+    return {
+      type: 'SERVER',
+      status: Number(error.response.status || 500),
+      errorCode: error?.response?.data?.error?.code || null,
+      message: error?.response?.data?.error?.message || error?.message || 'Server error',
+    }
+  }
+
+  const code = String(error?.code || '').toUpperCase()
+  const message = String(error?.message || '')
+
+  if (code === 'ECONNABORTED' || /timeout/i.test(message)) {
+    return { type: 'TIMEOUT', message: 'Request timed out' }
+  }
+
+  return { type: 'NETWORK', message: 'Network request failed' }
+}
+
+function isObjectPayload(payload) {
+  return payload !== null && typeof payload === 'object' && !Array.isArray(payload)
+}
+
+function hasUsableMetadataPayload(payload) {
+  if (!isObjectPayload(payload)) return false
+  if (typeof payload.code !== 'string') return false
+  if (!Array.isArray(payload.files)) return false
+  return true
+}
 
 // Retry interceptor for transient failures
 API.interceptors.response.use(null, async (error) => {
@@ -19,12 +80,16 @@ API.interceptors.response.use(null, async (error) => {
   }
 
   config.__retryCount = config.__retryCount || 0
-  const isRetryable = !error.response || error.response.status === 503 || error.code === 'ERR_NETWORK'
+  
+  // Distinguish between real network errors and server responses
+  const isRealNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED')
+  const isServerError = error.response && (error.response.status === 503 || error.response.status >= 500)
+  const isRetryable = isRealNetworkError || isServerError
   const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
 
   if (isRetryable && isIdempotent && config.__retryCount < 2) {
     config.__retryCount += 1
-    const delay = config.__retryCount * 1000
+    const delay = config.__retryCount * 1500
     await new Promise(r => setTimeout(r, delay))
     return API(config)
   }
@@ -122,9 +187,28 @@ export async function getFileMetadata(code, requestConfig = undefined) {
   return unwrapResponse(data)
 }
 
-export async function analyzeTransfer(code, forceFallback = false) {
-  const { data } = await API.post(`/api/file/${normalizeCode(code)}/analyze`, { forceFallback })
-  return unwrapResponse(data)
+export async function getFileMetadataOutcome(code, requestConfig = undefined) {
+  try {
+    const payload = await getFileMetadata(code, requestConfig)
+
+    if (!hasUsableMetadataPayload(payload)) {
+      return {
+        ok: false,
+        type: 'EMPTY_RESPONSE',
+        errorCode: 'EMPTY_RESPONSE',
+        message: 'Metadata response was empty or invalid',
+      }
+    }
+
+    return { ok: true, data: payload }
+  } catch (error) {
+    const classified = classifyTransportError(error)
+    return {
+      ok: false,
+      ...classified,
+      rawError: error,
+    }
+  }
 }
 
 export async function getTransferStatus(code) {
