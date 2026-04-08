@@ -655,7 +655,7 @@ export default function SenderPage() {
               )}
 
               {/* AI Summary */}
-              <AISummaryCard ai={ai} loading={aiLoading} />
+              <AISummaryCard ai={ai} loading={aiLoading} code={code} />
 
               {/* Activity */}
               <ActivityLog activity={activity} />

@@ -122,6 +122,11 @@ export async function getFileMetadata(code, requestConfig = undefined) {
   return unwrapResponse(data)
 }
 
+export async function analyzeTransfer(code, forceFallback = false) {
+  const { data } = await API.post(`/api/file/${normalizeCode(code)}/analyze`, { forceFallback })
+  return unwrapResponse(data)
+}
+
 export async function getTransferStatus(code) {
   const { data } = await API.get(`/api/transfer/${normalizeCode(code)}/status`)
   return unwrapResponse(data)

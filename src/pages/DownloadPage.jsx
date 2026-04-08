@@ -683,7 +683,7 @@ export default function DownloadPage() {
                 </p>
               </motion.div>
             ) : (
-              <AISummaryCard ai={ai} loading={aiLoading} />
+              <AISummaryCard ai={ai} loading={aiLoading} code={code} />
             )}
           </div>
         </div>
