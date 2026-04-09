@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-08T17:16:53Z
+Generated: 2026-04-09T01:00:19Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (118 bytes) =====
@@ -109,7 +109,7 @@ export default {
   },
 }
 
-===== FILE: src/App.jsx (7219 bytes) =====
+===== FILE: src/App.jsx (7391 bytes) =====
 import React, { Suspense, lazy, useEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
@@ -121,10 +121,11 @@ import toast from 'react-hot-toast'
 
 import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
-import { pingServer } from './services/api'
+import { ConnectionHealthProvider } from './context/ConnectionHealthContext'
 import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
+import ConnectionBanner from './components/ConnectionBanner'
 
 // ── Error boundary for lazy routes ───────────
 class RouteErrorBoundary extends React.Component {
@@ -266,10 +267,7 @@ function NearbyOfferListener() {
 export default function App() {
   const [reducedMotion, setReducedMotion] = React.useState(() => getSettings().reducedMotion)
 
-  useEffect(() => {
-    // Warm backend once without blocking first paint.
-    void pingServer()
-  }, [])
+  // Backend warm-up is now handled by ConnectionHealthProvider
 
   useEffect(() => {
     const syncSettings = () => setReducedMotion(getSettings().reducedMotion)
@@ -283,13 +281,15 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
-      <SocketProvider>
-        <TransferProvider>
-          <BrowserRouter>
-            <NearbyOfferListener />
-            <AnimatedRoutes />
-          </BrowserRouter>
-          <Toaster
+      <ConnectionHealthProvider>
+        <SocketProvider>
+          <TransferProvider>
+            <BrowserRouter>
+              <ConnectionBanner />
+              <NearbyOfferListener />
+              <AnimatedRoutes />
+            </BrowserRouter>
+            <Toaster
             position="top-right"
             gutter={8}
             toastOptions={{
@@ -308,8 +308,9 @@ export default function App() {
               error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
             }}
           />
-        </TransferProvider>
-      </SocketProvider>
+          </TransferProvider>
+        </SocketProvider>
+      </ConnectionHealthProvider>
     </MotionConfig>
   )
 }
@@ -582,6 +583,89 @@ export default function ActivityLog({ activity = [] }) {
         })}
       </div>
     </div>
+  )
+}
+
+===== FILE: src/components/ConnectionBanner.jsx (2656 bytes) =====
+import React from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Loader2, WifiOff, Zap } from 'lucide-react'
+import { useConnectionHealth } from '../context/ConnectionHealthContext'
+
+const STATUS_CONFIG = {
+  waking: {
+    icon: Zap,
+    text: 'Waking up server...',
+    sub: 'Free tier servers sleep after inactivity. Hang tight!',
+    bg: 'linear-gradient(135deg, rgba(232,99,74,0.12), rgba(255,154,92,0.08))',
+    border: 'rgba(232,99,74,0.2)',
+    color: 'var(--accent)',
+    showSpinner: true,
+  },
+  reconnecting: {
+    icon: Loader2,
+    text: 'Reconnecting...',
+    sub: 'Connection dropped briefly. Retrying in background.',
+    bg: 'linear-gradient(135deg, rgba(8,145,178,0.1), rgba(8,145,178,0.05))',
+    border: 'rgba(8,145,178,0.2)',
+    color: 'var(--info)',
+    showSpinner: true,
+  },
+  offline: {
+    icon: WifiOff,
+    text: 'You\'re offline',
+    sub: 'Check your internet connection.',
+    bg: 'linear-gradient(135deg, rgba(220,38,38,0.1), rgba(220,38,38,0.05))',
+    border: 'rgba(220,38,38,0.2)',
+    color: 'var(--danger)',
+    showSpinner: false,
+  },
+}
+
+export default function ConnectionBanner() {
+  const { status } = useConnectionHealth()
+
+  const config = STATUS_CONFIG[status]
+  const show = status !== 'connected' && config
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          style={{ overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}
+        >
+          <div
+            style={{
+              background: config.bg,
+              borderBottom: `1px solid ${config.border}`,
+              padding: '10px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+            }}
+          >
+            {config.showSpinner ? (
+              <Loader2 size={16} className="animate-spin" style={{ color: config.color }} />
+            ) : (
+              <config.icon size={16} style={{ color: config.color }} />
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: config.color }}>
+                {config.text}
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>
+                {config.sub}
+              </span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -2463,7 +2547,131 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
   )
 }
 
-===== FILE: src/context/SocketContext.jsx (6604 bytes) =====
+===== FILE: src/context/ConnectionHealthContext.jsx (3641 bytes) =====
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
+import { pingServer } from '../services/api'
+
+const ConnectionHealthContext = createContext(null)
+
+// States: 'connected' | 'reconnecting' | 'waking' | 'offline'
+// 'waking' = first connection attempt (cold start), 'reconnecting' = was connected, lost it
+
+const BACKOFF_SCHEDULE = [1000, 2000, 4000, 8000, 12000, 15000] // max ~15s between retries
+
+export function ConnectionHealthProvider({ children }) {
+  const [status, setStatus] = useState('reconnecting') // start optimistic but uncertain
+  const [lastOk, setLastOk] = useState(null)
+  const everConnectedRef = useRef(false)
+  const intervalRef = useRef(null)
+  const retryCountRef = useRef(0)
+  const mountedRef = useRef(true)
+  const checkingRef = useRef(false)
+
+  const checkHealth = useCallback(async () => {
+    if (checkingRef.current) return
+    checkingRef.current = true
+
+    try {
+      const result = await pingServer()
+
+      if (!mountedRef.current) return
+
+      if (result.ok) {
+        everConnectedRef.current = true
+        retryCountRef.current = 0
+        setStatus('connected')
+        setLastOk(Date.now())
+      } else {
+        retryCountRef.current += 1
+        setStatus(everConnectedRef.current ? 'reconnecting' : 'waking')
+      }
+    } catch {
+      if (!mountedRef.current) return
+      retryCountRef.current += 1
+      setStatus(everConnectedRef.current ? 'reconnecting' : 'waking')
+    } finally {
+      checkingRef.current = false
+    }
+  }, [])
+
+  // Initial check + adaptive polling
+  useEffect(() => {
+    mountedRef.current = true
+    void checkHealth()
+
+    function scheduleNext() {
+      if (intervalRef.current) clearTimeout(intervalRef.current)
+
+      // When connected: poll every 45s (lightweight keepalive check)
+      // When not connected: use backoff schedule
+      let delay
+      if (everConnectedRef.current && retryCountRef.current === 0) {
+        delay = 45000
+      } else {
+        const idx = Math.min(retryCountRef.current, BACKOFF_SCHEDULE.length - 1)
+        delay = BACKOFF_SCHEDULE[idx]
+      }
+
+      intervalRef.current = setTimeout(async () => {
+        if (!mountedRef.current) return
+        await checkHealth()
+        scheduleNext()
+      }, delay)
+    }
+
+    scheduleNext()
+
+    return () => {
+      mountedRef.current = false
+      if (intervalRef.current) clearTimeout(intervalRef.current)
+    }
+  }, [checkHealth])
+
+  // When tab becomes visible again, check immediately
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        void checkHealth()
+      }
+    }
+
+    // When browser comes back online, check immediately
+    function onOnline() {
+      void checkHealth()
+    }
+
+    function onOffline() {
+      setStatus('offline')
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [checkHealth])
+
+  const forceCheck = useCallback(() => {
+    retryCountRef.current = 0
+    void checkHealth()
+  }, [checkHealth])
+
+  return (
+    <ConnectionHealthContext.Provider value={{ status, lastOk, forceCheck }}>
+      {children}
+    </ConnectionHealthContext.Provider>
+  )
+}
+
+export function useConnectionHealth() {
+  return useContext(ConnectionHealthContext) || { status: 'connected', lastOk: null, forceCheck: () => {} }
+}
+
+===== FILE: src/context/SocketContext.jsx (6636 bytes) =====
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
 
@@ -2608,10 +2816,11 @@ export function SocketProvider({ children }) {
     const s = io(url, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionDelay: 2000,
-      reconnectionDelayMax: 10000,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 30000,
+      randomizationFactor: 0.3,
       reconnectionAttempts: Infinity,
-      timeout: 20000,
+      timeout: 45000,
     })
     
     socketRef.current = s
@@ -3511,7 +3720,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (33220 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (33530 bytes) =====
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -3554,8 +3763,8 @@ const REQUEST_STATE = {
   FAILED: 'failed',
 }
 
-const RETRY_DELAY_MS = 2000
-const MAX_AUTO_RETRIES = 2
+const RETRY_DELAY_MS = 3000
+const MAX_AUTO_RETRIES = 5
 
 export default function DownloadPage() {
   const { code } = useParams()
@@ -3759,7 +3968,7 @@ export default function DownloadPage() {
     setRequestError(null)
 
     try {
-      const outcome = await getFileMetadataOutcome(normalizedCode, { timeout: 12000, noRetry: true })
+      const outcome = await getFileMetadataOutcome(normalizedCode, { timeout: 45000, noRetry: true })
 
       if (!mountedRef.current || requestToken !== requestTokenRef.current) return
 
@@ -3848,8 +4057,16 @@ export default function DownloadPage() {
     }
 
     const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
-    if (hasUsableCache) {
+    const hasCachedAi = Boolean(cachedAi || seed?.ai)
+
+    if (hasUsableCache && hasCachedAi) {
       return
+    }
+
+    // If we have cached files but no AI yet, keep the loading shimmer visible
+    // while we refetch metadata to pick up AI that may have completed since last visit
+    if (hasUsableCache && !hasCachedAi) {
+      setAiLoading(true)
     }
 
     setRetryAttempt(0)
@@ -4112,7 +4329,7 @@ export default function DownloadPage() {
           <ErrorState
             code={requestError}
             onRetry={handleRetry}
-            autoRetry={false}
+            autoRetry={true}
           />
         </div>
       </div>
@@ -4509,7 +4726,7 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (29185 bytes) =====
+===== FILE: src/pages/HomePage.jsx (29218 bytes) =====
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -4739,7 +4956,7 @@ export default function HomePage() {
 
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
-    if (!isConnected) return toast.error('Not connected to server')
+    if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
 
     setUploading(true)
     setUploadPercent(0)
@@ -5170,7 +5387,7 @@ export default function HomePage() {
   )
 }
 
-===== FILE: src/pages/JoinPage.jsx (10760 bytes) =====
+===== FILE: src/pages/JoinPage.jsx (10747 bytes) =====
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -5183,9 +5400,9 @@ import ErrorState from '../components/ErrorState'
 import { saveTransfer } from '../utils/storage'
 
 const CODE_LENGTH = 6
-const JOIN_REQUEST_HARD_TIMEOUT_MS = 20000 // Increased to 20s for Render cold starts
-const MAX_JOIN_RETRIES = 2
-const JOIN_RETRY_DELAY_MS = 300
+const JOIN_REQUEST_HARD_TIMEOUT_MS = 60000 // 60s for Render cold starts
+const MAX_JOIN_RETRIES = 3
+const JOIN_RETRY_DELAY_MS = 2000
 // Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
 const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
 
@@ -5245,7 +5462,7 @@ export default function JoinPage() {
 
         try {
           outcome = await Promise.race([
-            getFileMetadataOutcome(normalizedCode, { timeout: 18000, noRetry: true }),
+            getFileMetadataOutcome(normalizedCode, { timeout: 50000, noRetry: true }),
             timeoutFallback,
           ])
         } finally {
@@ -5461,7 +5678,7 @@ export default function JoinPage() {
                   const code = chars.join('')
                   if (code.length === CODE_LENGTH) void handleSubmit(code)
                 }}
-                autoRetry={false}
+                autoRetry={true}
               />
             </motion.div>
           )}
@@ -5494,7 +5711,7 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (42431 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (42430 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -5743,7 +5960,7 @@ export default function SenderPage() {
       setLoading(true)
       setError(null)
       try {
-        const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
+        const data = await getFileMetadata(normalizedCode, { timeout: 45000, noRetry: true })
         if (!mountedRef.current) return
         
         // Check for expired/not found BEFORE setting any state
@@ -5802,7 +6019,7 @@ export default function SenderPage() {
         setError(prev => prev || 'NETWORK_ERROR')
       }
       setLoading(false)
-    }, 15000)
+    }, 50000)
 
     return () => window.clearTimeout(timer)
   }, [loading])
@@ -6284,7 +6501,7 @@ export default function SenderPage() {
           <ErrorState
             code={error}
             onRetry={handleRetry}
-            autoRetry={false}
+            autoRetry={true}
           />
         </div>
       </div>
@@ -6615,7 +6832,7 @@ export default function SenderPage() {
   )
 }
 
-===== FILE: src/services/api.js (11549 bytes) =====
+===== FILE: src/services/api.js (12151 bytes) =====
 import axios from 'axios'
 
 function isLoopbackHost(hostname) {
@@ -6723,7 +6940,7 @@ const baseURL = getApiBaseUrl()
 
 const API = axios.create({
   baseURL,
-  timeout: 30000,
+  timeout: 60000,
   withCredentials: false, // Set to true if using cookies
 })
 
@@ -6758,32 +6975,45 @@ function hasUsableMetadataPayload(payload) {
   return true
 }
 
-// Retry interceptor for transient failures
-API.interceptors.response.use(null, async (error) => {
-  const config = error.config
-  if (!config) return Promise.reject(error)
+// Cold-start detection: if the very first request fails, backend is likely waking up
+let _backendEverReached = false
 
-  if (config.noRetry) {
+// Retry interceptor for transient failures (cold-start aware)
+API.interceptors.response.use(
+  (response) => {
+    _backendEverReached = true
+    return response
+  },
+  async (error) => {
+    const config = error.config
+    if (!config) return Promise.reject(error)
+
+    if (config.noRetry) {
+      return Promise.reject(error)
+    }
+
+    config.__retryCount = config.__retryCount || 0
+
+    // Distinguish between real network errors and server responses
+    const isRealNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED')
+    const isServerError = error.response && (error.response.status === 503 || error.response.status >= 500)
+    const isRetryable = isRealNetworkError || isServerError
+    const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
+
+    // During cold start, be more patient — retry up to 4 times with longer delays
+    const maxRetries = _backendEverReached ? 2 : 4
+    const baseDelay = _backendEverReached ? 1500 : 3000
+
+    if (isRetryable && isIdempotent && config.__retryCount < maxRetries) {
+      config.__retryCount += 1
+      const delay = config.__retryCount * baseDelay
+      await new Promise(r => setTimeout(r, delay))
+      return API(config)
+    }
+
     return Promise.reject(error)
   }
-
-  config.__retryCount = config.__retryCount || 0
-  
-  // Distinguish between real network errors and server responses
-  const isRealNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED')
-  const isServerError = error.response && (error.response.status === 503 || error.response.status >= 500)
-  const isRetryable = isRealNetworkError || isServerError
-  const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
-
-  if (isRetryable && isIdempotent && config.__retryCount < 2) {
-    config.__retryCount += 1
-    const delay = config.__retryCount * 1500
-    await new Promise(r => setTimeout(r, delay))
-    return API(config)
-  }
-
-  return Promise.reject(error)
-})
+)
 
 function unwrapResponse(payload) {
   if (payload && typeof payload === 'object' && payload.success === true && Object.prototype.hasOwnProperty.call(payload, 'data')) {
@@ -6826,7 +7056,9 @@ function toDataUrl(base64OrDataUrl, mimeType = 'image/png') {
 export async function pingServer() {
   const start = Date.now()
   try {
-    await API.get('/api/ping')
+    // Longer timeout for ping — cold starts on Render free tier can take 30-60s
+    await API.get('/api/ping', { timeout: 60000, noRetry: true })
+    _backendEverReached = true
     return { ok: true, latencyMs: Date.now() - start }
   } catch {
     return { ok: false, latencyMs: Date.now() - start }
@@ -7849,6 +8081,6 @@ export default defineConfig({
 })
 
 ===== SUMMARY =====
-Included files: 43
+Included files: 45
 Skipped (too large): 0
-Total source bytes included: 281032
+Total source bytes included: 288464
