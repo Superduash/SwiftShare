@@ -605,9 +605,23 @@ export default function SenderPage() {
 
   // Share helpers
   async function handleWebShare() {
+    const fileCount = Array.isArray(meta?.files) ? meta.files.length : 0
+    const primaryFileName = String(meta?.files?.[0]?.name || '').trim()
+    const fileLabel = fileCount > 1
+      ? `${fileCount} files`
+      : (primaryFileName || 'a file')
+    const minutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
+    const shareSubject = `SwiftShare: ${fileLabel} waiting for you`
+    const shareText = [
+      `I shared ${fileLabel} with you on SwiftShare.`,
+      `Access code: ${normalizedCode}`,
+      `Link: ${shareLink}`,
+      `Heads up: this transfer expires in about ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'}.`,
+    ].join('\n')
+
     const shareData = {
-      title: 'SwiftShare',
-      text: `Download my file: ${normalizedCode}`,
+      title: shareSubject,
+      text: shareText,
       url: shareLink,
     }
 
@@ -626,7 +640,7 @@ export default function SenderPage() {
     const copied = await copyLink()
     if (copied) return
 
-    const mailto = `mailto:?subject=${encodeURIComponent('File for you')}&body=${encodeURIComponent(`Download here: ${shareLink}`)}`
+    const mailto = `mailto:?subject=${encodeURIComponent(shareSubject)}&body=${encodeURIComponent(shareText)}`
     try {
       window.location.href = mailto
       toast.success('Opened share app')
