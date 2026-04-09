@@ -12,6 +12,7 @@ function getPreviewType(file) {
   if (mime.startsWith('video/')) return 'video'
   if (mime.startsWith('audio/')) return 'audio'
   if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return 'docx'
+  if (mime.includes('presentationml') || name.endsWith('.ppt') || name.endsWith('.pptx')) return 'pptx'
   if (
     mime.startsWith('text/') ||
     mime.includes('json') ||
@@ -156,12 +157,13 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const docxSrc = getDocxPreviewUrl(src)
 
   function openInNewTab() {
-    if (!src) {
+    const targetUrl = type === 'docx' ? docxSrc : src
+    if (!targetUrl) {
       toast.error('Preview URL not available')
       return
     }
     try {
-      const newWindow = window.open(src, '_blank', 'noopener,noreferrer')
+      const newWindow = window.open(targetUrl, '_blank', 'noopener,noreferrer')
       if (!newWindow) {
         toast.error('Pop-up blocked. Please allow pop-ups for this site.')
       }
@@ -395,6 +397,20 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                       setError(true)
                     }}
                   />
+                </div>
+              ) : type === 'pptx' ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-3" />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>PowerPoint preview is not supported in-browser</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Use open in new tab or download to view this file</p>
+                  {onDownload && (
+                    <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
+                      <Download size={14} /> Download instead
+                    </button>
+                  )}
+                  <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
+                    Open in new tab
+                  </button>
                 </div>
               ) : type === 'code' ? (
                 <CodePreview src={src} onError={() => setError(true)} onLoad={() => setLoading(false)} />
