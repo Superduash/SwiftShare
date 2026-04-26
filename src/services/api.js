@@ -86,17 +86,28 @@ function getApiBaseUrl() {
   // Priority 2: Runtime detection
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
-    
+
     // Local development
     if (isLocalRuntimeHost(hostname)) {
       return `${window.location.protocol}//${hostname}:3001`
     }
-    
-    // Production: same-origin (frontend and backend on same domain)
-    // OR use window.location.origin if backend is on same domain
+
+    // Production: same-origin fallback. This is correct only if the frontend
+    // and backend are deployed under the same hostname (reverse proxy or a
+    // single Render service serving both). On split deployments (Vercel
+    // frontend + Render backend) this silently sends every API call to the
+    // frontend host, producing 404s with no diagnostic. Make the misconfig
+    // loud so it can be diagnosed in 5 seconds instead of an afternoon.
+    // eslint-disable-next-line no-console
+    console.error(
+      '[SwiftShare] VITE_API_URL is not set. Falling back to window.location.origin (' +
+      window.location.origin + '). If your backend runs on a different host ' +
+      '(e.g. Render), set VITE_API_URL in your frontend deployment env to the ' +
+      'backend URL and redeploy.'
+    )
     return window.location.origin
   }
-  
+
   // Fallback
   return ''
 }
@@ -231,16 +242,145 @@ export async function pingServer() {
 }
 
 // ── Upload ──────────────────────────────────
-export async function uploadFiles(formData) {
+//
+// Resilient upload tuned for mobile / unstable networks:
+//  • True per-byte progress via XHR onUploadProgress (0..100%, capped at 99% until
+//    the server's HTTP response arrives, so the bar doesn't sit at 100% during the
+//    server→R2 finalization).
+//  • Stall watchdog: if no bytes flow for STALL_TIMEOUT_MS, abort and retry.
+//  • Retry on transient transport failures (ERR_NETWORK / aborted) up to RETRY_LIMIT
+//    times, with light exponential backoff. The server generates a fresh code on each
+//    retry, so re-sending the same FormData is safe.
+//  • No fixed wall-clock timeout; the watchdog handles dead connections, and Node's
+//    socket idle timeout protects the backend.
+const STALL_TIMEOUT_MS = 45_000
+const RETRY_LIMIT = 2
+
+function attemptUpload(formData, { onProgress, signal } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const url = `${baseURL}/api/upload`
+    let lastLoaded = 0
+    let watchdog = null
+
+    const armWatchdog = () => {
+      if (watchdog) clearTimeout(watchdog)
+      watchdog = setTimeout(() => {
+        const err = new Error('Upload stalled (no progress for 45s)')
+        err.code = 'ERR_STALLED'
+        try { xhr.abort() } catch {}
+        reject(err)
+      }, STALL_TIMEOUT_MS)
+    }
+
+    const clearWatchdog = () => {
+      if (watchdog) { clearTimeout(watchdog); watchdog = null }
+    }
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (!e.lengthComputable) return
+      if (e.loaded !== lastLoaded) {
+        lastLoaded = e.loaded
+        armWatchdog()
+      }
+      if (typeof onProgress === 'function') {
+        onProgress({ loaded: e.loaded, total: e.total })
+      }
+    })
+
+    xhr.upload.addEventListener('loadend', () => {
+      // Bytes have left the client. The server still needs to finalize (last R2 multipart
+      // parts + DB write). Keep the watchdog armed against a hung response.
+      armWatchdog()
+    })
+
+    xhr.addEventListener('load', () => {
+      clearWatchdog()
+      const status = xhr.status
+      let parsed = null
+      try { parsed = JSON.parse(xhr.responseText) } catch { parsed = null }
+
+      if (status >= 200 && status < 300) {
+        resolve(unwrapResponse(parsed))
+        return
+      }
+
+      const err = new Error(parsed?.error?.message || `Upload failed (${status})`)
+      err.response = { status, data: parsed }
+      reject(err)
+    })
+
+    xhr.addEventListener('error', () => {
+      clearWatchdog()
+      const err = new Error('Network error during upload')
+      err.code = 'ERR_NETWORK'
+      reject(err)
+    })
+
+    xhr.addEventListener('abort', () => {
+      clearWatchdog()
+      const err = new Error('Upload aborted')
+      err.code = 'ERR_CANCELED'
+      reject(err)
+    })
+
+    if (signal) {
+      if (signal.aborted) {
+        try { xhr.abort() } catch {}
+      } else {
+        signal.addEventListener('abort', () => {
+          try { xhr.abort() } catch {}
+        }, { once: true })
+      }
+    }
+
+    xhr.open('POST', url, true)
+    xhr.withCredentials = false
+    armWatchdog()
+    xhr.send(formData)
+  })
+}
+
+function isTransientUploadError(err) {
+  if (!err) return false
+  const code = String(err.code || '').toUpperCase()
+  if (code === 'ERR_NETWORK' || code === 'ERR_STALLED') return true
+  // 5xx from server: also retryable. 4xx (validation) is not.
+  const status = Number(err?.response?.status || 0)
+  return status >= 500 && status < 600
+}
+
+export async function uploadFiles(formData, opts = {}) {
   if (formData?.get && !formData.get('senderSocketId') && formData.get('socketId')) {
     formData.append('senderSocketId', formData.get('socketId'))
   }
 
-  const { data } = await API.post('/api/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120000,
-  })
-  return unwrapResponse(data)
+  const { onProgress, signal } = opts
+  let attempt = 0
+  let lastErr = null
+
+  while (attempt <= RETRY_LIMIT) {
+    try {
+      return await attemptUpload(formData, { onProgress, signal })
+    } catch (err) {
+      lastErr = err
+      // User-initiated abort: don't retry.
+      if (String(err?.code || '').toUpperCase() === 'ERR_CANCELED' && signal?.aborted) {
+        throw err
+      }
+      if (!isTransientUploadError(err) || attempt >= RETRY_LIMIT) {
+        throw err
+      }
+      attempt += 1
+      const delay = 1000 * Math.pow(2, attempt - 1) // 1s, 2s
+      if (typeof onProgress === 'function') {
+        onProgress({ retrying: true, attempt, delay })
+      }
+      await new Promise((r) => setTimeout(r, delay))
+    }
+  }
+
+  throw lastErr
 }
 
 export async function uploadClipboard(imageBase64, burnAfterDownload, senderSocketId, options = {}) {

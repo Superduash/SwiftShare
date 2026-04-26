@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-09T01:36:36Z
+Generated: 2026-04-26T13:25:38Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (118 bytes) =====
@@ -5727,7 +5727,7 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (42430 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (43050 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -6335,9 +6335,23 @@ export default function SenderPage() {
 
   // Share helpers
   async function handleWebShare() {
+    const fileCount = Array.isArray(meta?.files) ? meta.files.length : 0
+    const primaryFileName = String(meta?.files?.[0]?.name || '').trim()
+    const fileLabel = fileCount > 1
+      ? `${fileCount} files`
+      : (primaryFileName || 'a file')
+    const minutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
+    const shareSubject = `SwiftShare: ${fileLabel} waiting for you`
+    const shareText = [
+      `I shared ${fileLabel} with you on SwiftShare.`,
+      `Access code: ${normalizedCode}`,
+      `Link: ${shareLink}`,
+      `Heads up: this transfer expires in about ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'}.`,
+    ].join('\n')
+
     const shareData = {
-      title: 'SwiftShare',
-      text: `Download my file: ${normalizedCode}`,
+      title: shareSubject,
+      text: shareText,
       url: shareLink,
     }
 
@@ -6356,7 +6370,7 @@ export default function SenderPage() {
     const copied = await copyLink()
     if (copied) return
 
-    const mailto = `mailto:?subject=${encodeURIComponent('File for you')}&body=${encodeURIComponent(`Download here: ${shareLink}`)}`
+    const mailto = `mailto:?subject=${encodeURIComponent(shareSubject)}&body=${encodeURIComponent(shareText)}`
     try {
       window.location.href = mailto
       toast.success('Opened share app')
@@ -8099,4 +8113,4 @@ export default defineConfig({
 ===== SUMMARY =====
 Included files: 45
 Skipped (too large): 0
-Total source bytes included: 289563
+Total source bytes included: 290183

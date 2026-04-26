@@ -139,8 +139,16 @@ export function SocketProvider({ children }) {
     const url = getSocketUrl()
     debugLog('[Socket] Connecting to:', url)
     
+    // Transport order is intentionally polling-first.
+    // Mobile carrier networks, corporate proxies, and some CDNs intermittently
+    // block or stall WebSocket upgrade handshakes; starting with polling
+    // guarantees a connection, and Engine.IO transparently upgrades to WS once
+    // the upgrade probe succeeds. This is the order recommended by Socket.IO
+    // for production reliability across hostile networks.
     const s = io(url, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      withCredentials: false,
       reconnection: true,
       reconnectionDelay: 3000,
       reconnectionDelayMax: 30000,

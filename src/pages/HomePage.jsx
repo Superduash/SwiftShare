@@ -47,6 +47,9 @@ export default function HomePage() {
   const [uploading, setUploading] = useState(false)
   const [uploadPercent, setUploadPercent] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState(0)
+  const [uploadPhase, setUploadPhase] = useState('uploading') // 'uploading' | 'finalizing' | 'retrying'
+  const uploadStartRef = useRef(0)
+  const lastBytesRef = useRef({ at: 0, loaded: 0 })
   const [passwordProtected, setPasswordProtected] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -108,18 +111,15 @@ export default function HomePage() {
   // Title
   useEffect(() => { document.title = 'SwiftShare — Files sent, not stored' }, [])
 
-  // Socket listeners for upload
+  // Socket listener: only used as a fallback completion signal if the HTTP response
+  // is delayed (e.g. tab put to sleep mid-finalize). Real progress now comes from the
+  // XHR onUploadProgress in services/api.js — the per-file socket emits here would
+  // overwrite that with a stale value, so we ignore upload-progress.
   useEffect(() => {
     if (!socket) return
-    const onProgress = ({ percent, speed }) => {
-      setUploadPercent(percent || 0)
-      setUploadSpeed(speed || 0)
-    }
     const onComplete = (payload) => handleUploadSuccess(payload)
-    socket.on('upload-progress', onProgress)
     socket.on('upload-complete', onComplete)
     return () => {
-      socket.off('upload-progress', onProgress)
       socket.off('upload-complete', onComplete)
     }
   }, [socket, handleUploadSuccess])
@@ -231,6 +231,10 @@ export default function HomePage() {
 
     setUploading(true)
     setUploadPercent(0)
+    setUploadSpeed(0)
+    setUploadPhase('uploading')
+    uploadStartRef.current = Date.now()
+    lastBytesRef.current = { at: Date.now(), loaded: 0 }
     uploadHandledRef.current = false
 
     let uploadSucceeded = false
@@ -245,7 +249,38 @@ export default function HomePage() {
       }
       if (socketId) formData.append('socketId', socketId)
 
-      const response = await uploadFiles(formData)
+      const response = await uploadFiles(formData, {
+        onProgress: (info) => {
+          if (info?.retrying) {
+            setUploadPhase('retrying')
+            return
+          }
+          const total = Number(info?.total) || 0
+          const loaded = Number(info?.loaded) || 0
+          if (!total) return
+
+          // Cap visible bar at 99% until the server response confirms finalization.
+          const rawPct = (loaded / total) * 100
+          const visiblePct = Math.min(99, rawPct)
+          setUploadPercent(visiblePct)
+
+          // Speed: bytes/sec over the most recent window (~750ms).
+          const now = Date.now()
+          const last = lastBytesRef.current
+          const dt = (now - last.at) / 1000
+          if (dt >= 0.75) {
+            const speed = Math.max(0, Math.round((loaded - last.loaded) / dt))
+            setUploadSpeed(speed)
+            lastBytesRef.current = { at: now, loaded }
+          }
+
+          if (loaded >= total) {
+            setUploadPhase('finalizing')
+          } else {
+            setUploadPhase('uploading')
+          }
+        },
+      })
 
       // Strict success validation: never navigate without a valid transfer code.
       const transferCode = typeof response?.code === 'string' ? response.code.trim() : ''
@@ -551,7 +586,19 @@ export default function HomePage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                   >
-                    <ProgressBar percent={uploadPercent} speed={uploadSpeed} label="Uploading..." />
+                    <ProgressBar
+                      percent={uploadPhase === 'finalizing' ? 100 : uploadPercent}
+                      speed={uploadPhase === 'uploading' ? uploadSpeed : 0}
+                      label={
+                        uploadPhase === 'retrying'
+                          ? 'Connection hiccup, retrying...'
+                          : uploadPhase === 'finalizing'
+                            ? 'Finalizing on server...'
+                            : 'Uploading...'
+                      }
+                      indeterminate={uploadPhase === 'finalizing' || uploadPhase === 'retrying'}
+                      showSpeed={uploadPhase === 'uploading'}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>
