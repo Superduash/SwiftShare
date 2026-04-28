@@ -1,21 +1,48 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { pingServer } from '../services/api'
+import { useSocket } from './SocketContext'
 
 const ConnectionHealthContext = createContext(null)
 
 // States: 'connected' | 'reconnecting' | 'waking' | 'offline'
-// 'waking' = first connection attempt (cold start), 'reconnecting' = was connected, lost it
+//
+// The banner is intentionally pessimistic to display: it only appears when we
+// have *strong* evidence the user is offline. Mobile networks routinely drop a
+// single HTTP request while a long-lived Socket.IO connection on the same
+// domain stays healthy — showing "Reconnecting..." in that case is a lie that
+// scares users away. So the rules are:
+//
+//   1. Start optimistic ('connected'). The banner does not flash on first paint.
+//   2. If the socket is connected, we are connected. Period.
+//   3. Only flip to 'reconnecting'/'waking' after MIN_FAILURES consecutive
+//      ping failures *and* the socket is not connected.
 
-const BACKOFF_SCHEDULE = [1000, 2000, 4000, 8000, 12000, 15000] // max ~15s between retries
+const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
+const MIN_FAILURES_BEFORE_BANNER = 2
 
 export function ConnectionHealthProvider({ children }) {
-  const [status, setStatus] = useState('reconnecting') // start optimistic but uncertain
+  const [status, setStatus] = useState('connected')
   const [lastOk, setLastOk] = useState(null)
   const everConnectedRef = useRef(false)
   const intervalRef = useRef(null)
-  const retryCountRef = useRef(0)
+  const failureCountRef = useRef(0)
   const mountedRef = useRef(true)
   const checkingRef = useRef(false)
+  const socketConnectedRef = useRef(false)
+
+  const { isConnected: socketConnected } = useSocket()
+
+  // The socket connecting is the strongest possible "we have a working link
+  // to the backend" signal — if it's up, suppress any banner immediately.
+  useEffect(() => {
+    socketConnectedRef.current = Boolean(socketConnected)
+    if (socketConnected) {
+      everConnectedRef.current = true
+      failureCountRef.current = 0
+      setStatus((prev) => (prev === 'offline' ? prev : 'connected'))
+      setLastOk(Date.now())
+    }
+  }, [socketConnected])
 
   const checkHealth = useCallback(async () => {
     if (checkingRef.current) return
@@ -28,23 +55,27 @@ export function ConnectionHealthProvider({ children }) {
 
       if (result.ok) {
         everConnectedRef.current = true
-        retryCountRef.current = 0
-        setStatus('connected')
+        failureCountRef.current = 0
+        setStatus((prev) => (prev === 'offline' ? prev : 'connected'))
         setLastOk(Date.now())
       } else {
-        retryCountRef.current += 1
+        failureCountRef.current += 1
+        // Suppress banner when socket is alive — that link is the source of truth.
+        if (socketConnectedRef.current) return
+        if (failureCountRef.current < MIN_FAILURES_BEFORE_BANNER) return
         setStatus(everConnectedRef.current ? 'reconnecting' : 'waking')
       }
     } catch {
       if (!mountedRef.current) return
-      retryCountRef.current += 1
+      failureCountRef.current += 1
+      if (socketConnectedRef.current) return
+      if (failureCountRef.current < MIN_FAILURES_BEFORE_BANNER) return
       setStatus(everConnectedRef.current ? 'reconnecting' : 'waking')
     } finally {
       checkingRef.current = false
     }
   }, [])
 
-  // Initial check + adaptive polling
   useEffect(() => {
     mountedRef.current = true
     void checkHealth()
@@ -52,14 +83,12 @@ export function ConnectionHealthProvider({ children }) {
     function scheduleNext() {
       if (intervalRef.current) clearTimeout(intervalRef.current)
 
-      // When connected: poll every 45s (lightweight keepalive check)
-      // When not connected: use backoff schedule
       let delay
-      if (everConnectedRef.current && retryCountRef.current === 0) {
+      if (everConnectedRef.current && failureCountRef.current === 0) {
         delay = 45000
       } else {
-        const idx = Math.min(retryCountRef.current, BACKOFF_SCHEDULE.length - 1)
-        delay = BACKOFF_SCHEDULE[idx]
+        const idx = Math.min(failureCountRef.current, BACKOFF_SCHEDULE.length - 1)
+        delay = BACKOFF_SCHEDULE[idx] || 15000
       }
 
       intervalRef.current = setTimeout(async () => {
@@ -77,7 +106,6 @@ export function ConnectionHealthProvider({ children }) {
     }
   }, [checkHealth])
 
-  // When tab becomes visible again, check immediately
   useEffect(() => {
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
@@ -85,13 +113,16 @@ export function ConnectionHealthProvider({ children }) {
       }
     }
 
-    // When browser comes back online, check immediately
     function onOnline() {
       void checkHealth()
     }
 
     function onOffline() {
-      setStatus('offline')
+      // Only trust the browser's offline event if the socket also looks dead —
+      // some mobile browsers fire false offline events on screen lock.
+      if (!socketConnectedRef.current) {
+        setStatus('offline')
+      }
     }
 
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -106,7 +137,7 @@ export function ConnectionHealthProvider({ children }) {
   }, [checkHealth])
 
   const forceCheck = useCallback(() => {
-    retryCountRef.current = 0
+    failureCountRef.current = 0
     void checkHealth()
   }, [checkHealth])
 

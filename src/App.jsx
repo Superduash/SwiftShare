@@ -169,8 +169,8 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
-      <ConnectionHealthProvider>
-        <SocketProvider>
+      <SocketProvider>
+        <ConnectionHealthProvider>
           <TransferProvider>
             <BrowserRouter>
               <ConnectionBanner />
@@ -197,8 +197,8 @@ export default function App() {
             }}
           />
           </TransferProvider>
-        </SocketProvider>
-      </ConnectionHealthProvider>
+        </ConnectionHealthProvider>
+      </SocketProvider>
     </MotionConfig>
   )
 }
