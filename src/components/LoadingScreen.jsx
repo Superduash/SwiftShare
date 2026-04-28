@@ -13,7 +13,7 @@ export default function LoadingScreen({ message = 'Loading...' }) {
       >
         <motion.div
           className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center"
-          style={{ background: 'var(--accent)', boxShadow: '0 4px 20px rgba(232,99,74,0.3)' }}
+          style={{ background: 'var(--accent)', boxShadow: '0 4px 20px var(--accent-glow)' }}
           animate={{ scale: [1, 1.08, 1] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
         >

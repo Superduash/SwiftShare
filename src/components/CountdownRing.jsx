@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { formatTime } from '../utils/format'
 
-export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600, size = 120, showLabel = true }) {
+function CountdownRingBase({ secondsRemaining = 0, totalSeconds = 600, size = 120, showLabel = true }) {
   const safe = Math.max(0, Number(secondsRemaining) || 0)
   const total = Math.max(1, Number(totalSeconds) || 600)
   const progress = Math.max(0, Math.min(1, safe / total))
@@ -70,3 +70,13 @@ export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600
     </div>
   )
 }
+
+// Memoized: the ring re-renders once per second from countdown-tick events,
+// but parents may re-render more often (download progress, AI updates, etc).
+// Comparing on rounded seconds prevents redundant SVG path recalculation.
+export default memo(CountdownRingBase, (prev, next) => (
+  Math.round(prev.secondsRemaining) === Math.round(next.secondsRemaining)
+  && prev.totalSeconds === next.totalSeconds
+  && prev.size === next.size
+  && prev.showLabel === next.showLabel
+))

@@ -415,9 +415,23 @@ export default function DownloadPage() {
       saveCachedAI(normalizedCode, data)
       patchCachedTransfer({ ai: data })
     }
+    // RAF-coalesce socket-driven download progress. Backend now throttles emits
+    // to ~5/sec, but on a fast LAN we can still get bursty updates that would
+    // queue redundant renders. Coalesce so the bar advances smoothly at 60fps.
+    let downProgRaf = 0
+    let pendingDownPct = -1
     const onDownProg = ({ percent }) => {
       if (!downloadingRef.current) return
-      setDownloadPercent(percent || 0)
+      const pct = Number(percent) || 0
+      pendingDownPct = pct
+      if (downProgRaf) return
+      downProgRaf = requestAnimationFrame(() => {
+        downProgRaf = 0
+        if (pendingDownPct >= 0) {
+          setDownloadPercent(pendingDownPct)
+          pendingDownPct = -1
+        }
+      })
     }
     const onDownComplete = () => {
       if (metaRef.current?.burnAfterDownload) {
@@ -479,6 +493,10 @@ export default function DownloadPage() {
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-claimed', onClaimed)
       socket.off('transfer-receipt', onReceipt)
+      if (downProgRaf) {
+        cancelAnimationFrame(downProgRaf)
+        downProgRaf = 0
+      }
       leaveRoom(normalizedCode)
     }
   }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, patchCachedTransfer])
@@ -535,13 +553,19 @@ export default function DownloadPage() {
 
       const currentSettings = getSettings()
 
-      // Confetti!
+      // Confetti! Pull the active theme's accent + success + info from CSS vars
+      // so a Forest theme gets emerald confetti, Sakura gets rose, etc., instead
+      // of always firing sunset-orange.
       if (!currentSettings.reducedMotion) {
+        const cs = getComputedStyle(document.documentElement)
+        const themeColors = ['--accent', '--accent-hover', '--success', '--info', '--warning']
+          .map((v) => cs.getPropertyValue(v).trim())
+          .filter(Boolean)
         confetti({
           particleCount: 72,
           spread: 80,
           origin: { y: 0.6 },
-          colors: ['#E8634A', '#FFB88A', '#FF9A5C', '#16A34A', '#0891B2'],
+          colors: themeColors.length ? themeColors : ['#E8634A', '#16A34A', '#0891B2'],
         })
       }
 

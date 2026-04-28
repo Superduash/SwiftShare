@@ -365,7 +365,21 @@ export default function SenderPage() {
       saveCachedAI(normalizedCode, data)
       patchCachedTransfer({ ai: data })
     }
-    const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
+    // RAF-coalesce: percent updates can land faster than React renders,
+    // especially on multi-receiver downloads where each percent is broadcast.
+    let downProgRaf = 0
+    let pendingDownPct = -1
+    const onDownProg = ({ percent }) => {
+      pendingDownPct = Number(percent) || 0
+      if (downProgRaf) return
+      downProgRaf = requestAnimationFrame(() => {
+        downProgRaf = 0
+        if (pendingDownPct >= 0) {
+          setDownloadProgress(pendingDownPct)
+          pendingDownPct = -1
+        }
+      })
+    }
     const onDownComplete = () => {
       setDownloadProgress(100)
       if (metaRef.current?.burnAfterDownload) {
@@ -440,6 +454,10 @@ export default function SenderPage() {
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-extended', onExtended)
       socket.off('activity-updated', onActivityUpdated)
+      if (downProgRaf) {
+        cancelAnimationFrame(downProgRaf)
+        downProgRaf = 0
+      }
       leaveRoom(normalizedCode)
     }
   }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh])

@@ -3,7 +3,9 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════
-   THEME: SUNSET (Golden Hour)
+   THEME: SUNSET (Golden Hour) — warm terracotta + ember
+   Feature colors are pulled from the same warm spectrum as the accent
+   so the palette feels intentional, not a generic light theme tinted orange.
    ═══════════════════════════════════════════ */
 [data-theme="sunset"] {
   --bg: #FFF7F0;
@@ -24,14 +26,20 @@
   --accent-hover: #D44020;
   --accent-soft: rgba(240,82,42,0.08);
   --accent-medium: rgba(240,82,42,0.16);
-  --success: #15803D;
-  --success-soft: rgba(21,128,61,0.08);
-  --warning: #C2410C;
-  --warning-soft: rgba(194,65,12,0.08);
-  --danger: #B91C1C;
-  --danger-soft: rgba(185,28,28,0.08);
-  --info: #0369A1;
-  --info-soft: rgba(3,105,161,0.08);
+  --accent-glow: rgba(240,82,42,0.28);
+  /* Olive-mustard green sits in the warm half of the wheel — feels like sun-baked
+     foliage rather than a Tailwind-stock emerald that would clash with terracotta. */
+  --success: #6B8E23;
+  --success-soft: rgba(107,142,35,0.10);
+  /* Pumpkin: deeper amber than the accent so they don't fight for attention. */
+  --warning: #B45309;
+  --warning-soft: rgba(180,83,9,0.10);
+  /* Brick: warm crimson with red-brown undertone matching the bg. */
+  --danger: #9F1239;
+  --danger-soft: rgba(159,18,57,0.10);
+  /* Warm teal: complementary cool note that still feels desert-evening. */
+  --info: #0E7490;
+  --info-soft: rgba(14,116,144,0.10);
   --ring-track: #F5DECE;
   --shimmer-from: #F5DECE;
   --shimmer-to: #FFE5CC;
@@ -52,19 +60,23 @@
   --settings-bg: #FFFFFF;
   --file-icon-bg: rgba(240,82,42,0.08);
   --file-icon-color: #F0522A;
-  --ai-bg: linear-gradient(135deg, #FFF3E8 0%, #FFE5CC 100%);
+  --ai-bg: linear-gradient(135deg, #FFEDD5 0%, #FED7AA 100%);
   --ai-border: #F5DECE;
   --ai-icon: #F0522A;
   --nearby-bg: #FFF3E8;
   --tag-bg: #FFE5CC;
   --tag-text: #D44020;
   --progress-track: #F5DECE;
-  --progress-fill: #F0522A;
+  --progress-fill: linear-gradient(90deg, #F0522A 0%, #F59E0B 100%);
+  --progress-glow: rgba(240,82,42,0.30);
   --skeleton: linear-gradient(90deg, #F5DECE 25%, #FFE5CC 50%, #F5DECE 75%);
+  --gradient-hero: linear-gradient(135deg, #F0522A 0%, #F59E0B 60%, #FCD34D 100%);
+  --shadow-card: 0 4px 24px rgba(240,82,42,0.06);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: DARK (Indigo Night)
+   THEME: DARK (Indigo Night) — synthwave-influenced cool palette
+   Cool jewel tones across all feature colors for a coherent neon-night feel.
    ═══════════════════════════════════════════ */
 [data-theme="dark"] {
   --bg: #0E0F14;
@@ -85,14 +97,19 @@
   --accent-hover: #6366F1;
   --accent-soft: rgba(129,140,248,0.09);
   --accent-medium: rgba(129,140,248,0.18);
-  --success: #34D399;
-  --success-soft: rgba(52,211,153,0.1);
+  --accent-glow: rgba(129,140,248,0.40);
+  /* Jade green: cool emerald with blue undertone matching indigo accent. */
+  --success: #2DD4BF;
+  --success-soft: rgba(45,212,191,0.12);
+  /* Amber yellow: pure neon gold, reads on dark indigo without warming the palette. */
   --warning: #FBBF24;
-  --warning-soft: rgba(251,191,36,0.1);
-  --danger: #F87171;
-  --danger-soft: rgba(248,113,113,0.1);
+  --warning-soft: rgba(251,191,36,0.12);
+  /* Hot pink: synthwave magenta, reads as "danger" against indigo. */
+  --danger: #F472B6;
+  --danger-soft: rgba(244,114,182,0.12);
+  /* Electric cyan: secondary neon accent. */
   --info: #22D3EE;
-  --info-soft: rgba(34,211,238,0.1);
+  --info-soft: rgba(34,211,238,0.12);
   --ring-track: #1D2030;
   --shimmer-from: #1D2030;
   --shimmer-to: #2E3250;
@@ -113,19 +130,23 @@
   --settings-bg: #16181F;
   --file-icon-bg: rgba(129,140,248,0.09);
   --file-icon-color: #818CF8;
-  --ai-bg: linear-gradient(135deg, #16181F 0%, #1D2030 100%);
+  --ai-bg: linear-gradient(135deg, #1E1B4B 0%, #312E81 100%);
   --ai-border: #2E3250;
   --ai-icon: #818CF8;
   --nearby-bg: #16181F;
-  --tag-bg: rgba(129,140,248,0.12);
+  --tag-bg: rgba(129,140,248,0.18);
   --tag-text: #C7D2FE;
   --progress-track: #1D2030;
-  --progress-fill: #818CF8;
+  --progress-fill: linear-gradient(90deg, #6366F1 0%, #818CF8 50%, #22D3EE 100%);
+  --progress-glow: rgba(129,140,248,0.45);
   --skeleton: linear-gradient(90deg, #1D2030 25%, #2E3250 50%, #1D2030 75%);
+  --gradient-hero: linear-gradient(135deg, #818CF8 0%, #C084FC 50%, #22D3EE 100%);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.40);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: LIGHT (Indigo Studio)
+   THEME: LIGHT (Indigo Studio) — clean editorial / blueprint
+   Cool studio palette: deep indigo primary, with feature colors leaning blue-green.
    ═══════════════════════════════════════════ */
 [data-theme="light"] {
   --bg: #F8F9FB;
@@ -146,14 +167,19 @@
   --accent-hover: #4338CA;
   --accent-soft: rgba(79,70,229,0.07);
   --accent-medium: rgba(79,70,229,0.13);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
+  --accent-glow: rgba(79,70,229,0.22);
+  /* Forest green: deeper than mint, reads as "verified" in editorial UIs. */
+  --success: #047857;
+  --success-soft: rgba(4,120,87,0.10);
+  /* Tangerine: warmer than gold, contrasts the cool indigo without clashing. */
+  --warning: #EA580C;
+  --warning-soft: rgba(234,88,12,0.10);
+  /* Crimson: classic editorial alert, bright on white. */
   --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
+  --danger-soft: rgba(220,38,38,0.10);
+  /* Cerulean: blueprint blue, sibling to indigo accent. */
+  --info: #0284C7;
+  --info-soft: rgba(2,132,199,0.10);
   --ring-track: #E4E6F0;
   --shimmer-from: #E4E6F0;
   --shimmer-to: #C9CCE0;
@@ -174,19 +200,24 @@
   --settings-bg: #FFFFFF;
   --file-icon-bg: rgba(79,70,229,0.07);
   --file-icon-color: #4F46E5;
-  --ai-bg: linear-gradient(135deg, #FFFFFF 0%, #F0F2F8 100%);
+  --ai-bg: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
   --ai-border: #E4E6F0;
   --ai-icon: #4F46E5;
   --nearby-bg: #F4F5FA;
   --tag-bg: #EAECF8;
   --tag-text: #4338CA;
   --progress-track: #E4E6F0;
-  --progress-fill: #4F46E5;
+  --progress-fill: linear-gradient(90deg, #4F46E5 0%, #6366F1 100%);
+  --progress-glow: rgba(79,70,229,0.25);
   --skeleton: linear-gradient(90deg, #E4E6F0 25%, #C9CCE0 50%, #E4E6F0 75%);
+  --gradient-hero: linear-gradient(135deg, #4F46E5 0%, #0284C7 100%);
+  --shadow-card: 0 4px 24px rgba(15,23,42,0.06);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: MIDNIGHT (Deep Navy)
+   THEME: MIDNIGHT (Deep Navy) — astronomical / oceanic
+   Deep ocean palette. Feature colors all sit in the cool aquatic spectrum
+   so the theme reads as a single unified scene rather than recolored stock.
    ═══════════════════════════════════════════ */
 [data-theme="midnight"] {
   --bg: #070B14;
@@ -207,14 +238,19 @@
   --accent-hover: #2563EB;
   --accent-soft: rgba(59,130,246,0.08);
   --accent-medium: rgba(59,130,246,0.16);
-  --success: #34D399;
-  --success-soft: rgba(52,211,153,0.1);
-  --warning: #FBBF24;
-  --warning-soft: rgba(251,191,36,0.1);
-  --danger: #F87171;
-  --danger-soft: rgba(248,113,113,0.1);
+  --accent-glow: rgba(59,130,246,0.45);
+  /* Bioluminescent teal: oceanic, distinct from the indigo-night green. */
+  --success: #14B8A6;
+  --success-soft: rgba(20,184,166,0.12);
+  /* Polished gold: warm enough to register as caution against deep blue. */
+  --warning: #EAB308;
+  --warning-soft: rgba(234,179,8,0.12);
+  /* Coral: warm-side red so danger doesn't get lost in the cool palette. */
+  --danger: #FB7185;
+  --danger-soft: rgba(251,113,133,0.12);
+  /* Aquamarine: secondary cool accent for info, sits between accent and success. */
   --info: #38BDF8;
-  --info-soft: rgba(56,189,248,0.1);
+  --info-soft: rgba(56,189,248,0.12);
   --ring-track: #1C2D4A;
   --shimmer-from: #1C2D4A;
   --shimmer-to: #2A4270;
@@ -235,19 +271,25 @@
   --settings-bg: #0D1526;
   --file-icon-bg: rgba(59,130,246,0.08);
   --file-icon-color: #3B82F6;
-  --ai-bg: linear-gradient(135deg, #0D1526 0%, #142035 100%);
+  --ai-bg: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
   --ai-border: #2A4270;
   --ai-icon: #3B82F6;
   --nearby-bg: #0D1526;
-  --tag-bg: rgba(59,130,246,0.12);
+  --tag-bg: rgba(59,130,246,0.18);
   --tag-text: #93C5FD;
   --progress-track: #1C2D4A;
-  --progress-fill: #3B82F6;
+  --progress-fill: linear-gradient(90deg, #2563EB 0%, #3B82F6 50%, #38BDF8 100%);
+  --progress-glow: rgba(59,130,246,0.50);
   --skeleton: linear-gradient(90deg, #1C2D4A 25%, #2A4270 50%, #1C2D4A 75%);
+  --gradient-hero: linear-gradient(135deg, #3B82F6 0%, #14B8A6 100%);
+  --shadow-card: 0 4px 32px rgba(0,0,0,0.55);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: SAKURA (Soft Red/Pink)
+   THEME: SAKURA (Cherry Blossom) — soft floral pastels
+   The danger isn't a generic red (which would clash with the rose accent);
+   it's wine. Warning is peach, info is plum — all chosen so badges
+   don't fight each other in a pink-dominant scene.
    ═══════════════════════════════════════════ */
 [data-theme="sakura"] {
   --bg: #FFF0F3;
@@ -268,14 +310,19 @@
   --accent-hover: #C9184A;
   --accent-soft: rgba(255,77,109,0.08);
   --accent-medium: rgba(255,77,109,0.15);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
-  --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
+  --accent-glow: rgba(255,77,109,0.30);
+  /* Spring mint: bright fresh green, the "leaves" against blossom petals. */
+  --success: #10B981;
+  --success-soft: rgba(16,185,129,0.10);
+  /* Peach: a warm coral that complements pink without competing. */
+  --warning: #F97316;
+  --warning-soft: rgba(249,115,22,0.10);
+  /* Wine: deep red-burgundy — distinct from the rose accent so danger reads. */
+  --danger: #9F1239;
+  --danger-soft: rgba(159,18,57,0.10);
+  /* Plum: purple-pink, sister tone to the accent, used for info notes. */
+  --info: #A21CAF;
+  --info-soft: rgba(162,28,175,0.10);
   --ring-track: #FFCCD5;
   --shimmer-from: #FFCCD5;
   --shimmer-to: #FFB3C1;
@@ -296,19 +343,24 @@
   --settings-bg: #FFFFFF;
   --file-icon-bg: rgba(255,77,109,0.08);
   --file-icon-color: #FF4D6D;
-  --ai-bg: linear-gradient(135deg, #FFF5F7 0%, #FFEAEE 100%);
+  --ai-bg: linear-gradient(135deg, #FFE4E9 0%, #FBCFE8 100%);
   --ai-border: #FFCCD5;
   --ai-icon: #FF4D6D;
   --nearby-bg: #FFF5F7;
   --tag-bg: #FFEAEE;
   --tag-text: #C9184A;
   --progress-track: #FFCCD5;
-  --progress-fill: #FF4D6D;
+  --progress-fill: linear-gradient(90deg, #FF4D6D 0%, #F472B6 100%);
+  --progress-glow: rgba(255,77,109,0.30);
   --skeleton: linear-gradient(90deg, #FFCCD5 25%, #FFB3C1 50%, #FFCCD5 75%);
+  --gradient-hero: linear-gradient(135deg, #FF4D6D 0%, #F472B6 50%, #C084FC 100%);
+  --shadow-card: 0 4px 24px rgba(255,77,109,0.10);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: LAVENDER (Soft Violet)
+   THEME: LAVENDER (Soft Violet) — perfumed botanical
+   Violet primary with herbal/sage feature colors so it never feels like
+   a generic light theme with purple swapped in.
    ═══════════════════════════════════════════ */
 [data-theme="lavender"] {
   --bg: #F6F4FF;
@@ -329,14 +381,19 @@
   --accent-hover: #6D28D9;
   --accent-soft: rgba(124,58,237,0.08);
   --accent-medium: rgba(124,58,237,0.15);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
-  --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
+  --accent-glow: rgba(124,58,237,0.28);
+  /* Sage teal: muted, herbal — the green-grey of lavender-bush leaves. */
+  --success: #0F766E;
+  --success-soft: rgba(15,118,110,0.10);
+  /* Honey amber: muted gold, warm enough to register on cool violet. */
+  --warning: #CA8A04;
+  --warning-soft: rgba(202,138,4,0.10);
+  /* Magenta-rose: pink-red so danger reads against violet without echoing it. */
+  --danger: #BE185D;
+  --danger-soft: rgba(190,24,93,0.10);
+  /* Indigo: deep blue-violet sibling for info, distinct from the primary. */
+  --info: #4338CA;
+  --info-soft: rgba(67,56,202,0.10);
   --ring-track: #DDD5FF;
   --shimmer-from: #DDD5FF;
   --shimmer-to: #C4B5FD;
@@ -357,19 +414,23 @@
   --settings-bg: #FFFFFF;
   --file-icon-bg: rgba(124,58,237,0.08);
   --file-icon-color: #7C3AED;
-  --ai-bg: linear-gradient(135deg, #FAF8FF 0%, #EDE8FF 100%);
+  --ai-bg: linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%);
   --ai-border: #DDD5FF;
   --ai-icon: #7C3AED;
   --nearby-bg: #FAF8FF;
   --tag-bg: #EDE8FF;
   --tag-text: #6D28D9;
   --progress-track: #DDD5FF;
-  --progress-fill: #7C3AED;
+  --progress-fill: linear-gradient(90deg, #6D28D9 0%, #7C3AED 50%, #C084FC 100%);
+  --progress-glow: rgba(124,58,237,0.30);
   --skeleton: linear-gradient(90deg, #DDD5FF 25%, #C4B5FD 50%, #DDD5FF 75%);
+  --gradient-hero: linear-gradient(135deg, #7C3AED 0%, #4338CA 100%);
+  --shadow-card: 0 4px 24px rgba(124,58,237,0.10);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: FOREST (Dark Emerald)
+   THEME: FOREST (Dark Emerald) — bioluminescent canopy
+   All feature colors evoke a night forest: glowing moss, fireflies, mushrooms.
    ═══════════════════════════════════════════ */
 [data-theme="forest"] {
   --bg: #080F0C;
@@ -390,14 +451,19 @@
   --accent-hover: #0BB875;
   --accent-soft: rgba(16,217,138,0.08);
   --accent-medium: rgba(16,217,138,0.15);
-  --success: #4ADE80;
-  --success-soft: rgba(74,222,128,0.1);
-  --warning: #FCD34D;
-  --warning-soft: rgba(252,211,77,0.1);
-  --danger: #FCA5A5;
-  --danger-soft: rgba(252,165,165,0.1);
-  --info: #67E8F9;
-  --info-soft: rgba(103,232,249,0.1);
+  --accent-glow: rgba(16,217,138,0.45);
+  /* Lime-chartreuse: the brightest moss-green, distinct from the emerald accent. */
+  --success: #A3E635;
+  --success-soft: rgba(163,230,53,0.12);
+  /* Firefly amber: warm yellow, looks like glowing bugs in the dark canopy. */
+  --warning: #FACC15;
+  --warning-soft: rgba(250,204,21,0.12);
+  /* Toxic-mushroom coral: warm red against the cool forest, reads as alarm. */
+  --danger: #FB7185;
+  --danger-soft: rgba(251,113,133,0.12);
+  /* Glacial cyan: cool stream-water tone, a sibling of the emerald primary. */
+  --info: #22D3EE;
+  --info-soft: rgba(34,211,238,0.12);
   --ring-track: #1E3328;
   --shimmer-from: #1E3328;
   --shimmer-to: #2C4D3E;
@@ -418,19 +484,24 @@
   --settings-bg: #0F1A14;
   --file-icon-bg: rgba(16,217,138,0.08);
   --file-icon-color: #10D98A;
-  --ai-bg: linear-gradient(135deg, #0F1A14 0%, #16251A 100%);
+  --ai-bg: linear-gradient(135deg, #022C22 0%, #064E3B 100%);
   --ai-border: #2C4D3E;
   --ai-icon: #10D98A;
   --nearby-bg: #0F1A14;
-  --tag-bg: rgba(16,217,138,0.12);
+  --tag-bg: rgba(16,217,138,0.18);
   --tag-text: #6EF5BC;
   --progress-track: #1E3328;
-  --progress-fill: #10D98A;
+  --progress-fill: linear-gradient(90deg, #10D98A 0%, #A3E635 100%);
+  --progress-glow: rgba(16,217,138,0.50);
   --skeleton: linear-gradient(90deg, #1E3328 25%, #2C4D3E 50%, #1E3328 75%);
+  --gradient-hero: linear-gradient(135deg, #10D98A 0%, #A3E635 100%);
+  --shadow-card: 0 4px 28px rgba(0,0,0,0.50);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: VOLCANIC (Obsidian Ember)
+   THEME: VOLCANIC (Obsidian Ember) — molten rock + lava
+   Hot earth-tones across the palette. Warning is molten gold; danger is
+   blood-red lava; info is a cool ash-cyan to provide one cool note.
    ═══════════════════════════════════════════ */
 [data-theme="volcanic"] {
   --bg: #0C0A08;
@@ -451,14 +522,19 @@
   --accent-hover: #EA6010;
   --accent-soft: rgba(249,115,22,0.08);
   --accent-medium: rgba(249,115,22,0.16);
-  --success: #86EFAC;
-  --success-soft: rgba(134,239,172,0.1);
-  --warning: #FDE047;
-  --warning-soft: rgba(253,224,71,0.1);
-  --danger: #FCA5A5;
-  --danger-soft: rgba(252,165,165,0.1);
-  --info: #67E8F9;
-  --info-soft: rgba(103,232,249,0.1);
+  --accent-glow: rgba(249,115,22,0.50);
+  /* Sulphur-lime: the bright green of toxic minerals, fits hot-rock palette. */
+  --success: #84CC16;
+  --success-soft: rgba(132,204,22,0.12);
+  /* Molten gold: warmer than amber, like flowing magma's brightest edge. */
+  --warning: #FACC15;
+  --warning-soft: rgba(250,204,21,0.12);
+  /* Blood-lava red: hottest core color, only used for danger so it stays meaningful. */
+  --danger: #EF4444;
+  --danger-soft: rgba(239,68,68,0.12);
+  /* Ash-cyan: the one cool note, like cool air rising from cooled obsidian. */
+  --info: #06B6D4;
+  --info-soft: rgba(6,182,212,0.12);
   --ring-track: #28241F;
   --shimmer-from: #28241F;
   --shimmer-to: #3C3632;
@@ -479,15 +555,18 @@
   --settings-bg: #1C1917;
   --file-icon-bg: rgba(249,115,22,0.08);
   --file-icon-color: #F97316;
-  --ai-bg: linear-gradient(135deg, #1C1917 0%, #28241F 100%);
+  --ai-bg: linear-gradient(135deg, #431407 0%, #7C2D12 100%);
   --ai-border: #52484A;
   --ai-icon: #F97316;
   --nearby-bg: #1C1917;
-  --tag-bg: rgba(249,115,22,0.12);
+  --tag-bg: rgba(249,115,22,0.18);
   --tag-text: #FDBA74;
   --progress-track: #28241F;
-  --progress-fill: #F97316;
+  --progress-fill: linear-gradient(90deg, #DC2626 0%, #F97316 50%, #FACC15 100%);
+  --progress-glow: rgba(249,115,22,0.55);
   --skeleton: linear-gradient(90deg, #28241F 25%, #3C3632 50%, #28241F 75%);
+  --gradient-hero: linear-gradient(135deg, #DC2626 0%, #F97316 50%, #FACC15 100%);
+  --shadow-card: 0 4px 28px rgba(0,0,0,0.55);
 }
 
 /* ═══════════════════════════════════════════
@@ -520,7 +599,9 @@ a { color: inherit; text-decoration: none; }
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
   }
   .surface-card:hover {
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    /* Per-theme shadow — dark themes need deeper shadows than light ones,
+       and accented light themes look richer with a tinted shadow. */
+    box-shadow: var(--shadow-card, 0 4px 24px rgba(0,0,0,0.06));
   }
   .surface-card-flat {
     background: var(--surface);
@@ -546,7 +627,9 @@ a { color: inherit; text-decoration: none; }
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(232,99,74,0.25);
+    /* Per-theme glow — was hardcoded sunset-orange, which bled into every other
+       theme's primary buttons. --accent-glow is defined per theme to match. */
+    box-shadow: 0 4px 16px var(--accent-glow);
   }
   .btn-primary:active:not(:disabled) { transform: translateY(0); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }

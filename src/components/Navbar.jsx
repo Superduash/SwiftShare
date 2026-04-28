@@ -30,7 +30,7 @@ export default function Navbar() {
             <Link to="/" className="flex items-center gap-2 group">
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
-                style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(232,99,74,0.25)' }}
+                style={{ background: 'var(--accent)', boxShadow: '0 2px 8px var(--accent-glow)' }}
               >
                 <Zap size={16} color={theme === 'dark' ? '#0F1014' : '#fff'} strokeWidth={2.5} />
               </div>
