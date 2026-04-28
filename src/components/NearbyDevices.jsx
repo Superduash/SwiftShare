@@ -104,9 +104,17 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
       return
     }
 
+    // Safety timeout: if no nearby-devices event arrives within 5s of mount,
+    // stop showing the loading spinner so the UI doesn't hang forever.
+    const loadingTimeoutId = setTimeout(() => {
+      if (mountedRef.current) {
+        setLoading(false)
+      }
+    }, 5000)
+
     const onNearbyDevices = (payload = {}) => {
       if (!mountedRef.current) return
-      
+      clearTimeout(loadingTimeoutId)
       try {
         const dedupedDevices = dedupeDevices(payload.devices, socketId)
         setDevices(dedupedDevices)
@@ -145,7 +153,9 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     const requestNearby = () => {
       if (!mountedRef.current) return
       if (document.hidden) return
-      if (!isConnected) return
+      // Check socket.connected directly (more reliable than isConnected state which
+      // may lag behind the actual socket state by one render cycle)
+      if (!socket.connected && !isConnected) return
       
       const now = Date.now()
       // Debounce: don't ping more than once every 5 seconds
@@ -189,6 +199,7 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     window.addEventListener('online', onOnline)
 
     return () => {
+      clearTimeout(loadingTimeoutId)
       clearInterval(iv)
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('online', onOnline)
