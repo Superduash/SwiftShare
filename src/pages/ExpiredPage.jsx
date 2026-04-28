@@ -55,8 +55,8 @@ export default function ExpiredPage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
 
-      <main className="pt-14">
-        <div className="max-w-md mx-auto px-4 sm:px-6 py-20 text-center">
+      <main className="app-main-offset">
+        <div className="page-shell-narrow py-20 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}

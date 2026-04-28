@@ -878,8 +878,12 @@ export default function SenderPage() {
       <AnimatePresence>
         {cancelled && (
           <motion.div
-            className="fixed top-14 left-0 right-0 z-40 p-3 text-center"
-            style={{ background: 'var(--danger-soft)', borderBottom: '1px solid rgba(220,38,38,0.15)' }}
+            className="fixed left-0 right-0 z-40 p-3 text-center"
+            style={{
+              background: 'var(--danger-soft)',
+              borderBottom: '1px solid rgba(220,38,38,0.15)',
+              top: 'calc(var(--safe-top) + var(--connection-banner-height) + var(--navbar-height))',
+            }}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
@@ -891,8 +895,8 @@ export default function SenderPage() {
         )}
       </AnimatePresence>
 
-      <main className="pt-14">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <main className="app-main-offset">
+        <div className="page-shell-wide py-8">
           <div className="lg:grid lg:grid-cols-5 lg:gap-10">
 
             {/* ═══ LEFT: scrolling content ═══ */}

@@ -622,7 +622,7 @@ export default function DownloadPage() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
-        <div className="pt-20 max-w-lg mx-auto px-4 space-y-4">
+        <div className="app-main-offset page-shell-narrow py-8 sm:py-10 space-y-4">
           <div className="shimmer-block h-8 w-48" />
           <div className="shimmer-block h-32 w-full" />
           <div className="shimmer-block h-14 w-full" />
@@ -635,7 +635,7 @@ export default function DownloadPage() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
-        <div className="pt-20">
+        <div className="app-main-offset">
           <ErrorState
             code={requestError}
             onRetry={handleRetry}
@@ -667,8 +667,8 @@ export default function DownloadPage() {
         />
       </Suspense>
 
-      <main className="pt-14">
-        <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <main className="app-main-offset">
+        <div className="page-shell-narrow py-8 sm:py-12">
 
           {/* Status banner */}
           <AnimatePresence>
