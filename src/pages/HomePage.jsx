@@ -445,8 +445,8 @@ export default function HomePage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
 
-      <main className="pt-14">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
+      <main className="app-main-offset">
+        <div className="page-shell-wide py-8 lg:py-12">
 
           {/* Desktop: split layout */}
           <div className="lg:grid lg:grid-cols-5 lg:gap-10">

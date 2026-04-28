@@ -87,6 +87,15 @@ export default function ConnectionBanner() {
   const config = STATUS_CONFIG[displayStatus]
   const show = displayStatus !== 'connected' && config
 
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.toggle('connection-banner-visible', Boolean(show))
+
+    return () => {
+      root.classList.remove('connection-banner-visible')
+    }
+  }, [show])
+
   return (
     <AnimatePresence>
       {show && (
@@ -102,10 +111,13 @@ export default function ConnectionBanner() {
           aria-label={config.text}
         >
           <div
+            className="connection-banner-inner"
             style={{
               background: config.bg,
               borderBottom: `1px solid ${config.border}`,
+              minHeight: 'var(--connection-banner-height)',
               padding: '10px 16px',
+              paddingTop: 'calc(10px + var(--safe-top))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -117,11 +129,11 @@ export default function ConnectionBanner() {
             ) : (
               <config.icon size={16} style={{ color: config.color }} aria-hidden="true" />
             )}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: config.color }}>
+            <div className="connection-banner-copy" style={{ display: 'flex', flexDirection: 'column' }}>
+              <span className="connection-banner-title" style={{ fontSize: '13px', fontWeight: 600, color: config.color }}>
                 {config.text}
               </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>
+              <span className="connection-banner-sub" style={{ fontSize: '11px', color: 'var(--text-4)' }}>
                 {config.sub}
               </span>
             </div>

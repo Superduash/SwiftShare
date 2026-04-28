@@ -30,7 +30,7 @@ class RouteErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px' }}>
+        <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px' }}>
           <p style={{ color: 'var(--text)', fontWeight: 600 }}>Something went wrong loading this page.</p>
           <p style={{ color: 'var(--text-3)', fontSize: '13px', fontFamily: 'monospace' }}>{this.state.error?.message}</p>
           <button style={{ padding: '10px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Go Home</button>
@@ -166,6 +166,26 @@ export default function App() {
   useEffect(() => {
     document.body.classList.toggle('reduce-motion', Boolean(reducedMotion))
   }, [reducedMotion])
+
+  useEffect(() => {
+    const syncViewportHeight = () => {
+      const viewport = window.visualViewport
+      const height = viewport?.height || window.innerHeight || document.documentElement.clientHeight
+      const vh = Math.max(1, height * 0.01)
+      document.documentElement.style.setProperty('--app-vh', `${vh}px`)
+    }
+
+    syncViewportHeight()
+    window.addEventListener('resize', syncViewportHeight)
+    window.addEventListener('orientationchange', syncViewportHeight)
+    window.visualViewport?.addEventListener('resize', syncViewportHeight)
+
+    return () => {
+      window.removeEventListener('resize', syncViewportHeight)
+      window.removeEventListener('orientationchange', syncViewportHeight)
+      window.visualViewport?.removeEventListener('resize', syncViewportHeight)
+    }
+  }, [])
 
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>

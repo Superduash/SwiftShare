@@ -4,37 +4,29 @@ import { motion } from 'framer-motion'
 import { Settings, Zap, ArrowLeft } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useSocket } from '../context/SocketContext'
-import { useConnectionHealth } from '../context/ConnectionHealthContext'
 import SettingsPanel from './SettingsPanel'
 
 export default function Navbar() {
   const { theme } = useTheme()
   const { isConnected } = useSocket()
-  const { status: connectionStatus } = useConnectionHealth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
   const isHome = location.pathname === '/'
 
-  // Show banner offset when connection banner is visible
-  const bannerVisible = connectionStatus !== 'connected'
-
   return (
     <>
-      {/* Spacer for connection banner so navbar doesn't overlap it */}
-      {bannerVisible && <div style={{ height: '40px' }} aria-hidden="true" />}
-
       <nav
         className="fixed left-0 right-0 z-50 backdrop-blur-xl"
         style={{
-          top: bannerVisible ? '40px' : '0',
+          top: 'calc(var(--safe-top) + var(--connection-banner-height))',
           background: 'var(--nav-bg)',
           borderBottom: '1px solid var(--nav-border)',
-          transition: 'top 0.25s ease',
+          transition: 'top 0.25s ease, background 0.25s ease, border-color 0.25s ease',
         }}
         role="navigation"
         aria-label="Main navigation"
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="page-shell-wide flex items-center justify-between" style={{ height: 'var(--navbar-height)' }}>
           {/* Left */}
           <div className="flex items-center gap-3">
             {!isHome && (

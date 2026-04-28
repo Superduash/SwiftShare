@@ -205,8 +205,8 @@ export default function JoinPage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
 
-      <main className="pt-14">
-        <div className="max-w-lg mx-auto px-4 sm:px-6 py-12 sm:py-20">
+      <main className="app-main-offset">
+        <div className="page-shell-narrow py-12 sm:py-20">
           <motion.div
             className="text-center mb-10"
             initial={{ opacity: 0, y: 16 }}

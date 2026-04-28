@@ -581,6 +581,30 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --navbar-height: 56px;
+  --connection-banner-height: 0px;
+  --connection-banner-height-mobile: 52px;
+  --connection-banner-height-desktop: 46px;
+  --page-gutter: clamp(14px, 3.2vw, 28px);
+  --page-max-wide: 72rem;
+  --page-max-medium: 56rem;
+  --page-max-narrow: 34rem;
+  --app-vh: 1vh;
+  --app-header-offset: calc(var(--safe-top) + var(--navbar-height) + var(--connection-banner-height));
+}
+
+html.connection-banner-visible {
+  --connection-banner-height: var(--connection-banner-height-mobile);
+}
+
+@media (min-width: 640px) {
+  html.connection-banner-visible {
+    --connection-banner-height: var(--connection-banner-height-desktop);
+  }
+}
+
 body {
   font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
@@ -593,6 +617,16 @@ body {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transition: background 0.25s ease, color 0.25s ease;
+}
+
+.min-h-screen {
+  min-height: calc(var(--app-vh) * 100);
+}
+
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
 }
 input, button, textarea, select { 
   font: inherit;
@@ -836,6 +870,52 @@ a { color: inherit; text-decoration: none; }
   .interactive:active {
     transform: scale(0.98) translateZ(0);
   }
+
+  .app-main-offset {
+    padding-top: var(--app-header-offset);
+  }
+
+  .page-shell-wide,
+  .page-shell-medium,
+  .page-shell-narrow {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: max(var(--page-gutter), env(safe-area-inset-left));
+    padding-right: max(var(--page-gutter), env(safe-area-inset-right));
+  }
+
+  .page-shell-wide {
+    max-width: var(--page-max-wide);
+  }
+
+  .page-shell-medium {
+    max-width: var(--page-max-medium);
+  }
+
+  .page-shell-narrow {
+    max-width: var(--page-max-narrow);
+  }
+
+  .connection-banner-inner {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .connection-banner-copy {
+    min-width: 0;
+    max-width: min(92vw, 760px);
+    text-align: left;
+  }
+
+  .connection-banner-title {
+    display: block;
+    line-height: 1.15;
+  }
+
+  .connection-banner-sub {
+    display: block;
+    line-height: 1.15;
+  }
 }
 
 /* Scrollbar */
@@ -1042,6 +1122,17 @@ body.reduce-motion *::after {
     min-height: 200px;
   }
 
+  .page-shell-wide,
+  .page-shell-medium,
+  .page-shell-narrow {
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+
+  .connection-banner-sub {
+    display: none;
+  }
+
   /* Mobile-optimized modals */
   [role="dialog"] {
     max-height: 90vh;
@@ -1106,13 +1197,8 @@ body.reduce-motion *::after {
     padding-bottom: 16px !important;
   }
 
-  /* Optimize navbar height */
-  nav {
-    height: 48px;
-  }
-
-  .pt-14 {
-    padding-top: 48px;
+  :root {
+    --navbar-height: 48px;
   }
 }
 
