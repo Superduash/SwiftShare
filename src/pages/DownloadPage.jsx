@@ -77,6 +77,7 @@ export default function DownloadPage() {
   const [retryAttempt, setRetryAttempt] = useState(0)
   const [downloading, setDownloading] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
+  const [downloadSpeed, setDownloadSpeed] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
   const [previewSrc, setPreviewSrc] = useState(null)
   const [needsPassword, setNeedsPassword] = useState(Boolean(initialCachedTransfer?.passwordProtected))
@@ -420,16 +421,23 @@ export default function DownloadPage() {
     // queue redundant renders. Coalesce so the bar advances smoothly at 60fps.
     let downProgRaf = 0
     let pendingDownPct = -1
-    const onDownProg = ({ percent }) => {
+    let pendingDownSpeed = 0
+    const onDownProg = ({ percent, speed, loaded, total }) => {
       if (!downloadingRef.current) return
       const pct = Number(percent) || 0
+      const spd = Number(speed) || 0
       pendingDownPct = pct
+      pendingDownSpeed = spd
       if (downProgRaf) return
       downProgRaf = requestAnimationFrame(() => {
         downProgRaf = 0
         if (pendingDownPct >= 0) {
           setDownloadPercent(pendingDownPct)
           pendingDownPct = -1
+        }
+        if (pendingDownSpeed >= 0) {
+          setDownloadSpeed(pendingDownSpeed)
+          pendingDownSpeed = 0
         }
       })
     }
@@ -869,7 +877,7 @@ export default function DownloadPage() {
               <motion.div key="download" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {downloading ? (
                   <div className="surface-card p-5 mb-6">
-                    <ProgressBar percent={downloadPercent} label="Downloading..." showSpeed={false} />
+                    <ProgressBar percent={downloadPercent} speed={downloadSpeed} label="Downloading..." showSpeed={true} />
                   </div>
                 ) : isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
                   <button className="btn-primary w-full text-base mb-6" onClick={handleDownload}>
