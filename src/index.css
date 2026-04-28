@@ -573,18 +573,44 @@
    BASE RESETS
    ═══════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+html { 
+  scroll-behavior: smooth; 
+  -webkit-text-size-adjust: 100%;
+  /* Enable hardware acceleration for smoother rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
 body {
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Prevent text pixelation on transforms */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   transition: background 0.25s ease, color 0.25s ease;
 }
-input, button, textarea, select { font: inherit; }
-img { max-width: 100%; display: block; }
+input, button, textarea, select { 
+  font: inherit;
+  /* Prevent pixelation on interactive elements */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+img { 
+  max-width: 100%; 
+  display: block;
+  /* Prevent image pixelation */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+svg {
+  /* Prevent SVG pixelation */
+  shape-rendering: geometricPrecision;
+}
 a { color: inherit; text-decoration: none; }
 ::selection { background: var(--accent-medium); color: var(--text); }
 
@@ -596,17 +622,31 @@ a { color: inherit; text-decoration: none; }
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Prevent pixelation on hover */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    /* GPU acceleration */
+    will-change: transform;
   }
   .surface-card:hover {
     /* Per-theme shadow — dark themes need deeper shadows than light ones,
        and accented light themes look richer with a tinted shadow. */
     box-shadow: var(--shadow-card, 0 4px 24px rgba(0,0,0,0.06));
+    transform: translateY(-1px) translateZ(0);
   }
   .surface-card-flat {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .surface-card-flat:active {
+    background: var(--surface-hover);
   }
   .btn-primary {
     display: inline-flex;
@@ -621,17 +661,26 @@ a { color: inherit; text-decoration: none; }
     border-radius: 12px;
     border: none;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 48px;
+    /* Prevent pixelation on hover/transform */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    /* Touch feedback */
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
-    transform: translateY(-1px);
+    transform: translateY(-1px) translateZ(0);
     /* Per-theme glow — was hardcoded sunset-orange, which bled into every other
        theme's primary buttons. --accent-glow is defined per theme to match. */
     box-shadow: 0 4px 16px var(--accent-glow);
   }
-  .btn-primary:active:not(:disabled) { transform: translateY(0); }
+  .btn-primary:active:not(:disabled) { 
+    transform: translateY(0) translateZ(0) scale(0.98);
+  }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .btn-secondary {
@@ -647,12 +696,20 @@ a { color: inherit; text-decoration: none; }
     border-radius: 12px;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 44px;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-secondary:hover:not(:disabled) {
     background: var(--accent-medium);
     border-color: var(--accent);
+    transform: translateZ(0);
+  }
+  .btn-secondary:active:not(:disabled) {
+    transform: scale(0.97) translateZ(0);
   }
 
   .btn-ghost {
@@ -668,10 +725,22 @@ a { color: inherit; text-decoration: none; }
     border-radius: 10px;
     border: none;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 36px;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-ghost:hover { background: var(--surface-hover); color: var(--text); }
+  .btn-ghost:hover { 
+    background: var(--surface-hover); 
+    color: var(--text);
+    transform: translateZ(0);
+  }
+  .btn-ghost:active {
+    background: var(--surface-active);
+    transform: scale(0.96) translateZ(0);
+  }
 
   .btn-icon {
     display: inline-flex;
@@ -684,9 +753,21 @@ a { color: inherit; text-decoration: none; }
     background: transparent;
     color: var(--text-3);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-icon:hover { background: var(--surface-hover); color: var(--text); }
+  .btn-icon:hover { 
+    background: var(--surface-hover); 
+    color: var(--text);
+    transform: translateZ(0);
+  }
+  .btn-icon:active {
+    background: var(--surface-active);
+    transform: scale(0.92) translateZ(0);
+  }
 
   .badge {
     display: inline-flex;
@@ -711,14 +792,49 @@ a { color: inherit; text-decoration: none; }
     border: 2px dashed var(--drop-zone-border);
     background: var(--drop-zone-bg);
     border-radius: 20px;
-    transition: all 0.25s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-tap-highlight-color: transparent;
   }
   .drop-zone.active {
     border-color: var(--drop-zone-active-border);
     background: var(--drop-zone-active-bg);
-    transform: scale(1.01);
+    transform: scale(1.01) translateZ(0);
     box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+
+  /* Smooth scroll container */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    background: var(--bg-overlay);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Skeleton loading states */
+  .skeleton {
+    background: var(--skeleton);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+    border-radius: 8px;
+  }
+
+  /* Interactive feedback */
+  .interactive {
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .interactive:active {
+    transform: scale(0.98) translateZ(0);
   }
 }
 
@@ -762,6 +878,61 @@ body.reduce-motion *::after {
   50% { opacity: 0.6; }
 }
 
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .countdown-pulse {
   animation: countdown-pulse-ring 1.2s ease-in-out infinite;
 }
@@ -774,23 +945,222 @@ body.reduce-motion *::after {
   animation: countdown-danger-flash 2s ease-in-out infinite;
 }
 
+.animate-slide-in-up {
+  animation: slide-in-up 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-slide-in-down {
+  animation: slide-in-down 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
 /* ═══════════════════════════════════════════
-   RESPONSIVE FIXES
+   MOBILE & RESPONSIVE ENHANCEMENTS
    ═══════════════════════════════════════════ */
+
+/* Touch-friendly tap targets (minimum 44x44px for iOS/Android) */
+@media (max-width: 768px) {
+  .btn-primary, .btn-secondary {
+    min-height: 48px;
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .btn-ghost {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  /* Larger touch targets for file cards */
+  .surface-card-flat {
+    padding: 16px !important;
+  }
+
+  /* Smoother mobile scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent text selection on mobile (better UX for buttons/cards) */
+  .btn-primary, .btn-secondary, .btn-ghost, .btn-icon,
+  .surface-card, .surface-card-flat, .drop-zone {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  /* Allow text selection in inputs and text areas */
+  input, textarea, [contenteditable] {
+    -webkit-touch-callout: default;
+    user-select: text;
+  }
+}
+
+/* Phone-specific optimizations */
 @media (max-width: 640px) {
+  body {
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+  }
+
   .surface-card {
     border-radius: 14px;
   }
 
-  .btn-primary {
-    padding: 10px 18px;
-    font-size: 14px;
-    min-height: 44px;
+  /* Optimize spacing for small screens */
+  .max-w-6xl {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
-  .btn-ghost {
-    padding: 6px 10px;
-    font-size: 12px;
-    min-height: 32px;
+  /* Better mobile typography */
+  h1 {
+    font-size: 28px !important;
+    line-height: 1.2;
+  }
+
+  /* Optimize drop zone for mobile */
+  .drop-zone {
+    border-radius: 16px;
+    min-height: 200px;
+  }
+
+  /* Mobile-optimized modals */
+  [role="dialog"] {
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .surface-card {
+    border-radius: 16px;
+  }
+
+  /* Optimize grid layouts for tablets */
+  .lg\:grid-cols-5 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lg\:col-span-3 {
+    grid-column: span 1;
+  }
+
+  .lg\:col-span-2 {
+    grid-column: span 1;
+  }
+}
+
+/* Desktop enhancements */
+@media (min-width: 1025px) {
+  /* Smooth hover effects on desktop only */
+  .surface-card:hover {
+    transform: translateY(-2px) translateZ(0);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px) translateZ(0);
+  }
+
+  /* Desktop-specific animations */
+  .drop-zone:hover {
+    transform: scale(1.005) translateZ(0);
+  }
+}
+
+/* High-DPI displays (Retina, 4K) */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper rendering on high-DPI screens */
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+
+  img, svg {
+    image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 896px) and (orientation: landscape) {
+  /* Reduce vertical padding in landscape */
+  .py-8, .py-12 {
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+  }
+
+  /* Optimize navbar height */
+  nav {
+    height: 48px;
+  }
+
+  .pt-14 {
+    padding-top: 48px;
+  }
+}
+
+/* Safe area insets for notched devices (iPhone X+) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+
+  nav {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .max-w-6xl {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Dark mode media query support */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+  }
+}
+
+/* Reduced motion support (accessibility) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  nav, .btn-icon, .btn-ghost {
+    display: none;
+  }
+
+  .surface-card {
+    border: 1px solid #000;
+    box-shadow: none;
   }
 }

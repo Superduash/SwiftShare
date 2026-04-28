@@ -62,10 +62,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
           mediaEl.volume = 1.0
         }
       }, 200)
-      
-      console.log('[FilePreviewModal] Force audible applied - muted:', mediaEl.muted, 'volume:', mediaEl.volume)
     } catch (err) {
-      console.error('[FilePreviewModal] Failed to enforce audible media state:', err)
+      // Silent fail - media state enforcement is best-effort
     }
   }
 
@@ -90,35 +88,29 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
 	// Add error handling for video loading
 	const handleError = (e) => {
-		console.error('[FilePreviewModal] Video load error:', e)
 		setLoading(false)
 		setError(true)
 	}
 
 	// Force unmute and set volume on every relevant event
 	const handleCanPlay = () => {
-		console.log('[FilePreviewModal] Video canplay event')
 		forceAudible(videoEl)
 	}
 	
 	const handlePlay = () => {
-		console.log('[FilePreviewModal] Video play event')
 		forceAudible(videoEl)
 	}
 
 	const handleLoadedMetadata = () => {
-		console.log('[FilePreviewModal] Video metadata loaded')
 		forceAudible(videoEl)
 	}
 
 	const handleLoadedData = () => {
-		console.log('[FilePreviewModal] Video data loaded')
 		forceAudible(videoEl)
 	}
 
 	// Add click handler to unmute on user interaction (browser requirement)
 	const handleClick = () => {
-		console.log('[FilePreviewModal] Video clicked - forcing unmute')
 		forceAudible(videoEl)
 	}
 	
@@ -342,10 +334,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     onLoadedMetadata={(e) => {
 						try {
 							const videoEl = e.target
-							console.log('[FilePreviewModal] onLoadedMetadata - muted:', videoEl.muted)
 							forceAudible(videoEl)
 						} catch (err) {
-							console.error('[FilePreviewModal] Video metadata load error:', err)
+							// Silent fail
 						} finally {
 							setLoading(false)
 						}
@@ -353,38 +344,34 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 					onLoadedData={(e) => {
 						try {
 							const videoEl = e.target
-							console.log('[FilePreviewModal] onLoadedData - muted:', videoEl.muted)
 							forceAudible(videoEl)
 						} catch (err) {
-							console.error('[FilePreviewModal] Video data load error:', err)
+							// Silent fail
 						} finally {
 							setLoading(false)
 						}
 					}}
                     onCanPlay={(e) => {
-						console.log('[FilePreviewModal] onCanPlay - muted:', e.target.muted)
 						forceAudible(e.target)
 					}}
                     onPlay={(e) => {
-						console.log('[FilePreviewModal] onPlay - muted:', e.target.muted)
 						forceAudible(e.target)
 					}}
 					onVolumeChange={(e) => {
-						console.log('[FilePreviewModal] onVolumeChange - muted:', e.target.muted, 'volume:', e.target.volume)
+						// Volume change handled
 					}}
                     onError={(e) => {
-						console.error('[FilePreviewModal] Video error:', e)
 						setLoading(false)
 						setError(true)
 					}}
 					onLoadStart={() => {
-						console.log('[FilePreviewModal] Video load started')
+						// Load started
 					}}
 					onStalled={() => {
-						console.warn('[FilePreviewModal] Video loading stalled')
+						// Loading stalled
 					}}
 					onSuspend={() => {
-						console.log('[FilePreviewModal] Video loading suspended')
+						// Loading suspended
 					}}
                     src={src}
                   >

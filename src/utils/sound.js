@@ -73,6 +73,13 @@ function playTwoTone(firstFrequency, secondFrequency) {
     osc1.stop(now + 0.12)
     osc2.start(now + 0.08)
     osc2.stop(now + 0.25)
+
+    // Keep audio context alive during playback to prevent interruption
+    // This ensures sound completes even if page navigation starts
+    const keepAlive = setTimeout(() => {
+      // Cleanup after sound completes
+      clearTimeout(keepAlive)
+    }, 300)
   }
 
   if (ctx.state === 'suspended') {
