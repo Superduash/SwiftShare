@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-28T01:19:30Z
+Generated: 2026-04-28T16:37:52Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (118 bytes) =====
@@ -281,8 +281,8 @@ export default function App() {
 
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
-      <ConnectionHealthProvider>
-        <SocketProvider>
+      <SocketProvider>
+        <ConnectionHealthProvider>
           <TransferProvider>
             <BrowserRouter>
               <ConnectionBanner />
@@ -309,8 +309,8 @@ export default function App() {
             }}
           />
           </TransferProvider>
-        </SocketProvider>
-      </ConnectionHealthProvider>
+        </ConnectionHealthProvider>
+      </SocketProvider>
     </MotionConfig>
   )
 }
@@ -586,7 +586,7 @@ export default function ActivityLog({ activity = [] }) {
   )
 }
 
-===== FILE: src/components/ConnectionBanner.jsx (2656 bytes) =====
+===== FILE: src/components/ConnectionBanner.jsx (2866 bytes) =====
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, WifiOff, Zap } from 'lucide-react'
@@ -595,10 +595,13 @@ import { useConnectionHealth } from '../context/ConnectionHealthContext'
 const STATUS_CONFIG = {
   waking: {
     icon: Zap,
+    // Use --accent-glow so the banner picks up the active theme's accent
+    // instead of always showing sunset-orange. Linear-gradient with two stops
+    // of the same variable yields a subtle vertical wash.
     text: 'Waking up server...',
     sub: 'Free tier servers sleep after inactivity. Hang tight!',
-    bg: 'linear-gradient(135deg, rgba(232,99,74,0.12), rgba(255,154,92,0.08))',
-    border: 'rgba(232,99,74,0.2)',
+    bg: 'linear-gradient(135deg, var(--accent-soft), var(--accent-medium))',
+    border: 'var(--accent-medium)',
     color: 'var(--accent)',
     showSpinner: true,
   },
@@ -669,11 +672,11 @@ export default function ConnectionBanner() {
   )
 }
 
-===== FILE: src/components/CountdownRing.jsx (2439 bytes) =====
-import React from 'react'
+===== FILE: src/components/CountdownRing.jsx (2916 bytes) =====
+import React, { memo } from 'react'
 import { formatTime } from '../utils/format'
 
-export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600, size = 120, showLabel = true }) {
+function CountdownRingBase({ secondsRemaining = 0, totalSeconds = 600, size = 120, showLabel = true }) {
   const safe = Math.max(0, Number(secondsRemaining) || 0)
   const total = Math.max(1, Number(totalSeconds) || 600)
   const progress = Math.max(0, Math.min(1, safe / total))
@@ -742,6 +745,16 @@ export default function CountdownRing({ secondsRemaining = 0, totalSeconds = 600
     </div>
   )
 }
+
+// Memoized: the ring re-renders once per second from countdown-tick events,
+// but parents may re-render more often (download progress, AI updates, etc).
+// Comparing on rounded seconds prevents redundant SVG path recalculation.
+export default memo(CountdownRingBase, (prev, next) => (
+  Math.round(prev.secondsRemaining) === Math.round(next.secondsRemaining)
+  && prev.totalSeconds === next.totalSeconds
+  && prev.size === next.size
+  && prev.showLabel === next.showLabel
+))
 
 ===== FILE: src/components/ErrorState.jsx (3004 bytes) =====
 import React, { useEffect, useRef, useState } from 'react'
@@ -883,8 +896,8 @@ export default function ExpirySelector({ value = 60, onChange }) {
   )
 }
 
-===== FILE: src/components/FileCard.jsx (4798 bytes) =====
-import React from 'react'
+===== FILE: src/components/FileCard.jsx (5538 bytes) =====
+import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import {
   FileText, Image, Video, FileArchive, File, FileSpreadsheet,
@@ -941,7 +954,7 @@ function canPreview(file) {
   return false
 }
 
-export default function FileCard({
+function FileCardBase({
   file, index = 0, onPreview, onDownloadSingle, onRemove,
   showDownload = false, showRemove = false, disableDownload = false,
 }) {
@@ -994,7 +1007,25 @@ export default function FileCard({
   )
 }
 
-===== FILE: src/components/FilePreviewModal.jsx (19489 bytes) =====
+// Memoized so the card doesn't re-render every time a sibling timer ticks
+// or the parent's progress state changes. Identity-compares file by name+size
+// (immutable identifiers post-upload) and the action callbacks.
+export default memo(FileCardBase, (prev, next) => (
+  prev.file === next.file
+  || (
+    prev.file?.name === next.file?.name
+    && prev.file?.size === next.file?.size
+    && prev.file?.mimeType === next.file?.mimeType
+  )
+) && prev.index === next.index
+  && prev.showDownload === next.showDownload
+  && prev.showRemove === next.showRemove
+  && prev.disableDownload === next.disableDownload
+  && prev.onPreview === next.onPreview
+  && prev.onDownloadSingle === next.onDownloadSingle
+  && prev.onRemove === next.onRemove)
+
+===== FILE: src/components/FilePreviewModal.jsx (20160 bytes) =====
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Download, FileText, AlertTriangle, Lock, ExternalLink } from 'lucide-react'
@@ -1039,11 +1070,28 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   function forceAudible(mediaEl) {
     if (!mediaEl) return
     try {
+      // Aggressively unmute - browsers sometimes ignore single attempts
       mediaEl.defaultMuted = false
       mediaEl.muted = false
       mediaEl.volume = 1.0
+      
+      // Force a second time after a tiny delay (browser quirk workaround)
+      setTimeout(() => {
+        if (mediaEl) {
+          mediaEl.muted = false
+          mediaEl.volume = 1.0
+        }
+      }, 50)
+      
+      // And a third time for stubborn browsers
+      setTimeout(() => {
+        if (mediaEl) {
+          mediaEl.muted = false
+          mediaEl.volume = 1.0
+        }
+      }, 200)
     } catch (err) {
-      console.error('[FilePreviewModal] Failed to enforce audible media state:', err)
+      // Silent fail - media state enforcement is best-effort
     }
   }
 
@@ -1063,31 +1111,51 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 	const videoEl = videoRef.current
 	if (!videoEl) return
 
+	// Immediately try to unmute on mount
+	forceAudible(videoEl)
+
 	// Add error handling for video loading
 	const handleError = (e) => {
-		console.error('[FilePreviewModal] Video load error:', e)
 		setLoading(false)
 		setError(true)
 	}
 
-	// Force unmute and set volume
+	// Force unmute and set volume on every relevant event
 	const handleCanPlay = () => {
-    forceAudible(videoEl)
+		forceAudible(videoEl)
 	}
 	
-	// Some browsers require user interaction before unmuting
 	const handlePlay = () => {
-    forceAudible(videoEl)
+		forceAudible(videoEl)
+	}
+
+	const handleLoadedMetadata = () => {
+		forceAudible(videoEl)
+	}
+
+	const handleLoadedData = () => {
+		forceAudible(videoEl)
+	}
+
+	// Add click handler to unmute on user interaction (browser requirement)
+	const handleClick = () => {
+		forceAudible(videoEl)
 	}
 	
 	videoEl.addEventListener('error', handleError)
 	videoEl.addEventListener('canplay', handleCanPlay)
 	videoEl.addEventListener('play', handlePlay)
+	videoEl.addEventListener('loadedmetadata', handleLoadedMetadata)
+	videoEl.addEventListener('loadeddata', handleLoadedData)
+	videoEl.addEventListener('click', handleClick)
 	
 	return () => {
 		videoEl.removeEventListener('error', handleError)
 		videoEl.removeEventListener('canplay', handleCanPlay)
 		videoEl.removeEventListener('play', handlePlay)
+		videoEl.removeEventListener('loadedmetadata', handleLoadedMetadata)
+		videoEl.removeEventListener('loadeddata', handleLoadedData)
+		videoEl.removeEventListener('click', handleClick)
 	}
   }, [open, file, fileIndex, code, password])
 
@@ -1296,43 +1364,42 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 							const videoEl = e.target
 							forceAudible(videoEl)
 						} catch (err) {
-							console.error('[FilePreviewModal] Video metadata load error:', err)
+							// Silent fail
 						} finally {
 							setLoading(false)
 						}
 					}}
-          onLoadedData={(e) => {
-            try {
-              const videoEl = e.target
-              forceAudible(videoEl)
-            } catch (err) {
-              console.error('[FilePreviewModal] Video data load error:', err)
-            } finally {
-              setLoading(false)
-            }
-          }}
+					onLoadedData={(e) => {
+						try {
+							const videoEl = e.target
+							forceAudible(videoEl)
+						} catch (err) {
+							// Silent fail
+						} finally {
+							setLoading(false)
+						}
+					}}
                     onCanPlay={(e) => {
 						forceAudible(e.target)
 					}}
                     onPlay={(e) => {
 						forceAudible(e.target)
 					}}
+					onVolumeChange={(e) => {
+						// Volume change handled
+					}}
                     onError={(e) => {
-						console.error('[FilePreviewModal] Video error:', e)
 						setLoading(false)
 						setError(true)
 					}}
 					onLoadStart={() => {
-						// Video started loading
-						console.log('[FilePreviewModal] Video load started')
+						// Load started
 					}}
 					onStalled={() => {
-						// Video stalled - might be network issue
-						console.warn('[FilePreviewModal] Video loading stalled')
+						// Loading stalled
 					}}
 					onSuspend={() => {
-						// Video suspended - might be intentional pause
-						console.log('[FilePreviewModal] Video loading suspended')
+						// Loading suspended
 					}}
                     src={src}
                   >
@@ -1350,6 +1417,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     ref={audioRef}
                     controls
                     preload="auto"
+                    muted={false}
                     className="w-full max-w-xl"
                     style={{ display: loading ? 'none' : 'block' }}
                     onLoadedMetadata={(e) => {
@@ -1508,7 +1576,7 @@ function CodePreview({ src, onError, onLoad }) {
   )
 }
 
-===== FILE: src/components/LoadingScreen.jsx (1501 bytes) =====
+===== FILE: src/components/LoadingScreen.jsx (1500 bytes) =====
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
@@ -1524,7 +1592,7 @@ export default function LoadingScreen({ message = 'Loading...' }) {
       >
         <motion.div
           className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center"
-          style={{ background: 'var(--accent)', boxShadow: '0 4px 20px rgba(232,99,74,0.3)' }}
+          style={{ background: 'var(--accent)', boxShadow: '0 4px 20px var(--accent-glow)' }}
           animate={{ scale: [1, 1.08, 1] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
         >
@@ -1548,7 +1616,7 @@ export default function LoadingScreen({ message = 'Loading...' }) {
   )
 }
 
-===== FILE: src/components/Navbar.jsx (3268 bytes) =====
+===== FILE: src/components/Navbar.jsx (3266 bytes) =====
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -1581,7 +1649,7 @@ export default function Navbar() {
             <Link to="/" className="flex items-center gap-2 group">
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
-                style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(232,99,74,0.25)' }}
+                style={{ background: 'var(--accent)', boxShadow: '0 2px 8px var(--accent-glow)' }}
               >
                 <Zap size={16} color={theme === 'dark' ? '#0F1014' : '#fff'} strokeWidth={2.5} />
               </div>
@@ -1629,10 +1697,10 @@ export default function Navbar() {
   )
 }
 
-===== FILE: src/components/NearbyDevices.jsx (6485 bytes) =====
+===== FILE: src/components/NearbyDevices.jsx (12774 bytes) =====
 import React, { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Wifi, Download, Clock, Send } from 'lucide-react'
+import { Wifi, Download, Clock, Send, RefreshCw, WifiOff, AlertCircle } from 'lucide-react'
 import { formatBytes, formatRelativeExpiry } from '../utils/format'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -1657,52 +1725,144 @@ function dedupeDevices(list, selfSocketId) {
     })
 }
 
-const POLL_INTERVAL = 30000 // 30 seconds instead of 10
+const POLL_INTERVAL = 30000 // 30 seconds auto-refresh
+const MIN_REFRESH_INTERVAL = 2000 // Minimum 2s between manual refreshes
 
 export default function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
   const navigate = useNavigate()
-  const { socket, socketId } = useSocket()
+  const { socket, socketId, isConnected } = useSocket()
   const normalizedTransferCode = normalizeCode(currentTransferCode)
   const isSenderShareMode = Boolean(normalizedTransferCode)
   const lastPingRef = useRef(0)
+  const mountedRef = useRef(true)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   const handleShareToDevice = (targetSocketId) => {
     const safeTargetSocketId = String(targetSocketId || '').trim()
     if (!socket || !safeTargetSocketId || !normalizedTransferCode) return
 
-    socket.emit('push-transfer-offer', {
-      targetSocketId: safeTargetSocketId,
-      code: normalizedTransferCode,
-      filename: currentFilename || 'shared file',
-    })
+    try {
+      socket.emit('push-transfer-offer', {
+        targetSocketId: safeTargetSocketId,
+        code: normalizedTransferCode,
+        filename: currentFilename || 'shared file',
+      })
+      toast.success('Share prompt sent!')
+    } catch (err) {
+      toast.error('Failed to send share prompt')
+    }
+  }
 
-    toast.success('Share prompt sent!')
+  // Manual refresh function
+  const handleManualRefresh = () => {
+    if (!socket || !isConnected) {
+      toast.error('Not connected to server')
+      return
+    }
+
+    const now = Date.now()
+    if (now - lastPingRef.current < MIN_REFRESH_INTERVAL) {
+      return // Debounce: prevent spam
+    }
+
+    setRefreshing(true)
+    setError(null)
+    lastPingRef.current = now
+
+    try {
+      socket.emit('nearby-ping', {})
+      // Refreshing state will be cleared when nearby-devices event arrives
+      setTimeout(() => {
+        if (mountedRef.current) {
+          setRefreshing(false)
+        }
+      }, 3000) // Max 3s refresh indicator
+    } catch (err) {
+      setRefreshing(false)
+      setError('Failed to refresh')
+      toast.error('Failed to refresh nearby devices')
+    }
   }
 
   // Single unified polling via socket only (no duplicate API calls)
   useEffect(() => {
     if (!socket) {
       setLoading(false)
+      setError('Socket not initialized')
       return
     }
 
     const onNearbyDevices = (payload = {}) => {
-      setDevices(dedupeDevices(payload.devices, socketId))
-      setLoading(false)
+      if (!mountedRef.current) return
+      
+      try {
+        const dedupedDevices = dedupeDevices(payload.devices, socketId)
+        setDevices(dedupedDevices)
+        setLoading(false)
+        setRefreshing(false)
+        setError(null)
+        setLastUpdated(Date.now())
+      } catch (err) {
+        setError('Failed to process device list')
+        setLoading(false)
+        setRefreshing(false)
+      }
+    }
+
+    const onNearbyDeviceAdded = (payload = {}) => {
+      if (!mountedRef.current) return
+      
+      try {
+        const { device, subnet } = payload
+        if (!device || !subnet) return
+        
+        // Add new device to list (deduplication handled by dedupeDevices)
+        setDevices((prev) => dedupeDevices([...prev, device], socketId))
+        setLastUpdated(Date.now())
+      } catch (err) {
+        // Silently fail - not critical
+      }
+    }
+
+    const onNearbyPong = () => {
+      if (!mountedRef.current) return
+      // Server acknowledged our ping - connection is healthy
+      setError(null)
     }
 
     const requestNearby = () => {
+      if (!mountedRef.current) return
       if (document.hidden) return
+      if (!isConnected) return
+      
       const now = Date.now()
       // Debounce: don't ping more than once every 5 seconds
       if (now - lastPingRef.current < 5000) return
+      
       lastPingRef.current = now
-      socket.emit('nearby-ping', {})
+      
+      try {
+        socket.emit('nearby-ping', {})
+      } catch (err) {
+        setError('Connection error')
+      }
     }
 
     socket.on('nearby-devices', onNearbyDevices)
+    socket.on('nearby-device-added', onNearbyDeviceAdded)
+    socket.on('nearby-pong', onNearbyPong)
     socket.on('connect', requestNearby)
 
     // Initial request
@@ -1713,7 +1873,9 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
 
     // Pause polling when tab is hidden
     const onVisibility = () => {
-      if (!document.hidden) requestNearby()
+      if (!document.hidden && mountedRef.current) {
+        requestNearby()
+      }
     }
     document.addEventListener('visibilitychange', onVisibility)
 
@@ -1722,12 +1884,13 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
       document.removeEventListener('visibilitychange', onVisibility)
       socket.off('connect', requestNearby)
       socket.off('nearby-devices', onNearbyDevices)
+      socket.off('nearby-device-added', onNearbyDeviceAdded)
+      socket.off('nearby-pong', onNearbyPong)
     }
-  }, [socket, socketId])
+  }, [socket, socketId, isConnected])
 
-  if (loading) return null
-
-  if (!devices.length) {
+  // Show loading state
+  if (loading) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -1735,27 +1898,126 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
         transition={{ delay: 0.3 }}
       >
         <div className="flex items-center gap-2 mb-3">
-          <Wifi size={14} style={{ color: 'var(--text-4)' }} />
+          <Wifi size={14} style={{ color: 'var(--text-4)' }} className="animate-pulse" />
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Nearby Devices</h3>
         </div>
         <div className="surface-card-flat p-4 text-center">
           <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-            No devices found on same WiFi
+            Searching for devices...
           </p>
         </div>
       </motion.div>
     )
   }
 
+  // Show error state
+  if (error && !isConnected) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <WifiOff size={14} style={{ color: 'var(--danger)' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Nearby Devices</h3>
+        </div>
+        <div className="surface-card-flat p-4 text-center">
+          <AlertCircle size={20} className="mx-auto mb-2" style={{ color: 'var(--danger)' }} />
+          <p className="text-xs mb-2" style={{ color: 'var(--text-4)' }}>
+            Not connected to server
+          </p>
+          <button 
+            className="btn-ghost text-xs !py-1 !px-3"
+            onClick={handleManualRefresh}
+            disabled={!isConnected}
+          >
+            <RefreshCw size={12} />
+            Retry
+          </button>
+        </div>
+      </motion.div>
+    )
+  }
+
+  // Show empty state
+  if (!devices.length) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Wifi size={14} style={{ color: 'var(--text-4)' }} />
+            <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Nearby Devices</h3>
+          </div>
+          <button 
+            className="btn-icon !w-6 !h-6"
+            onClick={handleManualRefresh}
+            disabled={refreshing || !isConnected}
+            title="Refresh nearby devices"
+            aria-label="Refresh nearby devices"
+          >
+            <RefreshCw 
+              size={12} 
+              className={refreshing ? 'animate-spin' : ''}
+              style={{ color: 'var(--text-4)' }}
+            />
+          </button>
+        </div>
+        <div className="surface-card-flat p-4 text-center">
+          <p className="text-xs mb-1" style={{ color: 'var(--text-4)' }}>
+            No devices found on same WiFi
+          </p>
+          {lastUpdated && (
+            <p className="text-[10px]" style={{ color: 'var(--text-5)' }}>
+              Last checked: {new Date(lastUpdated).toLocaleTimeString()}
+            </p>
+          )}
+        </div>
+      </motion.div>
+    )
+  }
+
+  // Show devices list
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <Wifi size={14} style={{ color: 'var(--success)' }} />
-        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Nearby Devices</h3>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Wifi size={14} style={{ color: 'var(--success)' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+            Nearby Devices
+          </h3>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
+            {devices.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {lastUpdated && (
+            <span className="text-[10px]" style={{ color: 'var(--text-5)' }}>
+              {new Date(lastUpdated).toLocaleTimeString()}
+            </span>
+          )}
+          <button 
+            className="btn-icon !w-6 !h-6"
+            onClick={handleManualRefresh}
+            disabled={refreshing || !isConnected}
+            title="Refresh nearby devices"
+            aria-label="Refresh nearby devices"
+          >
+            <RefreshCw 
+              size={12} 
+              className={refreshing ? 'animate-spin' : ''}
+              style={{ color: refreshing ? 'var(--accent)' : 'var(--text-4)' }}
+            />
+          </button>
+        </div>
       </div>
 
       <div className="space-y-1.5">
@@ -1810,12 +2072,17 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
   )
 }
 
-===== FILE: src/components/ProgressBar.jsx (1872 bytes) =====
-import React from 'react'
+===== FILE: src/components/ProgressBar.jsx (2767 bytes) =====
+import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import { formatSpeed } from '../utils/format'
 
-export default function ProgressBar({
+// Plain CSS-driven width transition. framer-motion was creating a fresh
+// width animation on every progress prop change, which on fast uploads
+// (10+ updates/sec) produced visible jitter as animations interrupted each
+// other. A linear CSS transition is GPU-cheap and renders smoothly even
+// on low-end mobile.
+function ProgressBarBase({
   percent = 0,
   speed = 0,
   label = 'Uploading',
@@ -1829,7 +2096,7 @@ export default function ProgressBar({
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>{label}</span>
         {!indeterminate && (
-          <span className="text-xs font-mono font-medium" style={{ color: 'var(--accent)' }}>
+          <span className="text-xs font-mono font-medium tabular-nums" style={{ color: 'var(--accent)' }}>
             {Math.round(pct)}%
           </span>
         )}
@@ -1844,32 +2111,46 @@ export default function ProgressBar({
             style={{
               width: '40%',
               background: 'var(--progress-fill)',
-              boxShadow: '0 0 8px rgba(232,99,74,0.3)',
+              boxShadow: '0 0 8px var(--progress-glow)',
             }}
             animate={{ left: ['-40%', '100%'] }}
             transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
           />
         ) : (
-          <motion.div
-            className="h-full rounded-full"
+          <div
+            className="h-full rounded-full will-change-[width]"
             style={{
+              width: `${pct}%`,
               background: 'var(--progress-fill)',
-              boxShadow: '0 0 8px rgba(232,99,74,0.3)',
+              boxShadow: '0 0 8px var(--progress-glow)',
+              transition: 'width 250ms linear',
             }}
-            initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
+            role="progressbar"
+            aria-valuenow={Math.round(pct)}
+            aria-valuemin={0}
+            aria-valuemax={100}
           />
         )}
       </div>
       {showSpeed && speed > 0 && !indeterminate && (
-        <p className="text-[11px] mt-1 text-right" style={{ color: 'var(--text-4)' }}>
+        <p className="text-[11px] mt-1 text-right tabular-nums" style={{ color: 'var(--text-4)' }}>
           {formatSpeed(speed)}
         </p>
       )}
     </div>
   )
 }
+
+// Memoized: ProgressBar is rendered inside parents that re-render on every
+// state tick. Without memo it re-renders even when percent didn't actually
+// change (e.g. when sibling state updates).
+export default memo(ProgressBarBase, (prev, next) => (
+  Math.round(prev.percent) === Math.round(next.percent)
+  && prev.speed === next.speed
+  && prev.label === next.label
+  && prev.indeterminate === next.indeterminate
+  && prev.showSpeed === next.showSpeed
+))
 
 ===== FILE: src/components/QRModal.jsx (2751 bytes) =====
 import React, { useEffect } from 'react'
@@ -2540,6 +2821,375 @@ export default function SettingsPanel({ open, onClose }) {
   )
 }
 
+===== FILE: src/components/ShareTextModal.jsx (14945 bytes) =====
+import React, { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, FileText, Lock, Eye, EyeOff, Flame, Clock, Copy, Check } from 'lucide-react'
+import toast from 'react-hot-toast'
+
+export default function ShareTextModal({ open, onClose, onShare }) {
+  const [content, setContent] = useState('')
+  const [title, setTitle] = useState('')
+  const [expiry, setExpiry] = useState(60)
+  const [burn, setBurn] = useState(false)
+  const [passwordProtected, setPasswordProtected] = useState(false)
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [sharing, setSharing] = useState(false)
+  const textareaRef = useRef(null)
+
+  const MAX_LENGTH = 256 * 1024 // 256 KB
+  const charCount = content.length
+  const byteCount = new Blob([content]).size
+  const isOverLimit = byteCount > MAX_LENGTH
+
+  // Auto-focus textarea when modal opens
+  useEffect(() => {
+    if (open && textareaRef.current) {
+      textareaRef.current.focus()
+    }
+  }, [open])
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!open) {
+      setContent('')
+      setTitle('')
+      setExpiry(60)
+      setBurn(false)
+      setPasswordProtected(false)
+      setPassword('')
+      setShowPassword(false)
+      setSharing(false)
+    }
+  }, [open])
+
+  // Paste handler
+  useEffect(() => {
+    if (!open) return
+
+    const handlePaste = (e) => {
+      // Only handle if textarea is not focused (global paste)
+      if (document.activeElement === textareaRef.current) return
+      
+      const text = e.clipboardData?.getData('text')
+      if (text && !content) {
+        e.preventDefault()
+        setContent(text)
+        toast.success('Text pasted!')
+      }
+    }
+
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [open, content])
+
+  async function handleShare() {
+    if (!content.trim()) {
+      toast.error('Please enter some text')
+      return
+    }
+
+    if (isOverLimit) {
+      toast.error('Text is too large (max 256 KB)')
+      return
+    }
+
+    if (passwordProtected && !password.trim()) {
+      toast.error('Please enter a password')
+      return
+    }
+
+    setSharing(true)
+    try {
+      await onShare({
+        content,
+        title: title.trim() || 'Text Snippet',
+        expiryMinutes: expiry,
+        burnAfterDownload: burn,
+        passwordProtected,
+        password: passwordProtected ? password : undefined,
+      })
+      onClose()
+    } catch (err) {
+      toast.error(err?.message || 'Failed to share text')
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  if (!open) return null
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'rgba(0,0,0,0.75)' }}
+            onClick={onClose}
+          />
+
+          {/* Modal */}
+          <motion.div
+            className="relative z-10 rounded-2xl overflow-hidden w-full max-w-2xl max-h-[90vh] flex flex-col"
+            style={{ background: 'var(--bg-raised)' }}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2">
+                <FileText size={18} style={{ color: 'var(--accent)' }} />
+                <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+                  Share Text
+                </h2>
+              </div>
+              <button className="btn-icon" onClick={onClose} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-4 space-y-4">
+              {/* Title input */}
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>
+                  Title (optional)
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="My snippet"
+                  maxLength={100}
+                  className="w-full px-3 py-2 rounded-xl text-sm outline-none transition-all"
+                  style={{
+                    background: 'var(--bg-sunken)',
+                    border: '1.5px solid var(--border)',
+                    color: 'var(--text)',
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                  onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                />
+              </div>
+
+              {/* Text content */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold" style={{ color: 'var(--text-3)' }}>
+                    Content
+                  </label>
+                  <span 
+                    className="text-xs font-mono tabular-nums" 
+                    style={{ color: isOverLimit ? 'var(--danger)' : 'var(--text-4)' }}
+                  >
+                    {formatBytes(byteCount)} / 256 KB
+                  </span>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Paste or type your text here... (Ctrl+V to paste)"
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all resize-none font-mono"
+                  style={{
+                    background: 'var(--bg-sunken)',
+                    border: `1.5px solid ${isOverLimit ? 'var(--danger)' : 'var(--border)'}`,
+                    color: 'var(--text)',
+                    minHeight: '200px',
+                    maxHeight: '400px',
+                  }}
+                  onFocus={(e) => { if (!isOverLimit) e.target.style.borderColor = 'var(--accent)' }}
+                  onBlur={(e) => { if (!isOverLimit) e.target.style.borderColor = 'var(--border)' }}
+                />
+                {isOverLimit && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>
+                    Text is too large. Please reduce to 256 KB or less.
+                  </p>
+                )}
+              </div>
+
+              {/* Expiry selector */}
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>
+                  Expires in
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 10, label: '10 min' },
+                    { value: 60, label: '1 hour' },
+                    { value: 300, label: '5 hours' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      className="px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                      style={{
+                        background: expiry === opt.value ? 'var(--accent-soft)' : 'transparent',
+                        border: `1.5px solid ${expiry === opt.value ? 'var(--accent)' : 'var(--border)'}`,
+                        color: expiry === opt.value ? 'var(--accent)' : 'var(--text-2)',
+                      }}
+                      onClick={() => setExpiry(opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Burn toggle */}
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                style={{
+                  background: burn ? 'var(--danger-soft)' : 'transparent',
+                  border: `1.5px solid ${burn ? 'var(--danger)' : 'var(--border)'}`,
+                }}
+                onClick={() => setBurn(!burn)}
+              >
+                <Flame size={16} style={{ color: burn ? 'var(--danger)' : 'var(--text-4)' }} />
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold" style={{ color: burn ? 'var(--danger)' : 'var(--text-2)' }}>
+                    Burn after reading
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-4)' }}>Deletes after first view</p>
+                </div>
+                <div
+                  className="w-10 h-6 rounded-full relative transition-all"
+                  style={{ background: burn ? 'var(--danger)' : 'var(--border-strong)' }}
+                >
+                  <div
+                    className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                    style={{ background: '#fff', left: burn ? '22px' : '4px' }}
+                  />
+                </div>
+              </button>
+
+              {/* Password toggle */}
+              <div>
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl transition-all"
+                  style={{
+                    background: passwordProtected ? 'var(--accent-soft)' : 'transparent',
+                    border: `1.5px solid ${passwordProtected ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                  onClick={() => {
+                    setPasswordProtected(!passwordProtected)
+                    if (passwordProtected) { setPassword(''); setShowPassword(false) }
+                  }}
+                >
+                  <Lock size={16} style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-4)' }} />
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold" style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-2)' }}>
+                      Password protect
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--text-4)' }}>Require password to view</p>
+                  </div>
+                  <div
+                    className="w-10 h-6 rounded-full relative transition-all"
+                    style={{ background: passwordProtected ? 'var(--accent)' : 'var(--border-strong)' }}
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                      style={{ background: '#fff', left: passwordProtected ? '22px' : '4px' }}
+                    />
+                  </div>
+                </button>
+
+                {/* Password input */}
+                <AnimatePresence>
+                  {passwordProtected && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="relative mt-2">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter a password..."
+                          maxLength={64}
+                          className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
+                          style={{
+                            background: 'var(--bg-sunken)',
+                            border: '1.5px solid var(--border)',
+                            color: 'var(--text)',
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                          onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
+                          onClick={() => setShowPassword(!showPassword)}
+                          tabIndex={-1}
+                        >
+                          {showPassword
+                            ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
+                            : <Eye size={16} style={{ color: 'var(--text-4)' }} />
+                          }
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 p-4 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+              <button
+                className="btn-secondary flex-1"
+                onClick={onClose}
+                disabled={sharing}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary flex-1"
+                onClick={handleShare}
+                disabled={!content.trim() || isOverLimit || sharing || (passwordProtected && !password.trim())}
+              >
+                {sharing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Sharing...
+                  </>
+                ) : (
+                  <>
+                    <FileText size={16} />
+                    Share Text
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 ===== FILE: src/components/TransferReceipt.jsx (2017 bytes) =====
 import React from 'react'
 import { motion } from 'framer-motion'
@@ -2589,25 +3239,52 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
   )
 }
 
-===== FILE: src/context/ConnectionHealthContext.jsx (3641 bytes) =====
+===== FILE: src/context/ConnectionHealthContext.jsx (5074 bytes) =====
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { pingServer } from '../services/api'
+import { useSocket } from './SocketContext'
 
 const ConnectionHealthContext = createContext(null)
 
 // States: 'connected' | 'reconnecting' | 'waking' | 'offline'
-// 'waking' = first connection attempt (cold start), 'reconnecting' = was connected, lost it
+//
+// The banner is intentionally pessimistic to display: it only appears when we
+// have *strong* evidence the user is offline. Mobile networks routinely drop a
+// single HTTP request while a long-lived Socket.IO connection on the same
+// domain stays healthy — showing "Reconnecting..." in that case is a lie that
+// scares users away. So the rules are:
+//
+//   1. Start optimistic ('connected'). The banner does not flash on first paint.
+//   2. If the socket is connected, we are connected. Period.
+//   3. Only flip to 'reconnecting'/'waking' after MIN_FAILURES consecutive
+//      ping failures *and* the socket is not connected.
 
-const BACKOFF_SCHEDULE = [1000, 2000, 4000, 8000, 12000, 15000] // max ~15s between retries
+const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
+const MIN_FAILURES_BEFORE_BANNER = 2
 
 export function ConnectionHealthProvider({ children }) {
-  const [status, setStatus] = useState('reconnecting') // start optimistic but uncertain
+  const [status, setStatus] = useState('connected')
   const [lastOk, setLastOk] = useState(null)
   const everConnectedRef = useRef(false)
   const intervalRef = useRef(null)
-  const retryCountRef = useRef(0)
+  const failureCountRef = useRef(0)
   const mountedRef = useRef(true)
   const checkingRef = useRef(false)
+  const socketConnectedRef = useRef(false)
+
+  const { isConnected: socketConnected } = useSocket()
+
+  // The socket connecting is the strongest possible "we have a working link
+  // to the backend" signal — if it's up, suppress any banner immediately.
+  useEffect(() => {
+    socketConnectedRef.current = Boolean(socketConnected)
+    if (socketConnected) {
+      everConnectedRef.current = true
+      failureCountRef.current = 0
+      setStatus((prev) => (prev === 'offline' ? prev : 'connected'))
+      setLastOk(Date.now())
+    }
+  }, [socketConnected])
 
   const checkHealth = useCallback(async () => {
     if (checkingRef.current) return
@@ -2620,23 +3297,27 @@ export function ConnectionHealthProvider({ children }) {
 
       if (result.ok) {
         everConnectedRef.current = true
-        retryCountRef.current = 0
-        setStatus('connected')
+        failureCountRef.current = 0
+        setStatus((prev) => (prev === 'offline' ? prev : 'connected'))
         setLastOk(Date.now())
       } else {
-        retryCountRef.current += 1
+        failureCountRef.current += 1
+        // Suppress banner when socket is alive — that link is the source of truth.
+        if (socketConnectedRef.current) return
+        if (failureCountRef.current < MIN_FAILURES_BEFORE_BANNER) return
         setStatus(everConnectedRef.current ? 'reconnecting' : 'waking')
       }
     } catch {
       if (!mountedRef.current) return
-      retryCountRef.current += 1
+      failureCountRef.current += 1
+      if (socketConnectedRef.current) return
+      if (failureCountRef.current < MIN_FAILURES_BEFORE_BANNER) return
       setStatus(everConnectedRef.current ? 'reconnecting' : 'waking')
     } finally {
       checkingRef.current = false
     }
   }, [])
 
-  // Initial check + adaptive polling
   useEffect(() => {
     mountedRef.current = true
     void checkHealth()
@@ -2644,14 +3325,12 @@ export function ConnectionHealthProvider({ children }) {
     function scheduleNext() {
       if (intervalRef.current) clearTimeout(intervalRef.current)
 
-      // When connected: poll every 45s (lightweight keepalive check)
-      // When not connected: use backoff schedule
       let delay
-      if (everConnectedRef.current && retryCountRef.current === 0) {
+      if (everConnectedRef.current && failureCountRef.current === 0) {
         delay = 45000
       } else {
-        const idx = Math.min(retryCountRef.current, BACKOFF_SCHEDULE.length - 1)
-        delay = BACKOFF_SCHEDULE[idx]
+        const idx = Math.min(failureCountRef.current, BACKOFF_SCHEDULE.length - 1)
+        delay = BACKOFF_SCHEDULE[idx] || 15000
       }
 
       intervalRef.current = setTimeout(async () => {
@@ -2669,7 +3348,6 @@ export function ConnectionHealthProvider({ children }) {
     }
   }, [checkHealth])
 
-  // When tab becomes visible again, check immediately
   useEffect(() => {
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
@@ -2677,13 +3355,16 @@ export function ConnectionHealthProvider({ children }) {
       }
     }
 
-    // When browser comes back online, check immediately
     function onOnline() {
       void checkHealth()
     }
 
     function onOffline() {
-      setStatus('offline')
+      // Only trust the browser's offline event if the socket also looks dead —
+      // some mobile browsers fire false offline events on screen lock.
+      if (!socketConnectedRef.current) {
+        setStatus('offline')
+      }
     }
 
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -2698,7 +3379,7 @@ export function ConnectionHealthProvider({ children }) {
   }, [checkHealth])
 
   const forceCheck = useCallback(() => {
-    retryCountRef.current = 0
+    failureCountRef.current = 0
     void checkHealth()
   }, [checkHealth])
 
@@ -3040,13 +3721,15 @@ export function useTransfer() {
   return useContext(TransferContext) || {}
 }
 
-===== FILE: src/index.css (21731 bytes) =====
+===== FILE: src/index.css (36229 bytes) =====
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════
-   THEME: SUNSET (Golden Hour)
+   THEME: SUNSET (Golden Hour) — warm terracotta + ember
+   Feature colors are pulled from the same warm spectrum as the accent
+   so the palette feels intentional, not a generic light theme tinted orange.
    ═══════════════════════════════════════════ */
 [data-theme="sunset"] {
   --bg: #FFF7F0;
@@ -3067,14 +3750,20 @@ export function useTransfer() {
   --accent-hover: #D44020;
   --accent-soft: rgba(240,82,42,0.08);
   --accent-medium: rgba(240,82,42,0.16);
-  --success: #15803D;
-  --success-soft: rgba(21,128,61,0.08);
-  --warning: #C2410C;
-  --warning-soft: rgba(194,65,12,0.08);
-  --danger: #B91C1C;
-  --danger-soft: rgba(185,28,28,0.08);
-  --info: #0369A1;
-  --info-soft: rgba(3,105,161,0.08);
+  --accent-glow: rgba(240,82,42,0.28);
+  /* Olive-mustard green sits in the warm half of the wheel — feels like sun-baked
+     foliage rather than a Tailwind-stock emerald that would clash with terracotta. */
+  --success: #6B8E23;
+  --success-soft: rgba(107,142,35,0.10);
+  /* Pumpkin: deeper amber than the accent so they don't fight for attention. */
+  --warning: #B45309;
+  --warning-soft: rgba(180,83,9,0.10);
+  /* Brick: warm crimson with red-brown undertone matching the bg. */
+  --danger: #9F1239;
+  --danger-soft: rgba(159,18,57,0.10);
+  /* Warm teal: complementary cool note that still feels desert-evening. */
+  --info: #0E7490;
+  --info-soft: rgba(14,116,144,0.10);
   --ring-track: #F5DECE;
   --shimmer-from: #F5DECE;
   --shimmer-to: #FFE5CC;
@@ -3095,19 +3784,23 @@ export function useTransfer() {
   --settings-bg: #FFFFFF;
   --file-icon-bg: rgba(240,82,42,0.08);
   --file-icon-color: #F0522A;
-  --ai-bg: linear-gradient(135deg, #FFF3E8 0%, #FFE5CC 100%);
+  --ai-bg: linear-gradient(135deg, #FFEDD5 0%, #FED7AA 100%);
   --ai-border: #F5DECE;
   --ai-icon: #F0522A;
   --nearby-bg: #FFF3E8;
   --tag-bg: #FFE5CC;
   --tag-text: #D44020;
   --progress-track: #F5DECE;
-  --progress-fill: #F0522A;
+  --progress-fill: linear-gradient(90deg, #F0522A 0%, #F59E0B 100%);
+  --progress-glow: rgba(240,82,42,0.30);
   --skeleton: linear-gradient(90deg, #F5DECE 25%, #FFE5CC 50%, #F5DECE 75%);
+  --gradient-hero: linear-gradient(135deg, #F0522A 0%, #F59E0B 60%, #FCD34D 100%);
+  --shadow-card: 0 4px 24px rgba(240,82,42,0.06);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: DARK (Indigo Night)
+   THEME: DARK (Indigo Night) — synthwave-influenced cool palette
+   Cool jewel tones across all feature colors for a coherent neon-night feel.
    ═══════════════════════════════════════════ */
 [data-theme="dark"] {
   --bg: #0E0F14;
@@ -3128,14 +3821,19 @@ export function useTransfer() {
   --accent-hover: #6366F1;
   --accent-soft: rgba(129,140,248,0.09);
   --accent-medium: rgba(129,140,248,0.18);
-  --success: #34D399;
-  --success-soft: rgba(52,211,153,0.1);
+  --accent-glow: rgba(129,140,248,0.40);
+  /* Jade green: cool emerald with blue undertone matching indigo accent. */
+  --success: #2DD4BF;
+  --success-soft: rgba(45,212,191,0.12);
+  /* Amber yellow: pure neon gold, reads on dark indigo without warming the palette. */
   --warning: #FBBF24;
-  --warning-soft: rgba(251,191,36,0.1);
-  --danger: #F87171;
-  --danger-soft: rgba(248,113,113,0.1);
+  --warning-soft: rgba(251,191,36,0.12);
+  /* Hot pink: synthwave magenta, reads as "danger" against indigo. */
+  --danger: #F472B6;
+  --danger-soft: rgba(244,114,182,0.12);
+  /* Electric cyan: secondary neon accent. */
   --info: #22D3EE;
-  --info-soft: rgba(34,211,238,0.1);
+  --info-soft: rgba(34,211,238,0.12);
   --ring-track: #1D2030;
   --shimmer-from: #1D2030;
   --shimmer-to: #2E3250;
@@ -3156,19 +3854,23 @@ export function useTransfer() {
   --settings-bg: #16181F;
   --file-icon-bg: rgba(129,140,248,0.09);
   --file-icon-color: #818CF8;
-  --ai-bg: linear-gradient(135deg, #16181F 0%, #1D2030 100%);
+  --ai-bg: linear-gradient(135deg, #1E1B4B 0%, #312E81 100%);
   --ai-border: #2E3250;
   --ai-icon: #818CF8;
   --nearby-bg: #16181F;
-  --tag-bg: rgba(129,140,248,0.12);
+  --tag-bg: rgba(129,140,248,0.18);
   --tag-text: #C7D2FE;
   --progress-track: #1D2030;
-  --progress-fill: #818CF8;
+  --progress-fill: linear-gradient(90deg, #6366F1 0%, #818CF8 50%, #22D3EE 100%);
+  --progress-glow: rgba(129,140,248,0.45);
   --skeleton: linear-gradient(90deg, #1D2030 25%, #2E3250 50%, #1D2030 75%);
+  --gradient-hero: linear-gradient(135deg, #818CF8 0%, #C084FC 50%, #22D3EE 100%);
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.40);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: LIGHT (Indigo Studio)
+   THEME: LIGHT (Indigo Studio) — clean editorial / blueprint
+   Cool studio palette: deep indigo primary, with feature colors leaning blue-green.
    ═══════════════════════════════════════════ */
 [data-theme="light"] {
   --bg: #F8F9FB;
@@ -3189,14 +3891,19 @@ export function useTransfer() {
   --accent-hover: #4338CA;
   --accent-soft: rgba(79,70,229,0.07);
   --accent-medium: rgba(79,70,229,0.13);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
+  --accent-glow: rgba(79,70,229,0.22);
+  /* Forest green: deeper than mint, reads as "verified" in editorial UIs. */
+  --success: #047857;
+  --success-soft: rgba(4,120,87,0.10);
+  /* Tangerine: warmer than gold, contrasts the cool indigo without clashing. */
+  --warning: #EA580C;
+  --warning-soft: rgba(234,88,12,0.10);
+  /* Crimson: classic editorial alert, bright on white. */
   --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
+  --danger-soft: rgba(220,38,38,0.10);
+  /* Cerulean: blueprint blue, sibling to indigo accent. */
+  --info: #0284C7;
+  --info-soft: rgba(2,132,199,0.10);
   --ring-track: #E4E6F0;
   --shimmer-from: #E4E6F0;
   --shimmer-to: #C9CCE0;
@@ -3217,19 +3924,24 @@ export function useTransfer() {
   --settings-bg: #FFFFFF;
   --file-icon-bg: rgba(79,70,229,0.07);
   --file-icon-color: #4F46E5;
-  --ai-bg: linear-gradient(135deg, #FFFFFF 0%, #F0F2F8 100%);
+  --ai-bg: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
   --ai-border: #E4E6F0;
   --ai-icon: #4F46E5;
   --nearby-bg: #F4F5FA;
   --tag-bg: #EAECF8;
   --tag-text: #4338CA;
   --progress-track: #E4E6F0;
-  --progress-fill: #4F46E5;
+  --progress-fill: linear-gradient(90deg, #4F46E5 0%, #6366F1 100%);
+  --progress-glow: rgba(79,70,229,0.25);
   --skeleton: linear-gradient(90deg, #E4E6F0 25%, #C9CCE0 50%, #E4E6F0 75%);
+  --gradient-hero: linear-gradient(135deg, #4F46E5 0%, #0284C7 100%);
+  --shadow-card: 0 4px 24px rgba(15,23,42,0.06);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: MIDNIGHT (Deep Navy)
+   THEME: MIDNIGHT (Deep Navy) — astronomical / oceanic
+   Deep ocean palette. Feature colors all sit in the cool aquatic spectrum
+   so the theme reads as a single unified scene rather than recolored stock.
    ═══════════════════════════════════════════ */
 [data-theme="midnight"] {
   --bg: #070B14;
@@ -3250,14 +3962,19 @@ export function useTransfer() {
   --accent-hover: #2563EB;
   --accent-soft: rgba(59,130,246,0.08);
   --accent-medium: rgba(59,130,246,0.16);
-  --success: #34D399;
-  --success-soft: rgba(52,211,153,0.1);
-  --warning: #FBBF24;
-  --warning-soft: rgba(251,191,36,0.1);
-  --danger: #F87171;
-  --danger-soft: rgba(248,113,113,0.1);
+  --accent-glow: rgba(59,130,246,0.45);
+  /* Bioluminescent teal: oceanic, distinct from the indigo-night green. */
+  --success: #14B8A6;
+  --success-soft: rgba(20,184,166,0.12);
+  /* Polished gold: warm enough to register as caution against deep blue. */
+  --warning: #EAB308;
+  --warning-soft: rgba(234,179,8,0.12);
+  /* Coral: warm-side red so danger doesn't get lost in the cool palette. */
+  --danger: #FB7185;
+  --danger-soft: rgba(251,113,133,0.12);
+  /* Aquamarine: secondary cool accent for info, sits between accent and success. */
   --info: #38BDF8;
-  --info-soft: rgba(56,189,248,0.1);
+  --info-soft: rgba(56,189,248,0.12);
   --ring-track: #1C2D4A;
   --shimmer-from: #1C2D4A;
   --shimmer-to: #2A4270;
@@ -3278,19 +3995,25 @@ export function useTransfer() {
   --settings-bg: #0D1526;
   --file-icon-bg: rgba(59,130,246,0.08);
   --file-icon-color: #3B82F6;
-  --ai-bg: linear-gradient(135deg, #0D1526 0%, #142035 100%);
+  --ai-bg: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
   --ai-border: #2A4270;
   --ai-icon: #3B82F6;
   --nearby-bg: #0D1526;
-  --tag-bg: rgba(59,130,246,0.12);
+  --tag-bg: rgba(59,130,246,0.18);
   --tag-text: #93C5FD;
   --progress-track: #1C2D4A;
-  --progress-fill: #3B82F6;
+  --progress-fill: linear-gradient(90deg, #2563EB 0%, #3B82F6 50%, #38BDF8 100%);
+  --progress-glow: rgba(59,130,246,0.50);
   --skeleton: linear-gradient(90deg, #1C2D4A 25%, #2A4270 50%, #1C2D4A 75%);
+  --gradient-hero: linear-gradient(135deg, #3B82F6 0%, #14B8A6 100%);
+  --shadow-card: 0 4px 32px rgba(0,0,0,0.55);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: SAKURA (Soft Red/Pink)
+   THEME: SAKURA (Cherry Blossom) — soft floral pastels
+   The danger isn't a generic red (which would clash with the rose accent);
+   it's wine. Warning is peach, info is plum — all chosen so badges
+   don't fight each other in a pink-dominant scene.
    ═══════════════════════════════════════════ */
 [data-theme="sakura"] {
   --bg: #FFF0F3;
@@ -3311,14 +4034,19 @@ export function useTransfer() {
   --accent-hover: #C9184A;
   --accent-soft: rgba(255,77,109,0.08);
   --accent-medium: rgba(255,77,109,0.15);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
-  --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
+  --accent-glow: rgba(255,77,109,0.30);
+  /* Spring mint: bright fresh green, the "leaves" against blossom petals. */
+  --success: #10B981;
+  --success-soft: rgba(16,185,129,0.10);
+  /* Peach: a warm coral that complements pink without competing. */
+  --warning: #F97316;
+  --warning-soft: rgba(249,115,22,0.10);
+  /* Wine: deep red-burgundy — distinct from the rose accent so danger reads. */
+  --danger: #9F1239;
+  --danger-soft: rgba(159,18,57,0.10);
+  /* Plum: purple-pink, sister tone to the accent, used for info notes. */
+  --info: #A21CAF;
+  --info-soft: rgba(162,28,175,0.10);
   --ring-track: #FFCCD5;
   --shimmer-from: #FFCCD5;
   --shimmer-to: #FFB3C1;
@@ -3339,19 +4067,24 @@ export function useTransfer() {
   --settings-bg: #FFFFFF;
   --file-icon-bg: rgba(255,77,109,0.08);
   --file-icon-color: #FF4D6D;
-  --ai-bg: linear-gradient(135deg, #FFF5F7 0%, #FFEAEE 100%);
+  --ai-bg: linear-gradient(135deg, #FFE4E9 0%, #FBCFE8 100%);
   --ai-border: #FFCCD5;
   --ai-icon: #FF4D6D;
   --nearby-bg: #FFF5F7;
   --tag-bg: #FFEAEE;
   --tag-text: #C9184A;
   --progress-track: #FFCCD5;
-  --progress-fill: #FF4D6D;
+  --progress-fill: linear-gradient(90deg, #FF4D6D 0%, #F472B6 100%);
+  --progress-glow: rgba(255,77,109,0.30);
   --skeleton: linear-gradient(90deg, #FFCCD5 25%, #FFB3C1 50%, #FFCCD5 75%);
+  --gradient-hero: linear-gradient(135deg, #FF4D6D 0%, #F472B6 50%, #C084FC 100%);
+  --shadow-card: 0 4px 24px rgba(255,77,109,0.10);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: LAVENDER (Soft Violet)
+   THEME: LAVENDER (Soft Violet) — perfumed botanical
+   Violet primary with herbal/sage feature colors so it never feels like
+   a generic light theme with purple swapped in.
    ═══════════════════════════════════════════ */
 [data-theme="lavender"] {
   --bg: #F6F4FF;
@@ -3372,14 +4105,19 @@ export function useTransfer() {
   --accent-hover: #6D28D9;
   --accent-soft: rgba(124,58,237,0.08);
   --accent-medium: rgba(124,58,237,0.15);
-  --success: #16A34A;
-  --success-soft: rgba(22,163,74,0.08);
-  --warning: #D97706;
-  --warning-soft: rgba(217,119,6,0.08);
-  --danger: #DC2626;
-  --danger-soft: rgba(220,38,38,0.08);
-  --info: #0891B2;
-  --info-soft: rgba(8,145,178,0.08);
+  --accent-glow: rgba(124,58,237,0.28);
+  /* Sage teal: muted, herbal — the green-grey of lavender-bush leaves. */
+  --success: #0F766E;
+  --success-soft: rgba(15,118,110,0.10);
+  /* Honey amber: muted gold, warm enough to register on cool violet. */
+  --warning: #CA8A04;
+  --warning-soft: rgba(202,138,4,0.10);
+  /* Magenta-rose: pink-red so danger reads against violet without echoing it. */
+  --danger: #BE185D;
+  --danger-soft: rgba(190,24,93,0.10);
+  /* Indigo: deep blue-violet sibling for info, distinct from the primary. */
+  --info: #4338CA;
+  --info-soft: rgba(67,56,202,0.10);
   --ring-track: #DDD5FF;
   --shimmer-from: #DDD5FF;
   --shimmer-to: #C4B5FD;
@@ -3400,19 +4138,23 @@ export function useTransfer() {
   --settings-bg: #FFFFFF;
   --file-icon-bg: rgba(124,58,237,0.08);
   --file-icon-color: #7C3AED;
-  --ai-bg: linear-gradient(135deg, #FAF8FF 0%, #EDE8FF 100%);
+  --ai-bg: linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%);
   --ai-border: #DDD5FF;
   --ai-icon: #7C3AED;
   --nearby-bg: #FAF8FF;
   --tag-bg: #EDE8FF;
   --tag-text: #6D28D9;
   --progress-track: #DDD5FF;
-  --progress-fill: #7C3AED;
+  --progress-fill: linear-gradient(90deg, #6D28D9 0%, #7C3AED 50%, #C084FC 100%);
+  --progress-glow: rgba(124,58,237,0.30);
   --skeleton: linear-gradient(90deg, #DDD5FF 25%, #C4B5FD 50%, #DDD5FF 75%);
+  --gradient-hero: linear-gradient(135deg, #7C3AED 0%, #4338CA 100%);
+  --shadow-card: 0 4px 24px rgba(124,58,237,0.10);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: FOREST (Dark Emerald)
+   THEME: FOREST (Dark Emerald) — bioluminescent canopy
+   All feature colors evoke a night forest: glowing moss, fireflies, mushrooms.
    ═══════════════════════════════════════════ */
 [data-theme="forest"] {
   --bg: #080F0C;
@@ -3433,14 +4175,19 @@ export function useTransfer() {
   --accent-hover: #0BB875;
   --accent-soft: rgba(16,217,138,0.08);
   --accent-medium: rgba(16,217,138,0.15);
-  --success: #4ADE80;
-  --success-soft: rgba(74,222,128,0.1);
-  --warning: #FCD34D;
-  --warning-soft: rgba(252,211,77,0.1);
-  --danger: #FCA5A5;
-  --danger-soft: rgba(252,165,165,0.1);
-  --info: #67E8F9;
-  --info-soft: rgba(103,232,249,0.1);
+  --accent-glow: rgba(16,217,138,0.45);
+  /* Lime-chartreuse: the brightest moss-green, distinct from the emerald accent. */
+  --success: #A3E635;
+  --success-soft: rgba(163,230,53,0.12);
+  /* Firefly amber: warm yellow, looks like glowing bugs in the dark canopy. */
+  --warning: #FACC15;
+  --warning-soft: rgba(250,204,21,0.12);
+  /* Toxic-mushroom coral: warm red against the cool forest, reads as alarm. */
+  --danger: #FB7185;
+  --danger-soft: rgba(251,113,133,0.12);
+  /* Glacial cyan: cool stream-water tone, a sibling of the emerald primary. */
+  --info: #22D3EE;
+  --info-soft: rgba(34,211,238,0.12);
   --ring-track: #1E3328;
   --shimmer-from: #1E3328;
   --shimmer-to: #2C4D3E;
@@ -3461,19 +4208,24 @@ export function useTransfer() {
   --settings-bg: #0F1A14;
   --file-icon-bg: rgba(16,217,138,0.08);
   --file-icon-color: #10D98A;
-  --ai-bg: linear-gradient(135deg, #0F1A14 0%, #16251A 100%);
+  --ai-bg: linear-gradient(135deg, #022C22 0%, #064E3B 100%);
   --ai-border: #2C4D3E;
   --ai-icon: #10D98A;
   --nearby-bg: #0F1A14;
-  --tag-bg: rgba(16,217,138,0.12);
+  --tag-bg: rgba(16,217,138,0.18);
   --tag-text: #6EF5BC;
   --progress-track: #1E3328;
-  --progress-fill: #10D98A;
+  --progress-fill: linear-gradient(90deg, #10D98A 0%, #A3E635 100%);
+  --progress-glow: rgba(16,217,138,0.50);
   --skeleton: linear-gradient(90deg, #1E3328 25%, #2C4D3E 50%, #1E3328 75%);
+  --gradient-hero: linear-gradient(135deg, #10D98A 0%, #A3E635 100%);
+  --shadow-card: 0 4px 28px rgba(0,0,0,0.50);
 }
 
 /* ═══════════════════════════════════════════
-   THEME: VOLCANIC (Obsidian Ember)
+   THEME: VOLCANIC (Obsidian Ember) — molten rock + lava
+   Hot earth-tones across the palette. Warning is molten gold; danger is
+   blood-red lava; info is a cool ash-cyan to provide one cool note.
    ═══════════════════════════════════════════ */
 [data-theme="volcanic"] {
   --bg: #0C0A08;
@@ -3494,14 +4246,19 @@ export function useTransfer() {
   --accent-hover: #EA6010;
   --accent-soft: rgba(249,115,22,0.08);
   --accent-medium: rgba(249,115,22,0.16);
-  --success: #86EFAC;
-  --success-soft: rgba(134,239,172,0.1);
-  --warning: #FDE047;
-  --warning-soft: rgba(253,224,71,0.1);
-  --danger: #FCA5A5;
-  --danger-soft: rgba(252,165,165,0.1);
-  --info: #67E8F9;
-  --info-soft: rgba(103,232,249,0.1);
+  --accent-glow: rgba(249,115,22,0.50);
+  /* Sulphur-lime: the bright green of toxic minerals, fits hot-rock palette. */
+  --success: #84CC16;
+  --success-soft: rgba(132,204,22,0.12);
+  /* Molten gold: warmer than amber, like flowing magma's brightest edge. */
+  --warning: #FACC15;
+  --warning-soft: rgba(250,204,21,0.12);
+  /* Blood-lava red: hottest core color, only used for danger so it stays meaningful. */
+  --danger: #EF4444;
+  --danger-soft: rgba(239,68,68,0.12);
+  /* Ash-cyan: the one cool note, like cool air rising from cooled obsidian. */
+  --info: #06B6D4;
+  --info-soft: rgba(6,182,212,0.12);
   --ring-track: #28241F;
   --shimmer-from: #28241F;
   --shimmer-to: #3C3632;
@@ -3522,33 +4279,62 @@ export function useTransfer() {
   --settings-bg: #1C1917;
   --file-icon-bg: rgba(249,115,22,0.08);
   --file-icon-color: #F97316;
-  --ai-bg: linear-gradient(135deg, #1C1917 0%, #28241F 100%);
+  --ai-bg: linear-gradient(135deg, #431407 0%, #7C2D12 100%);
   --ai-border: #52484A;
   --ai-icon: #F97316;
   --nearby-bg: #1C1917;
-  --tag-bg: rgba(249,115,22,0.12);
+  --tag-bg: rgba(249,115,22,0.18);
   --tag-text: #FDBA74;
   --progress-track: #28241F;
-  --progress-fill: #F97316;
+  --progress-fill: linear-gradient(90deg, #DC2626 0%, #F97316 50%, #FACC15 100%);
+  --progress-glow: rgba(249,115,22,0.55);
   --skeleton: linear-gradient(90deg, #28241F 25%, #3C3632 50%, #28241F 75%);
+  --gradient-hero: linear-gradient(135deg, #DC2626 0%, #F97316 50%, #FACC15 100%);
+  --shadow-card: 0 4px 28px rgba(0,0,0,0.55);
 }
 
 /* ═══════════════════════════════════════════
    BASE RESETS
    ═══════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+html { 
+  scroll-behavior: smooth; 
+  -webkit-text-size-adjust: 100%;
+  /* Enable hardware acceleration for smoother rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
 body {
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Prevent text pixelation on transforms */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
   transition: background 0.25s ease, color 0.25s ease;
 }
-input, button, textarea, select { font: inherit; }
-img { max-width: 100%; display: block; }
+input, button, textarea, select { 
+  font: inherit;
+  /* Prevent pixelation on interactive elements */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+img { 
+  max-width: 100%; 
+  display: block;
+  /* Prevent image pixelation */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+svg {
+  /* Prevent SVG pixelation */
+  shape-rendering: geometricPrecision;
+}
 a { color: inherit; text-decoration: none; }
 ::selection { background: var(--accent-medium); color: var(--text); }
 
@@ -3560,15 +4346,31 @@ a { color: inherit; text-decoration: none; }
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
-    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Prevent pixelation on hover */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    /* GPU acceleration */
+    will-change: transform;
   }
   .surface-card:hover {
-    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    /* Per-theme shadow — dark themes need deeper shadows than light ones,
+       and accented light themes look richer with a tinted shadow. */
+    box-shadow: var(--shadow-card, 0 4px 24px rgba(0,0,0,0.06));
+    transform: translateY(-1px) translateZ(0);
   }
   .surface-card-flat {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .surface-card-flat:active {
+    background: var(--surface-hover);
   }
   .btn-primary {
     display: inline-flex;
@@ -3583,15 +4385,26 @@ a { color: inherit; text-decoration: none; }
     border-radius: 12px;
     border: none;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 48px;
+    /* Prevent pixelation on hover/transform */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    /* Touch feedback */
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(232,99,74,0.25);
+    transform: translateY(-1px) translateZ(0);
+    /* Per-theme glow — was hardcoded sunset-orange, which bled into every other
+       theme's primary buttons. --accent-glow is defined per theme to match. */
+    box-shadow: 0 4px 16px var(--accent-glow);
   }
-  .btn-primary:active:not(:disabled) { transform: translateY(0); }
+  .btn-primary:active:not(:disabled) { 
+    transform: translateY(0) translateZ(0) scale(0.98);
+  }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .btn-secondary {
@@ -3607,12 +4420,20 @@ a { color: inherit; text-decoration: none; }
     border-radius: 12px;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 44px;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-tap-highlight-color: transparent;
   }
   .btn-secondary:hover:not(:disabled) {
     background: var(--accent-medium);
     border-color: var(--accent);
+    transform: translateZ(0);
+  }
+  .btn-secondary:active:not(:disabled) {
+    transform: scale(0.97) translateZ(0);
   }
 
   .btn-ghost {
@@ -3628,10 +4449,22 @@ a { color: inherit; text-decoration: none; }
     border-radius: 10px;
     border: none;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     min-height: 36px;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-ghost:hover { background: var(--surface-hover); color: var(--text); }
+  .btn-ghost:hover { 
+    background: var(--surface-hover); 
+    color: var(--text);
+    transform: translateZ(0);
+  }
+  .btn-ghost:active {
+    background: var(--surface-active);
+    transform: scale(0.96) translateZ(0);
+  }
 
   .btn-icon {
     display: inline-flex;
@@ -3644,9 +4477,21 @@ a { color: inherit; text-decoration: none; }
     background: transparent;
     color: var(--text-3);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-tap-highlight-color: transparent;
   }
-  .btn-icon:hover { background: var(--surface-hover); color: var(--text); }
+  .btn-icon:hover { 
+    background: var(--surface-hover); 
+    color: var(--text);
+    transform: translateZ(0);
+  }
+  .btn-icon:active {
+    background: var(--surface-active);
+    transform: scale(0.92) translateZ(0);
+  }
 
   .badge {
     display: inline-flex;
@@ -3671,14 +4516,49 @@ a { color: inherit; text-decoration: none; }
     border: 2px dashed var(--drop-zone-border);
     background: var(--drop-zone-bg);
     border-radius: 20px;
-    transition: all 0.25s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-tap-highlight-color: transparent;
   }
   .drop-zone.active {
     border-color: var(--drop-zone-active-border);
     background: var(--drop-zone-active-bg);
-    transform: scale(1.01);
+    transform: scale(1.01) translateZ(0);
     box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+
+  /* Smooth scroll container */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    background: var(--bg-overlay);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Skeleton loading states */
+  .skeleton {
+    background: var(--skeleton);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+    border-radius: 8px;
+  }
+
+  /* Interactive feedback */
+  .interactive {
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .interactive:active {
+    transform: scale(0.98) translateZ(0);
   }
 }
 
@@ -3722,6 +4602,61 @@ body.reduce-motion *::after {
   50% { opacity: 0.6; }
 }
 
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .countdown-pulse {
   animation: countdown-pulse-ring 1.2s ease-in-out infinite;
 }
@@ -3734,24 +4669,223 @@ body.reduce-motion *::after {
   animation: countdown-danger-flash 2s ease-in-out infinite;
 }
 
+.animate-slide-in-up {
+  animation: slide-in-up 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-slide-in-down {
+  animation: slide-in-down 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
 /* ═══════════════════════════════════════════
-   RESPONSIVE FIXES
+   MOBILE & RESPONSIVE ENHANCEMENTS
    ═══════════════════════════════════════════ */
+
+/* Touch-friendly tap targets (minimum 44x44px for iOS/Android) */
+@media (max-width: 768px) {
+  .btn-primary, .btn-secondary {
+    min-height: 48px;
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .btn-ghost {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  /* Larger touch targets for file cards */
+  .surface-card-flat {
+    padding: 16px !important;
+  }
+
+  /* Smoother mobile scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent text selection on mobile (better UX for buttons/cards) */
+  .btn-primary, .btn-secondary, .btn-ghost, .btn-icon,
+  .surface-card, .surface-card-flat, .drop-zone {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  /* Allow text selection in inputs and text areas */
+  input, textarea, [contenteditable] {
+    -webkit-touch-callout: default;
+    user-select: text;
+  }
+}
+
+/* Phone-specific optimizations */
 @media (max-width: 640px) {
+  body {
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+  }
+
   .surface-card {
     border-radius: 14px;
   }
 
-  .btn-primary {
-    padding: 10px 18px;
-    font-size: 14px;
-    min-height: 44px;
+  /* Optimize spacing for small screens */
+  .max-w-6xl {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
-  .btn-ghost {
-    padding: 6px 10px;
-    font-size: 12px;
-    min-height: 32px;
+  /* Better mobile typography */
+  h1 {
+    font-size: 28px !important;
+    line-height: 1.2;
+  }
+
+  /* Optimize drop zone for mobile */
+  .drop-zone {
+    border-radius: 16px;
+    min-height: 200px;
+  }
+
+  /* Mobile-optimized modals */
+  [role="dialog"] {
+    max-height: 90vh;
+    border-radius: 20px 20px 0 0;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .surface-card {
+    border-radius: 16px;
+  }
+
+  /* Optimize grid layouts for tablets */
+  .lg\:grid-cols-5 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lg\:col-span-3 {
+    grid-column: span 1;
+  }
+
+  .lg\:col-span-2 {
+    grid-column: span 1;
+  }
+}
+
+/* Desktop enhancements */
+@media (min-width: 1025px) {
+  /* Smooth hover effects on desktop only */
+  .surface-card:hover {
+    transform: translateY(-2px) translateZ(0);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px) translateZ(0);
+  }
+
+  /* Desktop-specific animations */
+  .drop-zone:hover {
+    transform: scale(1.005) translateZ(0);
+  }
+}
+
+/* High-DPI displays (Retina, 4K) */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper rendering on high-DPI screens */
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+
+  img, svg {
+    image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 896px) and (orientation: landscape) {
+  /* Reduce vertical padding in landscape */
+  .py-8, .py-12 {
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+  }
+
+  /* Optimize navbar height */
+  nav {
+    height: 48px;
+  }
+
+  .pt-14 {
+    padding-top: 48px;
+  }
+}
+
+/* Safe area insets for notched devices (iPhone X+) */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+
+  nav {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .max-w-6xl {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+}
+
+/* Dark mode media query support */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+  }
+}
+
+/* Reduced motion support (accessibility) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  nav, .btn-icon, .btn-ghost {
+    display: none;
+  }
+
+  .surface-card {
+    border: 1px solid #000;
+    box-shadow: none;
   }
 }
 
@@ -3770,7 +4904,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (33530 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (34933 bytes) =====
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -3850,6 +4984,7 @@ export default function DownloadPage() {
   const [retryAttempt, setRetryAttempt] = useState(0)
   const [downloading, setDownloading] = useState(false)
   const [downloadPercent, setDownloadPercent] = useState(0)
+  const [downloadSpeed, setDownloadSpeed] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
   const [previewSrc, setPreviewSrc] = useState(null)
   const [needsPassword, setNeedsPassword] = useState(Boolean(initialCachedTransfer?.passwordProtected))
@@ -4188,9 +5323,30 @@ export default function DownloadPage() {
       saveCachedAI(normalizedCode, data)
       patchCachedTransfer({ ai: data })
     }
-    const onDownProg = ({ percent }) => {
+    // RAF-coalesce socket-driven download progress. Backend now throttles emits
+    // to ~5/sec, but on a fast LAN we can still get bursty updates that would
+    // queue redundant renders. Coalesce so the bar advances smoothly at 60fps.
+    let downProgRaf = 0
+    let pendingDownPct = -1
+    let pendingDownSpeed = 0
+    const onDownProg = ({ percent, speed, loaded, total }) => {
       if (!downloadingRef.current) return
-      setDownloadPercent(percent || 0)
+      const pct = Number(percent) || 0
+      const spd = Number(speed) || 0
+      pendingDownPct = pct
+      pendingDownSpeed = spd
+      if (downProgRaf) return
+      downProgRaf = requestAnimationFrame(() => {
+        downProgRaf = 0
+        if (pendingDownPct >= 0) {
+          setDownloadPercent(pendingDownPct)
+          pendingDownPct = -1
+        }
+        if (pendingDownSpeed >= 0) {
+          setDownloadSpeed(pendingDownSpeed)
+          pendingDownSpeed = 0
+        }
+      })
     }
     const onDownComplete = () => {
       if (metaRef.current?.burnAfterDownload) {
@@ -4252,6 +5408,10 @@ export default function DownloadPage() {
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-claimed', onClaimed)
       socket.off('transfer-receipt', onReceipt)
+      if (downProgRaf) {
+        cancelAnimationFrame(downProgRaf)
+        downProgRaf = 0
+      }
       leaveRoom(normalizedCode)
     }
   }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, patchCachedTransfer])
@@ -4308,13 +5468,19 @@ export default function DownloadPage() {
 
       const currentSettings = getSettings()
 
-      // Confetti!
+      // Confetti! Pull the active theme's accent + success + info from CSS vars
+      // so a Forest theme gets emerald confetti, Sakura gets rose, etc., instead
+      // of always firing sunset-orange.
       if (!currentSettings.reducedMotion) {
+        const cs = getComputedStyle(document.documentElement)
+        const themeColors = ['--accent', '--accent-hover', '--success', '--info', '--warning']
+          .map((v) => cs.getPropertyValue(v).trim())
+          .filter(Boolean)
         confetti({
           particleCount: 72,
           spread: 80,
           origin: { y: 0.6 },
-          colors: ['#E8634A', '#FFB88A', '#FF9A5C', '#16A34A', '#0891B2'],
+          colors: themeColors.length ? themeColors : ['#E8634A', '#16A34A', '#0891B2'],
         })
       }
 
@@ -4618,7 +5784,7 @@ export default function DownloadPage() {
               <motion.div key="download" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {downloading ? (
                   <div className="surface-card p-5 mb-6">
-                    <ProgressBar percent={downloadPercent} label="Downloading..." showSpeed={false} />
+                    <ProgressBar percent={downloadPercent} speed={downloadSpeed} label="Downloading..." showSpeed={true} />
                   </div>
                 ) : isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
                   <button className="btn-primary w-full text-base mb-6" onClick={handleDownload}>
@@ -4776,7 +5942,7 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (31287 bytes) =====
+===== FILE: src/pages/HomePage.jsx (37641 bytes) =====
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -4789,7 +5955,7 @@ import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
 import { useTransfer } from '../context/TransferContext'
-import { uploadFiles, uploadClipboard } from '../services/api'
+import { uploadFiles, uploadClipboard, shareText } from '../services/api'
 import { getSettings } from '../utils/storage'
 import { saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
@@ -4800,6 +5966,7 @@ import ExpirySelector from '../components/ExpirySelector'
 import ProgressBar from '../components/ProgressBar'
 import RecentTransfers from '../components/RecentTransfers'
 import NearbyDevices from '../components/NearbyDevices'
+import ShareTextModal from '../components/ShareTextModal'
 
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
 const MAX_SIZE = 100 * 1024 * 1024 // 100MB
@@ -4819,19 +5986,62 @@ export default function HomePage() {
   const { socket, isConnected, socketId } = useSocket()
   const { uploadState, setUploadProgress, startUpload, setError } = useTransfer()
 
-  const settings = getSettings()
+  const initialSettings = getSettings()
   const [files, setFiles] = useState([])
-  const [expiry, setExpiry] = useState(settings.defaultExpiry || 60)
-  const [burn, setBurn] = useState(settings.defaultBurn || false)
+  const [expiry, setExpiry] = useState(initialSettings.defaultExpiry || 60)
+  const [burn, setBurn] = useState(initialSettings.defaultBurn || false)
+  // Track whether the user has manually overridden the picker in this session.
+  // If they have, we don't stomp their choice when settings change. If they
+  // haven't, the picker should mirror whatever default is currently saved.
+  const expiryTouchedRef = useRef(false)
+  const burnTouchedRef = useRef(false)
+  const setExpiryUser = useCallback((value) => {
+    expiryTouchedRef.current = true
+    setExpiry(value)
+  }, [])
+  const setBurnUser = useCallback((value) => {
+    burnTouchedRef.current = true
+    setBurn(value)
+  }, [])
+
+  // Settings live in localStorage and are mutated from SettingsPanel via the
+  // `swiftshare:settings-changed` custom event. Without this listener, opening
+  // settings, changing default expiry, and coming back here would leave the
+  // picker stuck on the value captured at mount time.
+  useEffect(() => {
+    const onSettingsChanged = (e) => {
+      const next = e?.detail || getSettings()
+      if (!expiryTouchedRef.current && Number.isFinite(Number(next?.defaultExpiry))) {
+        setExpiry(Number(next.defaultExpiry))
+      }
+      if (!burnTouchedRef.current && typeof next?.defaultBurn === 'boolean') {
+        setBurn(next.defaultBurn)
+      }
+    }
+    window.addEventListener('swiftshare:settings-changed', onSettingsChanged)
+    // Also re-sync once on mount in case settings changed while this component
+    // was unmounted (e.g. user navigated away, changed default, came back).
+    onSettingsChanged({ detail: getSettings() })
+    return () => window.removeEventListener('swiftshare:settings-changed', onSettingsChanged)
+  }, [])
   const [uploading, setUploading] = useState(false)
   const [uploadPercent, setUploadPercent] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState(0)
   const [uploadPhase, setUploadPhase] = useState('uploading') // 'uploading' | 'finalizing' | 'retrying'
   const uploadStartRef = useRef(0)
-  const lastBytesRef = useRef({ at: 0, loaded: 0 })
+  // Speed sampling state. Maintains a rolling-window calculation plus an
+  // exponential moving average so the displayed MB/s is stable instead of
+  // jittering on every progress tick (XHR can fire dozens per second on LAN).
+  const speedSampleRef = useRef({ at: 0, loaded: 0, ema: 0 })
+  // RAF-coalesced UI updates: progress events fire faster than React can render
+  // on low-end mobile. We accumulate the latest values and flush at most once
+  // per animation frame (≤16ms) to keep the bar smooth without wasted renders.
+  const pendingProgressRef = useRef(null)
+  const rafIdRef = useRef(0)
   const [passwordProtected, setPasswordProtected] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [shareTextModalOpen, setShareTextModalOpen] = useState(false)
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
 
@@ -4908,39 +6118,37 @@ export default function HomePage() {
     const onPaste = async (e) => {
       const items = e.clipboardData?.items
       if (!items) return
+      
+      const pastedFiles = []
+      
       for (const item of items) {
-        if (item.type.startsWith('image/')) {
+        // Handle any file type, not just images
+        if (item.kind === 'file') {
           e.preventDefault()
-          const blob = item.getAsFile()
-          if (!blob) return
-          const reader = new FileReader()
-          reader.onload = async () => {
-            try {
-              setUploading(true)
-              uploadHandledRef.current = false
-              const imageDataUrl = typeof reader.result === 'string' ? reader.result : ''
-              const clipOpts = {}
-              if (passwordProtected && password.trim()) {
-                clipOpts.passwordProtected = true
-                clipOpts.password = password
-              }
-              const response = await uploadClipboard(imageDataUrl, burn, socketId, clipOpts)
-              handleUploadSuccess(response)
-            } catch (err) {
-              setUploading(false)
-              if (!shouldSuppressUploadError(err)) {
-                toast.error(getUploadErrorMessage(err))
-              }
-            }
+          const file = item.getAsFile()
+          if (file) {
+            pastedFiles.push(file)
           }
-          reader.readAsDataURL(blob)
+        }
+      }
+      
+      // Add pasted files to the drop zone (up to MAX_FILES limit)
+      if (pastedFiles.length > 0) {
+        const combined = [...files, ...pastedFiles].slice(0, MAX_FILES)
+        const errors = combined.map(validateFile).filter(Boolean)
+        
+        if (errors.length) {
+          errors.forEach(e => toast.error(e))
           return
         }
+        
+        setFiles(combined)
+        toast.success(`${pastedFiles.length} file${pastedFiles.length > 1 ? 's' : ''} pasted!`)
       }
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)
-  }, [burn, socketId, passwordProtected, password])
+  }, [files])
 
   // Validation
   function validateFile(file) {
@@ -4974,6 +6182,56 @@ export default function HomePage() {
     return files.reduce((s, f) => s + (f.size || 0), 0)
   }
 
+  async function handleShareText(textData) {
+    if (!isConnected) {
+      toast.error('Server is waking up. Please wait a moment and try again.')
+      throw new Error('Not connected')
+    }
+
+    try {
+      const response = await shareText({
+        ...textData,
+        socketId,
+      })
+
+      const transferCode = response?.code
+      if (!transferCode) {
+        throw new Error('Invalid response from server')
+      }
+
+      const normalizedCode = String(transferCode).trim().toUpperCase()
+      const transferSnapshot = { ...response, code: normalizedCode }
+      
+      saveTransfer({
+        code: normalizedCode,
+        filename: textData.title || 'Text Snippet',
+        isSender: true,
+        status: transferSnapshot?.status,
+        expiresAt: transferSnapshot?.expiresAt,
+        createdAt: transferSnapshot?.createdAt,
+        files: transferSnapshot?.files,
+        ai: transferSnapshot?.ai,
+        transfer: transferSnapshot,
+      })
+
+      // Navigate to sender page
+      navigate(`/sender/${normalizedCode}`, { state: { transferData: transferSnapshot } })
+
+      // Play success sound
+      window.setTimeout(() => {
+        const currentSettings = getSettings()
+        if (currentSettings.soundEnabled) {
+          playUploadSuccess()
+        }
+      }, 0)
+
+      toast.success('Text shared successfully!')
+    } catch (err) {
+      console.error('[HomePage] Share text error:', err)
+      throw err
+    }
+  }
+
   function getUploadErrorMessage(err) {
     const status = Number(err?.response?.status || 0)
     const backendError = err?.response?.data?.error
@@ -5004,6 +6262,13 @@ export default function HomePage() {
     return false
   }
 
+  // Cancel any pending RAF on unmount to avoid setState-after-unmount.
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current)
+    }
+  }, [])
+
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
     if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
@@ -5013,7 +6278,7 @@ export default function HomePage() {
     setUploadSpeed(0)
     setUploadPhase('uploading')
     uploadStartRef.current = Date.now()
-    lastBytesRef.current = { at: Date.now(), loaded: 0 }
+    speedSampleRef.current = { at: Date.now(), loaded: 0, ema: 0 }
     uploadHandledRef.current = false
 
     let uploadSucceeded = false
@@ -5028,36 +6293,66 @@ export default function HomePage() {
       }
       if (socketId) formData.append('socketId', socketId)
 
+      const flushProgress = () => {
+        rafIdRef.current = 0
+        const next = pendingProgressRef.current
+        if (!next) return
+        pendingProgressRef.current = null
+        setUploadPercent((prev) => (Math.abs(prev - next.percent) >= 0.5 ? next.percent : prev))
+        if (Number.isFinite(next.speed)) {
+          setUploadSpeed((prev) => (Math.abs(prev - next.speed) >= 1024 ? next.speed : prev))
+        }
+        if (next.phase) setUploadPhase((prev) => (prev === next.phase ? prev : next.phase))
+      }
+
+      const scheduleFlush = () => {
+        if (rafIdRef.current) return
+        rafIdRef.current = requestAnimationFrame(flushProgress)
+      }
+
       const response = await uploadFiles(formData, {
         onProgress: (info) => {
           if (info?.retrying) {
-            setUploadPhase('retrying')
+            // Drop any pending flushes; retry phase is its own indeterminate UI.
+            pendingProgressRef.current = { percent: 0, speed: 0, phase: 'retrying' }
+            scheduleFlush()
             return
           }
           const total = Number(info?.total) || 0
           const loaded = Number(info?.loaded) || 0
           if (!total) return
 
-          // Cap visible bar at 99% until the server response confirms finalization.
-          const rawPct = (loaded / total) * 100
-          const visiblePct = Math.min(99, rawPct)
-          setUploadPercent(visiblePct)
+          // Cap visible bar at 99% until the server response confirms finalization
+          // (the last few % is server-side R2 finalization which the client can't see).
+          const visiblePct = Math.min(99, (loaded / total) * 100)
 
-          // Speed: bytes/sec over the most recent window (~750ms).
+          // Speed: weighted EMA over a ~750ms sampling window. The sliding window
+          // smooths over chunky XHR delivery (browsers often batch progress events
+          // on slow networks), and the EMA dampens spikes from radio handoffs.
           const now = Date.now()
-          const last = lastBytesRef.current
-          const dt = (now - last.at) / 1000
+          const sample = speedSampleRef.current
+          let smoothedSpeed = sample.ema
+          const dt = (now - sample.at) / 1000
           if (dt >= 0.75) {
-            const speed = Math.max(0, Math.round((loaded - last.loaded) / dt))
-            setUploadSpeed(speed)
-            lastBytesRef.current = { at: now, loaded }
+            const instantSpeed = Math.max(0, (loaded - sample.loaded) / dt)
+            // Alpha 0.4: responsive enough to reflect a stalled radio within a
+            // couple seconds, smooth enough to avoid showing wild swings.
+            smoothedSpeed = sample.ema > 0
+              ? Math.round(sample.ema * 0.6 + instantSpeed * 0.4)
+              : Math.round(instantSpeed)
+            speedSampleRef.current = { at: now, loaded, ema: smoothedSpeed }
           }
 
-          if (loaded >= total) {
-            setUploadPhase('finalizing')
-          } else {
-            setUploadPhase('uploading')
+          const phase = loaded >= total ? 'finalizing' : 'uploading'
+
+          // Coalesce: only the latest values matter — older pending values are
+          // safely overwritten before the next frame paint.
+          pendingProgressRef.current = {
+            percent: visiblePct,
+            speed: smoothedSpeed,
+            phase,
           }
+          scheduleFlush()
         },
       })
 
@@ -5148,11 +6443,29 @@ export default function HomePage() {
                         {isDragActive ? 'Drop it here!' : 'Drop files here'}
                       </p>
                       <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
-                        or click to browse · Ctrl+V to paste images
+                        or click to browse · Ctrl+V to paste files
                       </p>
-                      <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+                      <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
                         Max 100 MB per file · Up to 5 files
                       </p>
+                      
+                      {/* Share Text button */}
+                      <div className="flex items-center gap-3 justify-center mt-4">
+                        <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+                        <span className="text-xs font-medium" style={{ color: 'var(--text-4)' }}>or</span>
+                        <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-secondary mt-4"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShareTextModalOpen(true)
+                        }}
+                      >
+                        <FileText size={16} />
+                        Share Text
+                      </button>
                     </div>
                   ) : (
                     <div>
@@ -5204,7 +6517,7 @@ export default function HomePage() {
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
-                    <ExpirySelector value={expiry} onChange={setExpiry} />
+                    <ExpirySelector value={expiry} onChange={setExpiryUser} />
 
                     {/* Burn toggle */}
                     <button
@@ -5214,7 +6527,7 @@ export default function HomePage() {
                         background: burn ? 'var(--danger-soft)' : 'transparent',
                         border: `1.5px solid ${burn ? 'var(--danger)' : 'var(--border)'}`,
                       }}
-                      onClick={() => setBurn(!burn)}
+                      onClick={() => setBurnUser(!burn)}
                     >
                       <Flame size={18} style={{ color: burn ? 'var(--danger)' : 'var(--text-4)' }} />
                       <div className="flex-1 text-left">
@@ -5480,11 +6793,18 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+
+      {/* Share Text Modal */}
+      <ShareTextModal 
+        open={shareTextModalOpen}
+        onClose={() => setShareTextModalOpen(false)}
+        onShare={handleShareText}
+      />
     </div>
   )
 }
 
-===== FILE: src/pages/JoinPage.jsx (10747 bytes) =====
+===== FILE: src/pages/JoinPage.jsx (10169 bytes) =====
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -5544,15 +6864,12 @@ export default function JoinPage() {
     setLoading(true)
     setError(null)
 
-    console.log('[JoinPage] Submitting code:', normalizedCode)
-
     try {
       let outcome = null
       for (let attempt = 0; attempt <= MAX_JOIN_RETRIES; attempt += 1) {
         let hardTimeoutId
         const timeoutFallback = new Promise((resolve) => {
           hardTimeoutId = window.setTimeout(() => {
-            console.warn('[JoinPage] Hard timeout reached after 20s')
             resolve({ ok: false, type: 'TIMEOUT' })
           }, JOIN_REQUEST_HARD_TIMEOUT_MS)
         })
@@ -5580,11 +6897,8 @@ export default function JoinPage() {
 
       if (!mountedRef.current) return
 
-      console.log('[JoinPage] Outcome:', outcome)
-
       if (outcome?.ok) {
         const data = outcome.data
-        console.log('[JoinPage] Success, navigating to download page')
         saveTransfer({
           code: normalizedCode,
           filename: data?.files?.[0]?.name || normalizedCode,
@@ -5616,13 +6930,10 @@ export default function JoinPage() {
         }
         setError(errCode)
       } else if (outcome?.type === 'TIMEOUT') {
-        console.error('[JoinPage] Timeout error - backend may be cold starting')
         setError('TIMEOUT_ERROR')
       } else if (outcome?.type === 'EMPTY_RESPONSE') {
-        console.error('[JoinPage] Empty response from server')
         setError('EMPTY_RESPONSE')
       } else {
-        console.error('[JoinPage] Network error')
         setError('NETWORK_ERROR')
       }
 
@@ -5633,7 +6944,6 @@ export default function JoinPage() {
         setTimeout(() => el.classList.remove('animate-shake'), 500)
       }
     } catch (err) {
-      console.error('[JoinPage] Unexpected error:', err)
       if (!mountedRef.current) return
       setError('SERVER_ERROR')
       const el = document.getElementById('code-input-row')
@@ -5644,7 +6954,6 @@ export default function JoinPage() {
     } finally {
       submitInFlightRef.current = false
       setLoading(false)
-      console.log('[JoinPage] Request complete, loading set to false')
     }
   }, [navigate])
 
@@ -5808,7 +7117,7 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (43050 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (43605 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -6176,7 +7485,21 @@ export default function SenderPage() {
       saveCachedAI(normalizedCode, data)
       patchCachedTransfer({ ai: data })
     }
-    const onDownProg = ({ percent }) => setDownloadProgress(percent || 0)
+    // RAF-coalesce: percent updates can land faster than React renders,
+    // especially on multi-receiver downloads where each percent is broadcast.
+    let downProgRaf = 0
+    let pendingDownPct = -1
+    const onDownProg = ({ percent }) => {
+      pendingDownPct = Number(percent) || 0
+      if (downProgRaf) return
+      downProgRaf = requestAnimationFrame(() => {
+        downProgRaf = 0
+        if (pendingDownPct >= 0) {
+          setDownloadProgress(pendingDownPct)
+          pendingDownPct = -1
+        }
+      })
+    }
     const onDownComplete = () => {
       setDownloadProgress(100)
       if (metaRef.current?.burnAfterDownload) {
@@ -6251,6 +7574,10 @@ export default function SenderPage() {
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-extended', onExtended)
       socket.off('activity-updated', onActivityUpdated)
+      if (downProgRaf) {
+        cancelAnimationFrame(downProgRaf)
+        downProgRaf = 0
+      }
       leaveRoom(normalizedCode)
     }
   }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh])
@@ -6943,7 +8270,7 @@ export default function SenderPage() {
   )
 }
 
-===== FILE: src/services/api.js (16850 bytes) =====
+===== FILE: src/services/api.js (17396 bytes) =====
 import axios from 'axios'
 
 function isLoopbackHost(hostname) {
@@ -7352,6 +8679,23 @@ export async function uploadClipboard(imageBase64, burnAfterDownload, senderSock
   return unwrapResponse(data)
 }
 
+// ── Text Sharing ────────────────────────────
+export async function shareText({ content, title, expiryMinutes, burnAfterDownload, passwordProtected, password, socketId }) {
+  const payload = {
+    content,
+    title,
+    expiryMinutes,
+    burnAfterDownload,
+    socketId,
+  }
+  if (passwordProtected && password) {
+    payload.passwordProtected = true
+    payload.password = password
+  }
+  const { data } = await API.post('/api/text/share', payload)
+  return unwrapResponse(data)
+}
+
 // ── Metadata & Status ───────────────────────
 export async function getFileMetadata(code, requestConfig = undefined) {
   const { data } = await API.get(`/api/file/${normalizeCode(code)}`, requestConfig)
@@ -7721,7 +9065,7 @@ export function expiryLabel(minutes) {
   return '5 hours'
 }
 
-===== FILE: src/utils/sound.js (2872 bytes) =====
+===== FILE: src/utils/sound.js (3141 bytes) =====
 // Subtle success sounds using Web Audio API.
 // Browser autoplay policies require a user gesture before audio can play,
 // so we unlock the context on first interaction.
@@ -7797,6 +9141,13 @@ function playTwoTone(firstFrequency, secondFrequency) {
     osc1.stop(now + 0.12)
     osc2.start(now + 0.08)
     osc2.stop(now + 0.25)
+
+    // Keep audio context alive during playback to prevent interruption
+    // This ensures sound completes even if page navigation starts
+    const keepAlive = setTimeout(() => {
+      // Cleanup after sound completes
+      clearTimeout(keepAlive)
+    }, 300)
   }
 
   if (ctx.state === 'suspended') {
@@ -8302,7 +9653,7 @@ export default {
   ]
 }
 
-===== FILE: vite.config.js (549 bytes) =====
+===== FILE: vite.config.js (1812 bytes) =====
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -8328,10 +9679,33 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    // Bundle splitting: pulling these heavy deps into separate chunks lets the
+    // browser cache them across deploys (only the small app chunk invalidates
+    // on most code changes), and lets HTTP/2 download them in parallel — saves
+    // ~300ms on cold loads from mobile.
+    rollupOptions: {
+      output: {
+        // Function form (rolldown / Vite 8): inspect each module's path and
+        // assign it to a named vendor chunk. Object form is not supported
+        // under rolldown.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'react-vendor'
+          if (/\/node_modules\/framer-motion\//.test(id)) return 'motion'
+          if (/\/node_modules\/(socket\.io-client|engine\.io-client)\//.test(id)) return 'socket'
+          if (/\/node_modules\/react-pdf\//.test(id)) return 'pdf'
+          if (/\/node_modules\/(react-qr-code|qrcode)\//.test(id)) return 'qr'
+          if (/\/node_modules\/lucide-react\//.test(id)) return 'icons'
+        },
+      },
+    },
+    // Larger chunk warning threshold — react-pdf legitimately ships 700KB+ and
+    // we don't want CI noise.
+    chunkSizeWarningLimit: 1500,
   },
 })
 
 ===== SUMMARY =====
-Included files: 45
+Included files: 46
 Skipped (too large): 0
-Total source bytes included: 298037
+Total source bytes included: 348004
