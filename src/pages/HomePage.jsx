@@ -173,39 +173,37 @@ export default function HomePage() {
     const onPaste = async (e) => {
       const items = e.clipboardData?.items
       if (!items) return
+      
+      const pastedFiles = []
+      
       for (const item of items) {
-        if (item.type.startsWith('image/')) {
+        // Handle any file type, not just images
+        if (item.kind === 'file') {
           e.preventDefault()
-          const blob = item.getAsFile()
-          if (!blob) return
-          const reader = new FileReader()
-          reader.onload = async () => {
-            try {
-              setUploading(true)
-              uploadHandledRef.current = false
-              const imageDataUrl = typeof reader.result === 'string' ? reader.result : ''
-              const clipOpts = {}
-              if (passwordProtected && password.trim()) {
-                clipOpts.passwordProtected = true
-                clipOpts.password = password
-              }
-              const response = await uploadClipboard(imageDataUrl, burn, socketId, clipOpts)
-              handleUploadSuccess(response)
-            } catch (err) {
-              setUploading(false)
-              if (!shouldSuppressUploadError(err)) {
-                toast.error(getUploadErrorMessage(err))
-              }
-            }
+          const file = item.getAsFile()
+          if (file) {
+            pastedFiles.push(file)
           }
-          reader.readAsDataURL(blob)
+        }
+      }
+      
+      // Add pasted files to the drop zone (up to MAX_FILES limit)
+      if (pastedFiles.length > 0) {
+        const combined = [...files, ...pastedFiles].slice(0, MAX_FILES)
+        const errors = combined.map(validateFile).filter(Boolean)
+        
+        if (errors.length) {
+          errors.forEach(e => toast.error(e))
           return
         }
+        
+        setFiles(combined)
+        toast.success(`${pastedFiles.length} file${pastedFiles.length > 1 ? 's' : ''} pasted!`)
       }
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)
-  }, [burn, socketId, passwordProtected, password])
+  }, [files])
 
   // Validation
   function validateFile(file) {
@@ -500,7 +498,7 @@ export default function HomePage() {
                         {isDragActive ? 'Drop it here!' : 'Drop files here'}
                       </p>
                       <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
-                        or click to browse · Ctrl+V to paste images
+                        or click to browse · Ctrl+V to paste files
                       </p>
                       <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
                         Max 100 MB per file · Up to 5 files
