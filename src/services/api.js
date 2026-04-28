@@ -406,6 +406,23 @@ export async function uploadClipboard(imageBase64, burnAfterDownload, senderSock
   return unwrapResponse(data)
 }
 
+// ── Text Sharing ────────────────────────────
+export async function shareText({ content, title, expiryMinutes, burnAfterDownload, passwordProtected, password, socketId }) {
+  const payload = {
+    content,
+    title,
+    expiryMinutes,
+    burnAfterDownload,
+    socketId,
+  }
+  if (passwordProtected && password) {
+    payload.passwordProtected = true
+    payload.password = password
+  }
+  const { data } = await API.post('/api/text/share', payload)
+  return unwrapResponse(data)
+}
+
 // ── Metadata & Status ───────────────────────
 export async function getFileMetadata(code, requestConfig = undefined) {
   const { data } = await API.get(`/api/file/${normalizeCode(code)}`, requestConfig)
