@@ -44,8 +44,9 @@ export function formatRelativeExpiry(expiresAt) {
 }
 
 export function formatSpeed(bytesPerSecond) {
-  if (!bytesPerSecond || bytesPerSecond <= 0) return ''
-  return `${formatBytes(bytesPerSecond)}/s`
+  const bps = Number(bytesPerSecond)
+  if (!bps || !Number.isFinite(bps) || bps <= 0) return ''
+  return `${formatBytes(bps)}/s`
 }
 
 export function expiryLabel(minutes) {

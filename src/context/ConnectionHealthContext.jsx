@@ -6,16 +6,13 @@ const ConnectionHealthContext = createContext(null)
 
 // States: 'connected' | 'reconnecting' | 'waking' | 'offline'
 //
-// The banner is intentionally pessimistic to display: it only appears when we
-// have *strong* evidence the user is offline. Mobile networks routinely drop a
-// single HTTP request while a long-lived Socket.IO connection on the same
-// domain stays healthy — showing "Reconnecting..." in that case is a lie that
-// scares users away. So the rules are:
-//
-//   1. Start optimistic ('connected'). The banner does not flash on first paint.
+// Design principles:
+//   1. Start optimistic ('connected'). No banner flash on first paint.
 //   2. If the socket is connected, we are connected. Period.
 //   3. Only flip to 'reconnecting'/'waking' after MIN_FAILURES consecutive
 //      ping failures *and* the socket is not connected.
+//   4. When connection is restored (socket reconnects OR ping succeeds),
+//      immediately clear the banner — no stale 'offline' state.
 
 const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
 const MIN_FAILURES_BEFORE_BANNER = 2
@@ -32,14 +29,14 @@ export function ConnectionHealthProvider({ children }) {
 
   const { isConnected: socketConnected } = useSocket()
 
-  // The socket connecting is the strongest possible "we have a working link
-  // to the backend" signal — if it's up, suppress any banner immediately.
+  // Socket connection is the strongest "we have a working link" signal.
+  // Always clear the banner immediately when socket connects.
   useEffect(() => {
     socketConnectedRef.current = Boolean(socketConnected)
     if (socketConnected) {
       everConnectedRef.current = true
       failureCountRef.current = 0
-      setStatus((prev) => (prev === 'offline' ? prev : 'connected'))
+      setStatus('connected')
       setLastOk(Date.now())
     }
   }, [socketConnected])
@@ -56,7 +53,8 @@ export function ConnectionHealthProvider({ children }) {
       if (result.ok) {
         everConnectedRef.current = true
         failureCountRef.current = 0
-        setStatus((prev) => (prev === 'offline' ? prev : 'connected'))
+        // Always set connected on successful ping — no conditional guard
+        setStatus('connected')
         setLastOk(Date.now())
       } else {
         failureCountRef.current += 1
@@ -114,6 +112,9 @@ export function ConnectionHealthProvider({ children }) {
     }
 
     function onOnline() {
+      // Browser says we're back online — immediately reset and verify
+      failureCountRef.current = 0
+      setStatus('connected')
       void checkHealth()
     }
 
