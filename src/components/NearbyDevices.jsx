@@ -179,9 +179,19 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     }
     document.addEventListener('visibilitychange', onVisibility)
 
+    // Refresh when browser comes back online (e.g. after WiFi reconnect)
+    const onOnline = () => {
+      if (mountedRef.current) {
+        lastPingRef.current = 0 // reset debounce so we ping immediately
+        requestNearby()
+      }
+    }
+    window.addEventListener('online', onOnline)
+
     return () => {
       clearInterval(iv)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('online', onOnline)
       socket.off('connect', requestNearby)
       socket.off('nearby-devices', onNearbyDevices)
       socket.off('nearby-device-added', onNearbyDeviceAdded)

@@ -49,7 +49,7 @@ export default function DownloadPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transferData || null
-  const { socket, joinRoom, leaveRoom } = useSocket()
+  const { socket, joinRoom, leaveRoom, rejoinRoom } = useSocket()
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
   const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
@@ -398,7 +398,8 @@ export default function DownloadPage() {
     if (!socket || !normalizedCode) return
 
     const connectRoom = () => {
-      joinRoom(normalizedCode)
+      // Use rejoinRoom on reconnect so the server re-syncs the countdown timer.
+      rejoinRoom(normalizedCode)
     }
 
     connectRoom()
@@ -507,7 +508,7 @@ export default function DownloadPage() {
       }
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, patchCachedTransfer])
+  }, [socket, normalizedCode, joinRoom, rejoinRoom, leaveRoom, navigate, patchCachedTransfer])
 
   // Password verification
   async function handlePasswordSubmit(e) {

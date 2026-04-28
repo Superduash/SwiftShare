@@ -143,13 +143,13 @@ export default function HomePage() {
     // Navigate first to avoid any transient audio API issues blocking route transition.
     navigate(`/sender/${normalizedTransferCode}`, { state: { transferData: transferSnapshot } })
 
-    // Play success sound after navigation commit.
-    window.setTimeout(() => {
+    // Play success sound after navigation commit (rAF ensures the new route has painted).
+    requestAnimationFrame(() => {
       const currentSettings = getSettings()
       if (currentSettings.soundEnabled) {
         playUploadSuccess()
       }
-    }, 0)
+    })
   }, [files, navigate])
 
   // Title
@@ -220,6 +220,12 @@ export default function HomePage() {
       errors.forEach(e => toast.error(e))
       return
     }
+    // Check total size across all files
+    const total = combined.reduce((s, f) => s + (f.size || 0), 0)
+    if (total > MAX_SIZE) {
+      toast.error(`Total size exceeds 100 MB limit (${formatBytes(total)})`)
+      return
+    }
     setFiles(combined)
   }, [files])
 
@@ -272,17 +278,19 @@ export default function HomePage() {
       // Navigate to sender page
       navigate(`/sender/${normalizedCode}`, { state: { transferData: transferSnapshot } })
 
-      // Play success sound
-      window.setTimeout(() => {
+      // Play success sound after navigation commit
+      requestAnimationFrame(() => {
         const currentSettings = getSettings()
         if (currentSettings.soundEnabled) {
           playUploadSuccess()
         }
-      }, 0)
+      })
 
       toast.success('Text shared successfully!')
     } catch (err) {
-      console.error('[HomePage] Share text error:', err)
+      if (import.meta.env.DEV) {
+        console.error('[HomePage] Share text error:', err)
+      }
       throw err
     }
   }
@@ -501,7 +509,7 @@ export default function HomePage() {
                         or click to browse · Ctrl+V to paste files
                       </p>
                       <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
-                        Max 100 MB per file · Up to 5 files
+                        Max 100 MB total · Up to 5 files
                       </p>
                       
                       {/* Share Text button */}

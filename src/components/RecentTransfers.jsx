@@ -140,7 +140,9 @@ export default function RecentTransfers() {
         state: { transferData: resolvedTransferData }
       })
     } catch (err) {
-      console.error('[RecentTransfers] Navigation error:', err)
+      if (import.meta.env.DEV) {
+        console.error('[RecentTransfers] Navigation error:', err)
+      }
       // Fallback: navigate without state
       navigate(isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`)
     }

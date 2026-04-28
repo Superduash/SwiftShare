@@ -30,6 +30,9 @@ export default function QRModal({ open, onClose, value, code }) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.85, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="QR code to scan for download"
           >
             <button className="absolute top-4 right-4 btn-icon" onClick={onClose} aria-label="Close">
               <X size={20} />
@@ -45,6 +48,7 @@ export default function QRModal({ open, onClose, value, code }) {
                 bgColor="var(--qr-bg)"
                 fgColor="var(--qr-fg)"
                 level="M"
+                aria-label={`QR code for transfer ${code || ''}`}
               />
             </div>
 
