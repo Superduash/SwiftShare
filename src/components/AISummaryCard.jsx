@@ -2,8 +2,9 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, FileText, Image, Video, FileArchive,
-  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target
+  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target, Copy, Check
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const CATEGORY_ICONS = {
   document: FileText, image: Image, video: Video, archive: FileArchive,
@@ -20,7 +21,7 @@ function getCategoryIcon(cat) {
   return CATEGORY_ICONS.default
 }
 
-const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic|captured text reads|media shared for media sharing|context derived from)\b/gi
+const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic|captured text reads|media shared for media sharing|context derived from|in summary|to summarize|overall,?)\b/gi
 
 function cleanSummary(text) {
   return String(text || '')
@@ -44,6 +45,7 @@ function cleanKeyPoints(points) {
 
 export default function AISummaryCard({ ai, loading = false }) {
   const [showFiles, setShowFiles] = useState(false)
+  const [copied, setCopied] = useState(false)
   const activeAi = ai
 
   const CatIcon = activeAi?.category ? getCategoryIcon(activeAi.category) : Sparkles
@@ -55,6 +57,18 @@ export default function AISummaryCard({ ai, loading = false }) {
     summary: cleanSummary(file?.summary),
     key_points: cleanKeyPoints(file?.key_points),
   }))
+
+  const handleCopySummary = async () => {
+    if (!summary) return
+    try {
+      await navigator.clipboard.writeText(summary)
+      setCopied(true)
+      toast.success('Summary copied')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Could not copy')
+    }
+  }
 
   return (
     <motion.div
@@ -71,13 +85,28 @@ export default function AISummaryCard({ ai, loading = false }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-soft)' }}>
-            <Sparkles size={14} style={{ color: 'var(--ai-icon)' }} />
+            <Sparkles size={14} style={{ color: 'var(--ai-icon)' }} aria-hidden="true" />
           </div>
           <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>AI Analysis</span>
         </div>
-        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}>
-          Gemini 2.5 Flash
-        </span>
+        <div className="flex items-center gap-2">
+          {summary && !loading && (
+            <button
+              className="btn-icon !w-6 !h-6"
+              onClick={handleCopySummary}
+              title="Copy summary"
+              aria-label="Copy AI summary"
+            >
+              {copied
+                ? <Check size={12} style={{ color: 'var(--success)' }} />
+                : <Copy size={12} style={{ color: 'var(--text-4)' }} />
+              }
+            </button>
+          )}
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}>
+            Gemini 2.5 Flash
+          </span>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -98,28 +127,34 @@ export default function AISummaryCard({ ai, loading = false }) {
             <div className="flex flex-wrap items-center gap-1.5 mb-3">
               {activeAi.category && (
                 <div className="badge">
-                  <CatIcon size={12} />
+                  <CatIcon size={12} aria-hidden="true" />
                   {activeAi.category}
                 </div>
               )}
               {detectedIntent && (
                 <div className="badge" style={{ background: 'var(--info-soft)', color: 'var(--info)' }}>
-                  <Target size={12} />
+                  <Target size={12} aria-hidden="true" />
                   {detectedIntent}
                 </div>
               )}
             </div>
 
             {/* Summary */}
-            <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-2)' }}>
-              {summary || 'No summary available.'}
-            </p>
+            {summary ? (
+              <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-2)' }}>
+                {summary}
+              </p>
+            ) : (
+              <p className="text-sm leading-relaxed mb-3 italic" style={{ color: 'var(--text-4)' }}>
+                AI analysis completed but no summary was generated.
+              </p>
+            )}
 
             {/* Risk flags */}
             {riskFlags.length > 0 && (
               <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <AlertTriangle size={12} style={{ color: 'var(--warning)' }} />
+                  <AlertTriangle size={12} style={{ color: 'var(--warning)' }} aria-hidden="true" />
                   <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>Risk flags</p>
                 </div>
                 <ul className="text-xs space-y-0.5" style={{ color: 'var(--text-2)' }}>
@@ -145,8 +180,9 @@ export default function AISummaryCard({ ai, loading = false }) {
                   className="text-xs font-semibold flex items-center gap-1 mb-2"
                   style={{ color: 'var(--accent)' }}
                   onClick={() => setShowFiles(!showFiles)}
+                  aria-expanded={showFiles}
                 >
-                  <FileText size={12} />
+                  <FileText size={12} aria-hidden="true" />
                   {showFiles ? 'Hide' : 'Show'} per-file analysis ({fileAnalysis.length})
                 </button>
                 <AnimatePresence>
@@ -160,7 +196,7 @@ export default function AISummaryCard({ ai, loading = false }) {
                       {fileAnalysis.map((f, i) => (
                         <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
                           <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary}</p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary || 'No summary available.'}</p>
                           {f.key_points && f.key_points.length > 0 && (
                             <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
                               {f.key_points.map((point, pi) => (
@@ -178,11 +214,14 @@ export default function AISummaryCard({ ai, loading = false }) {
 
           </motion.div>
         ) : (
-          <motion.p key="empty" className="text-sm" style={{ color: 'var(--text-4)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            AI summary will appear after upload.
-          </motion.p>
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <p className="text-sm" style={{ color: 'var(--text-4)' }}>
+              AI summary will appear after upload.
+            </p>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
   )
 }
+
