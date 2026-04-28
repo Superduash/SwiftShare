@@ -109,8 +109,6 @@ export default function JoinPage() {
       }
 
       // Handle all error cases
-      console.error('[JoinPage] Request failed:', outcome)
-      
       if (outcome?.type === 'SERVER') {
         const errCode = outcome.errorCode || 'SERVER_ERROR'
         if (errCode === 'TRANSFER_EXPIRED') {

@@ -57,6 +57,8 @@ export default function AISummaryCard({ ai, loading = false }) {
     summary: cleanSummary(file?.summary),
     key_points: cleanKeyPoints(file?.key_points),
   }))
+  // AI result with only a warning and no summary means the service was unavailable
+  const isAiUnavailable = activeAi && !summary && !activeAi.category && Boolean(activeAi.warning)
 
   const handleCopySummary = async () => {
     if (!summary) return
@@ -143,6 +145,10 @@ export default function AISummaryCard({ ai, loading = false }) {
             {summary ? (
               <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-2)' }}>
                 {summary}
+              </p>
+            ) : isAiUnavailable ? (
+              <p className="text-sm leading-relaxed mb-3 italic" style={{ color: 'var(--text-4)' }}>
+                AI summary currently unavailable.
               </p>
             ) : (
               <p className="text-sm leading-relaxed mb-3 italic" style={{ color: 'var(--text-4)' }}>

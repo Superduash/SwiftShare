@@ -269,7 +269,6 @@ export default function SenderPage() {
         applyTransferSnapshot(data, { persist: true })
       } catch (err) {
         if (!mountedRef.current) return
-        console.error('[SenderPage] load error:', err)
         const errCode = err?.response?.data?.error?.code
         // Only redirect for definitive backend responses (not network/timeout errors)
         if (errCode === 'TRANSFER_NOT_FOUND') {
