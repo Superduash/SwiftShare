@@ -57,15 +57,12 @@ export default function JoinPage() {
     setLoading(true)
     setError(null)
 
-    console.log('[JoinPage] Submitting code:', normalizedCode)
-
     try {
       let outcome = null
       for (let attempt = 0; attempt <= MAX_JOIN_RETRIES; attempt += 1) {
         let hardTimeoutId
         const timeoutFallback = new Promise((resolve) => {
           hardTimeoutId = window.setTimeout(() => {
-            console.warn('[JoinPage] Hard timeout reached after 20s')
             resolve({ ok: false, type: 'TIMEOUT' })
           }, JOIN_REQUEST_HARD_TIMEOUT_MS)
         })
@@ -93,11 +90,8 @@ export default function JoinPage() {
 
       if (!mountedRef.current) return
 
-      console.log('[JoinPage] Outcome:', outcome)
-
       if (outcome?.ok) {
         const data = outcome.data
-        console.log('[JoinPage] Success, navigating to download page')
         saveTransfer({
           code: normalizedCode,
           filename: data?.files?.[0]?.name || normalizedCode,
@@ -129,13 +123,10 @@ export default function JoinPage() {
         }
         setError(errCode)
       } else if (outcome?.type === 'TIMEOUT') {
-        console.error('[JoinPage] Timeout error - backend may be cold starting')
         setError('TIMEOUT_ERROR')
       } else if (outcome?.type === 'EMPTY_RESPONSE') {
-        console.error('[JoinPage] Empty response from server')
         setError('EMPTY_RESPONSE')
       } else {
-        console.error('[JoinPage] Network error')
         setError('NETWORK_ERROR')
       }
 
@@ -146,7 +137,6 @@ export default function JoinPage() {
         setTimeout(() => el.classList.remove('animate-shake'), 500)
       }
     } catch (err) {
-      console.error('[JoinPage] Unexpected error:', err)
       if (!mountedRef.current) return
       setError('SERVER_ERROR')
       const el = document.getElementById('code-input-row')
@@ -157,7 +147,6 @@ export default function JoinPage() {
     } finally {
       submitInFlightRef.current = false
       setLoading(false)
-      console.log('[JoinPage] Request complete, loading set to false')
     }
   }, [navigate])
 
