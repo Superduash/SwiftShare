@@ -24,8 +24,8 @@ import NearbyDevices from '../components/NearbyDevices'
 import ShareTextModal from '../components/ShareTextModal'
 
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
-const MAX_SIZE = 100 * 1024 * 1024 // 100MB
-const MAX_FILES = 5
+const MAX_SIZE = 100 * 1024 * 1024 // 100MB total across all files
+const MAX_FILES = 10
 
 const FEATURES = [
   { icon: Shield, title: 'No Sign-Up', desc: 'Share without accounts' },
@@ -509,7 +509,7 @@ export default function HomePage() {
                         or click to browse · Ctrl+V to paste files
                       </p>
                       <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
-                        Max 100 MB total · Up to 5 files
+                        Max 100 MB total · Up to 10 files
                       </p>
                       
                       {/* Share Text button */}
