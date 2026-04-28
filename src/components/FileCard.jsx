@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import {
   FileText, Image, Video, FileArchive, File, FileSpreadsheet,
@@ -55,7 +55,7 @@ function canPreview(file) {
   return false
 }
 
-export default function FileCard({
+function FileCardBase({
   file, index = 0, onPreview, onDownloadSingle, onRemove,
   showDownload = false, showRemove = false, disableDownload = false,
 }) {
@@ -107,3 +107,21 @@ export default function FileCard({
     </motion.div>
   )
 }
+
+// Memoized so the card doesn't re-render every time a sibling timer ticks
+// or the parent's progress state changes. Identity-compares file by name+size
+// (immutable identifiers post-upload) and the action callbacks.
+export default memo(FileCardBase, (prev, next) => (
+  prev.file === next.file
+  || (
+    prev.file?.name === next.file?.name
+    && prev.file?.size === next.file?.size
+    && prev.file?.mimeType === next.file?.mimeType
+  )
+) && prev.index === next.index
+  && prev.showDownload === next.showDownload
+  && prev.showRemove === next.showRemove
+  && prev.disableDownload === next.disableDownload
+  && prev.onPreview === next.onPreview
+  && prev.onDownloadSingle === next.onDownloadSingle
+  && prev.onRemove === next.onRemove)

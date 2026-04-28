@@ -6,10 +6,13 @@ import { useConnectionHealth } from '../context/ConnectionHealthContext'
 const STATUS_CONFIG = {
   waking: {
     icon: Zap,
+    // Use --accent-glow so the banner picks up the active theme's accent
+    // instead of always showing sunset-orange. Linear-gradient with two stops
+    // of the same variable yields a subtle vertical wash.
     text: 'Waking up server...',
     sub: 'Free tier servers sleep after inactivity. Hang tight!',
-    bg: 'linear-gradient(135deg, rgba(232,99,74,0.12), rgba(255,154,92,0.08))',
-    border: 'rgba(232,99,74,0.2)',
+    bg: 'linear-gradient(135deg, var(--accent-soft), var(--accent-medium))',
+    border: 'var(--accent-medium)',
     color: 'var(--accent)',
     showSpinner: true,
   },

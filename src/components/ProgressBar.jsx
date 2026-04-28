@@ -1,8 +1,13 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import { formatSpeed } from '../utils/format'
 
-export default function ProgressBar({
+// Plain CSS-driven width transition. framer-motion was creating a fresh
+// width animation on every progress prop change, which on fast uploads
+// (10+ updates/sec) produced visible jitter as animations interrupted each
+// other. A linear CSS transition is GPU-cheap and renders smoothly even
+// on low-end mobile.
+function ProgressBarBase({
   percent = 0,
   speed = 0,
   label = 'Uploading',
@@ -16,7 +21,7 @@ export default function ProgressBar({
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>{label}</span>
         {!indeterminate && (
-          <span className="text-xs font-mono font-medium" style={{ color: 'var(--accent)' }}>
+          <span className="text-xs font-mono font-medium tabular-nums" style={{ color: 'var(--accent)' }}>
             {Math.round(pct)}%
           </span>
         )}
@@ -31,29 +36,43 @@ export default function ProgressBar({
             style={{
               width: '40%',
               background: 'var(--progress-fill)',
-              boxShadow: '0 0 8px rgba(232,99,74,0.3)',
+              boxShadow: '0 0 8px var(--progress-glow)',
             }}
             animate={{ left: ['-40%', '100%'] }}
             transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
           />
         ) : (
-          <motion.div
-            className="h-full rounded-full"
+          <div
+            className="h-full rounded-full will-change-[width]"
             style={{
+              width: `${pct}%`,
               background: 'var(--progress-fill)',
-              boxShadow: '0 0 8px rgba(232,99,74,0.3)',
+              boxShadow: '0 0 8px var(--progress-glow)',
+              transition: 'width 250ms linear',
             }}
-            initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
+            role="progressbar"
+            aria-valuenow={Math.round(pct)}
+            aria-valuemin={0}
+            aria-valuemax={100}
           />
         )}
       </div>
       {showSpeed && speed > 0 && !indeterminate && (
-        <p className="text-[11px] mt-1 text-right" style={{ color: 'var(--text-4)' }}>
+        <p className="text-[11px] mt-1 text-right tabular-nums" style={{ color: 'var(--text-4)' }}>
           {formatSpeed(speed)}
         </p>
       )}
     </div>
   )
 }
+
+// Memoized: ProgressBar is rendered inside parents that re-render on every
+// state tick. Without memo it re-renders even when percent didn't actually
+// change (e.g. when sibling state updates).
+export default memo(ProgressBarBase, (prev, next) => (
+  Math.round(prev.percent) === Math.round(next.percent)
+  && prev.speed === next.speed
+  && prev.label === next.label
+  && prev.indeterminate === next.indeterminate
+  && prev.showSpeed === next.showSpeed
+))

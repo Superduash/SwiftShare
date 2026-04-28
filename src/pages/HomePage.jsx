@@ -40,16 +40,58 @@ export default function HomePage() {
   const { socket, isConnected, socketId } = useSocket()
   const { uploadState, setUploadProgress, startUpload, setError } = useTransfer()
 
-  const settings = getSettings()
+  const initialSettings = getSettings()
   const [files, setFiles] = useState([])
-  const [expiry, setExpiry] = useState(settings.defaultExpiry || 60)
-  const [burn, setBurn] = useState(settings.defaultBurn || false)
+  const [expiry, setExpiry] = useState(initialSettings.defaultExpiry || 60)
+  const [burn, setBurn] = useState(initialSettings.defaultBurn || false)
+  // Track whether the user has manually overridden the picker in this session.
+  // If they have, we don't stomp their choice when settings change. If they
+  // haven't, the picker should mirror whatever default is currently saved.
+  const expiryTouchedRef = useRef(false)
+  const burnTouchedRef = useRef(false)
+  const setExpiryUser = useCallback((value) => {
+    expiryTouchedRef.current = true
+    setExpiry(value)
+  }, [])
+  const setBurnUser = useCallback((value) => {
+    burnTouchedRef.current = true
+    setBurn(value)
+  }, [])
+
+  // Settings live in localStorage and are mutated from SettingsPanel via the
+  // `swiftshare:settings-changed` custom event. Without this listener, opening
+  // settings, changing default expiry, and coming back here would leave the
+  // picker stuck on the value captured at mount time.
+  useEffect(() => {
+    const onSettingsChanged = (e) => {
+      const next = e?.detail || getSettings()
+      if (!expiryTouchedRef.current && Number.isFinite(Number(next?.defaultExpiry))) {
+        setExpiry(Number(next.defaultExpiry))
+      }
+      if (!burnTouchedRef.current && typeof next?.defaultBurn === 'boolean') {
+        setBurn(next.defaultBurn)
+      }
+    }
+    window.addEventListener('swiftshare:settings-changed', onSettingsChanged)
+    // Also re-sync once on mount in case settings changed while this component
+    // was unmounted (e.g. user navigated away, changed default, came back).
+    onSettingsChanged({ detail: getSettings() })
+    return () => window.removeEventListener('swiftshare:settings-changed', onSettingsChanged)
+  }, [])
   const [uploading, setUploading] = useState(false)
   const [uploadPercent, setUploadPercent] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState(0)
   const [uploadPhase, setUploadPhase] = useState('uploading') // 'uploading' | 'finalizing' | 'retrying'
   const uploadStartRef = useRef(0)
-  const lastBytesRef = useRef({ at: 0, loaded: 0 })
+  // Speed sampling state. Maintains a rolling-window calculation plus an
+  // exponential moving average so the displayed MB/s is stable instead of
+  // jittering on every progress tick (XHR can fire dozens per second on LAN).
+  const speedSampleRef = useRef({ at: 0, loaded: 0, ema: 0 })
+  // RAF-coalesced UI updates: progress events fire faster than React can render
+  // on low-end mobile. We accumulate the latest values and flush at most once
+  // per animation frame (≤16ms) to keep the bar smooth without wasted renders.
+  const pendingProgressRef = useRef(null)
+  const rafIdRef = useRef(0)
   const [passwordProtected, setPasswordProtected] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -225,6 +267,13 @@ export default function HomePage() {
     return false
   }
 
+  // Cancel any pending RAF on unmount to avoid setState-after-unmount.
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current)
+    }
+  }, [])
+
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
     if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
@@ -234,7 +283,7 @@ export default function HomePage() {
     setUploadSpeed(0)
     setUploadPhase('uploading')
     uploadStartRef.current = Date.now()
-    lastBytesRef.current = { at: Date.now(), loaded: 0 }
+    speedSampleRef.current = { at: Date.now(), loaded: 0, ema: 0 }
     uploadHandledRef.current = false
 
     let uploadSucceeded = false
@@ -249,36 +298,66 @@ export default function HomePage() {
       }
       if (socketId) formData.append('socketId', socketId)
 
+      const flushProgress = () => {
+        rafIdRef.current = 0
+        const next = pendingProgressRef.current
+        if (!next) return
+        pendingProgressRef.current = null
+        setUploadPercent((prev) => (Math.abs(prev - next.percent) >= 0.5 ? next.percent : prev))
+        if (Number.isFinite(next.speed)) {
+          setUploadSpeed((prev) => (Math.abs(prev - next.speed) >= 1024 ? next.speed : prev))
+        }
+        if (next.phase) setUploadPhase((prev) => (prev === next.phase ? prev : next.phase))
+      }
+
+      const scheduleFlush = () => {
+        if (rafIdRef.current) return
+        rafIdRef.current = requestAnimationFrame(flushProgress)
+      }
+
       const response = await uploadFiles(formData, {
         onProgress: (info) => {
           if (info?.retrying) {
-            setUploadPhase('retrying')
+            // Drop any pending flushes; retry phase is its own indeterminate UI.
+            pendingProgressRef.current = { percent: 0, speed: 0, phase: 'retrying' }
+            scheduleFlush()
             return
           }
           const total = Number(info?.total) || 0
           const loaded = Number(info?.loaded) || 0
           if (!total) return
 
-          // Cap visible bar at 99% until the server response confirms finalization.
-          const rawPct = (loaded / total) * 100
-          const visiblePct = Math.min(99, rawPct)
-          setUploadPercent(visiblePct)
+          // Cap visible bar at 99% until the server response confirms finalization
+          // (the last few % is server-side R2 finalization which the client can't see).
+          const visiblePct = Math.min(99, (loaded / total) * 100)
 
-          // Speed: bytes/sec over the most recent window (~750ms).
+          // Speed: weighted EMA over a ~750ms sampling window. The sliding window
+          // smooths over chunky XHR delivery (browsers often batch progress events
+          // on slow networks), and the EMA dampens spikes from radio handoffs.
           const now = Date.now()
-          const last = lastBytesRef.current
-          const dt = (now - last.at) / 1000
+          const sample = speedSampleRef.current
+          let smoothedSpeed = sample.ema
+          const dt = (now - sample.at) / 1000
           if (dt >= 0.75) {
-            const speed = Math.max(0, Math.round((loaded - last.loaded) / dt))
-            setUploadSpeed(speed)
-            lastBytesRef.current = { at: now, loaded }
+            const instantSpeed = Math.max(0, (loaded - sample.loaded) / dt)
+            // Alpha 0.4: responsive enough to reflect a stalled radio within a
+            // couple seconds, smooth enough to avoid showing wild swings.
+            smoothedSpeed = sample.ema > 0
+              ? Math.round(sample.ema * 0.6 + instantSpeed * 0.4)
+              : Math.round(instantSpeed)
+            speedSampleRef.current = { at: now, loaded, ema: smoothedSpeed }
           }
 
-          if (loaded >= total) {
-            setUploadPhase('finalizing')
-          } else {
-            setUploadPhase('uploading')
+          const phase = loaded >= total ? 'finalizing' : 'uploading'
+
+          // Coalesce: only the latest values matter — older pending values are
+          // safely overwritten before the next frame paint.
+          pendingProgressRef.current = {
+            percent: visiblePct,
+            speed: smoothedSpeed,
+            phase,
           }
+          scheduleFlush()
         },
       })
 
@@ -425,7 +504,7 @@ export default function HomePage() {
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
-                    <ExpirySelector value={expiry} onChange={setExpiry} />
+                    <ExpirySelector value={expiry} onChange={setExpiryUser} />
 
                     {/* Burn toggle */}
                     <button
@@ -435,7 +514,7 @@ export default function HomePage() {
                         background: burn ? 'var(--danger-soft)' : 'transparent',
                         border: `1.5px solid ${burn ? 'var(--danger)' : 'var(--border)'}`,
                       }}
-                      onClick={() => setBurn(!burn)}
+                      onClick={() => setBurnUser(!burn)}
                     >
                       <Flame size={18} style={{ color: burn ? 'var(--danger)' : 'var(--text-4)' }} />
                       <div className="flex-1 text-left">
