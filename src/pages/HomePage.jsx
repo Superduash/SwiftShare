@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
 import { useTransfer } from '../context/TransferContext'
-import { uploadFiles, uploadClipboard } from '../services/api'
+import { uploadFiles, uploadClipboard, shareText } from '../services/api'
 import { getSettings } from '../utils/storage'
 import { saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
@@ -21,6 +21,7 @@ import ExpirySelector from '../components/ExpirySelector'
 import ProgressBar from '../components/ProgressBar'
 import RecentTransfers from '../components/RecentTransfers'
 import NearbyDevices from '../components/NearbyDevices'
+import ShareTextModal from '../components/ShareTextModal'
 
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
 const MAX_SIZE = 100 * 1024 * 1024 // 100MB
@@ -95,6 +96,7 @@ export default function HomePage() {
   const [passwordProtected, setPasswordProtected] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [shareTextModalOpen, setShareTextModalOpen] = useState(false)
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
 
@@ -235,6 +237,56 @@ export default function HomePage() {
 
   function totalSize() {
     return files.reduce((s, f) => s + (f.size || 0), 0)
+  }
+
+  async function handleShareText(textData) {
+    if (!isConnected) {
+      toast.error('Server is waking up. Please wait a moment and try again.')
+      throw new Error('Not connected')
+    }
+
+    try {
+      const response = await shareText({
+        ...textData,
+        socketId,
+      })
+
+      const transferCode = response?.code
+      if (!transferCode) {
+        throw new Error('Invalid response from server')
+      }
+
+      const normalizedCode = String(transferCode).trim().toUpperCase()
+      const transferSnapshot = { ...response, code: normalizedCode }
+      
+      saveTransfer({
+        code: normalizedCode,
+        filename: textData.title || 'Text Snippet',
+        isSender: true,
+        status: transferSnapshot?.status,
+        expiresAt: transferSnapshot?.expiresAt,
+        createdAt: transferSnapshot?.createdAt,
+        files: transferSnapshot?.files,
+        ai: transferSnapshot?.ai,
+        transfer: transferSnapshot,
+      })
+
+      // Navigate to sender page
+      navigate(`/sender/${normalizedCode}`, { state: { transferData: transferSnapshot } })
+
+      // Play success sound
+      window.setTimeout(() => {
+        const currentSettings = getSettings()
+        if (currentSettings.soundEnabled) {
+          playUploadSuccess()
+        }
+      }, 0)
+
+      toast.success('Text shared successfully!')
+    } catch (err) {
+      console.error('[HomePage] Share text error:', err)
+      throw err
+    }
   }
 
   function getUploadErrorMessage(err) {
@@ -450,9 +502,27 @@ export default function HomePage() {
                       <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
                         or click to browse · Ctrl+V to paste images
                       </p>
-                      <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+                      <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
                         Max 100 MB per file · Up to 5 files
                       </p>
+                      
+                      {/* Share Text button */}
+                      <div className="flex items-center gap-3 justify-center mt-4">
+                        <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+                        <span className="text-xs font-medium" style={{ color: 'var(--text-4)' }}>or</span>
+                        <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-secondary mt-4"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShareTextModalOpen(true)
+                        }}
+                      >
+                        <FileText size={16} />
+                        Share Text
+                      </button>
                     </div>
                   ) : (
                     <div>
@@ -780,6 +850,13 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+
+      {/* Share Text Modal */}
+      <ShareTextModal 
+        open={shareTextModalOpen}
+        onClose={() => setShareTextModalOpen(false)}
+        onShare={handleShareText}
+      />
     </div>
   )
 }

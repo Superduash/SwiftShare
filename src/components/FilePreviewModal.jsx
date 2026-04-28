@@ -353,6 +353,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     ref={audioRef}
                     controls
                     preload="auto"
+                    muted={false}
                     className="w-full max-w-xl"
                     style={{ display: loading ? 'none' : 'block' }}
                     onLoadedMetadata={(e) => {
