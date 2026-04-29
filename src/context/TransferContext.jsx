@@ -44,6 +44,11 @@ export function TransferProvider({ children }) {
   )
 }
 
+/**
+ * Use `uploadData` for the latest upload payload returned by the API.
+ * Use `aiData` for cached AI analysis results.
+ * Use `startUpload`, `setUploadProgress`, and `setError` only for upload UI state.
+ */
 export function useTransfer() {
   return useContext(TransferContext) || {}
 }

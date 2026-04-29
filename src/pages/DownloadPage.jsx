@@ -122,8 +122,6 @@ export default function DownloadPage() {
     } catch {
       // Cleanup service will finalize stale claimed sessions if this request fails during tab close.
     }
-  }, [normalizedCode])
-
   useEffect(() => {
     verifiedPasswordRef.current = ''
     setPassword('')
@@ -397,9 +395,20 @@ export default function DownloadPage() {
   useEffect(() => {
     if (!socket || !normalizedCode) return
 
-    const connectRoom = () => {
+    const connectRoom = async () => {
       // Use rejoinRoom on reconnect so the server re-syncs the countdown timer.
-      rejoinRoom(normalizedCode)
+      try {
+        const ack = await rejoinRoom(normalizedCode)
+        if (ack?.ok && Number(ack.secondsRemaining) > 0) {
+          return
+        }
+      } catch {}
+
+      const cached = getCachedTransfer(normalizedCode)
+      if (cached?.expiresAt) {
+        const seconds = Math.max(0, Math.ceil((new Date(cached.expiresAt).getTime() - Date.now()) / 1000))
+        setSecondsRemaining(seconds)
+      }
     }
 
     connectRoom()
@@ -836,6 +845,7 @@ export default function DownloadPage() {
                     />
                     <button
                       type="button"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
                       onClick={() => setShowPassword(!showPassword)}
                       tabIndex={-1}

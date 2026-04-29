@@ -133,8 +133,8 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
       if (!mountedRef.current) return
       
       try {
-        const { device, subnet } = payload
-        if (!device || !subnet) return
+        const { device } = payload
+        if (!device) return
         
         // Add new device to list (deduplication handled by dedupeDevices)
         setDevices((prev) => dedupeDevices([...prev, device], socketId))
