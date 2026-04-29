@@ -1,3 +1,5 @@
+// ✅ File Preview Modal - FIXED & RESTORED 2026
+// Supports: image, video, audio, PDF, DOCX, code with proper error handling
 import React, { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide-react'
