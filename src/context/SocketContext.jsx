@@ -155,17 +155,30 @@ export function SocketProvider({ children }) {
     // during the server's warm-up phase (MongoDB connecting, etc.).  The server
     // already uses pingTimeout=60000; matching the client prevents the client
     // from self-disconnecting while the server is still initialising.
-    const s = io(url, {
+    // Allow forcing polling-only via localStorage (helps some mobile carriers)
+    const forcePolling = typeof window !== 'undefined' && localStorage.getItem('socket_force_polling') === '1'
+    const transports = forcePolling ? ['polling'] : ['websocket', 'polling']
+
+    // If a non-localhost http URL is used, try switching to https to avoid mixed-content
+    let socketUrl = url
+    try {
+      if (typeof window !== 'undefined' && socketUrl.startsWith('http://') && !targetsLoopback(socketUrl)) {
+        console.warn('[Socket] Rewriting http:// to https:// for socket URL to avoid mixed content on HTTPS site')
+        socketUrl = socketUrl.replace(/^http:/i, 'https:')
+      }
+    } catch {}
+
+    const s = io(socketUrl, {
       path: '/socket.io',
-      transports: ['polling', 'websocket'],
+      transports,
       upgrade: true,
       withCredentials: false,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 15000,
       randomizationFactor: 0.3,
-      timeout: 45000,        // was 10000 — must survive Render cold-start
-      pingTimeout: 45000,    // was 10000 — tolerate slow heartbeat on warm-up
+      timeout: 20000,
+      pingTimeout: 60000,
       pingInterval: 25000,
       reconnectionAttempts: Infinity,
     })
