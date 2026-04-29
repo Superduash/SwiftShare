@@ -57,34 +57,34 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       
       // And a third time for stubborn browsers
       setTimeout(() => {
-        if (mediaEl) {
-          mediaEl.muted = false
-          mediaEl.volume = 1.0
-        }
-      }, 200)
-    } catch (err) {
-      // Silent fail - media state enforcement is best-effort
-    }
-  }
-
-  // Reset state when file changes
-  React.useEffect(() => {
-    if (open && file) {
-      setError(false)
-      setLoading(true)
-    }
-  }, [open, file, fileIndex])
-
-  React.useEffect(() => {
 	if (!open || !file) return
-	if (getPreviewType(file) !== 'video') return
 
-	// Ensure video is unmuted when modal opens
-	const videoEl = videoRef.current
-	if (!videoEl) return
-
-	// Immediately try to unmute on mount
-	forceAudible(videoEl)
+        return (
+          <div className="space-y-2">
+            {truncated && (
+              <div
+                className="px-4 py-2 rounded-xl text-xs"
+                style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}
+              >
+                Preview limited to first 50KB. Download for the full file.
+              </div>
+            )}
+            <pre
+              className="text-xs leading-relaxed p-4 rounded-xl overflow-auto max-h-[65vh]"
+              style={{
+                background: 'var(--bg)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+                fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+                tabSize: 4,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {content}
+            </pre>
+          </div>
+        )
 
 	// Add error handling for video loading
 	const handleError = (e) => {
@@ -333,34 +333,31 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     style={{ background: '#000', display: loading ? 'none' : 'block' }}
                     onLoadedMetadata={(e) => {
 						try {
-							const videoEl = e.target
-							forceAudible(videoEl)
-						} catch (err) {
-							// Silent fail
-						} finally {
-							setLoading(false)
-						}
-					}}
-					onLoadedData={(e) => {
-						try {
-							const videoEl = e.target
-							forceAudible(videoEl)
-						} catch (err) {
-							// Silent fail
-						} finally {
-							setLoading(false)
-						}
-					}}
-                    onCanPlay={(e) => {
 						forceAudible(e.target)
-					}}
-                    onPlay={(e) => {
-						forceAudible(e.target)
-					}}
-                    onError={(e) => {
-						setLoading(false)
-						setError(true)
-					}}
+
+                    return (
+                      <div className="space-y-2">
+                        {truncated && (
+                          <div className="px-4 py-2 rounded-xl text-xs" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
+                            Preview limited to first 50KB. Download for the full file.
+                          </div>
+                        )}
+                        <pre
+                          className="text-xs leading-relaxed p-4 rounded-xl overflow-auto max-h-[65vh]"
+                          style={{
+                            background: 'var(--bg)',
+                            color: 'var(--text)',
+                            border: '1px solid var(--border)',
+                            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+                            tabSize: 4,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {content}
+                        </pre>
+                      </div>
+                    )
                     src={src}
                   >
                     Your browser does not support video playback.
@@ -515,33 +512,34 @@ function CodePreview({ src, onError, onLoad }) {
         <div className="shimmer-block h-4 w-full" />
         <div className="shimmer-block h-4 w-3/4" />
         <div className="shimmer-block h-4 w-1/2" />
-      <div className="space-y-2">
-        {truncated && (
-          <div className="px-4 py-2 rounded-xl text-xs" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
-            Preview limited to first 50KB. Download for the full file.
-          </div>
-        )}
-        <pre
-          className="text-xs leading-relaxed p-4 rounded-xl overflow-auto max-h-[65vh]"
-          style={{
-            background: 'var(--bg)',
-            color: 'var(--text)',
-            border: '1px solid var(--border)',
-            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {content}
-        </pre>
       </div>
-        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
-        tabSize: 4,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
-    >
-      {content}
-    </pre>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {truncated && (
+        <div
+          className="px-4 py-2 rounded-xl text-xs"
+          style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}
+        >
+          Preview limited to first 50KB. Download for the full file.
+        </div>
+      )}
+      <pre
+        className="text-xs leading-relaxed p-4 rounded-xl overflow-auto max-h-[65vh]"
+        style={{
+          background: 'var(--bg)',
+          color: 'var(--text)',
+          border: '1px solid var(--border)',
+          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+          tabSize: 4,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
+        {content}
+      </pre>
+    </div>
   )
 }
