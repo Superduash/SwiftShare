@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
+import toast from 'react-hot-toast'
 
 const SocketContext = createContext(null)
 
@@ -176,6 +177,7 @@ export function SocketProvider({ children }) {
       debugLog('[Socket] Connected:', s.id)
       setIsConnected(true)
       setSocketId(s.id)
+      try { localStorage.removeItem('socket_last_error') } catch {}
     })
 
     s.on('disconnect', (reason) => {
@@ -184,12 +186,22 @@ export function SocketProvider({ children }) {
     })
 
     s.on('connect_error', (error) => {
-      debugError('[Socket] Connection error:', error.message)
+      debugError('[Socket] Connection error:', error)
+      try {
+        const payload = { time: Date.now(), type: 'connect_error', message: error?.message || String(error), stack: error?.stack || null }
+        localStorage.setItem('socket_last_error', JSON.stringify(payload))
+      } catch {}
+      try { toast.error('Socket connection failed (check mobile network).') } catch {}
       setIsConnected(false)
     })
 
     s.on('reconnect_error', (error) => {
-      debugError('[Socket] Reconnection error:', error.message)
+      debugError('[Socket] Reconnection error:', error)
+      try {
+        const payload = { time: Date.now(), type: 'reconnect_error', message: error?.message || String(error), stack: error?.stack || null }
+        localStorage.setItem('socket_last_error', JSON.stringify(payload))
+      } catch {}
+      try { toast.error('Socket reconnection failed (mobile network).') } catch {}
       setIsConnected(false)
     })
 
@@ -203,9 +215,73 @@ export function SocketProvider({ children }) {
       debugLog('[Socket] Reconnection attempt:', attemptNumber)
     })
 
+    // Debug UI: floating buttons to show last socket error and toggle polling-only.
+    let debugRoot = null
+    if (typeof window !== 'undefined' && (import.meta.env.DEV || localStorage.getItem('socket_debug') === '1')) {
+      try {
+        debugRoot = document.createElement('div')
+        debugRoot.style.position = 'fixed'
+        debugRoot.style.right = '12px'
+        debugRoot.style.bottom = '12px'
+        debugRoot.style.zIndex = '9999'
+        debugRoot.style.display = 'flex'
+        debugRoot.style.flexDirection = 'column'
+        debugRoot.style.gap = '6px'
+
+        const showBtn = document.createElement('button')
+        showBtn.textContent = 'Socket Err'
+        showBtn.style.padding = '6px 8px'
+        showBtn.style.background = '#111827'
+        showBtn.style.color = '#fff'
+        showBtn.style.border = 'none'
+        showBtn.style.borderRadius = '6px'
+        showBtn.style.fontSize = '12px'
+        showBtn.style.cursor = 'pointer'
+        showBtn.onclick = () => {
+          try {
+            const raw = localStorage.getItem('socket_last_error')
+            const parsed = raw ? JSON.parse(raw) : null
+            console.log('socket_last_error', parsed)
+            if (parsed) {
+              try { toast(JSON.stringify(parsed, null, 2), { duration: 8000 }) } catch {}
+            } else {
+              try { toast('No socket error recorded') } catch {}
+            }
+          } catch (e) { console.error(e) }
+        }
+
+        const toggleBtn = document.createElement('button')
+        toggleBtn.textContent = localStorage.getItem('socket_force_polling') === '1' ? 'Polling: ON' : 'Polling: OFF'
+        toggleBtn.style.padding = '6px 8px'
+        toggleBtn.style.background = '#1f2937'
+        toggleBtn.style.color = '#fff'
+        toggleBtn.style.border = 'none'
+        toggleBtn.style.borderRadius = '6px'
+        toggleBtn.style.fontSize = '12px'
+        toggleBtn.style.cursor = 'pointer'
+        toggleBtn.onclick = () => {
+          try {
+            const cur = localStorage.getItem('socket_force_polling') === '1'
+            localStorage.setItem('socket_force_polling', cur ? '0' : '1')
+            toggleBtn.textContent = cur ? 'Polling: OFF' : 'Polling: ON'
+            try { toast('Restart the app to apply polling change') } catch {}
+          } catch (e) { console.error(e) }
+        }
+
+        debugRoot.appendChild(showBtn)
+        debugRoot.appendChild(toggleBtn)
+        document.body.appendChild(debugRoot)
+      } catch (e) {
+        debugError('[Socket] Failed to create debug UI', e)
+      }
+    }
+
     return () => {
       debugLog('[Socket] Disconnecting')
       s.disconnect()
+      try {
+        if (debugRoot && debugRoot.parentNode) debugRoot.parentNode.removeChild(debugRoot)
+      } catch {}
     }
   }, [])
 
