@@ -122,6 +122,8 @@ export default function DownloadPage() {
     } catch {
       // Cleanup service will finalize stale claimed sessions if this request fails during tab close.
     }
+  }, [normalizedCode, updateTransferStatus])
+
   useEffect(() => {
     verifiedPasswordRef.current = ''
     setPassword('')
