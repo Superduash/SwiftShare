@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, FileText, Image, Video, FileArchive,
@@ -46,6 +46,7 @@ function cleanKeyPoints(points) {
 export default function AISummaryCard({ ai, loading = false }) {
   const [showFiles, setShowFiles] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
   const activeAi = ai
 
   const CatIcon = activeAi?.category ? getCategoryIcon(activeAi.category) : Sparkles
@@ -59,6 +60,16 @@ export default function AISummaryCard({ ai, loading = false }) {
   }))
   // AI result with only a warning and no summary means the service was unavailable
   const isAiUnavailable = activeAi && !summary && !activeAi.category && Boolean(activeAi.warning)
+
+  useEffect(() => {
+    if (!loading) {
+      setTimedOut(false)
+      return undefined
+    }
+
+    const timer = setTimeout(() => setTimedOut(true), 25000)
+    return () => clearTimeout(timer)
+  }, [loading])
 
   const handleCopySummary = async () => {
     if (!summary) return
@@ -106,7 +117,7 @@ export default function AISummaryCard({ ai, loading = false }) {
             </button>
           )}
           <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}>
-            Gemini 2.5 Flash
+            Powered by AI
           </span>
         </div>
       </div>
@@ -122,6 +133,11 @@ export default function AISummaryCard({ ai, loading = false }) {
             <p className="text-xs mt-3 animate-pulse-soft" style={{ color: 'var(--text-4)' }}>
               Analyzing with AI...
             </p>
+            {timedOut && (
+              <p className="text-xs mt-1" style={{ color: 'var(--text-4)' }}>
+                Taking longer than usual... still working.
+              </p>
+            )}
           </motion.div>
         ) : activeAi ? (
           <motion.div key="data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

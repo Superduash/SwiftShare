@@ -357,21 +357,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     onPlay={(e) => {
 						forceAudible(e.target)
 					}}
-					onVolumeChange={(e) => {
-						// Volume change handled
-					}}
                     onError={(e) => {
 						setLoading(false)
 						setError(true)
-					}}
-					onLoadStart={() => {
-						// Load started
-					}}
-					onStalled={() => {
-						// Loading stalled
-					}}
-					onSuspend={() => {
-						// Loading suspended
 					}}
                     src={src}
                   >
@@ -481,6 +469,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 function CodePreview({ src, onError, onLoad }) {
   const [content, setContent] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [truncated, setTruncated] = useState(false)
   // Use refs to avoid re-rendering loops from callback deps
   const onErrorRef = useRef(onError)
   const onLoadRef = useRef(onLoad)
@@ -501,7 +490,9 @@ function CodePreview({ src, onError, onLoad }) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         const text = await response.text()
         if (controller.signal.aborted) return
-        setContent(text.slice(0, 50000)) // limit preview to 50KB
+        const PREVIEW_LIMIT = 50000
+        setTruncated(text.length > PREVIEW_LIMIT)
+        setContent(text.slice(0, PREVIEW_LIMIT))
         onLoadRef.current?.()
       } catch (err) {
         if (controller.signal.aborted) return
@@ -524,19 +515,26 @@ function CodePreview({ src, onError, onLoad }) {
         <div className="shimmer-block h-4 w-full" />
         <div className="shimmer-block h-4 w-3/4" />
         <div className="shimmer-block h-4 w-1/2" />
+      <div className="space-y-2">
+        {truncated && (
+          <div className="px-4 py-2 rounded-xl text-xs" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
+            Preview limited to first 50KB. Download for the full file.
+          </div>
+        )}
+        <pre
+          className="text-xs leading-relaxed p-4 rounded-xl overflow-auto max-h-[65vh]"
+          style={{
+            background: 'var(--bg)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          {content}
+        </pre>
       </div>
-    )
-  }
-
-  if (!content) return null
-
-  return (
-    <pre
-      className="text-xs leading-relaxed p-4 rounded-xl overflow-auto max-h-[65vh]"
-      style={{
-        background: 'var(--bg)',
-        color: 'var(--text)',
-        border: '1px solid var(--border)',
         fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace",
         tabSize: 4,
         whiteSpace: 'pre-wrap',

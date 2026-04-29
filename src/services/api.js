@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getBackendErrorMessage } from '../utils/errorMessages'
 
 function isLoopbackHost(hostname) {
   return hostname === 'localhost' || hostname === '127.0.0.1'
@@ -122,11 +123,12 @@ const API = axios.create({
 
 function classifyTransportError(error) {
   if (error?.response) {
+    const errorCode = error?.response?.data?.error?.code || null
     return {
       type: 'SERVER',
       status: Number(error.response.status || 500),
-      errorCode: error?.response?.data?.error?.code || null,
-      message: error?.response?.data?.error?.message || error?.message || 'Server error',
+      errorCode,
+      message: error?.response?.data?.error?.message || getBackendErrorMessage(errorCode, error?.message || 'Server error'),
     }
   }
 
@@ -166,6 +168,13 @@ API.interceptors.response.use(
 
     if (config.noRetry) {
       return Promise.reject(error)
+    }
+
+    if (Number(error?.response?.status) === 429) {
+      try {
+        const { default: toast } = await import('react-hot-toast')
+        toast.error('Too many requests. Please wait a moment.', { id: 'rate-limit' })
+      } catch {}
     }
 
     config.__retryCount = config.__retryCount || 0

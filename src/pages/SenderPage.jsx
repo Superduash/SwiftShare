@@ -37,6 +37,16 @@ const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
 )
 
+function buildShareMessage(fileLabel, shareLink, minutesLeft) {
+  const expiryNote = minutesLeft <= 1 ? 'less than a minute' : `${minutesLeft} min`
+  const title = `${fileLabel} — ready to download on SwiftShare`
+  const text =
+    `I'm sharing ${fileLabel} with you on SwiftShare — no account needed.\n\n` +
+    `Tap to download instantly:\n${shareLink}\n\n` +
+    `Link expires in ${expiryNote}, so open it soon!`
+  return { title, text }
+}
+
 export default function SenderPage() {
   const { code } = useParams()
   const normalizedCode = String(code || '').trim().toUpperCase()
@@ -419,8 +429,8 @@ export default function SenderPage() {
       if (expiresAt) {
         const newSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
         setSecondsRemaining(newSeconds)
-        // Extension duration is 10 minutes (600 seconds) by default
-        setTotalSeconds(600)
+        // Derive totalSeconds from actual remaining time, not hardcoded value
+        setTotalSeconds(newSeconds)
         patchCachedTransfer({ expiresAt, secondsRemaining: newSeconds })
       }
       requestActivityRefresh()
@@ -535,8 +545,8 @@ export default function SenderPage() {
       if (result?.expiresAt) {
         const newSeconds = Math.max(0, Math.ceil((new Date(result.expiresAt).getTime() - Date.now()) / 1000))
         setSecondsRemaining(newSeconds)
-        // Extension duration is 10 minutes (600 seconds) by default
-        setTotalSeconds(600)
+        // Derive totalSeconds from actual remaining time, not hardcoded value
+        setTotalSeconds(newSeconds)
       }
       toast.success('Extended by 10 minutes')
     } catch {
@@ -624,20 +634,12 @@ export default function SenderPage() {
   async function handleWebShare() {
     const fileCount = Array.isArray(meta?.files) ? meta.files.length : 0
     const primaryFileName = String(meta?.files?.[0]?.name || '').trim()
-    const fileLabel = fileCount > 1
-      ? `${fileCount} files`
-      : (primaryFileName || 'a file')
+    const fileLabel = fileCount > 1 ? `${fileCount} files` : (primaryFileName || 'a file')
     const minutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
-    const shareSubject = `SwiftShare: ${fileLabel} waiting for you`
-    const shareText = [
-      `I shared ${fileLabel} with you on SwiftShare.`,
-      `Access code: ${normalizedCode}`,
-      `Link: ${shareLink}`,
-      `Heads up: this transfer expires in about ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'}.`,
-    ].join('\n')
+    const { title: shareTitle, text: shareText } = buildShareMessage(fileLabel, shareLink, minutesLeft)
 
     const shareData = {
-      title: shareSubject,
+      title: shareTitle,
       text: shareText,
       url: shareLink,
     }
@@ -657,7 +659,7 @@ export default function SenderPage() {
     const copied = await copyLink()
     if (copied) return
 
-    const mailto = `mailto:?subject=${encodeURIComponent(shareSubject)}&body=${encodeURIComponent(shareText)}`
+    const mailto = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareText)}`
     try {
       window.location.href = mailto
       toast.success('Opened share app')
@@ -735,12 +737,13 @@ export default function SenderPage() {
             link.href = URL.createObjectURL(blob)
             link.click()
             
-            // Cleanup
-            URL.revokeObjectURL(link.href)
-            toast.success('QR code downloaded')
+            // Delay revocation to ensure browser has time to start download
+            setTimeout(() => {
+              URL.revokeObjectURL(link.href)
+              URL.revokeObjectURL(url)
+              toast.success('QR code downloaded')
+            }, 500)
           }, 'image/png', 1.0)
-          
-          URL.revokeObjectURL(url)
         } catch (err) {
           URL.revokeObjectURL(url)
           toast.error('Failed to export QR code')
@@ -855,6 +858,13 @@ export default function SenderPage() {
       </div>
     )
   }
+
+  const _shareFileCount = Array.isArray(meta?.files) ? meta.files.length : 0
+  const _shareFileLabel = _shareFileCount > 1
+    ? `${_shareFileCount} files`
+    : (String(meta?.files?.[0]?.name || '').trim() || 'a file')
+  const _shareMinutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
+  const { title: _shareTitle, text: _shareText } = buildShareMessage(_shareFileLabel, shareLink, _shareMinutesLeft)
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -1056,7 +1066,7 @@ export default function SenderPage() {
                   </h3>
                   <div className="grid grid-cols-2 gap-2">
                     <a
-                      href={`https://wa.me/?text=${encodeURIComponent(`Download my file: ${shareLink}`)}`}
+                      href={`https://wa.me/?text=${encodeURIComponent(_shareText)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-ghost justify-center"
@@ -1064,13 +1074,13 @@ export default function SenderPage() {
                       <MessageCircle size={14} />WhatsApp
                     </a>
                     <a
-                      href={`mailto:?subject=File%20for%20you&body=${encodeURIComponent(`Download here: ${shareLink}`)}`}
+                      href={`mailto:?subject=${encodeURIComponent(_shareTitle)}&body=${encodeURIComponent(_shareText)}`}
                       className="btn-ghost justify-center"
                     >
                       <Mail size={14} />Email
                     </a>
                     <a
-                      href={`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(`Download my file on SwiftShare`)}`}
+                      href={`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(_shareText)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-ghost justify-center"

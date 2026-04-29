@@ -36,6 +36,25 @@ const FEATURES = [
   { icon: Zap, title: 'Live Updates', desc: 'Real-time progress' },
 ]
 
+class LocalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || null
+    }
+
+    return this.props.children
+  }
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const { socket, isConnected, socketId } = useSocket()
@@ -99,6 +118,7 @@ export default function HomePage() {
   const [shareTextModalOpen, setShareTextModalOpen] = useState(false)
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
+  const uploadAbortRef = useRef(null)
 
   // Password strength calculation
   function getPasswordStrength(pwd) {
@@ -336,6 +356,9 @@ export default function HomePage() {
     if (!files.length) return toast.error('Select at least one file')
     if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
 
+    uploadAbortRef.current?.abort()
+    uploadAbortRef.current = new AbortController()
+
     setUploading(true)
     setUploadPercent(0)
     setUploadSpeed(0)
@@ -374,6 +397,7 @@ export default function HomePage() {
       }
 
       const response = await uploadFiles(formData, {
+        signal: uploadAbortRef.current.signal,
         onProgress: (info) => {
           if (info?.retrying) {
             // Drop any pending flushes; retry phase is its own indeterminate UI.
@@ -436,8 +460,15 @@ export default function HomePage() {
       if (!uploadSucceeded) {
         setUploading(false)
       }
+      uploadAbortRef.current = null
     }
   }
+
+  useEffect(() => {
+    return () => {
+      uploadAbortRef.current?.abort()
+    }
+  }, [])
 
   const hasFiles = files.length > 0
 
@@ -670,6 +701,7 @@ export default function HomePage() {
                               />
                               <button
                                 type="button"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
                                 className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
                                 onClick={() => setShowPassword(!showPassword)}
                                 tabIndex={-1}
@@ -821,7 +853,9 @@ export default function HomePage() {
               <RecentTransfers />
 
               {/* Nearby Devices */}
-              <NearbyDevices />
+              <LocalErrorBoundary fallback={null}>
+                <NearbyDevices />
+              </LocalErrorBoundary>
 
               {/* How it works */}
               <motion.div

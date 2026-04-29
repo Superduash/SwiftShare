@@ -49,7 +49,7 @@ function CountdownRingBase({ secondsRemaining = 0, totalSeconds = 600, size = 12
           strokeDashoffset={dashOffset}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{
-            transition: 'stroke-dashoffset 0.8s ease, stroke 0.4s ease',
+            transition: 'stroke-dashoffset 1s linear, stroke 0.4s ease',
             filter: `drop-shadow(0 0 ${isDanger ? '8px' : '4px'} ${glowColor})`,
           }}
         />

@@ -83,7 +83,7 @@ export function ConnectionHealthProvider({ children }) {
 
       let delay
       if (everConnectedRef.current && failureCountRef.current === 0) {
-        delay = 45000
+        delay = 25000
       } else {
         const idx = Math.min(failureCountRef.current, BACKOFF_SCHEDULE.length - 1)
         delay = BACKOFF_SCHEDULE[idx] || 15000

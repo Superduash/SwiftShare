@@ -316,6 +316,7 @@ export default function ShareTextModal({ open, onClose, onShare }) {
                         />
                         <button
                           type="button"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
                           onClick={() => setShowPassword(!showPassword)}
                           tabIndex={-1}

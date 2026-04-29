@@ -23,6 +23,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    target: 'es2020',
     // Bundle splitting: pulling these heavy deps into separate chunks lets the
     // browser cache them across deploys (only the small app chunk invalidates
     // on most code changes), and lets HTTP/2 download them in parallel — saves
@@ -37,7 +38,6 @@ export default defineConfig({
           if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'react-vendor'
           if (/\/node_modules\/framer-motion\//.test(id)) return 'motion'
           if (/\/node_modules\/(socket\.io-client|engine\.io-client)\//.test(id)) return 'socket'
-          if (/\/node_modules\/react-pdf\//.test(id)) return 'pdf'
           if (/\/node_modules\/(react-qr-code|qrcode)\//.test(id)) return 'qr'
           if (/\/node_modules\/lucide-react\//.test(id)) return 'icons'
         },

@@ -126,6 +126,7 @@ function NearbyOfferListener() {
                 toast.dismiss(t.id)
               }}
               className="btn-primary text-xs py-1"
+              style={{ touchAction: 'manipulation' }}
             >
               Accept
             </button>
@@ -133,6 +134,7 @@ function NearbyOfferListener() {
             <button
               onClick={() => toast.dismiss(t.id)}
               className="btn-secondary text-xs py-1"
+              style={{ touchAction: 'manipulation' }}
             >
               Decline
             </button>
@@ -179,11 +181,13 @@ export default function App() {
     window.addEventListener('resize', syncViewportHeight)
     window.addEventListener('orientationchange', syncViewportHeight)
     window.visualViewport?.addEventListener('resize', syncViewportHeight)
+    window.visualViewport?.addEventListener('orientationchange', syncViewportHeight)
 
     return () => {
       window.removeEventListener('resize', syncViewportHeight)
       window.removeEventListener('orientationchange', syncViewportHeight)
       window.visualViewport?.removeEventListener('resize', syncViewportHeight)
+      window.visualViewport?.removeEventListener('orientationchange', syncViewportHeight)
     }
   }, [])
 
@@ -198,24 +202,24 @@ export default function App() {
               <AnimatedRoutes />
             </BrowserRouter>
             <Toaster
-            position="top-right"
-            gutter={8}
-            toastOptions={{
-              duration: 3500,
-              style: {
-                background: 'var(--toast-bg)',
-                color: 'var(--toast-text)',
-                border: '1px solid var(--toast-border)',
-                borderRadius: '12px',
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: '13px',
-                fontWeight: '600',
-                maxWidth: '360px',
-              },
-              success: { iconTheme: { primary: '#16A34A', secondary: 'var(--toast-bg)' } },
-              error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
-            }}
-          />
+              position="top-center"
+              gutter={8}
+              toastOptions={{
+                duration: 3500,
+                style: {
+                  background: 'var(--toast-bg)',
+                  color: 'var(--toast-text)',
+                  border: '1px solid var(--toast-border)',
+                  borderRadius: '12px',
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  maxWidth: '90vw',
+                },
+                success: { iconTheme: { primary: '#16A34A', secondary: 'var(--toast-bg)' } },
+                error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
+              }}
+            />
           </TransferProvider>
         </ConnectionHealthProvider>
       </SocketProvider>

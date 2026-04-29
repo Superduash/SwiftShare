@@ -1,6 +1,9 @@
 # Dependencies / builds
 node_modules/
+jspm_packages/
 dist/
+dist-ssr/
+build/
 .vite/
 
 # Secrets / local env
@@ -18,23 +21,46 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# Build/cache/test artifacts
+# Build / cache / test artifacts
 coverage/
 .cache/
+.parcel-cache/
 .eslintcache
+.stylelintcache
 *.tsbuildinfo
 
-# Local deploy/tooling state
+# Local deploy / tooling state
 .vercel/
 .render/
+.netlify/
+.firebase/
 
-# OS/editor junk
+# OS / editor junk
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # Generated local export artifacts
 frontendcode.txt
 swiftshare-fix-prompt.md
+exportfront.py
+*.local
+
+# Storybook / playwright / cypress
+storybook-static/
+playwright-report/
+test-results/
+cypress/videos/
+cypress/screenshots/
+
+# Lockfile backups
+package-lock.json.bak
+yarn.lock.bak

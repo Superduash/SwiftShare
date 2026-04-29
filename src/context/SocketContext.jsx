@@ -146,15 +146,18 @@ export function SocketProvider({ children }) {
     // the upgrade probe succeeds. This is the order recommended by Socket.IO
     // for production reliability across hostile networks.
     const s = io(url, {
+      path: '/socket.io',
       transports: ['polling', 'websocket'],
       upgrade: true,
       withCredentials: false,
       reconnection: true,
-      reconnectionDelay: 3000,
-      reconnectionDelayMax: 30000,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 15000,
       randomizationFactor: 0.3,
+      timeout: 10000,
+      pingTimeout: 10000,
+      pingInterval: 25000,
       reconnectionAttempts: Infinity,
-      timeout: 45000,
     })
     
     socketRef.current = s
@@ -217,8 +220,12 @@ export function SocketProvider({ children }) {
 
   const rejoinRoom = useCallback((code) => {
     const normalizedCode = normalizeCode(code)
-    if (!normalizedCode) return
-    socketRef.current?.emit('rejoin-room', { code: normalizedCode })
+    if (!normalizedCode) return Promise.resolve(null)
+    return new Promise((resolve) => {
+      socketRef.current?.emit('rejoin-room', { code: normalizedCode }, (response) => {
+        resolve(response || null)
+      })
+    })
   }, [])
 
   return (

@@ -1,5 +1,5 @@
 # Frontend export
-Generated: 2026-04-28T16:37:52Z
+Generated: 2026-04-29T01:18:03Z
 Root: C:\Users\Superduash\Downloads\SwiftShare\Frontend
 
 ===== FILE: .env (118 bytes) =====
@@ -67,7 +67,7 @@ VITE_SHARE_BASE_URL=https://your-frontend.vercel.app
   "version": "2.0.0",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": ">=20"
   },
   "type": "module",
   "scripts": {
@@ -109,7 +109,7 @@ export default {
   },
 }
 
-===== FILE: src/App.jsx (7391 bytes) =====
+===== FILE: src/App.jsx (8217 bytes) =====
 import React, { Suspense, lazy, useEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
@@ -142,7 +142,7 @@ class RouteErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px' }}>
+        <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px' }}>
           <p style={{ color: 'var(--text)', fontWeight: 600 }}>Something went wrong loading this page.</p>
           <p style={{ color: 'var(--text-3)', fontSize: '13px', fontFamily: 'monospace' }}>{this.state.error?.message}</p>
           <button style={{ padding: '10px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Go Home</button>
@@ -279,6 +279,26 @@ export default function App() {
     document.body.classList.toggle('reduce-motion', Boolean(reducedMotion))
   }, [reducedMotion])
 
+  useEffect(() => {
+    const syncViewportHeight = () => {
+      const viewport = window.visualViewport
+      const height = viewport?.height || window.innerHeight || document.documentElement.clientHeight
+      const vh = Math.max(1, height * 0.01)
+      document.documentElement.style.setProperty('--app-vh', `${vh}px`)
+    }
+
+    syncViewportHeight()
+    window.addEventListener('resize', syncViewportHeight)
+    window.addEventListener('orientationchange', syncViewportHeight)
+    window.visualViewport?.addEventListener('resize', syncViewportHeight)
+
+    return () => {
+      window.removeEventListener('resize', syncViewportHeight)
+      window.removeEventListener('orientationchange', syncViewportHeight)
+      window.visualViewport?.removeEventListener('resize', syncViewportHeight)
+    }
+  }, [])
+
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
       <SocketProvider>
@@ -315,13 +335,14 @@ export default function App() {
   )
 }
 
-===== FILE: src/components/AISummaryCard.jsx (8139 bytes) =====
+===== FILE: src/components/AISummaryCard.jsx (9908 bytes) =====
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, FileText, Image, Video, FileArchive,
-  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target
+  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target, Copy, Check
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 const CATEGORY_ICONS = {
   document: FileText, image: Image, video: Video, archive: FileArchive,
@@ -338,7 +359,7 @@ function getCategoryIcon(cat) {
   return CATEGORY_ICONS.default
 }
 
-const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic|captured text reads|media shared for media sharing|context derived from)\b/gi
+const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic|captured text reads|media shared for media sharing|context derived from|in summary|to summarize|overall,?)\b/gi
 
 function cleanSummary(text) {
   return String(text || '')
@@ -362,6 +383,7 @@ function cleanKeyPoints(points) {
 
 export default function AISummaryCard({ ai, loading = false }) {
   const [showFiles, setShowFiles] = useState(false)
+  const [copied, setCopied] = useState(false)
   const activeAi = ai
 
   const CatIcon = activeAi?.category ? getCategoryIcon(activeAi.category) : Sparkles
@@ -373,6 +395,20 @@ export default function AISummaryCard({ ai, loading = false }) {
     summary: cleanSummary(file?.summary),
     key_points: cleanKeyPoints(file?.key_points),
   }))
+  // AI result with only a warning and no summary means the service was unavailable
+  const isAiUnavailable = activeAi && !summary && !activeAi.category && Boolean(activeAi.warning)
+
+  const handleCopySummary = async () => {
+    if (!summary) return
+    try {
+      await navigator.clipboard.writeText(summary)
+      setCopied(true)
+      toast.success('Summary copied')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Could not copy')
+    }
+  }
 
   return (
     <motion.div
@@ -389,13 +425,28 @@ export default function AISummaryCard({ ai, loading = false }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-soft)' }}>
-            <Sparkles size={14} style={{ color: 'var(--ai-icon)' }} />
+            <Sparkles size={14} style={{ color: 'var(--ai-icon)' }} aria-hidden="true" />
           </div>
           <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>AI Analysis</span>
         </div>
-        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}>
-          Gemini 2.5 Flash
-        </span>
+        <div className="flex items-center gap-2">
+          {summary && !loading && (
+            <button
+              className="btn-icon !w-6 !h-6"
+              onClick={handleCopySummary}
+              title="Copy summary"
+              aria-label="Copy AI summary"
+            >
+              {copied
+                ? <Check size={12} style={{ color: 'var(--success)' }} />
+                : <Copy size={12} style={{ color: 'var(--text-4)' }} />
+              }
+            </button>
+          )}
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}>
+            Gemini 2.5 Flash
+          </span>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -416,28 +467,38 @@ export default function AISummaryCard({ ai, loading = false }) {
             <div className="flex flex-wrap items-center gap-1.5 mb-3">
               {activeAi.category && (
                 <div className="badge">
-                  <CatIcon size={12} />
+                  <CatIcon size={12} aria-hidden="true" />
                   {activeAi.category}
                 </div>
               )}
               {detectedIntent && (
                 <div className="badge" style={{ background: 'var(--info-soft)', color: 'var(--info)' }}>
-                  <Target size={12} />
+                  <Target size={12} aria-hidden="true" />
                   {detectedIntent}
                 </div>
               )}
             </div>
 
             {/* Summary */}
-            <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-2)' }}>
-              {summary || 'No summary available.'}
-            </p>
+            {summary ? (
+              <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-2)' }}>
+                {summary}
+              </p>
+            ) : isAiUnavailable ? (
+              <p className="text-sm leading-relaxed mb-3 italic" style={{ color: 'var(--text-4)' }}>
+                AI summary currently unavailable.
+              </p>
+            ) : (
+              <p className="text-sm leading-relaxed mb-3 italic" style={{ color: 'var(--text-4)' }}>
+                AI analysis completed but no summary was generated.
+              </p>
+            )}
 
             {/* Risk flags */}
             {riskFlags.length > 0 && (
               <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <AlertTriangle size={12} style={{ color: 'var(--warning)' }} />
+                  <AlertTriangle size={12} style={{ color: 'var(--warning)' }} aria-hidden="true" />
                   <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>Risk flags</p>
                 </div>
                 <ul className="text-xs space-y-0.5" style={{ color: 'var(--text-2)' }}>
@@ -463,8 +524,9 @@ export default function AISummaryCard({ ai, loading = false }) {
                   className="text-xs font-semibold flex items-center gap-1 mb-2"
                   style={{ color: 'var(--accent)' }}
                   onClick={() => setShowFiles(!showFiles)}
+                  aria-expanded={showFiles}
                 >
-                  <FileText size={12} />
+                  <FileText size={12} aria-hidden="true" />
                   {showFiles ? 'Hide' : 'Show'} per-file analysis ({fileAnalysis.length})
                 </button>
                 <AnimatePresence>
@@ -478,7 +540,7 @@ export default function AISummaryCard({ ai, loading = false }) {
                       {fileAnalysis.map((f, i) => (
                         <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
                           <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary}</p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary || 'No summary available.'}</p>
                           {f.key_points && f.key_points.length > 0 && (
                             <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
                               {f.key_points.map((point, pi) => (
@@ -496,14 +558,17 @@ export default function AISummaryCard({ ai, loading = false }) {
 
           </motion.div>
         ) : (
-          <motion.p key="empty" className="text-sm" style={{ color: 'var(--text-4)' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            AI summary will appear after upload.
-          </motion.p>
+          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <p className="text-sm" style={{ color: 'var(--text-4)' }}>
+              AI summary will appear after upload.
+            </p>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
   )
 }
+
 
 ===== FILE: src/components/ActivityLog.jsx (3055 bytes) =====
 import React from 'react'
@@ -586,18 +651,15 @@ export default function ActivityLog({ activity = [] }) {
   )
 }
 
-===== FILE: src/components/ConnectionBanner.jsx (2866 bytes) =====
-import React from 'react'
+===== FILE: src/components/ConnectionBanner.jsx (4796 bytes) =====
+import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, WifiOff, Zap } from 'lucide-react'
+import { Loader2, WifiOff, Zap, CheckCircle2 } from 'lucide-react'
 import { useConnectionHealth } from '../context/ConnectionHealthContext'
 
 const STATUS_CONFIG = {
   waking: {
     icon: Zap,
-    // Use --accent-glow so the banner picks up the active theme's accent
-    // instead of always showing sunset-orange. Linear-gradient with two stops
-    // of the same variable yields a subtle vertical wash.
     text: 'Waking up server...',
     sub: 'Free tier servers sleep after inactivity. Hang tight!',
     bg: 'linear-gradient(135deg, var(--accent-soft), var(--accent-medium))',
@@ -616,36 +678,100 @@ const STATUS_CONFIG = {
   },
   offline: {
     icon: WifiOff,
-    text: 'You\'re offline',
+    text: "You're offline",
     sub: 'Check your internet connection.',
     bg: 'linear-gradient(135deg, rgba(220,38,38,0.1), rgba(220,38,38,0.05))',
     border: 'rgba(220,38,38,0.2)',
     color: 'var(--danger)',
     showSpinner: false,
   },
+  // Transient "back online" flash shown for 2s after reconnecting
+  restored: {
+    icon: CheckCircle2,
+    text: 'Back online',
+    sub: 'Connection restored.',
+    bg: 'linear-gradient(135deg, rgba(22,163,74,0.1), rgba(22,163,74,0.05))',
+    border: 'rgba(22,163,74,0.2)',
+    color: 'var(--success)',
+    showSpinner: false,
+  },
 }
+
+const RESTORED_FLASH_MS = 2000
 
 export default function ConnectionBanner() {
   const { status } = useConnectionHealth()
+  const prevStatusRef = useRef(status)
+  const [displayStatus, setDisplayStatus] = useState(status)
+  const restoredTimerRef = useRef(null)
 
-  const config = STATUS_CONFIG[status]
-  const show = status !== 'connected' && config
+  useEffect(() => {
+    const prev = prevStatusRef.current
+    prevStatusRef.current = status
+
+    // Clear any pending restored timer
+    if (restoredTimerRef.current) {
+      clearTimeout(restoredTimerRef.current)
+      restoredTimerRef.current = null
+    }
+
+    if (status === 'connected') {
+      // Only flash "restored" if we were previously in a bad state
+      const wasBad = prev === 'offline' || prev === 'reconnecting' || prev === 'waking'
+      if (wasBad) {
+        setDisplayStatus('restored')
+        restoredTimerRef.current = setTimeout(() => {
+          setDisplayStatus('connected')
+          restoredTimerRef.current = null
+        }, RESTORED_FLASH_MS)
+      } else {
+        setDisplayStatus('connected')
+      }
+    } else {
+      setDisplayStatus(status)
+    }
+
+    return () => {
+      if (restoredTimerRef.current) {
+        clearTimeout(restoredTimerRef.current)
+      }
+    }
+  }, [status])
+
+  const config = STATUS_CONFIG[displayStatus]
+  const show = displayStatus !== 'connected' && config
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.toggle('connection-banner-visible', Boolean(show))
+
+    return () => {
+      root.classList.remove('connection-banner-visible')
+    }
+  }, [show])
 
   return (
     <AnimatePresence>
       {show && (
         <motion.div
+          key={displayStatus}
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
           style={{ overflow: 'hidden', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999 }}
+          role="status"
+          aria-live="polite"
+          aria-label={config.text}
         >
           <div
+            className="connection-banner-inner"
             style={{
               background: config.bg,
               borderBottom: `1px solid ${config.border}`,
+              minHeight: 'var(--connection-banner-height)',
               padding: '10px 16px',
+              paddingTop: 'calc(10px + var(--safe-top))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -653,15 +779,15 @@ export default function ConnectionBanner() {
             }}
           >
             {config.showSpinner ? (
-              <Loader2 size={16} className="animate-spin" style={{ color: config.color }} />
+              <Loader2 size={16} className="animate-spin" style={{ color: config.color }} aria-hidden="true" />
             ) : (
-              <config.icon size={16} style={{ color: config.color }} />
+              <config.icon size={16} style={{ color: config.color }} aria-hidden="true" />
             )}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: config.color }}>
+            <div className="connection-banner-copy" style={{ display: 'flex', flexDirection: 'column' }}>
+              <span className="connection-banner-title" style={{ fontSize: '13px', fontWeight: 600, color: config.color }}>
                 {config.text}
               </span>
-              <span style={{ fontSize: '11px', color: 'var(--text-4)' }}>
+              <span className="connection-banner-sub" style={{ fontSize: '11px', color: 'var(--text-4)' }}>
                 {config.sub}
               </span>
             </div>
@@ -1616,7 +1742,7 @@ export default function LoadingScreen({ message = 'Loading...' }) {
   )
 }
 
-===== FILE: src/components/Navbar.jsx (3266 bytes) =====
+===== FILE: src/components/Navbar.jsx (3822 bytes) =====
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -1635,21 +1761,29 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl"
-        style={{ background: 'var(--nav-bg)', borderBottom: '1px solid var(--nav-border)' }}
+        className="fixed left-0 right-0 z-50 backdrop-blur-xl"
+        style={{
+          top: 'calc(var(--safe-top) + var(--connection-banner-height))',
+          background: 'var(--nav-bg)',
+          borderBottom: '1px solid var(--nav-border)',
+          transition: 'top 0.25s ease, background 0.25s ease, border-color 0.25s ease',
+        }}
+        role="navigation"
+        aria-label="Main navigation"
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="page-shell-wide flex items-center justify-between" style={{ height: 'var(--navbar-height)' }}>
           {/* Left */}
           <div className="flex items-center gap-3">
             {!isHome && (
-              <Link to="/" className="btn-icon" aria-label="Back home">
+              <Link to="/" className="btn-icon" aria-label="Back to home">
                 <ArrowLeft size={18} />
               </Link>
             )}
-            <Link to="/" className="flex items-center gap-2 group">
+            <Link to="/" className="flex items-center gap-2 group" aria-label="SwiftShare home">
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
                 style={{ background: 'var(--accent)', boxShadow: '0 2px 8px var(--accent-glow)' }}
+                aria-hidden="true"
               >
                 <Zap size={16} color={theme === 'dark' ? '#0F1014' : '#fff'} strokeWidth={2.5} />
               </div>
@@ -1661,13 +1795,15 @@ export default function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-1">
-            {/* Connection status */}
-            <div 
+            {/* Connection status indicator */}
+            <div
               className="flex items-center gap-1.5 px-2 py-1 mr-1 rounded-lg transition-colors"
               style={{
                 background: isConnected ? 'var(--success-soft)' : 'var(--warning-soft)',
               }}
               title={isConnected ? 'Connected to server' : 'Connecting to server...'}
+              role="status"
+              aria-label={isConnected ? 'Connected to server' : 'Connecting to server'}
             >
               <div
                 className="w-2 h-2 rounded-full transition-all duration-500"
@@ -1676,16 +1812,21 @@ export default function Navbar() {
                   boxShadow: isConnected ? '0 0 6px rgba(22,163,74,0.4)' : '0 0 6px rgba(234,179,8,0.4)',
                   animation: isConnected ? 'none' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                 }}
+                aria-hidden="true"
               />
-              <span className="text-xs font-medium hidden sm:inline" style={{ 
-                color: isConnected ? 'var(--success)' : 'var(--warning)' 
+              <span className="text-xs font-medium hidden sm:inline" style={{
+                color: isConnected ? 'var(--success)' : 'var(--warning)'
               }}>
                 {isConnected ? 'Live' : 'Syncing'}
               </span>
             </div>
 
             {/* Settings */}
-            <button className="btn-icon" onClick={() => setSettingsOpen(true)} aria-label="Settings">
+            <button
+              className="btn-icon"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Open settings"
+            >
               <Settings size={18} />
             </button>
           </div>
@@ -1697,7 +1838,7 @@ export default function Navbar() {
   )
 }
 
-===== FILE: src/components/NearbyDevices.jsx (12774 bytes) =====
+===== FILE: src/components/NearbyDevices.jsx (13642 bytes) =====
 import React, { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, Download, Clock, Send, RefreshCw, WifiOff, AlertCircle } from 'lucide-react'
@@ -1804,9 +1945,17 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
       return
     }
 
+    // Safety timeout: if no nearby-devices event arrives within 5s of mount,
+    // stop showing the loading spinner so the UI doesn't hang forever.
+    const loadingTimeoutId = setTimeout(() => {
+      if (mountedRef.current) {
+        setLoading(false)
+      }
+    }, 5000)
+
     const onNearbyDevices = (payload = {}) => {
       if (!mountedRef.current) return
-      
+      clearTimeout(loadingTimeoutId)
       try {
         const dedupedDevices = dedupeDevices(payload.devices, socketId)
         setDevices(dedupedDevices)
@@ -1845,7 +1994,9 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     const requestNearby = () => {
       if (!mountedRef.current) return
       if (document.hidden) return
-      if (!isConnected) return
+      // Check socket.connected directly (more reliable than isConnected state which
+      // may lag behind the actual socket state by one render cycle)
+      if (!socket.connected && !isConnected) return
       
       const now = Date.now()
       // Debounce: don't ping more than once every 5 seconds
@@ -1879,9 +2030,20 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     }
     document.addEventListener('visibilitychange', onVisibility)
 
+    // Refresh when browser comes back online (e.g. after WiFi reconnect)
+    const onOnline = () => {
+      if (mountedRef.current) {
+        lastPingRef.current = 0 // reset debounce so we ping immediately
+        requestNearby()
+      }
+    }
+    window.addEventListener('online', onOnline)
+
     return () => {
+      clearTimeout(loadingTimeoutId)
       clearInterval(iv)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('online', onOnline)
       socket.off('connect', requestNearby)
       socket.off('nearby-devices', onNearbyDevices)
       socket.off('nearby-device-added', onNearbyDeviceAdded)
@@ -2152,7 +2314,7 @@ export default memo(ProgressBarBase, (prev, next) => (
   && prev.showSpeed === next.showSpeed
 ))
 
-===== FILE: src/components/QRModal.jsx (2751 bytes) =====
+===== FILE: src/components/QRModal.jsx (2927 bytes) =====
 import React, { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Maximize2 } from 'lucide-react'
@@ -2185,6 +2347,9 @@ export default function QRModal({ open, onClose, value, code }) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.85, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="QR code to scan for download"
           >
             <button className="absolute top-4 right-4 btn-icon" onClick={onClose} aria-label="Close">
               <X size={20} />
@@ -2200,6 +2365,7 @@ export default function QRModal({ open, onClose, value, code }) {
                 bgColor="var(--qr-bg)"
                 fgColor="var(--qr-fg)"
                 level="M"
+                aria-label={`QR code for transfer ${code || ''}`}
               />
             </div>
 
@@ -2223,7 +2389,7 @@ export default function QRModal({ open, onClose, value, code }) {
   )
 }
 
-===== FILE: src/components/RecentTransfers.jsx (8405 bytes) =====
+===== FILE: src/components/RecentTransfers.jsx (8448 bytes) =====
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
@@ -2366,7 +2532,9 @@ export default function RecentTransfers() {
         state: { transferData: resolvedTransferData }
       })
     } catch (err) {
-      console.error('[RecentTransfers] Navigation error:', err)
+      if (import.meta.env.DEV) {
+        console.error('[RecentTransfers] Navigation error:', err)
+      }
       // Fallback: navigate without state
       navigate(isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`)
     }
@@ -3239,7 +3407,7 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
   )
 }
 
-===== FILE: src/context/ConnectionHealthContext.jsx (5074 bytes) =====
+===== FILE: src/context/ConnectionHealthContext.jsx (4983 bytes) =====
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { pingServer } from '../services/api'
 import { useSocket } from './SocketContext'
@@ -3248,16 +3416,13 @@ const ConnectionHealthContext = createContext(null)
 
 // States: 'connected' | 'reconnecting' | 'waking' | 'offline'
 //
-// The banner is intentionally pessimistic to display: it only appears when we
-// have *strong* evidence the user is offline. Mobile networks routinely drop a
-// single HTTP request while a long-lived Socket.IO connection on the same
-// domain stays healthy — showing "Reconnecting..." in that case is a lie that
-// scares users away. So the rules are:
-//
-//   1. Start optimistic ('connected'). The banner does not flash on first paint.
+// Design principles:
+//   1. Start optimistic ('connected'). No banner flash on first paint.
 //   2. If the socket is connected, we are connected. Period.
 //   3. Only flip to 'reconnecting'/'waking' after MIN_FAILURES consecutive
 //      ping failures *and* the socket is not connected.
+//   4. When connection is restored (socket reconnects OR ping succeeds),
+//      immediately clear the banner — no stale 'offline' state.
 
 const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
 const MIN_FAILURES_BEFORE_BANNER = 2
@@ -3274,14 +3439,14 @@ export function ConnectionHealthProvider({ children }) {
 
   const { isConnected: socketConnected } = useSocket()
 
-  // The socket connecting is the strongest possible "we have a working link
-  // to the backend" signal — if it's up, suppress any banner immediately.
+  // Socket connection is the strongest "we have a working link" signal.
+  // Always clear the banner immediately when socket connects.
   useEffect(() => {
     socketConnectedRef.current = Boolean(socketConnected)
     if (socketConnected) {
       everConnectedRef.current = true
       failureCountRef.current = 0
-      setStatus((prev) => (prev === 'offline' ? prev : 'connected'))
+      setStatus('connected')
       setLastOk(Date.now())
     }
   }, [socketConnected])
@@ -3298,7 +3463,8 @@ export function ConnectionHealthProvider({ children }) {
       if (result.ok) {
         everConnectedRef.current = true
         failureCountRef.current = 0
-        setStatus((prev) => (prev === 'offline' ? prev : 'connected'))
+        // Always set connected on successful ping — no conditional guard
+        setStatus('connected')
         setLastOk(Date.now())
       } else {
         failureCountRef.current += 1
@@ -3356,6 +3522,9 @@ export function ConnectionHealthProvider({ children }) {
     }
 
     function onOnline() {
+      // Browser says we're back online — immediately reset and verify
+      failureCountRef.current = 0
+      setStatus('connected')
       void checkHealth()
     }
 
@@ -3721,7 +3890,7 @@ export function useTransfer() {
   return useContext(TransferContext) || {}
 }
 
-===== FILE: src/index.css (36229 bytes) =====
+===== FILE: src/index.css (38171 bytes) =====
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -4305,6 +4474,30 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --navbar-height: 56px;
+  --connection-banner-height: 0px;
+  --connection-banner-height-mobile: 52px;
+  --connection-banner-height-desktop: 46px;
+  --page-gutter: clamp(14px, 3.2vw, 28px);
+  --page-max-wide: 72rem;
+  --page-max-medium: 56rem;
+  --page-max-narrow: 34rem;
+  --app-vh: 1vh;
+  --app-header-offset: calc(var(--safe-top) + var(--navbar-height) + var(--connection-banner-height));
+}
+
+html.connection-banner-visible {
+  --connection-banner-height: var(--connection-banner-height-mobile);
+}
+
+@media (min-width: 640px) {
+  html.connection-banner-visible {
+    --connection-banner-height: var(--connection-banner-height-desktop);
+  }
+}
+
 body {
   font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
@@ -4317,6 +4510,16 @@ body {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transition: background 0.25s ease, color 0.25s ease;
+}
+
+.min-h-screen {
+  min-height: calc(var(--app-vh) * 100);
+}
+
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
 }
 input, button, textarea, select { 
   font: inherit;
@@ -4560,6 +4763,52 @@ a { color: inherit; text-decoration: none; }
   .interactive:active {
     transform: scale(0.98) translateZ(0);
   }
+
+  .app-main-offset {
+    padding-top: var(--app-header-offset);
+  }
+
+  .page-shell-wide,
+  .page-shell-medium,
+  .page-shell-narrow {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: max(var(--page-gutter), env(safe-area-inset-left));
+    padding-right: max(var(--page-gutter), env(safe-area-inset-right));
+  }
+
+  .page-shell-wide {
+    max-width: var(--page-max-wide);
+  }
+
+  .page-shell-medium {
+    max-width: var(--page-max-medium);
+  }
+
+  .page-shell-narrow {
+    max-width: var(--page-max-narrow);
+  }
+
+  .connection-banner-inner {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+
+  .connection-banner-copy {
+    min-width: 0;
+    max-width: min(92vw, 760px);
+    text-align: left;
+  }
+
+  .connection-banner-title {
+    display: block;
+    line-height: 1.15;
+  }
+
+  .connection-banner-sub {
+    display: block;
+    line-height: 1.15;
+  }
 }
 
 /* Scrollbar */
@@ -4766,6 +5015,17 @@ body.reduce-motion *::after {
     min-height: 200px;
   }
 
+  .page-shell-wide,
+  .page-shell-medium,
+  .page-shell-narrow {
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+
+  .connection-banner-sub {
+    display: none;
+  }
+
   /* Mobile-optimized modals */
   [role="dialog"] {
     max-height: 90vh;
@@ -4830,13 +5090,8 @@ body.reduce-motion *::after {
     padding-bottom: 16px !important;
   }
 
-  /* Optimize navbar height */
-  nav {
-    height: 48px;
-  }
-
-  .pt-14 {
-    padding-top: 48px;
+  :root {
+    --navbar-height: 48px;
   }
 }
 
@@ -4904,7 +5159,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-===== FILE: src/pages/DownloadPage.jsx (34933 bytes) =====
+===== FILE: src/pages/DownloadPage.jsx (35068 bytes) =====
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -4956,7 +5211,7 @@ export default function DownloadPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transferData || null
-  const { socket, joinRoom, leaveRoom } = useSocket()
+  const { socket, joinRoom, leaveRoom, rejoinRoom } = useSocket()
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
   const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
@@ -5305,7 +5560,8 @@ export default function DownloadPage() {
     if (!socket || !normalizedCode) return
 
     const connectRoom = () => {
-      joinRoom(normalizedCode)
+      // Use rejoinRoom on reconnect so the server re-syncs the countdown timer.
+      rejoinRoom(normalizedCode)
     }
 
     connectRoom()
@@ -5414,7 +5670,7 @@ export default function DownloadPage() {
       }
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, joinRoom, leaveRoom, navigate, patchCachedTransfer])
+  }, [socket, normalizedCode, joinRoom, rejoinRoom, leaveRoom, navigate, patchCachedTransfer])
 
   // Password verification
   async function handlePasswordSubmit(e) {
@@ -5528,7 +5784,7 @@ export default function DownloadPage() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
-        <div className="pt-20 max-w-lg mx-auto px-4 space-y-4">
+        <div className="app-main-offset page-shell-narrow py-8 sm:py-10 space-y-4">
           <div className="shimmer-block h-8 w-48" />
           <div className="shimmer-block h-32 w-full" />
           <div className="shimmer-block h-14 w-full" />
@@ -5541,7 +5797,7 @@ export default function DownloadPage() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <Navbar />
-        <div className="pt-20">
+        <div className="app-main-offset">
           <ErrorState
             code={requestError}
             onRetry={handleRetry}
@@ -5573,8 +5829,8 @@ export default function DownloadPage() {
         />
       </Suspense>
 
-      <main className="pt-14">
-        <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <main className="app-main-offset">
+        <div className="page-shell-narrow py-8 sm:py-12">
 
           {/* Status banner */}
           <AnimatePresence>
@@ -5847,7 +6103,7 @@ export default function DownloadPage() {
   )
 }
 
-===== FILE: src/pages/ExpiredPage.jsx (3107 bytes) =====
+===== FILE: src/pages/ExpiredPage.jsx (3105 bytes) =====
 import React, { useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -5905,8 +6161,8 @@ export default function ExpiredPage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
 
-      <main className="pt-14">
-        <div className="max-w-md mx-auto px-4 sm:px-6 py-20 text-center">
+      <main className="app-main-offset">
+        <div className="page-shell-narrow py-20 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -5942,7 +6198,7 @@ export default function ExpiredPage() {
   )
 }
 
-===== FILE: src/pages/HomePage.jsx (37641 bytes) =====
+===== FILE: src/pages/HomePage.jsx (37998 bytes) =====
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -5969,8 +6225,8 @@ import NearbyDevices from '../components/NearbyDevices'
 import ShareTextModal from '../components/ShareTextModal'
 
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
-const MAX_SIZE = 100 * 1024 * 1024 // 100MB
-const MAX_FILES = 5
+const MAX_SIZE = 100 * 1024 * 1024 // 100MB total across all files
+const MAX_FILES = 10
 
 const FEATURES = [
   { icon: Shield, title: 'No Sign-Up', desc: 'Share without accounts' },
@@ -6088,13 +6344,13 @@ export default function HomePage() {
     // Navigate first to avoid any transient audio API issues blocking route transition.
     navigate(`/sender/${normalizedTransferCode}`, { state: { transferData: transferSnapshot } })
 
-    // Play success sound after navigation commit.
-    window.setTimeout(() => {
+    // Play success sound after navigation commit (rAF ensures the new route has painted).
+    requestAnimationFrame(() => {
       const currentSettings = getSettings()
       if (currentSettings.soundEnabled) {
         playUploadSuccess()
       }
-    }, 0)
+    })
   }, [files, navigate])
 
   // Title
@@ -6165,6 +6421,12 @@ export default function HomePage() {
       errors.forEach(e => toast.error(e))
       return
     }
+    // Check total size across all files
+    const total = combined.reduce((s, f) => s + (f.size || 0), 0)
+    if (total > MAX_SIZE) {
+      toast.error(`Total size exceeds 100 MB limit (${formatBytes(total)})`)
+      return
+    }
     setFiles(combined)
   }, [files])
 
@@ -6217,17 +6479,19 @@ export default function HomePage() {
       // Navigate to sender page
       navigate(`/sender/${normalizedCode}`, { state: { transferData: transferSnapshot } })
 
-      // Play success sound
-      window.setTimeout(() => {
+      // Play success sound after navigation commit
+      requestAnimationFrame(() => {
         const currentSettings = getSettings()
         if (currentSettings.soundEnabled) {
           playUploadSuccess()
         }
-      }, 0)
+      })
 
       toast.success('Text shared successfully!')
     } catch (err) {
-      console.error('[HomePage] Share text error:', err)
+      if (import.meta.env.DEV) {
+        console.error('[HomePage] Share text error:', err)
+      }
       throw err
     }
   }
@@ -6382,8 +6646,8 @@ export default function HomePage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
 
-      <main className="pt-14">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
+      <main className="app-main-offset">
+        <div className="page-shell-wide py-8 lg:py-12">
 
           {/* Desktop: split layout */}
           <div className="lg:grid lg:grid-cols-5 lg:gap-10">
@@ -6446,7 +6710,7 @@ export default function HomePage() {
                         or click to browse · Ctrl+V to paste files
                       </p>
                       <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
-                        Max 100 MB per file · Up to 5 files
+                        Max 100 MB total · Up to 10 files
                       </p>
                       
                       {/* Share Text button */}
@@ -6804,7 +7068,7 @@ export default function HomePage() {
   )
 }
 
-===== FILE: src/pages/JoinPage.jsx (10169 bytes) =====
+===== FILE: src/pages/JoinPage.jsx (10101 bytes) =====
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -6916,8 +7180,6 @@ export default function JoinPage() {
       }
 
       // Handle all error cases
-      console.error('[JoinPage] Request failed:', outcome)
-      
       if (outcome?.type === 'SERVER') {
         const errCode = outcome.errorCode || 'SERVER_ERROR'
         if (errCode === 'TRANSFER_EXPIRED') {
@@ -7014,8 +7276,8 @@ export default function JoinPage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Navbar />
 
-      <main className="pt-14">
-        <div className="max-w-lg mx-auto px-4 sm:px-6 py-12 sm:py-20">
+      <main className="app-main-offset">
+        <div className="page-shell-narrow py-12 sm:py-20">
           <motion.div
             className="text-center mb-10"
             initial={{ opacity: 0, y: 16 }}
@@ -7117,7 +7379,7 @@ export default function JoinPage() {
   )
 }
 
-===== FILE: src/pages/SenderPage.jsx (43605 bytes) =====
+===== FILE: src/pages/SenderPage.jsx (43680 bytes) =====
 import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -7389,7 +7651,6 @@ export default function SenderPage() {
         applyTransferSnapshot(data, { persist: true })
       } catch (err) {
         if (!mountedRef.current) return
-        console.error('[SenderPage] load error:', err)
         const errCode = err?.response?.data?.error?.code
         // Only redirect for definitive backend responses (not network/timeout errors)
         if (errCode === 'TRANSFER_NOT_FOUND') {
@@ -7999,8 +8260,12 @@ export default function SenderPage() {
       <AnimatePresence>
         {cancelled && (
           <motion.div
-            className="fixed top-14 left-0 right-0 z-40 p-3 text-center"
-            style={{ background: 'var(--danger-soft)', borderBottom: '1px solid rgba(220,38,38,0.15)' }}
+            className="fixed left-0 right-0 z-40 p-3 text-center"
+            style={{
+              background: 'var(--danger-soft)',
+              borderBottom: '1px solid rgba(220,38,38,0.15)',
+              top: 'calc(var(--safe-top) + var(--connection-banner-height) + var(--navbar-height))',
+            }}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
@@ -8012,8 +8277,8 @@ export default function SenderPage() {
         )}
       </AnimatePresence>
 
-      <main className="pt-14">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <main className="app-main-offset">
+        <div className="page-shell-wide py-8">
           <div className="lg:grid lg:grid-cols-5 lg:gap-10">
 
             {/* ═══ LEFT: scrolling content ═══ */}
@@ -9008,7 +9273,7 @@ export function extractErrorCode(err) {
   return 'SERVER_ERROR'
 }
 
-===== FILE: src/utils/format.js (1864 bytes) =====
+===== FILE: src/utils/format.js (1893 bytes) =====
 export function formatBytes(bytes) {
   const b = Number(bytes || 0)
   if (b <= 0) return '0 B'
@@ -9055,8 +9320,9 @@ export function formatRelativeExpiry(expiresAt) {
 }
 
 export function formatSpeed(bytesPerSecond) {
-  if (!bytesPerSecond || bytesPerSecond <= 0) return ''
-  return `${formatBytes(bytesPerSecond)}/s`
+  const bps = Number(bytesPerSecond)
+  if (!bps || !Number.isFinite(bps) || bps <= 0) return ''
+  return `${formatBytes(bps)}/s`
 }
 
 export function expiryLabel(minutes) {
@@ -9708,4 +9974,4 @@ export default defineConfig({
 ===== SUMMARY =====
 Included files: 46
 Skipped (too large): 0
-Total source bytes included: 348004
+Total source bytes included: 356549
