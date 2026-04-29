@@ -36,13 +36,19 @@ function getDocxPreviewUrl(src) {
   return `${src.slice(0, queryStart)}/docx-html${src.slice(queryStart)}`
 }
 
+// ── forceAudible ──────────────────────────────────────────────────────────
+// Sets the DOM property directly (not via React prop) because React's `muted`
+// JSX prop is unreliable — it sets the HTML attribute but does not always sync
+// the reflected DOM property, especially on iOS Safari.
 function forceAudible(mediaEl) {
   if (!mediaEl) return
   try {
     mediaEl.defaultMuted = false
     mediaEl.muted = false
     mediaEl.volume = 1
-  } catch {}
+  } catch {
+    // Some browsers throw on volume assignment without a user gesture; ignore.
+  }
 }
 
 function CodePreview({ src, onError, onLoad }) {
@@ -129,6 +135,20 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     setError(false)
     setLoading(true)
   }, [file, open])
+
+  // ── Imperatively unmute / set volume once the media element is mounted ──
+  // We do this via ref so it is completely decoupled from React's render
+  // cycle and the unreliable `muted` JSX attribute.  We fire on every
+  // open/file/loading change so it runs both on first render and whenever
+  // the media loads (onLoadedMetadata already calls forceAudible, but this
+  // ref-based effect is the belt-and-suspenders for browsers that don't
+  // fire onLoadedMetadata before the user presses play).
+  useEffect(() => {
+    if (!open) return
+    const type = file ? getPreviewType(file) : null
+    if (type === 'video' && videoRef.current) forceAudible(videoRef.current)
+    if (type === 'audio' && audioRef.current) forceAudible(audioRef.current)
+  }, [open, file, loading])
 
   if (!open || !file) return null
 
@@ -241,19 +261,50 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 />
               </div>
             ) : type === 'video' ? (
-              <div className="flex items-center justify-center">
-                {loading && <div className="shimmer-block w-full h-64 rounded-xl" />}
+              // ── VIDEO ─────────────────────────────────────────────────────────
+              // CRITICAL: Never use display:none on a video element.
+              //
+              // iOS Safari and Chrome Android suppress the AUDIO OUTPUT PIPELINE
+              // for media elements that are hidden with display:none at the time
+              // the media is loaded.  When the element later becomes visible, the
+              // video frames render (the GPU decode path is separate) but the
+              // audio channel was never attached to the output device — producing
+              // exactly the symptom: seek-bar moves, picture plays, zero sound.
+              //
+              // Fix: use opacity:0 + pointer-events:none while loading.  The
+              // element stays in the layout tree so the browser initialises the
+              // full media pipeline (including audio) from the start.  The
+              // shimmer overlay covers it visually until onLoadedMetadata fires.
+              <div className="flex items-center justify-center relative">
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <div className="shimmer-block w-full h-64 rounded-xl" />
+                  </div>
+                )}
                 <video
                   ref={videoRef}
                   controls
                   playsInline
                   preload="auto"
-                  muted={false}
                   className="max-w-full max-h-[65vh] rounded-xl"
-                  style={{ background: '#000', display: loading ? 'none' : 'block' }}
+                  style={{
+                    background: '#000',
+                    // opacity-based hide — keeps audio pipeline alive, unlike display:none
+                    opacity: loading ? 0 : 1,
+                    // Prevent interaction with the invisible element while loading
+                    pointerEvents: loading ? 'none' : 'auto',
+                    transition: 'opacity 0.15s ease',
+                    display: 'block',
+                  }}
                   onLoadedMetadata={(e) => {
                     forceAudible(e.target)
                     setLoading(false)
+                  }}
+                  onCanPlay={(e) => {
+                    forceAudible(e.target)
+                  }}
+                  onPlay={(e) => {
+                    forceAudible(e.target)
                   }}
                   onError={() => { setLoading(false); setError(true) }}
                   src={src}
@@ -262,19 +313,44 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 </video>
               </div>
             ) : type === 'audio' ? (
+              // ── AUDIO ─────────────────────────────────────────────────────────
+              // Same fix as video: opacity:0 instead of display:none.
+              // Mobile browsers (especially iOS Safari) disable the audio output
+              // context for display:none audio elements.  The result: the native
+              // playback bar moves but no sound comes out.  Keeping the element
+              // in the layout with opacity:0 keeps the audio context alive.
               <div className="flex items-center justify-center min-h-[120px] relative">
-                {loading && <div className="absolute inset-0 flex items-center justify-center"><div className="shimmer-block w-full h-16 rounded-xl" /></div>}
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="shimmer-block w-full h-16 rounded-xl" />
+                  </div>
+                )}
                 <audio
                   ref={audioRef}
                   controls
                   preload="auto"
-                  muted={false}
                   className="w-full max-w-xl"
-                  style={{ display: loading ? 'none' : 'block' }}
-                  onLoadedMetadata={(e) => { forceAudible(e.target); setLoading(false) }}
-                  onLoadedData={(e) => { forceAudible(e.target); setLoading(false) }}
-                  onCanPlay={(e) => { forceAudible(e.target) }}
-                  onPlay={(e) => { forceAudible(e.target) }}
+                  style={{
+                    // opacity-based hide — same reasoning as video above
+                    opacity: loading ? 0 : 1,
+                    pointerEvents: loading ? 'none' : 'auto',
+                    transition: 'opacity 0.15s ease',
+                    display: 'block',
+                  }}
+                  onLoadedMetadata={(e) => {
+                    forceAudible(e.target)
+                    setLoading(false)
+                  }}
+                  onLoadedData={(e) => {
+                    forceAudible(e.target)
+                    setLoading(false)
+                  }}
+                  onCanPlay={(e) => {
+                    forceAudible(e.target)
+                  }}
+                  onPlay={(e) => {
+                    forceAudible(e.target)
+                  }}
                   onError={() => { setLoading(false); setError(true) }}
                   src={src}
                 >
