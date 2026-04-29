@@ -241,13 +241,20 @@ function toDataUrl(base64OrDataUrl, mimeType = 'image/png') {
 export async function pingServer() {
   const start = Date.now()
   try {
-    // Longer timeout for ping — cold starts on Render free tier can take 30-60s
-    await API.get('/api/ping', { timeout: 60000, noRetry: true })
+    // 20s is enough for a warm response and short enough that the health loop
+    // can recover quickly on mobile networks. Cold-start (~30s) is handled by
+    // the loop firing again rather than by a single 60s call that ties up the
+    // banner state for a full minute on every transient miss.
+    await API.get('/api/ping', { timeout: 20000, noRetry: true })
     _backendEverReached = true
     return { ok: true, latencyMs: Date.now() - start }
   } catch {
     return { ok: false, latencyMs: Date.now() - start }
   }
+}
+
+export function markBackendReachable() {
+  _backendEverReached = true
 }
 
 // ── Upload ──────────────────────────────────

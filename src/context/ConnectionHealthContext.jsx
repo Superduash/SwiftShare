@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
-import { pingServer } from '../services/api'
+import { pingServer, markBackendReachable } from '../services/api'
 import { useSocket } from './SocketContext'
 
 const ConnectionHealthContext = createContext(null)
@@ -10,12 +10,20 @@ const ConnectionHealthContext = createContext(null)
 //   1. Start optimistic ('connected'). No banner flash on first paint.
 //   2. If the socket is connected, we are connected. Period.
 //   3. Only flip to 'reconnecting'/'waking' after MIN_FAILURES consecutive
-//      ping failures *and* the socket is not connected.
-//   4. When connection is restored (socket reconnects OR ping succeeds),
-//      immediately clear the banner — no stale 'offline' state.
+//      ping failures *and* the socket is not connected, AND a grace period
+//      has elapsed (so cold-start on mobile doesn't show false 'waking').
+//   4. When connection is restored (socket reconnects, polling handshake
+//      succeeds, OR ping succeeds), immediately clear the banner.
+//   5. Trust low-level Socket.IO events (`connect_error` w/ description,
+//      reconnect_attempt) so the banner state matches what the transport
+//      is actually doing on mobile carriers/NAT.
 
 const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
-const MIN_FAILURES_BEFORE_BANNER = 2
+const MIN_FAILURES_BEFORE_BANNER = 3
+// Grace window before we'll show a banner on a fresh page load, so the
+// initial socket handshake (often slow on mobile cold-start) gets a chance
+// to land before we declare the server "waking".
+const INITIAL_GRACE_MS = 8000
 
 export function ConnectionHealthProvider({ children }) {
   const [status, setStatus] = useState('connected')
@@ -26,8 +34,9 @@ export function ConnectionHealthProvider({ children }) {
   const mountedRef = useRef(true)
   const checkingRef = useRef(false)
   const socketConnectedRef = useRef(false)
+  const mountedAtRef = useRef(Date.now())
 
-  const { isConnected: socketConnected } = useSocket()
+  const { socket, isConnected: socketConnected } = useSocket()
 
   // Socket connection is the strongest "we have a working link" signal.
   // Always clear the banner immediately when socket connects.
@@ -36,10 +45,51 @@ export function ConnectionHealthProvider({ children }) {
     if (socketConnected) {
       everConnectedRef.current = true
       failureCountRef.current = 0
+      markBackendReachable()
       setStatus('connected')
       setLastOk(Date.now())
     }
   }, [socketConnected])
+
+  // Listen to raw Engine.IO events. A successful polling handshake or a
+  // reconnect_attempt landing means the backend is reachable even if our
+  // axios /api/ping happens to be stuck behind a slow first request — this
+  // is what was leaving phones glued to the "Waking up server" banner.
+  useEffect(() => {
+    if (!socket) return undefined
+
+    const onActivity = () => {
+      everConnectedRef.current = true
+      failureCountRef.current = 0
+      markBackendReachable()
+      if (mountedRef.current) {
+        setStatus('connected')
+        setLastOk(Date.now())
+      }
+    }
+
+    const onTransportError = () => {
+      // Don't trigger banner directly — let the ping/grace logic decide.
+      // We only count this so prolonged transport errors escalate quickly.
+      failureCountRef.current = Math.min(failureCountRef.current + 1, MIN_FAILURES_BEFORE_BANNER + 2)
+    }
+
+    socket.on('connect', onActivity)
+    socket.on('reconnect', onActivity)
+    socket.io?.on?.('reconnect', onActivity)
+    socket.io?.on?.('open', onActivity)
+    socket.io?.on?.('error', onTransportError)
+    socket.on('connect_error', onTransportError)
+
+    return () => {
+      socket.off('connect', onActivity)
+      socket.off('reconnect', onActivity)
+      socket.io?.off?.('reconnect', onActivity)
+      socket.io?.off?.('open', onActivity)
+      socket.io?.off?.('error', onTransportError)
+      socket.off('connect_error', onTransportError)
+    }
+  }, [socket])
 
   const checkHealth = useCallback(async () => {
     if (checkingRef.current) return
@@ -61,6 +111,9 @@ export function ConnectionHealthProvider({ children }) {
         // Suppress banner when socket is alive — that link is the source of truth.
         if (socketConnectedRef.current) return
         if (failureCountRef.current < MIN_FAILURES_BEFORE_BANNER) return
+        // Hold banner during the initial grace window so a slow cold-start
+        // handshake doesn't paint the phone yellow before the socket lands.
+        if (!everConnectedRef.current && (Date.now() - mountedAtRef.current) < INITIAL_GRACE_MS) return
         setStatus(everConnectedRef.current ? 'reconnecting' : 'waking')
       }
     } catch {
@@ -68,6 +121,7 @@ export function ConnectionHealthProvider({ children }) {
       failureCountRef.current += 1
       if (socketConnectedRef.current) return
       if (failureCountRef.current < MIN_FAILURES_BEFORE_BANNER) return
+      if (!everConnectedRef.current && (Date.now() - mountedAtRef.current) < INITIAL_GRACE_MS) return
       setStatus(everConnectedRef.current ? 'reconnecting' : 'waking')
     } finally {
       checkingRef.current = false
