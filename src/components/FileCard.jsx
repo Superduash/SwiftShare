@@ -39,10 +39,10 @@ function getFileCategory(file) {
 function canPreview(file) {
   const mime = (file?.mimeType || file?.type || '').toLowerCase()
   const name = (file?.name || '').toLowerCase()
-  if (mime.startsWith('image/')) return true
+  if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif|ico)$/i.test(name)) return true
   if (mime.includes('pdf') || name.endsWith('.pdf')) return true
-  if (mime.startsWith('video/')) return true
-  if (mime.startsWith('audio/')) return true
+  if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv|avi|ogv)$/i.test(name)) return true
+  if (mime.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma)$/i.test(name)) return true
   if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return true
   if (
     mime.startsWith('text/') ||
@@ -89,7 +89,7 @@ function FileCardBase({
 
       <div className="flex items-center gap-1 shrink-0">
         {onPreview && canPreview(file) && (
-          <button className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => onPreview(index)} aria-label="Preview">
+          <button className="btn-icon transition-opacity" onClick={() => onPreview(index)} aria-label="Preview">
             <Eye size={15} />
           </button>
         )}

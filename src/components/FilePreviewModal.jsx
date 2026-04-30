@@ -11,10 +11,10 @@ function getPreviewType(file) {
   const mime = String(file?.mimeType || file?.type || '').toLowerCase()
   const name = String(file?.name || '').toLowerCase()
 
-  if (mime.startsWith('image/')) return 'image'
+  if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif|ico)$/i.test(name)) return 'image'
   if (mime.includes('pdf') || name.endsWith('.pdf')) return 'pdf'
-  if (mime.startsWith('video/')) return 'video'
-  if (mime.startsWith('audio/')) return 'audio'
+  if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv|avi|ogv)$/i.test(name)) return 'video'
+  if (mime.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma)$/i.test(name)) return 'audio'
   if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return 'docx'
   if (mime.includes('presentationml') || name.endsWith('.ppt') || name.endsWith('.pptx')) return 'pptx'
   if (
@@ -138,6 +138,16 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     setLoading(true)
   }, [file, open])
 
+  // Hard fallback: some browsers never fire onLoad for PDF/iframe content
+  // (especially when the embedded PDF viewer is a plugin) and some media
+  // elements never fire onLoadedMetadata on slow mobile networks. After 6s
+  // we clear the shimmer so the user can interact with whatever has loaded.
+  useEffect(() => {
+    if (!open || !loading) return undefined
+    const timer = setTimeout(() => setLoading(false), 6000)
+    return () => clearTimeout(timer)
+  }, [open, file, loading])
+
   // ── Imperatively unmute / set volume once the media element is mounted ──
   // We do this via ref so it is completely decoupled from React's render
   // cycle and the unreliable `muted` JSX attribute.  We fire on every
@@ -251,16 +261,23 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 />
               </div>
             ) : type === 'pdf' ? (
+              // PDF iframe must stay mounted from first render — many browsers
+              // never fire onLoad for the embedded PDF plugin if the iframe
+              // is display:none at mount time, which left the shimmer stuck.
               <div className="relative" style={{ height: '65vh' }}>
-                {loading && <div className="absolute inset-0 flex items-center justify-center"><div className="shimmer-block w-full h-full rounded-xl" /></div>}
                 <iframe
                   src={`${src}#view=FitH`}
                   className="w-full h-full rounded-xl"
-                  style={{ border: 'none', display: loading ? 'none' : 'block' }}
+                  style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
                   title={file.name || 'PDF Preview'}
                   onLoad={() => setLoading(false)}
                   onError={() => { setLoading(false); setError(true) }}
                 />
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="shimmer-block w-full h-full rounded-xl" />
+                  </div>
+                )}
               </div>
             ) : type === 'video' ? (
               // ── VIDEO ─────────────────────────────────────────────────────────
@@ -361,15 +378,19 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
               </div>
             ) : type === 'docx' ? (
               <div className="relative" style={{ height: '65vh' }}>
-                {loading && <div className="absolute inset-0 flex items-center justify-center"><div className="shimmer-block w-full h-full rounded-xl" /></div>}
                 <iframe
                   src={previewSrc}
                   className="w-full h-full rounded-xl"
-                  style={{ border: 'none', display: loading ? 'none' : 'block' }}
+                  style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
                   title={file.name || 'DOCX Preview'}
                   onLoad={() => setLoading(false)}
                   onError={() => { setLoading(false); setError(true) }}
                 />
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="shimmer-block w-full h-full rounded-xl" />
+                  </div>
+                )}
               </div>
             ) : type === 'pptx' ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">

@@ -155,9 +155,14 @@ export function SocketProvider({ children }) {
     // during the server's warm-up phase (MongoDB connecting, etc.).  The server
     // already uses pingTimeout=60000; matching the client prevents the client
     // from self-disconnecting while the server is still initialising.
-    // Allow forcing polling-only via localStorage (helps some mobile carriers)
+    // Allow forcing polling-only via localStorage (helps some mobile carriers).
+    // Jio in particular blocks/stalls WebSocket upgrades on mobile data — so we
+    // also start in polling-first order (polling, then upgrade) so the first
+    // connection always succeeds, then attempt to upgrade transparently.
+    // If a previous session detected repeated WS failures and toggled the
+    // sticky polling flag, we skip the upgrade entirely.
     const forcePolling = typeof window !== 'undefined' && localStorage.getItem('socket_force_polling') === '1'
-    const transports = forcePolling ? ['polling'] : ['websocket', 'polling']
+    const transports = forcePolling ? ['polling'] : ['polling', 'websocket']
 
     // If a non-localhost http URL is used, try switching to https to avoid mixed-content
     let socketUrl = url
@@ -188,6 +193,7 @@ export function SocketProvider({ children }) {
 
     s.on('connect', () => {
       debugLog('[Socket] Connected:', s.id)
+      connectErrorCount = 0
       setIsConnected(true)
       setSocketId(s.id)
       try { localStorage.removeItem('socket_last_error') } catch {}
@@ -198,13 +204,25 @@ export function SocketProvider({ children }) {
       setIsConnected(false)
     })
 
+    let connectErrorCount = 0
     s.on('connect_error', (error) => {
       debugError('[Socket] Connection error:', error)
+      connectErrorCount += 1
       try {
         const payload = { time: Date.now(), type: 'connect_error', message: error?.message || String(error), stack: error?.stack || null }
         localStorage.setItem('socket_last_error', JSON.stringify(payload))
       } catch {}
-      try { toast.error('Socket connection failed (check mobile network).') } catch {}
+      // After 3 failures in a row (typical Jio / restrictive-NAT pattern),
+      // sticky-pin the client to polling-only so subsequent reloads connect
+      // on the first attempt instead of cycling through failing WS upgrades.
+      if (connectErrorCount >= 3) {
+        try {
+          if (localStorage.getItem('socket_force_polling') !== '1') {
+            localStorage.setItem('socket_force_polling', '1')
+            try { toast('Switched to compatibility mode for your network.') } catch {}
+          }
+        } catch {}
+      }
       setIsConnected(false)
     })
 
@@ -214,12 +232,12 @@ export function SocketProvider({ children }) {
         const payload = { time: Date.now(), type: 'reconnect_error', message: error?.message || String(error), stack: error?.stack || null }
         localStorage.setItem('socket_last_error', JSON.stringify(payload))
       } catch {}
-      try { toast.error('Socket reconnection failed (mobile network).') } catch {}
       setIsConnected(false)
     })
 
     s.on('reconnect', (attemptNumber) => {
       debugLog('[Socket] Reconnected after', attemptNumber, 'attempts')
+      connectErrorCount = 0
       setIsConnected(true)
       setSocketId(s.id)
     })
