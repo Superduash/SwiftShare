@@ -4,155 +4,152 @@ import { useSocket } from './SocketContext'
 
 const ConnectionHealthContext = createContext(null)
 
-// States: 'connected' | 'reconnecting' | 'waking' | 'offline'
+// ── Connection state machine ────────────────────────────────────────────────
 //
-// Design principles:
-//   1. Start optimistic ('connected'). No banner flash on first paint.
-//   2. If the socket is connected, we are connected. Period.
-//   3. Only flip to 'reconnecting'/'waking' after MIN_FAILURES consecutive
-//      ping failures *and* the socket is not connected, AND the initial
-//      grace window has elapsed (covers Render cold-start on mobile).
-//   4. When connection is restored (socket connects OR ping succeeds),
-//      immediately clear the banner.
-//   5. On visibility-change back to the page, ALWAYS reset optimistically
-//      first — this is what prevents the banner from getting permanently
-//      stuck after the phone wakes the tab from background suspension.
-//   6. Transport errors during the grace window are IGNORED — they are
-//      expected noise from cold-start polling timeouts and must not count
-//      toward the banner threshold.
+// Single source of truth for "is the app actually live?"
+//
+//   connected    — socket connected (real-time channel up, fully live)
+//   syncing      — ping OK but socket not yet connected (link establishing)
+//   waking       — server cold-starting, no successful contact yet
+//   reconnecting — had a working link before, now lost it
+//   offline      — browser/OS reports we're offline
+//
+// Truth rules:
+//   1. Socket connected ⇒ connected.  Period.
+//   2. Browser reports offline ⇒ offline.
+//   3. Otherwise consult ping result + history:
+//        - ping OK but socket not up           → syncing
+//        - ping failing, never reached server  → waking
+//        - ping failing, was connected before  → reconnecting
 
 const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
-const MIN_FAILURES_BEFORE_BANNER = 2
+const HEALTHY_POLL_MS = 25000
 
-// 15s grace on startup — Railway/Render services start quickly.
-// This prevents a flash of the banner on first load while the first ping is in-flight.
-const INITIAL_GRACE_MS = 15000
-
-// Hard ceiling: after this long in 'waking' with no activity, auto-reset.
-const MAX_WAKING_MS = 60000
+// Hard ceiling: after this long stuck non-connected with the same status,
+// reset failure counters so the next successful event clears cleanly.
+const MAX_STUCK_MS = 60000
 
 export function ConnectionHealthProvider({ children }) {
-  const [status, setStatus] = useState('connected')
+  const { socket, isConnected: socketConnected } = useSocket()
+
+  // Status starts at 'syncing' — we don't know yet, and we're trying.
+  // It will flip to 'connected' the moment the socket connects, or to
+  // 'waking'/'offline' if ping calls keep failing.
+  const [status, setStatus] = useState('syncing')
   const [lastOk, setLastOk] = useState(null)
+
   const everConnectedRef = useRef(false)
   const intervalRef = useRef(null)
   const failureCountRef = useRef(0)
   const mountedRef = useRef(true)
   const checkingRef = useRef(false)
   const socketConnectedRef = useRef(false)
-  const mountedAtRef = useRef(Date.now())
-  // Tracks when we entered 'waking' state so the hard ceiling can fire
-  const wakingStartRef = useRef(null)
+  const pingOkRef = useRef(false)
+  const stuckStartRef = useRef(null)
 
-  const { socket, isConnected: socketConnected } = useSocket()
+  // Centralised state update. Always derive the new status from the latest
+  // socket + ping + browser-online signals so the FSM never disagrees with
+  // itself across handlers.
+  const recomputeStatus = useCallback(() => {
+    if (!mountedRef.current) return
 
-  // ── Socket state → health state ────────────────────────────────────────
-  // Socket connection is the strongest "we have a working link" signal.
-  // Always clear the banner the moment the socket connects.
+    // Browser-level offline trumps everything except a live socket
+    // (some mobile browsers fire false offline events on screen lock).
+    if (typeof navigator !== 'undefined' && navigator.onLine === false && !socketConnectedRef.current) {
+      setStatus('offline')
+      return
+    }
+
+    if (socketConnectedRef.current) {
+      setStatus('connected')
+      return
+    }
+
+    if (pingOkRef.current) {
+      // Ping works, socket doesn't yet → syncing
+      setStatus('syncing')
+      return
+    }
+
+    // No successful link at the moment.
+    if (everConnectedRef.current) {
+      setStatus('reconnecting')
+    } else {
+      setStatus('waking')
+    }
+  }, [])
+
+  // ── Socket state → FSM ────────────────────────────────────────────────────
   useEffect(() => {
     socketConnectedRef.current = Boolean(socketConnected)
     if (socketConnected) {
       everConnectedRef.current = true
       failureCountRef.current = 0
-      wakingStartRef.current = null
+      stuckStartRef.current = null
+      pingOkRef.current = true
       markBackendReachable()
-      setStatus('connected')
       setLastOk(Date.now())
     }
-  }, [socketConnected])
+    recomputeStatus()
+  }, [socketConnected, recomputeStatus])
 
-  // ── Low-level Engine.IO events ──────────────────────────────────────────
-  // A successful polling handshake or any transport-level "open" means the
-  // backend is reachable even if the axios /api/ping is still in-flight.
-  // This is the event that clears the banner on mobile after cold-start.
+  // ── Engine.IO low-level signals ───────────────────────────────────────────
   useEffect(() => {
     if (!socket) return undefined
 
     const onActivity = () => {
       everConnectedRef.current = true
       failureCountRef.current = 0
-      wakingStartRef.current = null
+      stuckStartRef.current = null
+      pingOkRef.current = true
       markBackendReachable()
-      if (mountedRef.current) {
-        setStatus('connected')
-        setLastOk(Date.now())
-      }
+      setLastOk(Date.now())
+      recomputeStatus()
     }
 
-    const onTransportError = () => {
-      // CRITICAL: ignore errors that happen inside the initial grace window.
-      // These are expected cold-start polling timeouts and must NOT push the
-      // failure count past the banner threshold.
-      if (Date.now() - mountedAtRef.current < INITIAL_GRACE_MS) return
-      failureCountRef.current = Math.min(
-        failureCountRef.current + 1,
-        MIN_FAILURES_BEFORE_BANNER + 2,
-      )
-    }
-
-    socket.on('connect', onActivity)
-    socket.on('reconnect', onActivity)
-    socket.io?.on?.('reconnect', onActivity)
     socket.io?.on?.('open', onActivity)
-    socket.io?.on?.('error', onTransportError)
-    socket.on('connect_error', onTransportError)
 
     return () => {
-      socket.off('connect', onActivity)
-      socket.off('reconnect', onActivity)
-      socket.io?.off?.('reconnect', onActivity)
       socket.io?.off?.('open', onActivity)
-      socket.io?.off?.('error', onTransportError)
-      socket.off('connect_error', onTransportError)
     }
-  }, [socket])
+  }, [socket, recomputeStatus])
 
-  // ── Ping-based health check ─────────────────────────────────────────────
+  // ── Ping-based health check ───────────────────────────────────────────────
   const checkHealth = useCallback(async () => {
     if (checkingRef.current) return
     checkingRef.current = true
 
     try {
       const result = await pingServer()
-
       if (!mountedRef.current) return
 
       if (result.ok) {
-        everConnectedRef.current = true
+        pingOkRef.current = true
         failureCountRef.current = 0
-        wakingStartRef.current = null
-        setStatus('connected')
+        stuckStartRef.current = null
+        markBackendReachable()
         setLastOk(Date.now())
       } else {
+        pingOkRef.current = false
         failureCountRef.current += 1
-        // Suppress banner when socket is alive — that link is the source of truth.
-        if (socketConnectedRef.current) return
-        if (failureCountRef.current < MIN_FAILURES_BEFORE_BANNER) return
-        // Hold banner during the initial grace window.
-        if (Date.now() - mountedAtRef.current < INITIAL_GRACE_MS) return
-        const nextStatus = everConnectedRef.current ? 'reconnecting' : 'waking'
-        if (nextStatus === 'waking' && wakingStartRef.current === null) {
-          wakingStartRef.current = Date.now()
+        if (stuckStartRef.current === null) {
+          stuckStartRef.current = Date.now()
         }
-        setStatus(nextStatus)
       }
     } catch {
       if (!mountedRef.current) return
+      pingOkRef.current = false
       failureCountRef.current += 1
-      if (socketConnectedRef.current) return
-      if (failureCountRef.current < MIN_FAILURES_BEFORE_BANNER) return
-      if (Date.now() - mountedAtRef.current < INITIAL_GRACE_MS) return
-      const nextStatus = everConnectedRef.current ? 'reconnecting' : 'waking'
-      if (nextStatus === 'waking' && wakingStartRef.current === null) {
-        wakingStartRef.current = Date.now()
+      if (stuckStartRef.current === null) {
+        stuckStartRef.current = Date.now()
       }
-      setStatus(nextStatus)
     } finally {
       checkingRef.current = false
+      recomputeStatus()
     }
-  }, [])
+  }, [recomputeStatus])
 
-  // ── Scheduling loop ─────────────────────────────────────────────────────
+  // ── Polling loop ──────────────────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true
     void checkHealth()
@@ -161,8 +158,8 @@ export function ConnectionHealthProvider({ children }) {
       if (intervalRef.current) clearTimeout(intervalRef.current)
 
       let delay
-      if (everConnectedRef.current && failureCountRef.current === 0) {
-        delay = 25000
+      if (socketConnectedRef.current && pingOkRef.current && failureCountRef.current === 0) {
+        delay = HEALTHY_POLL_MS
       } else {
         const idx = Math.min(failureCountRef.current, BACKOFF_SCHEDULE.length - 1)
         delay = BACKOFF_SCHEDULE[idx] || 15000
@@ -171,16 +168,14 @@ export function ConnectionHealthProvider({ children }) {
       intervalRef.current = setTimeout(async () => {
         if (!mountedRef.current) return
 
-        // Hard ceiling: if we've been stuck in 'waking' for MAX_WAKING_MS,
-        // reset the failure count so the next successful ping clears cleanly.
+        // Hard ceiling: if we've been stuck non-connected for too long,
+        // reset failure counters so the next successful event clears cleanly.
         if (
-          wakingStartRef.current !== null &&
-          Date.now() - wakingStartRef.current > MAX_WAKING_MS
+          stuckStartRef.current !== null &&
+          Date.now() - stuckStartRef.current > MAX_STUCK_MS
         ) {
           failureCountRef.current = 0
-          wakingStartRef.current = null
-          // Optimistically clear so user isn't permanently stuck
-          setStatus('connected')
+          stuckStartRef.current = null
         }
 
         await checkHealth()
@@ -196,39 +191,28 @@ export function ConnectionHealthProvider({ children }) {
     }
   }, [checkHealth])
 
-  // ── Browser events ──────────────────────────────────────────────────────
+  // ── Browser events ────────────────────────────────────────────────────────
   useEffect(() => {
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
-        // KEY FIX: Always reset optimistically when the user focuses the tab.
-        //
-        // Without this, if the phone suspended the tab while the banner was
-        // showing 'waking', the banner is permanently stuck because checkHealth
-        // alone won't clear it until it succeeds — but by then the user has
-        // already given up.
-        //
-        // With this: focusing the tab immediately clears the banner and
-        // checkHealth() re-shows it within a few seconds only if the server
-        // is genuinely unreachable. If the server is up (the common case after
-        // PC has already woken it), the banner stays clear.
+        // On tab focus, re-verify immediately. Don't optimistically set
+        // 'connected' — the FSM will compute the right state from real signals.
         failureCountRef.current = 0
-        wakingStartRef.current = null
-        setStatus('connected')
+        stuckStartRef.current = null
+        recomputeStatus()
         void checkHealth()
       }
     }
 
     function onOnline() {
-      // Browser says we're back online — immediately reset and verify
       failureCountRef.current = 0
-      wakingStartRef.current = null
-      setStatus('connected')
+      stuckStartRef.current = null
+      recomputeStatus()
       void checkHealth()
     }
 
     function onOffline() {
-      // Only trust the browser's offline event if the socket also looks dead —
-      // some mobile browsers fire false offline events on screen lock.
+      // Only trust if the socket is also dead.
       if (!socketConnectedRef.current) {
         setStatus('offline')
       }
@@ -243,14 +227,14 @@ export function ConnectionHealthProvider({ children }) {
       window.removeEventListener('online', onOnline)
       window.removeEventListener('offline', onOffline)
     }
-  }, [checkHealth])
+  }, [checkHealth, recomputeStatus])
 
   const forceCheck = useCallback(() => {
     failureCountRef.current = 0
-    wakingStartRef.current = null
-    setStatus('connected')
+    stuckStartRef.current = null
+    recomputeStatus()
     void checkHealth()
-  }, [checkHealth])
+  }, [checkHealth, recomputeStatus])
 
   return (
     <ConnectionHealthContext.Provider value={{ status, lastOk, forceCheck }}>

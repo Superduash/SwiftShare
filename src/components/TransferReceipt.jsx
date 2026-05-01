@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, FileText, User, HardDrive, Hash } from 'lucide-react'
+import { CheckCircle2, FileText, User, HardDrive, Hash, Flame } from 'lucide-react'
 import { formatBytes } from '../utils/format'
 
 export default function TransferReceipt({ code, files, senderDevice, totalSize, burnAfterDownload }) {
@@ -36,9 +36,14 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
       </div>
 
       {burnAfterDownload && (
-        <div className="mt-4 p-2.5 rounded-lg text-center" style={{ background: 'var(--danger-soft)' }}>
+        <div
+          className="mt-4 p-2.5 rounded-lg flex items-center justify-center gap-2"
+          style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.20)' }}
+          role="status"
+        >
+          <Flame size={14} style={{ color: 'var(--danger)', flexShrink: 0 }} aria-hidden="true" />
           <p className="text-xs font-medium" style={{ color: 'var(--danger)' }}>
-            🔥 This file has been permanently deleted (burn after download)
+            This file has been permanently deleted (burn after download)
           </p>
         </div>
       )}
