@@ -1,5 +1,3 @@
-// ✅ File Preview Modal - FIXED & RESTORED 2026
-// Supports: image, video, audio, PDF, DOCX, code with proper error handling
 import React, { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide-react'
@@ -11,10 +9,10 @@ function getPreviewType(file) {
   const mime = String(file?.mimeType || file?.type || '').toLowerCase()
   const name = String(file?.name || '').toLowerCase()
 
-  if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif|ico)$/i.test(name)) return 'image'
+  if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif|ico|tiff?|jfif|pjpeg|pjp)$/i.test(name)) return 'image'
   if (mime.includes('pdf') || name.endsWith('.pdf')) return 'pdf'
-  if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv|avi|ogv)$/i.test(name)) return 'video'
-  if (mime.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma)$/i.test(name)) return 'audio'
+  if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv|avi|ogv|3gp|3g2|ts|mts|m2ts)$/i.test(name)) return 'video'
+  if (mime.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma|aiff?|caf|mid|midi)$/i.test(name)) return 'audio'
   if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return 'docx'
   if (mime.includes('presentationml') || name.endsWith('.ppt') || name.endsWith('.pptx')) return 'pptx'
   if (
@@ -23,7 +21,7 @@ function getPreviewType(file) {
     mime.includes('javascript') ||
     mime.includes('xml') ||
     mime.includes('yaml') ||
-    /\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|css|html|md|txt|log|sql|json|yaml|yml|xml|csv)$/i.test(name)
+    /\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|css|html|md|txt|log|sql|json|yaml|yml|xml|csv|sh|bash|zsh|ps1|toml|ini|cfg|conf|env|gitignore|dockerfile|makefile|vue|svelte|kt|swift|r|dart|lua|perl|pl|scala|ex|exs|erl|clj|fs|fsx|fsi|hs|elm|ml|mli|nim|zig)$/i.test(name)
   ) {
     return 'code'
   }
@@ -38,7 +36,6 @@ function getDocxPreviewUrl(src) {
   return `${src.slice(0, queryStart)}/docx-html${src.slice(queryStart)}`
 }
 
-// ── forceAudible ──────────────────────────────────────────────────────────
 // Sets the DOM property directly (not via React prop) because React's `muted`
 // JSX prop is unreliable — it sets the HTML attribute but does not always sync
 // the reflected DOM property, especially on iOS Safari.
@@ -139,22 +136,20 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   }, [file, open])
 
   // Hard fallback: some browsers never fire onLoad for PDF/iframe content
-  // (especially when the embedded PDF viewer is a plugin) and some media
-  // elements never fire onLoadedMetadata on slow mobile networks. After 6s
-  // we clear the shimmer so the user can interact with whatever has loaded.
+  // and some media elements never fire onLoadedMetadata on slow mobile networks.
+  // After 8s we clear the shimmer so the user can interact with whatever has loaded.
   useEffect(() => {
     if (!open || !loading) return undefined
-    const timer = setTimeout(() => setLoading(false), 6000)
+    const type = file ? getPreviewType(file) : null
+    // Images and code manage their own loading state — only apply the timer for media/PDF/DOCX
+    if (type === 'image' || type === 'code' || type === 'unsupported' || type === 'pptx') return undefined
+    const timer = setTimeout(() => setLoading(false), 8000)
     return () => clearTimeout(timer)
   }, [open, file, loading])
 
-  // ── Imperatively unmute / set volume once the media element is mounted ──
-  // We do this via ref so it is completely decoupled from React's render
-  // cycle and the unreliable `muted` JSX attribute.  We fire on every
-  // open/file/loading change so it runs both on first render and whenever
-  // the media loads (onLoadedMetadata already calls forceAudible, but this
-  // ref-based effect is the belt-and-suspenders for browsers that don't
-  // fire onLoadedMetadata before the user presses play).
+  // Imperatively unmute / set volume once the media element is mounted.
+  // Fires on every open/file/loading change so it runs both on first render
+  // and whenever the media loads.
   useEffect(() => {
     if (!open) return
     const type = file ? getPreviewType(file) : null
@@ -212,6 +207,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
           exit={{ opacity: 0, y: 12, scale: 0.98 }}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Header */}
           <div className="flex items-center justify-between gap-3 p-4 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -240,30 +236,49 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
             </div>
           </div>
 
+          {/* Content */}
           <div className="p-4 overflow-auto max-h-[calc(90vh-72px)]">
             {error ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <AlertTriangle size={40} style={{ color: 'var(--warning)' }} className="mb-3" />
                 <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Preview failed to load</p>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try downloading the file instead.</p>
+                {onDownload && (
+                  <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
+                    <Download size={14} /> Download file
+                  </button>
+                )}
+                <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
+                  Open in new tab
+                </button>
               </div>
             ) : type === 'image' ? (
+              // IMAGE: use opacity-based hide, same pattern as video/audio,
+              // so the loading shimmer is replaced by the image once loaded.
               <div className="flex items-center justify-center min-h-[200px] relative">
-                {loading && <div className="absolute inset-0 flex items-center justify-center"><div className="shimmer-block w-full h-48 rounded-xl" /></div>}
+                {loading && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <div className="shimmer-block w-full h-48 rounded-xl" />
+                  </div>
+                )}
                 <img
                   src={src}
                   alt={file.name || 'Preview'}
                   className="max-w-full max-h-[65vh] object-contain rounded-xl"
-                  style={{ display: loading ? 'none' : 'block' }}
+                  style={{
+                    opacity: loading ? 0 : 1,
+                    transition: 'opacity 0.15s ease',
+                    display: 'block',
+                  }}
                   loading="eager"
                   onLoad={() => setLoading(false)}
                   onError={() => { setLoading(false); setError(true) }}
                 />
               </div>
             ) : type === 'pdf' ? (
-              // PDF iframe must stay mounted from first render — many browsers
-              // never fire onLoad for the embedded PDF plugin if the iframe
-              // is display:none at mount time, which left the shimmer stuck.
+              // PDF: iframe must always be mounted — browsers won't fire onLoad if
+              // the iframe is hidden at mount time. The shimmer overlays it via
+              // pointer-events:none and disappears once onLoad fires (or after 8s timeout).
               <div className="relative" style={{ height: '65vh' }}>
                 <iframe
                   src={`${src}#view=FitH`}
@@ -274,26 +289,17 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   onError={() => { setLoading(false); setError(true) }}
                 />
                 {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
                     <div className="shimmer-block w-full h-full rounded-xl" />
                   </div>
                 )}
               </div>
             ) : type === 'video' ? (
-              // ── VIDEO ─────────────────────────────────────────────────────────
-              // CRITICAL: Never use display:none on a video element.
-              //
+              // VIDEO: Never use display:none.
               // iOS Safari and Chrome Android suppress the AUDIO OUTPUT PIPELINE
-              // for media elements that are hidden with display:none at the time
-              // the media is loaded.  When the element later becomes visible, the
-              // video frames render (the GPU decode path is separate) but the
-              // audio channel was never attached to the output device — producing
-              // exactly the symptom: seek-bar moves, picture plays, zero sound.
-              //
-              // Fix: use opacity:0 + pointer-events:none while loading.  The
-              // element stays in the layout tree so the browser initialises the
-              // full media pipeline (including audio) from the start.  The
-              // shimmer overlay covers it visually until onLoadedMetadata fires.
+              // for media elements hidden with display:none at load time.
+              // Fix: opacity:0 + pointer-events:none keeps the element in the layout
+              // tree so the full media pipeline (including audio) initialises from start.
               <div className="flex items-center justify-center relative">
                 {loading && (
                   <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -305,12 +311,11 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   controls
                   playsInline
                   preload="auto"
+                  crossOrigin="anonymous"
                   className="max-w-full max-h-[65vh] rounded-xl"
                   style={{
                     background: '#000',
-                    // opacity-based hide — keeps audio pipeline alive, unlike display:none
                     opacity: loading ? 0 : 1,
-                    // Prevent interaction with the invisible element while loading
                     pointerEvents: loading ? 'none' : 'auto',
                     transition: 'opacity 0.15s ease',
                     display: 'block',
@@ -321,6 +326,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   }}
                   onCanPlay={(e) => {
                     forceAudible(e.target)
+                    setLoading(false)
                   }}
                   onPlay={(e) => {
                     forceAudible(e.target)
@@ -332,12 +338,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 </video>
               </div>
             ) : type === 'audio' ? (
-              // ── AUDIO ─────────────────────────────────────────────────────────
-              // Same fix as video: opacity:0 instead of display:none.
+              // AUDIO: Same fix as video — opacity:0 not display:none.
               // Mobile browsers (especially iOS Safari) disable the audio output
-              // context for display:none audio elements.  The result: the native
-              // playback bar moves but no sound comes out.  Keeping the element
-              // in the layout with opacity:0 keeps the audio context alive.
+              // context for display:none audio elements causing silent playback.
               <div className="flex items-center justify-center min-h-[120px] relative">
                 {loading && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -348,9 +351,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   ref={audioRef}
                   controls
                   preload="auto"
+                  crossOrigin="anonymous"
                   className="w-full max-w-xl"
                   style={{
-                    // opacity-based hide — same reasoning as video above
                     opacity: loading ? 0 : 1,
                     pointerEvents: loading ? 'none' : 'auto',
                     transition: 'opacity 0.15s ease',
@@ -366,6 +369,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   }}
                   onCanPlay={(e) => {
                     forceAudible(e.target)
+                    setLoading(false)
                   }}
                   onPlay={(e) => {
                     forceAudible(e.target)
@@ -387,7 +391,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   onError={() => { setLoading(false); setError(true) }}
                 />
                 {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
                     <div className="shimmer-block w-full h-full rounded-xl" />
                   </div>
                 )}
@@ -407,7 +411,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 </button>
               </div>
             ) : type === 'code' ? (
-              <CodePreview src={previewSrc} onError={() => setError(true)} onLoad={() => setLoading(false)} />
+              <CodePreview src={previewSrc} onError={() => { setError(true); setLoading(false) }} onLoad={() => setLoading(false)} />
             ) : (
               renderFallback()
             )}

@@ -4,14 +4,20 @@ import { motion } from 'framer-motion'
 import { Settings, Zap, ArrowLeft } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useSocket } from '../context/SocketContext'
+import { useConnectionHealth } from '../context/ConnectionHealthContext'
 import SettingsPanel from './SettingsPanel'
 
 export default function Navbar() {
   const { theme } = useTheme()
   const { isConnected } = useSocket()
+  const { status: healthStatus } = useConnectionHealth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
   const isHome = location.pathname === '/'
+
+  // Show as "Live" when socket is connected OR health ping confirms backend is up.
+  // Only show "Syncing" when we know neither is working yet.
+  const isLive = isConnected || healthStatus === 'connected'
 
   return (
     <>
@@ -54,25 +60,25 @@ export default function Navbar() {
             <div
               className="flex items-center gap-1.5 px-2 py-1 mr-1 rounded-lg transition-colors"
               style={{
-                background: isConnected ? 'var(--success-soft)' : 'var(--warning-soft)',
+                background: isLive ? 'var(--success-soft)' : 'var(--warning-soft)',
               }}
-              title={isConnected ? 'Connected to server' : 'Connecting to server...'}
+              title={isLive ? 'Connected to server' : 'Connecting to server...'}
               role="status"
-              aria-label={isConnected ? 'Connected to server' : 'Connecting to server'}
+              aria-label={isLive ? 'Connected to server' : 'Connecting to server'}
             >
               <div
                 className="w-2 h-2 rounded-full transition-all duration-500"
                 style={{
-                  background: isConnected ? 'var(--success)' : 'var(--warning)',
-                  boxShadow: isConnected ? '0 0 6px rgba(22,163,74,0.4)' : '0 0 6px rgba(234,179,8,0.4)',
-                  animation: isConnected ? 'none' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                  background: isLive ? 'var(--success)' : 'var(--warning)',
+                  boxShadow: isLive ? '0 0 6px rgba(22,163,74,0.4)' : '0 0 6px rgba(234,179,8,0.4)',
+                  animation: isLive ? 'none' : 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                 }}
                 aria-hidden="true"
               />
               <span className="text-xs font-medium hidden sm:inline" style={{
-                color: isConnected ? 'var(--success)' : 'var(--warning)'
+                color: isLive ? 'var(--success)' : 'var(--warning)'
               }}>
-                {isConnected ? 'Live' : 'Syncing'}
+                {isLive ? 'Live' : 'Syncing'}
               </span>
             </div>
 

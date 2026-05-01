@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { io } from 'socket.io-client'
-import toast from 'react-hot-toast'
 
 const SocketContext = createContext(null)
 
@@ -12,13 +11,11 @@ function isPrivateNetworkHost(hostname) {
   if (!hostname) return false
   if (/^10\./.test(hostname)) return true
   if (/^192\.168\./.test(hostname)) return true
-
   const match172 = /^172\.(\d{1,3})\./.exec(hostname)
   if (match172) {
     const second = Number(match172[1])
     return Number.isFinite(second) && second >= 16 && second <= 31
   }
-
   return false
 }
 
@@ -28,7 +25,6 @@ function isLocalRuntimeHost(hostname) {
 
 function targetsLoopback(urlValue) {
   if (typeof urlValue !== 'string' || !urlValue.trim()) return false
-
   try {
     const parsed = new URL(urlValue)
     return isLoopbackHost(parsed.hostname)
@@ -43,11 +39,9 @@ function normalizeUrl(urlValue) {
 
 function rewriteLoopbackUrlForLanRuntime(urlValue) {
   if (typeof window === 'undefined') return null
-
   const runtimeHost = window.location.hostname
   if (!isLocalRuntimeHost(runtimeHost)) return null
   if (!targetsLoopback(urlValue)) return null
-
   try {
     const parsed = new URL(urlValue)
     parsed.hostname = runtimeHost
@@ -56,22 +50,6 @@ function rewriteLoopbackUrlForLanRuntime(urlValue) {
     return null
   }
 }
-
-function debugLog(...args) {
-  if (import.meta.env.DEV) {
-    console.log(...args)
-  }
-}
-
-function debugError(...args) {
-  if (import.meta.env.DEV) {
-    console.error(...args)
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ENVIRONMENT-AWARE SOCKET URL RESOLUTION (PRODUCTION SAFE)
-// ═══════════════════════════════════════════════════════════════════════════
 
 function getSocketUrl() {
   const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : ''
@@ -82,28 +60,22 @@ function getSocketUrl() {
   if (envSocketUrl && envSocketUrl.trim()) {
     const candidate = normalizeUrl(envSocketUrl)
     const rewrittenLanUrl = rewriteLoopbackUrlForLanRuntime(candidate)
-    if (rewrittenLanUrl) {
-      return rewrittenLanUrl
-    }
-
-    if (!runtimeIsLocal && targetsLoopback(candidate) && typeof window !== 'undefined') {
-      console.warn('[Socket] Ignoring localhost VITE_SOCKET_URL in non-local runtime, using same-origin fallback')
+    if (rewrittenLanUrl) return rewrittenLanUrl
+    if (!runtimeIsLocal && targetsLoopback(candidate)) {
+      // localhost URL won't work from deployed frontend — fall through
     } else {
       return candidate
     }
   }
 
-  // Priority 2: Use VITE_API_URL
+  // Priority 2: VITE_API_URL
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
     const candidate = normalizeUrl(envApiUrl)
     const rewrittenLanUrl = rewriteLoopbackUrlForLanRuntime(candidate)
-    if (rewrittenLanUrl) {
-      return rewrittenLanUrl
-    }
-
-    if (!runtimeIsLocal && targetsLoopback(candidate) && typeof window !== 'undefined') {
-      console.warn('[Socket] Ignoring localhost VITE_API_URL for socket in non-local runtime')
+    if (rewrittenLanUrl) return rewrittenLanUrl
+    if (!runtimeIsLocal && targetsLoopback(candidate)) {
+      // localhost URL won't work from deployed frontend — fall through
     } else {
       return candidate
     }
@@ -112,17 +84,12 @@ function getSocketUrl() {
   // Priority 3: Runtime detection
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
-
-    // Local development
     if (isLocalRuntimeHost(hostname)) {
       return `${window.location.protocol}//${hostname}:3001`
     }
-
-    // Production: same-origin
     return window.location.origin
   }
 
-  // Fallback
   return ''
 }
 
@@ -137,45 +104,23 @@ export function SocketProvider({ children }) {
   const [socketId, setSocketId] = useState(null)
 
   useEffect(() => {
-    const url = getSocketUrl()
-    debugLog('[Socket] Connecting to:', url)
+    let socketUrl = getSocketUrl()
 
-    // Transport order: polling first for maximum compatibility across mobile
-    // carriers, corporate proxies, and CDNs that block/stall WebSocket upgrades.
-    // Engine.IO transparently upgrades to WebSocket once the upgrade probe
-    // succeeds — this is the Socket.IO-recommended order for production.
-    //
-    // timeout: 45000 — Render free-tier cold-start can take up to 60s.
-    // The old 10000ms value caused the socket to fire connect_error on every
-    // cold-start attempt, accumulating failures that showed the 'waking' banner
-    // and kept it stuck because each retry also timed out before the server
-    // was ready to respond.  45s gives the server enough runway to wake.
-    //
-    // pingTimeout: 45000 — Once connected, tolerate a slow heartbeat response
-    // during the server's warm-up phase (MongoDB connecting, etc.).  The server
-    // already uses pingTimeout=60000; matching the client prevents the client
-    // from self-disconnecting while the server is still initialising.
-    // Allow forcing polling-only via localStorage (helps some mobile carriers).
-    // Jio in particular blocks/stalls WebSocket upgrades on mobile data — so we
-    // also start in polling-first order (polling, then upgrade) so the first
-    // connection always succeeds, then attempt to upgrade transparently.
-    // If a previous session detected repeated WS failures and toggled the
-    // sticky polling flag, we skip the upgrade entirely.
-    const forcePolling = typeof window !== 'undefined' && localStorage.getItem('socket_force_polling') === '1'
-    const transports = forcePolling ? ['polling'] : ['polling', 'websocket']
-
-    // If a non-localhost http URL is used, try switching to https to avoid mixed-content
-    let socketUrl = url
+    // Rewrite http:// → https:// for non-local URLs to avoid mixed-content blocks
+    // on HTTPS-hosted frontends (Netlify, Vercel, etc.)
     try {
       if (typeof window !== 'undefined' && socketUrl.startsWith('http://') && !targetsLoopback(socketUrl)) {
-        console.warn('[Socket] Rewriting http:// to https:// for socket URL to avoid mixed content on HTTPS site')
         socketUrl = socketUrl.replace(/^http:/i, 'https:')
       }
     } catch {}
 
     const s = io(socketUrl, {
       path: '/socket.io',
-      transports,
+      // Always start with polling, then upgrade to WebSocket.
+      // This is the Socket.IO recommended production order — polling works
+      // through every proxy/CDN/firewall, and the upgrade to WebSocket is
+      // attempted transparently once the HTTP channel is established.
+      transports: ['polling', 'websocket'],
       upgrade: true,
       withCredentials: false,
       reconnection: true,
@@ -192,127 +137,25 @@ export function SocketProvider({ children }) {
     setSocket(s)
 
     s.on('connect', () => {
-      debugLog('[Socket] Connected:', s.id)
-      connectErrorCount = 0
-      setIsConnected(true)
-      setSocketId(s.id)
-      try { localStorage.removeItem('socket_last_error') } catch {}
-    })
-
-    s.on('disconnect', (reason) => {
-      debugLog('[Socket] Disconnected:', reason)
-      setIsConnected(false)
-    })
-
-    let connectErrorCount = 0
-    s.on('connect_error', (error) => {
-      debugError('[Socket] Connection error:', error)
-      connectErrorCount += 1
-      try {
-        const payload = { time: Date.now(), type: 'connect_error', message: error?.message || String(error), stack: error?.stack || null }
-        localStorage.setItem('socket_last_error', JSON.stringify(payload))
-      } catch {}
-      // After 3 failures in a row (typical Jio / restrictive-NAT pattern),
-      // sticky-pin the client to polling-only so subsequent reloads connect
-      // on the first attempt instead of cycling through failing WS upgrades.
-      if (connectErrorCount >= 3) {
-        try {
-          if (localStorage.getItem('socket_force_polling') !== '1') {
-            localStorage.setItem('socket_force_polling', '1')
-            try { toast('Switched to compatibility mode for your network.') } catch {}
-          }
-        } catch {}
-      }
-      setIsConnected(false)
-    })
-
-    s.on('reconnect_error', (error) => {
-      debugError('[Socket] Reconnection error:', error)
-      try {
-        const payload = { time: Date.now(), type: 'reconnect_error', message: error?.message || String(error), stack: error?.stack || null }
-        localStorage.setItem('socket_last_error', JSON.stringify(payload))
-      } catch {}
-      setIsConnected(false)
-    })
-
-    s.on('reconnect', (attemptNumber) => {
-      debugLog('[Socket] Reconnected after', attemptNumber, 'attempts')
-      connectErrorCount = 0
       setIsConnected(true)
       setSocketId(s.id)
     })
 
-    s.on('reconnect_attempt', (attemptNumber) => {
-      debugLog('[Socket] Reconnection attempt:', attemptNumber)
+    s.on('disconnect', () => {
+      setIsConnected(false)
     })
 
-    // Debug UI: floating buttons to show last socket error and toggle polling-only.
-    let debugRoot = null
-    if (typeof window !== 'undefined' && (import.meta.env.DEV || localStorage.getItem('socket_debug') === '1')) {
-      try {
-        debugRoot = document.createElement('div')
-        debugRoot.style.position = 'fixed'
-        debugRoot.style.right = '12px'
-        debugRoot.style.bottom = '12px'
-        debugRoot.style.zIndex = '9999'
-        debugRoot.style.display = 'flex'
-        debugRoot.style.flexDirection = 'column'
-        debugRoot.style.gap = '6px'
+    s.on('connect_error', () => {
+      setIsConnected(false)
+    })
 
-        const showBtn = document.createElement('button')
-        showBtn.textContent = 'Socket Err'
-        showBtn.style.padding = '6px 8px'
-        showBtn.style.background = '#111827'
-        showBtn.style.color = '#fff'
-        showBtn.style.border = 'none'
-        showBtn.style.borderRadius = '6px'
-        showBtn.style.fontSize = '12px'
-        showBtn.style.cursor = 'pointer'
-        showBtn.onclick = () => {
-          try {
-            const raw = localStorage.getItem('socket_last_error')
-            const parsed = raw ? JSON.parse(raw) : null
-            console.log('socket_last_error', parsed)
-            if (parsed) {
-              try { toast(JSON.stringify(parsed, null, 2), { duration: 8000 }) } catch {}
-            } else {
-              try { toast('No socket error recorded') } catch {}
-            }
-          } catch (e) { console.error(e) }
-        }
-
-        const toggleBtn = document.createElement('button')
-        toggleBtn.textContent = localStorage.getItem('socket_force_polling') === '1' ? 'Polling: ON' : 'Polling: OFF'
-        toggleBtn.style.padding = '6px 8px'
-        toggleBtn.style.background = '#1f2937'
-        toggleBtn.style.color = '#fff'
-        toggleBtn.style.border = 'none'
-        toggleBtn.style.borderRadius = '6px'
-        toggleBtn.style.fontSize = '12px'
-        toggleBtn.style.cursor = 'pointer'
-        toggleBtn.onclick = () => {
-          try {
-            const cur = localStorage.getItem('socket_force_polling') === '1'
-            localStorage.setItem('socket_force_polling', cur ? '0' : '1')
-            toggleBtn.textContent = cur ? 'Polling: OFF' : 'Polling: ON'
-            try { toast('Restart the app to apply polling change') } catch {}
-          } catch (e) { console.error(e) }
-        }
-
-        debugRoot.appendChild(showBtn)
-        debugRoot.appendChild(toggleBtn)
-        document.body.appendChild(debugRoot)
-      } catch (e) {
-        debugError('[Socket] Failed to create debug UI', e)
-      }
-    }
+    s.on('reconnect', () => {
+      setIsConnected(true)
+      setSocketId(s.id)
+    })
 
     return () => {
-      debugLog('[Socket] Disconnecting')
       s.disconnect()
-      try {
-        if (debugRoot && debugRoot.parentNode) debugRoot.parentNode.removeChild(debugRoot)
-      } catch {}
     }
   }, [])
 
