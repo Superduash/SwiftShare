@@ -29,6 +29,29 @@ function getPreviewType(file) {
   return 'unsupported'
 }
 
+// Best-guess MIME for the <source type=...> hint based on file extension.
+// This is critical: when the browser sees a <source> with an explicit type
+// it knows about, it will not pre-emptively reject the resource as
+// MEDIA_ERR_SRC_NOT_SUPPORTED based on a server Content-Type mismatch —
+// it will actually attempt the byte fetch and let the decoder decide.
+function guessMediaMime(file) {
+  const explicit = String(file?.mimeType || file?.type || '').toLowerCase().split(';')[0].trim()
+  if (explicit && explicit !== 'application/octet-stream' && explicit !== 'binary/octet-stream') {
+    return explicit
+  }
+  const name = String(file?.name || '').toLowerCase()
+  const ext = (name.match(/\.([a-z0-9]+)$/) || [])[1] || ''
+  const map = {
+    mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac',
+    ogg: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac', wma: 'audio/x-ms-wma',
+    aiff: 'audio/aiff', aif: 'audio/aiff',
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/mp4',
+    mkv: 'video/x-matroska', avi: 'video/x-msvideo', ogv: 'video/ogg',
+    '3gp': 'video/3gpp', '3g2': 'video/3gpp2',
+  }
+  return map[ext] || ''
+}
+
 function getDocxPreviewUrl(src) {
   if (!src) return ''
   const queryStart = src.indexOf('?')
@@ -36,9 +59,8 @@ function getDocxPreviewUrl(src) {
   return `${src.slice(0, queryStart)}/docx-html${src.slice(queryStart)}`
 }
 
-// Sets the DOM property directly (not via React prop) because React's `muted`
-// JSX prop is unreliable — it sets the HTML attribute but does not always sync
-// the reflected DOM property, especially on iOS Safari.
+// React's `muted` JSX prop is unreliable on iOS Safari — set the DOM properties
+// directly via ref so unmuting always sticks.
 function forceAudible(mediaEl) {
   if (!mediaEl) return
   try {
@@ -125,6 +147,10 @@ function CodePreview({ src, onError, onLoad }) {
 }
 
 export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired }) {
+  // Note: media (video / audio) DELIBERATELY do not use these states.
+  // The native HTML5 player handles its own loading and error UX better than
+  // any overlay we could build, and aggressively replacing it with an error
+  // screen prevents the user from ever recovering or trying playback again.
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const videoRef = useRef(null)
@@ -135,33 +161,31 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     setLoading(true)
   }, [file, open])
 
-  // Hard fallback: some browsers never fire onLoad for PDF/iframe content
-  // and some media elements never fire onLoadedMetadata on slow mobile networks.
-  // After 8s we clear the shimmer so the user can interact with whatever has loaded.
+  // Hard fallback for non-media (PDF/DOCX iframe) which can fail to fire onLoad
+  // on some browser/plugin combinations. After 8s drop the shimmer so the user
+  // can interact with whatever has loaded.
   useEffect(() => {
     if (!open || !loading) return undefined
     const type = file ? getPreviewType(file) : null
-    // Images and code manage their own loading state — only apply the timer for media/PDF/DOCX
-    if (type === 'image' || type === 'code' || type === 'unsupported' || type === 'pptx') return undefined
+    if (type === 'image' || type === 'code' || type === 'unsupported' || type === 'pptx' || type === 'video' || type === 'audio') return undefined
     const timer = setTimeout(() => setLoading(false), 8000)
     return () => clearTimeout(timer)
   }, [open, file, loading])
 
   // Imperatively unmute / set volume once the media element is mounted.
-  // Fires on every open/file/loading change so it runs both on first render
-  // and whenever the media loads.
   useEffect(() => {
     if (!open) return
     const type = file ? getPreviewType(file) : null
     if (type === 'video' && videoRef.current) forceAudible(videoRef.current)
     if (type === 'audio' && audioRef.current) forceAudible(audioRef.current)
-  }, [open, file, loading])
+  }, [open, file])
 
   if (!open || !file) return null
 
   const type = getPreviewType(file)
   const src = previewUrl(code, fileIndex, password)
   const previewSrc = type === 'docx' ? getDocxPreviewUrl(src) : src
+  const mediaMime = (type === 'video' || type === 'audio') ? guessMediaMime(file) : ''
 
   const openInNewTab = () => {
     try {
@@ -172,7 +196,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     }
   }
 
-  const renderFallback = () => (
+  const renderUnsupported = () => (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <FileText size={40} style={{ color: 'var(--text-4)' }} className="mb-3" />
       <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>No preview available</p>
@@ -236,168 +260,170 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
             </div>
           </div>
 
-          {/* Content */}
+          {/* Body */}
           <div className="p-4 overflow-auto max-h-[calc(90vh-72px)]">
-            {error ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <AlertTriangle size={40} style={{ color: 'var(--warning)' }} className="mb-3" />
-                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Preview failed to load</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try downloading the file instead.</p>
-                {onDownload && (
-                  <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
-                    <Download size={14} /> Download file
+            {/* Image — has its own error fallback */}
+            {type === 'image' && (
+              error ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertTriangle size={40} style={{ color: 'var(--warning)' }} className="mb-3" />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Image failed to load</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try downloading the file instead.</p>
+                  {onDownload && (
+                    <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
+                      <Download size={14} /> Download file
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center min-h-[200px] relative">
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center z-10">
+                      <div className="shimmer-block w-full h-48 rounded-xl" />
+                    </div>
+                  )}
+                  <img
+                    src={src}
+                    alt={file.name || 'Preview'}
+                    className="max-w-full max-h-[65vh] object-contain rounded-xl"
+                    style={{
+                      opacity: loading ? 0 : 1,
+                      transition: 'opacity 0.15s ease',
+                      display: 'block',
+                    }}
+                    loading="eager"
+                    onLoad={() => setLoading(false)}
+                    onError={() => { setLoading(false); setError(true) }}
+                  />
+                </div>
+              )
+            )}
+
+            {/* PDF — has its own error fallback */}
+            {type === 'pdf' && (
+              error ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertTriangle size={40} style={{ color: 'var(--warning)' }} className="mb-3" />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>PDF preview unavailable</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Open in a new tab or download to view.</p>
+                  {onDownload && (
+                    <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
+                      <Download size={14} /> Download file
+                    </button>
+                  )}
+                  <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
+                    Open in new tab
                   </button>
-                )}
-                <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
-                  Open in new tab
-                </button>
-              </div>
-            ) : type === 'image' ? (
-              // IMAGE: use opacity-based hide, same pattern as video/audio,
-              // so the loading shimmer is replaced by the image once loaded.
-              <div className="flex items-center justify-center min-h-[200px] relative">
-                {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <div className="shimmer-block w-full h-48 rounded-xl" />
-                  </div>
-                )}
-                <img
-                  src={src}
-                  alt={file.name || 'Preview'}
-                  className="max-w-full max-h-[65vh] object-contain rounded-xl"
-                  style={{
-                    opacity: loading ? 0 : 1,
-                    transition: 'opacity 0.15s ease',
-                    display: 'block',
-                  }}
-                  loading="eager"
-                  onLoad={() => setLoading(false)}
-                  onError={() => { setLoading(false); setError(true) }}
-                />
-              </div>
-            ) : type === 'pdf' ? (
-              // PDF: iframe must always be mounted — browsers won't fire onLoad if
-              // the iframe is hidden at mount time. The shimmer overlays it via
-              // pointer-events:none and disappears once onLoad fires (or after 8s timeout).
-              <div className="relative" style={{ height: '65vh' }}>
-                <iframe
-                  src={`${src}#view=FitH`}
-                  className="w-full h-full rounded-xl"
-                  style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
-                  title={file.name || 'PDF Preview'}
-                  onLoad={() => setLoading(false)}
-                  onError={() => { setLoading(false); setError(true) }}
-                />
-                {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
-                    <div className="shimmer-block w-full h-full rounded-xl" />
-                  </div>
-                )}
-              </div>
-            ) : type === 'video' ? (
-              // VIDEO playback rules:
-              //   1. Never use display:none — iOS Safari and Chrome Android suppress
-              //      the AUDIO OUTPUT PIPELINE for media hidden at load time. Use
-              //      opacity:0 + pointer-events:none instead.
-              //   2. NEVER set crossOrigin="anonymous". Browsers play cross-origin
-              //      media without it. Adding it forces strict CORS validation that
-              //      fails on any header mismatch and produces a phantom error event
-              //      that takes down the whole player even when playback would work.
-              //   3. onError is only authoritative AFTER the element exposes a real
-              //      MediaError on `el.error`. Transient range-fetch retries fire
-              //      error events without populating `el.error.code` — those must be
-              //      ignored or every slow network blip triggers "Preview failed".
-              <div className="flex items-center justify-center relative">
-                {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <div className="shimmer-block w-full h-64 rounded-xl" />
-                  </div>
-                )}
+                </div>
+              ) : (
+                <div className="relative" style={{ height: '65vh' }}>
+                  <iframe
+                    src={`${src}#view=FitH`}
+                    className="w-full h-full rounded-xl"
+                    style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
+                    title={file.name || 'PDF Preview'}
+                    onLoad={() => setLoading(false)}
+                    onError={() => { setLoading(false); setError(true) }}
+                  />
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
+                      <div className="shimmer-block w-full h-full rounded-xl" />
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* VIDEO — never replaced by an error UI.
+                The browser's native player is the only thing that can correctly
+                show buffering, codec errors, transient retries, etc.  An
+                error-replacement overlay is an anti-pattern here because it
+                makes "Preview failed" appear from a SINGLE transient error
+                event during loading and the user can never get back to the
+                player even after the bytes finish streaming.
+                Header buttons (Download / New tab) are always visible above. */}
+            {type === 'video' && (
+              <div className="flex flex-col items-center justify-center gap-2">
                 <video
                   ref={videoRef}
                   controls
                   playsInline
                   preload="metadata"
                   className="max-w-full max-h-[65vh] rounded-xl"
-                  style={{
-                    background: '#000',
-                    opacity: loading ? 0 : 1,
-                    pointerEvents: loading ? 'none' : 'auto',
-                    transition: 'opacity 0.15s ease',
-                    display: 'block',
-                  }}
-                  onLoadedMetadata={(e) => { forceAudible(e.target); setLoading(false) }}
-                  onCanPlay={(e) => { forceAudible(e.target); setLoading(false) }}
+                  style={{ background: '#000', display: 'block', width: '100%' }}
+                  onLoadedMetadata={(e) => forceAudible(e.target)}
+                  onCanPlay={(e) => forceAudible(e.target)}
                   onPlay={(e) => forceAudible(e.target)}
-                  onError={(e) => {
-                    // Only treat as fatal if the browser actually populated a real
-                    // MediaError. Transient range-fetch hiccups fire error events
-                    // without setting el.error and must NOT take the player down.
-                    const code = e.currentTarget?.error?.code
-                    // 3 = MEDIA_ERR_DECODE, 4 = MEDIA_ERR_SRC_NOT_SUPPORTED — fatal
-                    if (code === 3 || code === 4) {
-                      setLoading(false)
-                      setError(true)
-                    }
-                  }}
-                  src={src}
                 >
+                  {/* Explicit type hint prevents the browser from rejecting the
+                      source pre-emptively based on a server Content-Type that
+                      doesn't match its expectations. */}
+                  <source src={src} {...(mediaMime ? { type: mediaMime } : {})} />
                   Your browser does not support video playback.
                 </video>
+                <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
+                  If playback doesn't start, use Download or Open in new tab above.
+                </p>
               </div>
-            ) : type === 'audio' ? (
-              // AUDIO playback — same rules as video (see comment block above).
-              // No crossOrigin. Lenient onError. opacity-based loading.
-              <div className="flex items-center justify-center min-h-[120px] relative">
-                {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="shimmer-block w-full h-16 rounded-xl" />
-                  </div>
-                )}
+            )}
+
+            {/* AUDIO — same approach as video. Never replaced by an error UI. */}
+            {type === 'audio' && (
+              <div className="flex flex-col items-center justify-center gap-3 py-4">
                 <audio
                   ref={audioRef}
                   controls
                   preload="metadata"
                   className="w-full max-w-xl"
-                  style={{
-                    opacity: loading ? 0 : 1,
-                    pointerEvents: loading ? 'none' : 'auto',
-                    transition: 'opacity 0.15s ease',
-                    display: 'block',
-                  }}
-                  onLoadedMetadata={(e) => { forceAudible(e.target); setLoading(false) }}
-                  onLoadedData={(e) => { forceAudible(e.target); setLoading(false) }}
-                  onCanPlay={(e) => { forceAudible(e.target); setLoading(false) }}
+                  style={{ display: 'block' }}
+                  onLoadedMetadata={(e) => forceAudible(e.target)}
+                  onLoadedData={(e) => forceAudible(e.target)}
+                  onCanPlay={(e) => forceAudible(e.target)}
                   onPlay={(e) => forceAudible(e.target)}
-                  onError={(e) => {
-                    const code = e.currentTarget?.error?.code
-                    if (code === 3 || code === 4) {
-                      setLoading(false)
-                      setError(true)
-                    }
-                  }}
-                  src={src}
                 >
+                  <source src={src} {...(mediaMime ? { type: mediaMime } : {})} />
                   Your browser does not support audio playback.
                 </audio>
+                <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
+                  If playback doesn't start, use Download or Open in new tab above.
+                </p>
               </div>
-            ) : type === 'docx' ? (
-              <div className="relative" style={{ height: '65vh' }}>
-                <iframe
-                  src={previewSrc}
-                  className="w-full h-full rounded-xl"
-                  style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
-                  title={file.name || 'DOCX Preview'}
-                  onLoad={() => setLoading(false)}
-                  onError={() => { setLoading(false); setError(true) }}
-                />
-                {loading && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
-                    <div className="shimmer-block w-full h-full rounded-xl" />
-                  </div>
-                )}
-              </div>
-            ) : type === 'pptx' ? (
+            )}
+
+            {/* DOCX */}
+            {type === 'docx' && (
+              error ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertTriangle size={40} style={{ color: 'var(--warning)' }} className="mb-3" />
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>DOCX preview unavailable</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Download the file to open it in Word.</p>
+                  {onDownload && (
+                    <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
+                      <Download size={14} /> Download file
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="relative" style={{ height: '65vh' }}>
+                  <iframe
+                    src={previewSrc}
+                    className="w-full h-full rounded-xl"
+                    style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
+                    title={file.name || 'DOCX Preview'}
+                    onLoad={() => setLoading(false)}
+                    onError={() => { setLoading(false); setError(true) }}
+                  />
+                  {loading && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
+                      <div className="shimmer-block w-full h-full rounded-xl" />
+                    </div>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* PPTX — informational, no preview attempt */}
+            {type === 'pptx' && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-3" />
                 <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>PowerPoint preview is not supported in-browser</p>
@@ -411,11 +437,15 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   Open in new tab
                 </button>
               </div>
-            ) : type === 'code' ? (
-              <CodePreview src={previewSrc} onError={() => { setError(true); setLoading(false) }} onLoad={() => setLoading(false)} />
-            ) : (
-              renderFallback()
             )}
+
+            {/* CODE / TEXT */}
+            {type === 'code' && (
+              <CodePreview src={previewSrc} onError={() => { setError(true); setLoading(false) }} onLoad={() => setLoading(false)} />
+            )}
+
+            {/* UNSUPPORTED */}
+            {type === 'unsupported' && renderUnsupported()}
           </div>
         </motion.div>
       </motion.div>
