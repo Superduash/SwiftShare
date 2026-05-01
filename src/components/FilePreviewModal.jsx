@@ -295,11 +295,18 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 )}
               </div>
             ) : type === 'video' ? (
-              // VIDEO: Never use display:none.
-              // iOS Safari and Chrome Android suppress the AUDIO OUTPUT PIPELINE
-              // for media elements hidden with display:none at load time.
-              // Fix: opacity:0 + pointer-events:none keeps the element in the layout
-              // tree so the full media pipeline (including audio) initialises from start.
+              // VIDEO playback rules:
+              //   1. Never use display:none — iOS Safari and Chrome Android suppress
+              //      the AUDIO OUTPUT PIPELINE for media hidden at load time. Use
+              //      opacity:0 + pointer-events:none instead.
+              //   2. NEVER set crossOrigin="anonymous". Browsers play cross-origin
+              //      media without it. Adding it forces strict CORS validation that
+              //      fails on any header mismatch and produces a phantom error event
+              //      that takes down the whole player even when playback would work.
+              //   3. onError is only authoritative AFTER the element exposes a real
+              //      MediaError on `el.error`. Transient range-fetch retries fire
+              //      error events without populating `el.error.code` — those must be
+              //      ignored or every slow network blip triggers "Preview failed".
               <div className="flex items-center justify-center relative">
                 {loading && (
                   <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -310,8 +317,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   ref={videoRef}
                   controls
                   playsInline
-                  preload="auto"
-                  crossOrigin="anonymous"
+                  preload="metadata"
                   className="max-w-full max-h-[65vh] rounded-xl"
                   style={{
                     background: '#000',
@@ -320,27 +326,28 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     transition: 'opacity 0.15s ease',
                     display: 'block',
                   }}
-                  onLoadedMetadata={(e) => {
-                    forceAudible(e.target)
-                    setLoading(false)
+                  onLoadedMetadata={(e) => { forceAudible(e.target); setLoading(false) }}
+                  onCanPlay={(e) => { forceAudible(e.target); setLoading(false) }}
+                  onPlay={(e) => forceAudible(e.target)}
+                  onError={(e) => {
+                    // Only treat as fatal if the browser actually populated a real
+                    // MediaError. Transient range-fetch hiccups fire error events
+                    // without setting el.error and must NOT take the player down.
+                    const code = e.currentTarget?.error?.code
+                    // 3 = MEDIA_ERR_DECODE, 4 = MEDIA_ERR_SRC_NOT_SUPPORTED — fatal
+                    if (code === 3 || code === 4) {
+                      setLoading(false)
+                      setError(true)
+                    }
                   }}
-                  onCanPlay={(e) => {
-                    forceAudible(e.target)
-                    setLoading(false)
-                  }}
-                  onPlay={(e) => {
-                    forceAudible(e.target)
-                  }}
-                  onError={() => { setLoading(false); setError(true) }}
                   src={src}
                 >
                   Your browser does not support video playback.
                 </video>
               </div>
             ) : type === 'audio' ? (
-              // AUDIO: Same fix as video — opacity:0 not display:none.
-              // Mobile browsers (especially iOS Safari) disable the audio output
-              // context for display:none audio elements causing silent playback.
+              // AUDIO playback — same rules as video (see comment block above).
+              // No crossOrigin. Lenient onError. opacity-based loading.
               <div className="flex items-center justify-center min-h-[120px] relative">
                 {loading && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -350,8 +357,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 <audio
                   ref={audioRef}
                   controls
-                  preload="auto"
-                  crossOrigin="anonymous"
+                  preload="metadata"
                   className="w-full max-w-xl"
                   style={{
                     opacity: loading ? 0 : 1,
@@ -359,22 +365,17 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     transition: 'opacity 0.15s ease',
                     display: 'block',
                   }}
-                  onLoadedMetadata={(e) => {
-                    forceAudible(e.target)
-                    setLoading(false)
+                  onLoadedMetadata={(e) => { forceAudible(e.target); setLoading(false) }}
+                  onLoadedData={(e) => { forceAudible(e.target); setLoading(false) }}
+                  onCanPlay={(e) => { forceAudible(e.target); setLoading(false) }}
+                  onPlay={(e) => forceAudible(e.target)}
+                  onError={(e) => {
+                    const code = e.currentTarget?.error?.code
+                    if (code === 3 || code === 4) {
+                      setLoading(false)
+                      setError(true)
+                    }
                   }}
-                  onLoadedData={(e) => {
-                    forceAudible(e.target)
-                    setLoading(false)
-                  }}
-                  onCanPlay={(e) => {
-                    forceAudible(e.target)
-                    setLoading(false)
-                  }}
-                  onPlay={(e) => {
-                    forceAudible(e.target)
-                  }}
-                  onError={() => { setLoading(false); setError(true) }}
                   src={src}
                 >
                   Your browser does not support audio playback.
