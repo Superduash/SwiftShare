@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, Share2, Clock, Trash2,
   MessageCircle, Mail, Maximize2, Send,
-  QrCode, AlertTriangle, Lock, Eye, EyeOff, Loader2
+  QrCode, AlertTriangle, Lock, Eye, EyeOff, Loader2,
+  XCircle, Flame
 } from 'lucide-react'
 import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
@@ -24,6 +25,7 @@ import {
   updateTransferStatus,
 } from '../utils/storage'
 import Navbar from '../components/Navbar'
+import StatusBanner from '../components/StatusBanner'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
 import AISummaryCard from '../components/AISummaryCard'
@@ -884,23 +886,33 @@ export default function SenderPage() {
         />
       </Suspense>
 
-      {/* Cancelled banner */}
+      {/* Cancelled banner — fixed under the navbar */}
       <AnimatePresence>
         {cancelled && (
           <motion.div
-            className="fixed left-0 right-0 z-40 p-3 text-center"
+            className="fixed left-0 right-0 z-40"
             style={{
-              background: 'var(--danger-soft)',
-              borderBottom: '1px solid rgba(220,38,38,0.15)',
               top: 'calc(var(--safe-top) + var(--connection-banner-height) + var(--navbar-height))',
             }}
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
           >
-            <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
-              This transfer has been cancelled. Files are permanently deleted.
-            </p>
+            <div
+              className="px-3 py-2.5 flex items-center justify-center gap-2"
+              style={{
+                background: 'var(--danger-soft)',
+                borderBottom: '1px solid rgba(220,38,38,0.20)',
+              }}
+              role="status"
+              aria-live="polite"
+            >
+              <XCircle size={16} style={{ color: 'var(--danger)', flexShrink: 0 }} aria-hidden="true" />
+              <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+                Transfer cancelled — files permanently deleted.
+              </p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1148,11 +1160,12 @@ export default function SenderPage() {
 
                 {/* Burn badge */}
                 {meta?.burnAfterDownload && (
-                  <div className="p-3 rounded-xl text-center" style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
-                      🔥 Burn mode is on: first download permanently deletes this transfer
-                    </p>
-                  </div>
+                  <StatusBanner
+                    tone="danger"
+                    icon={Flame}
+                    title="Burn mode is on"
+                    description="First download permanently deletes this transfer."
+                  />
                 )}
               </div>
             </div>

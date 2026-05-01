@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX } from 'lucide-react'
+import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, XCircle, Clock, Flame, RefreshCw } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
@@ -27,6 +27,7 @@ import AISummaryCard from '../components/AISummaryCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
 import ErrorState from '../components/ErrorState'
+import StatusBanner from '../components/StatusBanner'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -684,16 +685,14 @@ export default function DownloadPage() {
           {/* Status banner */}
           <AnimatePresence>
             {isRetrying && (
-              <motion.div
-                className="mb-4 p-3 rounded-xl"
-                style={{ background: 'var(--info-soft)', border: '1px solid rgba(8,145,178,0.15)' }}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold" style={{ color: 'var(--info)' }}>
-                    Trying again...
-                  </p>
+              <StatusBanner
+                key="retrying"
+                tone="info"
+                icon={RefreshCw}
+                title="Trying again..."
+                description="Retrying the metadata request."
+                className="mb-4"
+                action={
                   <button
                     type="button"
                     className="btn-secondary text-xs !py-1 !px-2"
@@ -701,44 +700,35 @@ export default function DownloadPage() {
                   >
                     Retry now
                   </button>
-                </div>
-              </motion.div>
+                }
+              />
             )}
             {transferStatus === 'CANCELLED' && (
-              <motion.div
-                className="mb-4 p-3 rounded-xl text-center"
-                style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
-                  ❌ This transfer has been cancelled by the sender
-                </p>
-              </motion.div>
+              <StatusBanner
+                key="cancelled"
+                tone="danger"
+                icon={XCircle}
+                title="This transfer has been cancelled by the sender"
+                className="mb-4"
+              />
             )}
             {transferStatus === 'EXPIRED' && !downloaded && (
-              <motion.div
-                className="mb-4 p-3 rounded-xl text-center"
-                style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
-                  ⏰ This transfer has expired
-                </p>
-              </motion.div>
+              <StatusBanner
+                key="expired"
+                tone="warning"
+                icon={Clock}
+                title="This transfer has expired"
+                className="mb-4"
+              />
             )}
             {transferStatus === 'DELETED' && !downloaded && (
-              <motion.div
-                className="mb-4 p-3 rounded-xl text-center"
-                style={{ background: 'var(--danger-soft)', border: '1px solid rgba(220,38,38,0.15)' }}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <p className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
-                  🔥 This file has been deleted
-                </p>
-              </motion.div>
+              <StatusBanner
+                key="deleted"
+                tone="danger"
+                icon={Flame}
+                title="This file has been deleted"
+                className="mb-4"
+              />
             )}
           </AnimatePresence>
 
@@ -801,16 +791,13 @@ export default function DownloadPage() {
 
           {/* Burn badge */}
           {meta?.burnAfterDownload && !isUnavailable && (
-            <motion.div
-              className="mb-4 p-3 rounded-xl text-center"
-              style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>
-                🔥 Burn mode is active. This transfer stays available for this device until you leave this page.
-              </p>
-            </motion.div>
+            <StatusBanner
+              tone="warning"
+              icon={Flame}
+              title="Burn mode is active"
+              description="This transfer stays available for this device until you leave this page."
+              className="mb-4"
+            />
           )}
 
           {/* Password gate */}

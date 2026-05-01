@@ -204,6 +204,11 @@ export default function App() {
             <Toaster
               position="top-center"
               gutter={8}
+              containerStyle={{
+                // Slide the toast container below the connection banner + navbar
+                // so toasts never overlap the banner or the nav.
+                top: 'calc(var(--app-header-offset) + 8px)',
+              }}
               toastOptions={{
                 duration: 3500,
                 style: {
@@ -215,6 +220,7 @@ export default function App() {
                   fontSize: '13px',
                   fontWeight: '600',
                   maxWidth: '90vw',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                 },
                 success: { iconTheme: { primary: '#16A34A', secondary: 'var(--toast-bg)' } },
                 error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
