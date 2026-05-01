@@ -22,15 +22,14 @@ const ConnectionHealthContext = createContext(null)
 //      toward the banner threshold.
 
 const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
-const MIN_FAILURES_BEFORE_BANNER = 3
+const MIN_FAILURES_BEFORE_BANNER = 2
 
-// 45 s covers Render free-tier worst-case cold start (30–60 s).
-// During this window NO banner is shown regardless of failures.
-const INITIAL_GRACE_MS = 45000
+// 15s grace on startup — Railway/Render services start quickly.
+// This prevents a flash of the banner on first load while the first ping is in-flight.
+const INITIAL_GRACE_MS = 15000
 
-// Hard ceiling: after this long in 'waking' with no activity, auto-reset
-// to try again — prevents the banner from being stuck literally forever.
-const MAX_WAKING_MS = 90000
+// Hard ceiling: after this long in 'waking' with no activity, auto-reset.
+const MAX_WAKING_MS = 60000
 
 export function ConnectionHealthProvider({ children }) {
   const [status, setStatus] = useState('connected')
