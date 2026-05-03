@@ -29,29 +29,6 @@ function getPreviewType(file) {
   return 'unsupported'
 }
 
-// Best-guess MIME for the <source type=...> hint based on file extension.
-// This is critical: when the browser sees a <source> with an explicit type
-// it knows about, it will not pre-emptively reject the resource as
-// MEDIA_ERR_SRC_NOT_SUPPORTED based on a server Content-Type mismatch —
-// it will actually attempt the byte fetch and let the decoder decide.
-function guessMediaMime(file) {
-  const explicit = String(file?.mimeType || file?.type || '').toLowerCase().split(';')[0].trim()
-  if (explicit && explicit !== 'application/octet-stream' && explicit !== 'binary/octet-stream') {
-    return explicit
-  }
-  const name = String(file?.name || '').toLowerCase()
-  const ext = (name.match(/\.([a-z0-9]+)$/) || [])[1] || ''
-  const map = {
-    mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac',
-    ogg: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac', wma: 'audio/x-ms-wma',
-    aiff: 'audio/aiff', aif: 'audio/aiff',
-    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/mp4',
-    mkv: 'video/x-matroska', avi: 'video/x-msvideo', ogv: 'video/ogg',
-    '3gp': 'video/3gpp', '3g2': 'video/3gpp2',
-  }
-  return map[ext] || ''
-}
-
 function getDocxPreviewUrl(src) {
   if (!src) return ''
   const queryStart = src.indexOf('?')
@@ -185,7 +162,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const type = getPreviewType(file)
   const src = previewUrl(code, fileIndex, password)
   const previewSrc = type === 'docx' ? getDocxPreviewUrl(src) : src
-  const mediaMime = (type === 'video' || type === 'audio') ? guessMediaMime(file) : ''
 
   const openInNewTab = () => {
     try {
@@ -335,55 +311,52 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
             )}
 
             {/* VIDEO — never replaced by an error UI.
-                The browser's native player is the only thing that can correctly
-                show buffering, codec errors, transient retries, etc.  An
-                error-replacement overlay is an anti-pattern here because it
-                makes "Preview failed" appear from a SINGLE transient error
-                event during loading and the user can never get back to the
-                player even after the bytes finish streaming.
+                Using `src` directly on the video element (NOT a child <source>):
+                <source> requires the browser to commit to a specific type up-front,
+                and Firefox in particular rejects the entire source list with
+                "No video with supported format and MIME type found" if the type
+                attribute disagrees with the actual response headers. With `src`
+                on the element directly, the browser fetches the resource, reads
+                the response Content-Type, and tries to play whatever bytes
+                arrive — which is exactly what we want.
                 Header buttons (Download / New tab) are always visible above. */}
             {type === 'video' && (
               <div className="flex flex-col items-center justify-center gap-2">
                 <video
+                  key={src}
                   ref={videoRef}
                   controls
                   playsInline
                   preload="metadata"
+                  src={src}
                   className="max-w-full max-h-[65vh] rounded-xl"
                   style={{ background: '#000', display: 'block', width: '100%' }}
                   onLoadedMetadata={(e) => forceAudible(e.target)}
                   onCanPlay={(e) => forceAudible(e.target)}
                   onPlay={(e) => forceAudible(e.target)}
-                >
-                  {/* Explicit type hint prevents the browser from rejecting the
-                      source pre-emptively based on a server Content-Type that
-                      doesn't match its expectations. */}
-                  <source src={src} {...(mediaMime ? { type: mediaMime } : {})} />
-                  Your browser does not support video playback.
-                </video>
+                />
                 <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
                   If playback doesn't start, use Download or Open in new tab above.
                 </p>
               </div>
             )}
 
-            {/* AUDIO — same approach as video. Never replaced by an error UI. */}
+            {/* AUDIO — same approach as video. `src` on the element, no child <source>. */}
             {type === 'audio' && (
               <div className="flex flex-col items-center justify-center gap-3 py-4">
                 <audio
+                  key={src}
                   ref={audioRef}
                   controls
                   preload="metadata"
+                  src={src}
                   className="w-full max-w-xl"
                   style={{ display: 'block' }}
                   onLoadedMetadata={(e) => forceAudible(e.target)}
                   onLoadedData={(e) => forceAudible(e.target)}
                   onCanPlay={(e) => forceAudible(e.target)}
                   onPlay={(e) => forceAudible(e.target)}
-                >
-                  <source src={src} {...(mediaMime ? { type: mediaMime } : {})} />
-                  Your browser does not support audio playback.
-                </audio>
+                />
                 <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
                   If playback doesn't start, use Download or Open in new tab above.
                 </p>
