@@ -60,11 +60,23 @@ function rewriteLoopbackUrlForLanRuntime(urlValue) {
 // ENVIRONMENT-AWARE API URL RESOLUTION (PRODUCTION SAFE)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// If the page is HTTPS but the backend URL is HTTP (and not loopback),
+// rewrite to HTTPS to avoid mixed-content blocks.  Browsers silently block
+// HTTP fetches (especially media) from HTTPS pages, which produces a "no
+// supported source" error in <video>/<audio> with no console output.
+function ensureSecureForPage(urlValue) {
+  if (typeof window === 'undefined') return urlValue
+  if (window.location.protocol !== 'https:') return urlValue
+  if (typeof urlValue !== 'string' || !urlValue.startsWith('http://')) return urlValue
+  if (targetsLoopback(urlValue)) return urlValue
+  return urlValue.replace(/^http:/i, 'https:')
+}
+
 function getApiBaseUrl() {
   // Priority 1: Explicit VITE_API_URL from environment
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
-    const candidate = normalizeUrl(envApiUrl)
+    const candidate = ensureSecureForPage(normalizeUrl(envApiUrl))
 
     if (typeof window !== 'undefined') {
       const runtimeHost = window.location.hostname
