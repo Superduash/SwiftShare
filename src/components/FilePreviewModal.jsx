@@ -138,14 +138,32 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       clearTimeout(mediaErrorTimer.current)
       mediaErrorTimer.current = null
     }
+    // Debug log for preview opening
+    if (file) {
+      console.log('[Preview] Opening preview:', {
+        fileName: file.name,
+        mimeType: file.mimeType || file.type,
+        fileIndex,
+        code
+      })
+    }
   }, [file, open])
 
   useEffect(() => () => {
     if (mediaErrorTimer.current) clearTimeout(mediaErrorTimer.current)
   }, [])
 
-  const handleMediaError = () => {
+  const handleMediaError = (error) => {
     if (mediaErrorTimer.current) return
+    // Debug logging for media errors
+    console.error('[Preview] Media playback error:', {
+      fileIndex,
+      fileName: file?.name,
+      mimeType: file?.mimeType,
+      src: mediaSrc,
+      error: error?.toString?.() || String(error),
+      mediaTry
+    })
     mediaErrorTimer.current = setTimeout(() => {
       mediaErrorTimer.current = null
       setMediaError(true)
@@ -378,9 +396,28 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         playsInline
                         preload="metadata"
                         style={{ width: '100%', height: '100%', background: '#000' }}
-                        onReady={() => { cancelMediaError(); forceAudible(videoRef.current) }}
-                        onPlay={() => { cancelMediaError(); forceAudible(videoRef.current) }}
-                        onPlaying={() => cancelMediaError()}
+                        config={{
+                          file: {
+                            attributes: {
+                              crossOrigin: 'anonymous',
+                              controlsList: 'nodownload'
+                            }
+                          }
+                        }}
+                        onReady={() => { 
+                          console.log('[Preview] Video ready:', { fileName: file?.name, mediaTry })
+                          cancelMediaError()
+                          forceAudible(videoRef.current) 
+                        }}
+                        onPlay={() => { 
+                          console.log('[Preview] Video playing:', { fileName: file?.name })
+                          cancelMediaError()
+                          forceAudible(videoRef.current) 
+                        }}
+                        onPlaying={() => {
+                          console.log('[Preview] Video started playing:', { fileName: file?.name })
+                          cancelMediaError()
+                        }}
                         onError={handleMediaError}
                       />
                     </div>
@@ -427,9 +464,28 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         controls
                         preload="metadata"
                         style={{ width: '100%', height: '54px' }}
-                        onReady={() => { cancelMediaError(); forceAudible(audioRef.current) }}
-                        onPlay={() => { cancelMediaError(); forceAudible(audioRef.current) }}
-                        onPlaying={() => cancelMediaError()}
+                        config={{
+                          file: {
+                            attributes: {
+                              crossOrigin: 'anonymous',
+                              controlsList: 'nodownload'
+                            }
+                          }
+                        }}
+                        onReady={() => { 
+                          console.log('[Preview] Audio ready:', { fileName: file?.name, mediaTry })
+                          cancelMediaError()
+                          forceAudible(audioRef.current) 
+                        }}
+                        onPlay={() => { 
+                          console.log('[Preview] Audio playing:', { fileName: file?.name })
+                          cancelMediaError()
+                          forceAudible(audioRef.current) 
+                        }}
+                        onPlaying={() => {
+                          console.log('[Preview] Audio started playing:', { fileName: file?.name })
+                          cancelMediaError()
+                        }}
                         onError={handleMediaError}
                       />
                     </div>
