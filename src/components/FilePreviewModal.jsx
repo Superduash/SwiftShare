@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -122,12 +122,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const [mediaError, setMediaError] = useState(false)
   const [mediaErrorDetail, setMediaErrorDetail] = useState('')
   const [mediaTry, setMediaTry] = useState(0)
-  const [mediaLoadAttempted, setMediaLoadAttempted] = useState(false)
   const videoRef = useRef(null)
   const audioRef = useRef(null)
-  // Debounce timer for media errors. Some players fire onError briefly during
-  // init / src-swap and recover on their own — only commit to the failure UI
-  // if the error is still active after a short window.
   const mediaErrorTimer = useRef(null)
 
   useEffect(() => {
@@ -136,7 +132,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     setMediaError(false)
     setMediaErrorDetail('')
     setMediaTry(0)
-    setMediaLoadAttempted(false)
     if (mediaErrorTimer.current) {
       clearTimeout(mediaErrorTimer.current)
       mediaErrorTimer.current = null
@@ -149,8 +144,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
   const handleMediaError = (event) => {
     if (mediaErrorTimer.current) return
-    
-    setMediaLoadAttempted(true)
     
     const media = event?.target
     const errCode = media?.error?.code
@@ -171,7 +164,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       currentSrc: media?.currentSrc,
     })
 
-    // HEAD probe — reveals HTTP status, MIME, and CORS headers without downloading the file
+    // HEAD probe for debugging
     fetch(mediaSrc, { method: 'HEAD' })
       .then(r => {
         const ct = r.headers.get('content-type')
@@ -180,14 +173,13 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
         const contentLength = r.headers.get('content-length')
         console.error(`[SwiftShare Preview] URL probe → ${r.status} ${r.statusText} | content-type: ${ct} | ACAO: ${acao} | accept-ranges: ${acceptRanges} | content-length: ${contentLength}`)
         
-        // If HEAD succeeds but media fails, it's likely a browser codec issue
         if (r.ok && errCode === 4) {
-          console.error('[SwiftShare Preview] HEAD succeeded but media failed - likely codec/format issue')
+          console.error('[SwiftShare Preview] HEAD succeeded but media failed - likely codec/format issue or CORS')
         }
       })
-      .catch(e => console.error('[SwiftShare Preview] URL probe failed (CORS blocked or network error):', e.message))
+      .catch(e => console.error('[SwiftShare Preview] URL probe failed:', e.message))
 
-    // Reduced debounce to 800ms — if error persists, it's real
+    // 800ms debounce - if error persists, show UI
     mediaErrorTimer.current = setTimeout(() => {
       mediaErrorTimer.current = null
       setMediaErrorDetail(detail)
@@ -201,12 +193,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       mediaErrorTimer.current = null
     }
     if (mediaError) setMediaError(false)
-    setMediaLoadAttempted(true)
   }
 
-  // Hard fallback for non-media (PDF/DOCX iframe) which can fail to fire onLoad
-  // on some browser/plugin combinations. After 8s drop the shimmer so the user
-  // can interact with whatever has loaded.
+  // Hard fallback for PDF/DOCX iframe loading
   useEffect(() => {
     if (!open || !loading) return undefined
     const type = file ? getPreviewType(file) : null
@@ -215,7 +204,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     return () => clearTimeout(timer)
   }, [open, file, loading])
 
-  // Imperatively unmute / set volume once the media element is mounted.
+  // Imperatively unmute media elements
   useEffect(() => {
     if (!open) return
     const type = file ? getPreviewType(file) : null
@@ -229,6 +218,29 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const previewSrc = type === 'docx' ? getDocxPreviewUrl(src) : src
   const canPlayVideo = type !== 'video' || canBrowserPlay(file, 'video')
   const canPlayAudio = type !== 'audio' || canBrowserPlay(file, 'audio')
+
+  // Detect if media URL is cross-origin (Vercel frontend → Railway backend)
+  const isCrossOrigin = typeof window !== 'undefined' && mediaSrc && (() => {
+    try {
+      const mediaUrl = new URL(mediaSrc, window.location.href)
+      return mediaUrl.origin !== window.location.origin
+    } catch {
+      return false
+    }
+  })()
+
+  // Log media source for debugging
+  useEffect(() => {
+    if (open && (type === 'video' || type === 'audio') && mediaSrc) {
+      console.log('[SwiftShare Preview] Media source:', {
+        type,
+        src: mediaSrc,
+        isCrossOrigin,
+        canPlay: type === 'video' ? canPlayVideo : canPlayAudio,
+        fileType: file?.mimeType || file?.type,
+      })
+    }
+  }, [open, type, mediaSrc, isCrossOrigin, canPlayVideo, canPlayAudio, file])
 
   if (!open || !file) return null
 
@@ -424,7 +436,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         controls
                         playsInline
                         preload="auto"
-                        crossOrigin="anonymous"
+                        crossOrigin={isCrossOrigin ? "anonymous" : undefined}
                         controlsList="nodownload"
                         style={{ width: '100%', height: '100%', background: '#000' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(videoRef.current) }}
@@ -480,7 +492,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         src={mediaSrc}
                         controls
                         preload="auto"
-                        crossOrigin="anonymous"
+                        crossOrigin={isCrossOrigin ? "anonymous" : undefined}
                         controlsList="nodownload"
                         style={{ width: '100%', height: '54px' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(audioRef.current) }}
