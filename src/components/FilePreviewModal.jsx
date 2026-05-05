@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ReactPlayer from 'react-player'
 
 import { previewUrl } from '../services/api'
 import { getPreviewType } from '../utils/preview'
@@ -123,13 +124,41 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const [mediaTry, setMediaTry] = useState(0)
   const videoRef = useRef(null)
   const audioRef = useRef(null)
+  // Debounce timer for media errors. Some players fire onError briefly during
+  // init / src-swap and recover on their own — only commit to the failure UI
+  // if the error is still active after a short window.
+  const mediaErrorTimer = useRef(null)
 
   useEffect(() => {
     setError(false)
     setLoading(true)
     setMediaError(false)
     setMediaTry(0)
+    if (mediaErrorTimer.current) {
+      clearTimeout(mediaErrorTimer.current)
+      mediaErrorTimer.current = null
+    }
   }, [file, open])
+
+  useEffect(() => () => {
+    if (mediaErrorTimer.current) clearTimeout(mediaErrorTimer.current)
+  }, [])
+
+  const handleMediaError = () => {
+    if (mediaErrorTimer.current) return
+    mediaErrorTimer.current = setTimeout(() => {
+      mediaErrorTimer.current = null
+      setMediaError(true)
+    }, 1500)
+  }
+
+  const cancelMediaError = () => {
+    if (mediaErrorTimer.current) {
+      clearTimeout(mediaErrorTimer.current)
+      mediaErrorTimer.current = null
+    }
+    if (mediaError) setMediaError(false)
+  }
 
   // Hard fallback for non-media (PDF/DOCX iframe) which can fail to fire onLoad
   // on some browser/plugin combinations. After 8s drop the shimmer so the user
@@ -311,39 +340,18 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
               )
             )}
 
-            {/* VIDEO — never replaced by an error UI.
-                Using `src` directly on the video element (NOT a child <source>):
-                <source> requires the browser to commit to a specific type up-front,
-                and Firefox in particular rejects the entire source list with
-                "No video with supported format and MIME type found" if the type
-                attribute disagrees with the actual response headers. With `src`
-                on the element directly, the browser fetches the resource, reads
-                the response Content-Type, and tries to play whatever bytes
-                arrive — which is exactly what we want.
-                Header buttons (Download / New tab) are always visible above. */}
+            {/* VIDEO — uses ReactPlayer for cross-browser robustness.
+                ReactPlayer falls back to native HTML5 <video> for file URLs but
+                handles edge cases (HLS, format detection) better than a raw
+                element. Error UI only shows after the play attempt actually
+                fails and the user has had a chance to interact. */}
             {type === 'video' && (
               <div className="flex flex-col items-center justify-center gap-2">
-                {!canPlayVideo ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center w-full">
-                    <AlertTriangle size={36} style={{ color: 'var(--warning)' }} className="mb-3" />
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>This browser may not support this video format</p>
-                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try opening in a new tab or downloading to play in your device player.</p>
-                    <div className="flex items-center gap-2 mt-4">
-                      <button className="btn-ghost text-sm" onClick={openInNewTab}>
-                        <ExternalLink size={14} /> Open in new tab
-                      </button>
-                      {onDownload && (
-                        <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
-                          <Download size={14} /> Download
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : mediaError ? (
+                {mediaError ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center w-full">
                     <AlertTriangle size={36} style={{ color: 'var(--warning)' }} className="mb-3" />
                     <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Video preview failed to load</p>
-                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>This can happen with unstable network or partial stream fetch failures.</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try again, open in a new tab, or download to play in your device's video app.</p>
                     <div className="flex items-center gap-2 mt-4">
                       <button className="btn-secondary text-sm" onClick={retryMedia}>Try again</button>
                       <button className="btn-ghost text-sm" onClick={openInNewTab}>
@@ -358,20 +366,29 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   </div>
                 ) : (
                   <>
-                    <video
-                      key={mediaSrc}
-                      ref={videoRef}
-                      controls
-                      playsInline
-                      preload="metadata"
-                      src={mediaSrc}
-                      className="max-w-full max-h-[65vh] rounded-xl"
-                      style={{ background: '#000', display: 'block', width: '100%' }}
-                      onLoadedMetadata={(e) => { setMediaError(false); forceAudible(e.target) }}
-                      onCanPlay={(e) => forceAudible(e.target)}
-                      onPlay={(e) => forceAudible(e.target)}
-                      onError={() => setMediaError(true)}
-                    />
+                    <div
+                      className="w-full rounded-xl overflow-hidden"
+                      style={{ background: '#000', aspectRatio: '16 / 9', maxHeight: '65vh' }}
+                    >
+                      <ReactPlayer
+                        key={mediaSrc}
+                        ref={videoRef}
+                        src={mediaSrc}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        style={{ width: '100%', height: '100%', background: '#000' }}
+                        onReady={() => { cancelMediaError(); forceAudible(videoRef.current) }}
+                        onPlay={() => { cancelMediaError(); forceAudible(videoRef.current) }}
+                        onPlaying={() => cancelMediaError()}
+                        onError={handleMediaError}
+                      />
+                    </div>
+                    {!canPlayVideo && (
+                      <p className="text-[11px] text-center" style={{ color: 'var(--warning)' }}>
+                        Your browser may not natively support this format. If playback fails, download to play in your device's video app.
+                      </p>
+                    )}
                     <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
                       If playback doesn't start, use Try again, Download, or Open in new tab.
                     </p>
@@ -380,29 +397,14 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
               </div>
             )}
 
-            {/* AUDIO — same approach as video. `src` on the element, no child <source>. */}
+            {/* AUDIO — also uses ReactPlayer. */}
             {type === 'audio' && (
               <div className="flex flex-col items-center justify-center gap-3 py-4">
-                {!canPlayAudio ? (
-                  <div className="flex flex-col items-center justify-center py-6 text-center w-full">
-                    <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-2" />
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>This browser may not support this audio format</p>
-                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Open in new tab or download for guaranteed playback.</p>
-                    <div className="flex items-center gap-2 mt-3">
-                      <button className="btn-ghost text-sm" onClick={openInNewTab}>
-                        <ExternalLink size={14} /> Open in new tab
-                      </button>
-                      {onDownload && (
-                        <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
-                          <Download size={14} /> Download
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ) : mediaError ? (
+                {mediaError ? (
                   <div className="flex flex-col items-center justify-center py-6 text-center w-full">
                     <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-2" />
                     <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Audio preview failed to load</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try again, open in a new tab, or download to play in your device's music app.</p>
                     <div className="flex items-center gap-2 mt-3">
                       <button className="btn-secondary text-sm" onClick={retryMedia}>Try again</button>
                       <button className="btn-ghost text-sm" onClick={openInNewTab}>
@@ -417,20 +419,25 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   </div>
                 ) : (
                   <>
-                    <audio
-                      key={mediaSrc}
-                      ref={audioRef}
-                      controls
-                      preload="metadata"
-                      src={mediaSrc}
-                      className="w-full max-w-xl"
-                      style={{ display: 'block' }}
-                      onLoadedMetadata={(e) => { setMediaError(false); forceAudible(e.target) }}
-                      onLoadedData={(e) => forceAudible(e.target)}
-                      onCanPlay={(e) => forceAudible(e.target)}
-                      onPlay={(e) => forceAudible(e.target)}
-                      onError={() => setMediaError(true)}
-                    />
+                    <div className="w-full max-w-xl">
+                      <ReactPlayer
+                        key={mediaSrc}
+                        ref={audioRef}
+                        src={mediaSrc}
+                        controls
+                        preload="metadata"
+                        style={{ width: '100%', height: '54px' }}
+                        onReady={() => { cancelMediaError(); forceAudible(audioRef.current) }}
+                        onPlay={() => { cancelMediaError(); forceAudible(audioRef.current) }}
+                        onPlaying={() => cancelMediaError()}
+                        onError={handleMediaError}
+                      />
+                    </div>
+                    {!canPlayAudio && (
+                      <p className="text-[11px] text-center" style={{ color: 'var(--warning)' }}>
+                        Your browser may not natively support this format. If playback fails, download to play in your device's music app.
+                      </p>
+                    )}
                     <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
                       If playback doesn't start, use Try again, Download, or Open in new tab.
                     </p>
