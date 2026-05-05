@@ -409,7 +409,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         src={mediaSrc}
                         controls
                         playsInline
-                        preload="metadata"
+                        preload="none"
                         controlsList="nodownload"
                         style={{ width: '100%', height: '100%', background: '#000' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(videoRef.current) }}
@@ -461,7 +461,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         ref={audioRef}
                         src={mediaSrc}
                         controls
-                        preload="metadata"
+                        preload="none"
                         controlsList="nodownload"
                         style={{ width: '100%', height: '54px' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(audioRef.current) }}
