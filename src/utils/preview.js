@@ -48,6 +48,11 @@ function isAudio(mime, name) {
     || hasExtension(name, AUDIO_EXTENSIONS)
 }
 
+function isPptx(mime, name) {
+  return mime.includes('presentationml') || mime.includes('powerpoint')
+    || name.endsWith('.ppt') || name.endsWith('.pptx') || name.endsWith('.odp') || name.endsWith('.key')
+}
+
 function isDocx(mime, name) {
   return mime.includes('wordprocessingml') || name.endsWith('.docx')
 }
@@ -65,6 +70,7 @@ export function getPreviewType(file) {
   const mime = normalizeMime(file)
   const name = normalizeName(file)
 
+  if (isPptx(mime, name)) return 'unsupported'
   if (isImage(mime, name)) return 'image'
   if (isPdf(mime, name)) return 'pdf'
   if (isVideo(mime, name)) return 'video'
