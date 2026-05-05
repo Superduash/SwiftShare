@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide-react'
-import toast from 'react-hot-toast'
 
 import { previewUrl } from '../services/api'
 import { getPreviewType } from '../utils/preview'
@@ -248,10 +247,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
   const openInNewTab = () => {
     try {
-      const newWindow = window.open(src, '_blank', 'noopener,noreferrer')
-      if (!newWindow) toast.error('Popup blocked. Please allow popups to open the file.')
+      window.open(src, '_blank', 'noopener,noreferrer')
     } catch {
-      toast.error('Unable to open preview')
+      // Silently fail - user can use the "Open in new tab" button if needed
     }
   }
 
