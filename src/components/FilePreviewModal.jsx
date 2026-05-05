@@ -122,6 +122,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const [mediaError, setMediaError] = useState(false)
   const [mediaErrorDetail, setMediaErrorDetail] = useState('')
   const [mediaTry, setMediaTry] = useState(0)
+  const [mediaLoadAttempted, setMediaLoadAttempted] = useState(false)
   const videoRef = useRef(null)
   const audioRef = useRef(null)
   // Debounce timer for media errors. Some players fire onError briefly during
@@ -135,6 +136,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     setMediaError(false)
     setMediaErrorDetail('')
     setMediaTry(0)
+    setMediaLoadAttempted(false)
     if (mediaErrorTimer.current) {
       clearTimeout(mediaErrorTimer.current)
       mediaErrorTimer.current = null
@@ -147,6 +149,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
   const handleMediaError = (event) => {
     if (mediaErrorTimer.current) return
+    
+    setMediaLoadAttempted(true)
+    
     const media = event?.target
     const errCode = media?.error?.code
     const errMsg = media?.error?.message || ''
@@ -163,6 +168,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       errorMessage: errMsg,
       readyState: media?.readyState,
       networkState: media?.networkState,
+      currentSrc: media?.currentSrc,
     })
 
     // HEAD probe — reveals HTTP status, MIME, and CORS headers without downloading the file
@@ -173,15 +179,20 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
         const acceptRanges = r.headers.get('accept-ranges')
         const contentLength = r.headers.get('content-length')
         console.error(`[SwiftShare Preview] URL probe → ${r.status} ${r.statusText} | content-type: ${ct} | ACAO: ${acao} | accept-ranges: ${acceptRanges} | content-length: ${contentLength}`)
+        
+        // If HEAD succeeds but media fails, it's likely a browser codec issue
+        if (r.ok && errCode === 4) {
+          console.error('[SwiftShare Preview] HEAD succeeded but media failed - likely codec/format issue')
+        }
       })
       .catch(e => console.error('[SwiftShare Preview] URL probe failed (CORS blocked or network error):', e.message))
 
-    // Reduced debounce to 1s — if error persists after 1s, it's real
+    // Reduced debounce to 800ms — if error persists, it's real
     mediaErrorTimer.current = setTimeout(() => {
       mediaErrorTimer.current = null
       setMediaErrorDetail(detail)
       setMediaError(true)
-    }, 1000)
+    }, 800)
   }
 
   const cancelMediaError = () => {
@@ -190,6 +201,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       mediaErrorTimer.current = null
     }
     if (mediaError) setMediaError(false)
+    setMediaLoadAttempted(true)
   }
 
   // Hard fallback for non-media (PDF/DOCX iframe) which can fail to fire onLoad

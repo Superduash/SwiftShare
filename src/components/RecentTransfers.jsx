@@ -51,6 +51,28 @@ export default function RecentTransfers() {
   const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
 
+  // Listen for storage changes (e.g., when SettingsPanel clears history)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const list = getRecentTransfers()
+      setTransfers(list.map(t => {
+        if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
+          return { ...t, status: 'EXPIRED' }
+        }
+        return { ...t, status: t.status || 'ACTIVE' }
+      }))
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    // Also listen for custom event for same-tab updates
+    window.addEventListener('transfersCleared', handleStorageChange)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('transfersCleared', handleStorageChange)
+    }
+  }, [])
+
   // Recalculate statuses locally from expiry time — no API spam
   useEffect(() => {
     const timer = setInterval(() => {

@@ -306,6 +306,8 @@ export function clearTransfers() {
   localStorage.removeItem(KEYS.RECENT)
   clearPrefix(KEYS.TRANSFER_PREFIX)
   clearPrefix(KEYS.AI_PREFIX)
+  // Dispatch custom event for same-tab updates
+  window.dispatchEvent(new Event('transfersCleared'))
 }
 
 // ── Settings ───────────────────────────────
