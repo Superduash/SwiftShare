@@ -5,6 +5,7 @@ import {
   Download, Eye, X, Music, FileCode, Presentation
 } from 'lucide-react'
 import { formatBytes } from '../utils/format'
+import { isFilePreviewable } from '../utils/preview'
 
 const ICON_MAP = {
   pdf: { icon: FileText, color: '#DC2626' },
@@ -34,27 +35,6 @@ function getFileCategory(file) {
   if (/\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|cs|swift|kt|r|sh|bash|zsh|ps1|sql|html|css|scss|sass|vue|svelte|json|yaml|yml|xml|toml|env|config)$/i.test(name)) return 'code'
   if (mime === 'text/plain' || /\.(txt|log|md|readme|cfg|conf|ini)$/i.test(name)) return 'txt'
   return 'file'
-}
-
-function canPreview(file) {
-  const mime = (file?.mimeType || file?.type || '').toLowerCase()
-  const name = (file?.name || '').toLowerCase()
-  if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif|ico|tiff?|jfif)$/i.test(name)) return true
-  if (mime.includes('pdf') || name.endsWith('.pdf')) return true
-  if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv|avi|ogv|3gp|3g2|ts)$/i.test(name)) return true
-  if (mime.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma|aiff?)$/i.test(name)) return true
-  if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return true
-  // pptx gets the "not supported" modal (better than no feedback)
-  if (mime.includes('presentationml') || name.endsWith('.ppt') || name.endsWith('.pptx')) return true
-  if (
-    mime.startsWith('text/') ||
-    mime.includes('json') ||
-    mime.includes('javascript') ||
-    mime.includes('xml') ||
-    mime.includes('yaml') ||
-    /\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|css|html|md|txt|log|sql|json|yaml|yml|xml|csv|sh|bash|zsh|ps1|toml|ini|cfg|conf|env|vue|svelte|kt|swift|dart|lua|scala|r)$/i.test(name)
-  ) return true
-  return false
 }
 
 function FileCardBase({
@@ -90,7 +70,7 @@ function FileCardBase({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
-        {onPreview && canPreview(file) && (
+        {onPreview && isFilePreviewable(file) && (
           <button className="btn-icon transition-opacity" onClick={() => onPreview(index)} aria-label="Preview">
             <Eye size={15} />
           </button>

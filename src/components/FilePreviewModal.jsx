@@ -4,30 +4,7 @@ import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide
 import toast from 'react-hot-toast'
 
 import { previewUrl } from '../services/api'
-
-function getPreviewType(file) {
-  const mime = String(file?.mimeType || file?.type || '').toLowerCase()
-  const name = String(file?.name || '').toLowerCase()
-
-  if (mime.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif|ico|tiff?|jfif|pjpeg|pjp)$/i.test(name)) return 'image'
-  if (mime.includes('pdf') || name.endsWith('.pdf')) return 'pdf'
-  if (mime.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv|avi|ogv|3gp|3g2|ts|mts|m2ts)$/i.test(name)) return 'video'
-  if (mime.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma|aiff?|caf|mid|midi)$/i.test(name)) return 'audio'
-  if (mime.includes('wordprocessingml') || name.endsWith('.docx')) return 'docx'
-  if (mime.includes('presentationml') || name.endsWith('.ppt') || name.endsWith('.pptx')) return 'pptx'
-  if (
-    mime.startsWith('text/') ||
-    mime.includes('json') ||
-    mime.includes('javascript') ||
-    mime.includes('xml') ||
-    mime.includes('yaml') ||
-    /\.(js|jsx|ts|tsx|py|java|cpp|c|h|go|rs|rb|php|css|html|md|txt|log|sql|json|yaml|yml|xml|csv|sh|bash|zsh|ps1|toml|ini|cfg|conf|env|gitignore|dockerfile|makefile|vue|svelte|kt|swift|r|dart|lua|perl|pl|scala|ex|exs|erl|clj|fs|fsx|fsi|hs|elm|ml|mli|nim|zig)$/i.test(name)
-  ) {
-    return 'code'
-  }
-
-  return 'unsupported'
-}
+import { getPreviewType } from '../utils/preview'
 
 function getDocxPreviewUrl(src) {
   if (!src) return ''
@@ -47,6 +24,18 @@ function forceAudible(mediaEl) {
   } catch {
     // Some browsers throw on volume assignment without a user gesture; ignore.
   }
+}
+
+function canBrowserPlay(file, kind) {
+  if (typeof document === 'undefined') return true
+  const mime = String(file?.mimeType || file?.type || '').toLowerCase().split(';')[0].trim()
+  if (!mime) return true
+
+  const el = document.createElement(kind)
+  if (!el || typeof el.canPlayType !== 'function') return true
+
+  const capability = el.canPlayType(mime)
+  return capability === 'probably' || capability === 'maybe'
 }
 
 function CodePreview({ src, onError, onLoad }) {
@@ -130,12 +119,16 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   // screen prevents the user from ever recovering or trying playback again.
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [mediaError, setMediaError] = useState(false)
+  const [mediaTry, setMediaTry] = useState(0)
   const videoRef = useRef(null)
   const audioRef = useRef(null)
 
   useEffect(() => {
     setError(false)
     setLoading(true)
+    setMediaError(false)
+    setMediaTry(0)
   }, [file, open])
 
   // Hard fallback for non-media (PDF/DOCX iframe) which can fail to fire onLoad
@@ -144,7 +137,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   useEffect(() => {
     if (!open || !loading) return undefined
     const type = file ? getPreviewType(file) : null
-    if (type === 'image' || type === 'code' || type === 'unsupported' || type === 'pptx' || type === 'video' || type === 'audio') return undefined
+    if (type === 'image' || type === 'code' || type === 'unsupported' || type === 'video' || type === 'audio') return undefined
     const timer = setTimeout(() => setLoading(false), 8000)
     return () => clearTimeout(timer)
   }, [open, file, loading])
@@ -161,7 +154,15 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
   const type = getPreviewType(file)
   const src = previewUrl(code, fileIndex, password)
+  const mediaSrc = mediaTry > 0 ? `${src}${src.includes('?') ? '&' : '?'}_previewTry=${mediaTry}` : src
   const previewSrc = type === 'docx' ? getDocxPreviewUrl(src) : src
+  const canPlayVideo = type !== 'video' || canBrowserPlay(file, 'video')
+  const canPlayAudio = type !== 'audio' || canBrowserPlay(file, 'audio')
+
+  const retryMedia = () => {
+    setMediaError(false)
+    setMediaTry((prev) => prev + 1)
+  }
 
   const openInNewTab = () => {
     try {
@@ -322,44 +323,119 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 Header buttons (Download / New tab) are always visible above. */}
             {type === 'video' && (
               <div className="flex flex-col items-center justify-center gap-2">
-                <video
-                  key={src}
-                  ref={videoRef}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  src={src}
-                  className="max-w-full max-h-[65vh] rounded-xl"
-                  style={{ background: '#000', display: 'block', width: '100%' }}
-                  onLoadedMetadata={(e) => forceAudible(e.target)}
-                  onCanPlay={(e) => forceAudible(e.target)}
-                  onPlay={(e) => forceAudible(e.target)}
-                />
-                <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
-                  If playback doesn't start, use Download or Open in new tab above.
-                </p>
+                {!canPlayVideo ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center w-full">
+                    <AlertTriangle size={36} style={{ color: 'var(--warning)' }} className="mb-3" />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>This browser may not support this video format</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try opening in a new tab or downloading to play in your device player.</p>
+                    <div className="flex items-center gap-2 mt-4">
+                      <button className="btn-ghost text-sm" onClick={openInNewTab}>
+                        <ExternalLink size={14} /> Open in new tab
+                      </button>
+                      {onDownload && (
+                        <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
+                          <Download size={14} /> Download
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : mediaError ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center w-full">
+                    <AlertTriangle size={36} style={{ color: 'var(--warning)' }} className="mb-3" />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Video preview failed to load</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>This can happen with unstable network or partial stream fetch failures.</p>
+                    <div className="flex items-center gap-2 mt-4">
+                      <button className="btn-secondary text-sm" onClick={retryMedia}>Try again</button>
+                      <button className="btn-ghost text-sm" onClick={openInNewTab}>
+                        <ExternalLink size={14} /> New tab
+                      </button>
+                      {onDownload && (
+                        <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
+                          <Download size={14} /> Download
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <video
+                      key={mediaSrc}
+                      ref={videoRef}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      src={mediaSrc}
+                      className="max-w-full max-h-[65vh] rounded-xl"
+                      style={{ background: '#000', display: 'block', width: '100%' }}
+                      onLoadedMetadata={(e) => { setMediaError(false); forceAudible(e.target) }}
+                      onCanPlay={(e) => forceAudible(e.target)}
+                      onPlay={(e) => forceAudible(e.target)}
+                      onError={() => setMediaError(true)}
+                    />
+                    <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
+                      If playback doesn't start, use Try again, Download, or Open in new tab.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
             {/* AUDIO — same approach as video. `src` on the element, no child <source>. */}
             {type === 'audio' && (
               <div className="flex flex-col items-center justify-center gap-3 py-4">
-                <audio
-                  key={src}
-                  ref={audioRef}
-                  controls
-                  preload="metadata"
-                  src={src}
-                  className="w-full max-w-xl"
-                  style={{ display: 'block' }}
-                  onLoadedMetadata={(e) => forceAudible(e.target)}
-                  onLoadedData={(e) => forceAudible(e.target)}
-                  onCanPlay={(e) => forceAudible(e.target)}
-                  onPlay={(e) => forceAudible(e.target)}
-                />
-                <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
-                  If playback doesn't start, use Download or Open in new tab above.
-                </p>
+                {!canPlayAudio ? (
+                  <div className="flex flex-col items-center justify-center py-6 text-center w-full">
+                    <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-2" />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>This browser may not support this audio format</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Open in new tab or download for guaranteed playback.</p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <button className="btn-ghost text-sm" onClick={openInNewTab}>
+                        <ExternalLink size={14} /> Open in new tab
+                      </button>
+                      {onDownload && (
+                        <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
+                          <Download size={14} /> Download
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : mediaError ? (
+                  <div className="flex flex-col items-center justify-center py-6 text-center w-full">
+                    <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-2" />
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Audio preview failed to load</p>
+                    <div className="flex items-center gap-2 mt-3">
+                      <button className="btn-secondary text-sm" onClick={retryMedia}>Try again</button>
+                      <button className="btn-ghost text-sm" onClick={openInNewTab}>
+                        <ExternalLink size={14} /> New tab
+                      </button>
+                      {onDownload && (
+                        <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
+                          <Download size={14} /> Download
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <audio
+                      key={mediaSrc}
+                      ref={audioRef}
+                      controls
+                      preload="metadata"
+                      src={mediaSrc}
+                      className="w-full max-w-xl"
+                      style={{ display: 'block' }}
+                      onLoadedMetadata={(e) => { setMediaError(false); forceAudible(e.target) }}
+                      onLoadedData={(e) => forceAudible(e.target)}
+                      onCanPlay={(e) => forceAudible(e.target)}
+                      onPlay={(e) => forceAudible(e.target)}
+                      onError={() => setMediaError(true)}
+                    />
+                    <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>
+                      If playback doesn't start, use Try again, Download, or Open in new tab.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
@@ -393,23 +469,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   )}
                 </div>
               )
-            )}
-
-            {/* PPTX — informational, no preview attempt */}
-            {type === 'pptx' && (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-3" />
-                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>PowerPoint preview is not supported in-browser</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Use open in new tab or download to view this file</p>
-                {onDownload && (
-                  <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
-                    <Download size={14} /> Download instead
-                  </button>
-                )}
-                <button className="btn-ghost text-sm mt-2" onClick={openInNewTab}>
-                  Open in new tab
-                </button>
-              </div>
             )}
 
             {/* CODE / TEXT */}
