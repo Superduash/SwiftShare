@@ -170,16 +170,18 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
       .then(r => {
         const ct = r.headers.get('content-type')
         const acao = r.headers.get('access-control-allow-origin')
-        console.error(`[SwiftShare Preview] URL probe → ${r.status} ${r.statusText} | content-type: ${ct} | ACAO: ${acao}`)
+        const acceptRanges = r.headers.get('accept-ranges')
+        const contentLength = r.headers.get('content-length')
+        console.error(`[SwiftShare Preview] URL probe → ${r.status} ${r.statusText} | content-type: ${ct} | ACAO: ${acao} | accept-ranges: ${acceptRanges} | content-length: ${contentLength}`)
       })
       .catch(e => console.error('[SwiftShare Preview] URL probe failed (CORS blocked or network error):', e.message))
 
-    // 3.5 s debounce — deployment latency is higher; give buffering a chance before committing to the error UI
+    // Reduced debounce to 1s — if error persists after 1s, it's real
     mediaErrorTimer.current = setTimeout(() => {
       mediaErrorTimer.current = null
       setMediaErrorDetail(detail)
       setMediaError(true)
-    }, 3500)
+    }, 1000)
   }
 
   const cancelMediaError = () => {
@@ -409,10 +411,13 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         src={mediaSrc}
                         controls
                         playsInline
-                        preload="none"
+                        preload="metadata"
                         controlsList="nodownload"
                         style={{ width: '100%', height: '100%', background: '#000' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(videoRef.current) }}
+                        onLoadedData={cancelMediaError}
+                        onCanPlay={cancelMediaError}
+                        onCanPlayThrough={cancelMediaError}
                         onPlay={() => { cancelMediaError(); forceAudible(videoRef.current) }}
                         onPlaying={cancelMediaError}
                         onError={handleMediaError}
@@ -461,10 +466,13 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         ref={audioRef}
                         src={mediaSrc}
                         controls
-                        preload="none"
+                        preload="metadata"
                         controlsList="nodownload"
                         style={{ width: '100%', height: '54px' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(audioRef.current) }}
+                        onLoadedData={cancelMediaError}
+                        onCanPlay={cancelMediaError}
+                        onCanPlayThrough={cancelMediaError}
                         onPlay={() => { cancelMediaError(); forceAudible(audioRef.current) }}
                         onPlaying={cancelMediaError}
                         onError={handleMediaError}
