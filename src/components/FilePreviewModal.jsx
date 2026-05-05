@@ -375,7 +375,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         controls
                         playsInline
                         preload="metadata"
-                        crossOrigin="anonymous"
                         controlsList="nodownload"
                         style={{ width: '100%', height: '100%', background: '#000' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(videoRef.current) }}
