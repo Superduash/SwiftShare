@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import ReactPlayer from 'react-player'
 
 import { previewUrl } from '../services/api'
 import { getPreviewType } from '../utils/preview'
@@ -388,23 +387,16 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                       className="w-full rounded-xl overflow-hidden"
                       style={{ background: '#000', aspectRatio: '16 / 9', maxHeight: '65vh' }}
                     >
-                      <ReactPlayer
-                        key={mediaSrc}
+                      <video
                         ref={videoRef}
                         src={mediaSrc}
                         controls
                         playsInline
                         preload="metadata"
+                        crossOrigin="anonymous"
+                        controlsList="nodownload"
                         style={{ width: '100%', height: '100%', background: '#000' }}
-                        config={{
-                          file: {
-                            attributes: {
-                              crossOrigin: 'anonymous',
-                              controlsList: 'nodownload'
-                            }
-                          }
-                        }}
-                        onReady={() => { 
+                        onLoadedMetadata={() => { 
                           console.log('[Preview] Video ready:', { fileName: file?.name, mediaTry })
                           cancelMediaError()
                           forceAudible(videoRef.current) 
@@ -457,22 +449,15 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 ) : (
                   <>
                     <div className="w-full max-w-xl">
-                      <ReactPlayer
-                        key={mediaSrc}
+                      <audio
                         ref={audioRef}
                         src={mediaSrc}
                         controls
                         preload="metadata"
+                        crossOrigin="anonymous"
+                        controlsList="nodownload"
                         style={{ width: '100%', height: '54px' }}
-                        config={{
-                          file: {
-                            attributes: {
-                              crossOrigin: 'anonymous',
-                              controlsList: 'nodownload'
-                            }
-                          }
-                        }}
-                        onReady={() => { 
+                        onLoadedMetadata={() => { 
                           console.log('[Preview] Audio ready:', { fileName: file?.name, mediaTry })
                           cancelMediaError()
                           forceAudible(audioRef.current) 
