@@ -120,6 +120,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
   const [mediaError, setMediaError] = useState(false)
+  const [mediaErrorDetail, setMediaErrorDetail] = useState('')
   const [mediaTry, setMediaTry] = useState(0)
   const videoRef = useRef(null)
   const audioRef = useRef(null)
@@ -132,6 +133,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     setError(false)
     setLoading(true)
     setMediaError(false)
+    setMediaErrorDetail('')
     setMediaTry(0)
     if (mediaErrorTimer.current) {
       clearTimeout(mediaErrorTimer.current)
@@ -143,12 +145,41 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     if (mediaErrorTimer.current) clearTimeout(mediaErrorTimer.current)
   }, [])
 
-  const handleMediaError = () => {
+  const handleMediaError = (event) => {
     if (mediaErrorTimer.current) return
+    const media = event?.target
+    const errCode = media?.error?.code
+    const errMsg = media?.error?.message || ''
+    const codeNames = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' }
+    const codeName = codeNames[errCode] || 'UNKNOWN'
+    const detail = errCode ? `ERR_${codeName} (code ${errCode})` : 'unknown error'
+
+    console.error('[SwiftShare Preview] Media error', {
+      file: file?.name,
+      mime: file?.mimeType || file?.type,
+      src: mediaSrc,
+      errorCode: errCode,
+      errorName: codeName,
+      errorMessage: errMsg,
+      readyState: media?.readyState,
+      networkState: media?.networkState,
+    })
+
+    // HEAD probe — reveals HTTP status, MIME, and CORS headers without downloading the file
+    fetch(mediaSrc, { method: 'HEAD' })
+      .then(r => {
+        const ct = r.headers.get('content-type')
+        const acao = r.headers.get('access-control-allow-origin')
+        console.error(`[SwiftShare Preview] URL probe → ${r.status} ${r.statusText} | content-type: ${ct} | ACAO: ${acao}`)
+      })
+      .catch(e => console.error('[SwiftShare Preview] URL probe failed (CORS blocked or network error):', e.message))
+
+    // 3.5 s debounce — deployment latency is higher; give buffering a chance before committing to the error UI
     mediaErrorTimer.current = setTimeout(() => {
       mediaErrorTimer.current = null
+      setMediaErrorDetail(detail)
       setMediaError(true)
-    }, 1500)
+    }, 3500)
   }
 
   const cancelMediaError = () => {
@@ -189,6 +220,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
 
   const retryMedia = () => {
     setMediaError(false)
+    setMediaErrorDetail('')
     setMediaTry((prev) => prev + 1)
   }
 
@@ -351,6 +383,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     <AlertTriangle size={36} style={{ color: 'var(--warning)' }} className="mb-3" />
                     <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Video preview failed to load</p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try again, open in a new tab, or download to play in your device's video app.</p>
+                    {mediaErrorDetail && (
+                      <p className="text-[11px] mt-1 font-mono" style={{ color: 'var(--text-4)' }}>{mediaErrorDetail}</p>
+                    )}
                     <div className="flex items-center gap-2 mt-4">
                       <button className="btn-secondary text-sm" onClick={retryMedia}>Try again</button>
                       <button className="btn-ghost text-sm" onClick={openInNewTab}>
@@ -404,6 +439,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     <AlertTriangle size={32} style={{ color: 'var(--warning)' }} className="mb-2" />
                     <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Audio preview failed to load</p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try again, open in a new tab, or download to play in your device's music app.</p>
+                    {mediaErrorDetail && (
+                      <p className="text-[11px] mt-1 font-mono" style={{ color: 'var(--text-4)' }}>{mediaErrorDetail}</p>
+                    )}
                     <div className="flex items-center gap-2 mt-3">
                       <button className="btn-secondary text-sm" onClick={retryMedia}>Try again</button>
                       <button className="btn-ghost text-sm" onClick={openInNewTab}>
