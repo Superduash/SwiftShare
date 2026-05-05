@@ -229,18 +229,14 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     }
   })()
 
-  // Log media source for debugging
+  // Auto-open cross-origin media in new tab (browsers block cross-origin media in <video>/<audio>)
   useEffect(() => {
-    if (open && (type === 'video' || type === 'audio') && mediaSrc) {
-      console.log('[SwiftShare Preview] Media source:', {
-        type,
-        src: mediaSrc,
-        isCrossOrigin,
-        canPlay: type === 'video' ? canPlayVideo : canPlayAudio,
-        fileType: file?.mimeType || file?.type,
-      })
+    if (open && (type === 'video' || type === 'audio') && isCrossOrigin && src) {
+      console.log('[SwiftShare Preview] Cross-origin media detected - opening in new tab:', src)
+      openInNewTab()
+      onClose()
     }
-  }, [open, type, mediaSrc, isCrossOrigin, canPlayVideo, canPlayAudio, file])
+  }, [open, type, isCrossOrigin, src])
 
   if (!open || !file) return null
 
@@ -397,12 +393,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
               )
             )}
 
-            {/* VIDEO — uses ReactPlayer for cross-browser robustness.
-                ReactPlayer falls back to native HTML5 <video> for file URLs but
-                handles edge cases (HLS, format detection) better than a raw
-                element. Error UI only shows after the play attempt actually
-                fails and the user has had a chance to interact. */}
-            {type === 'video' && (
+            {/* VIDEO - Auto-open in new tab for cross-origin */}
+            {type === 'video' && !isCrossOrigin && (
               <div className="flex flex-col items-center justify-center gap-2">
                 {mediaError ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center w-full">
@@ -436,7 +428,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         controls
                         playsInline
                         preload="auto"
-                        crossOrigin={isCrossOrigin ? "anonymous" : undefined}
                         controlsList="nodownload"
                         style={{ width: '100%', height: '100%', background: '#000' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(videoRef.current) }}
@@ -461,8 +452,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
               </div>
             )}
 
-            {/* AUDIO — also uses ReactPlayer. */}
-            {type === 'audio' && (
+            {/* AUDIO - Auto-open in new tab for cross-origin */}
+            {type === 'audio' && !isCrossOrigin && (
               <div className="flex flex-col items-center justify-center gap-3 py-4">
                 {mediaError ? (
                   <div className="flex flex-col items-center justify-center py-6 text-center w-full">
@@ -492,7 +483,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                         src={mediaSrc}
                         controls
                         preload="auto"
-                        crossOrigin={isCrossOrigin ? "anonymous" : undefined}
                         controlsList="nodownload"
                         style={{ width: '100%', height: '54px' }}
                         onLoadedMetadata={() => { cancelMediaError(); forceAudible(audioRef.current) }}
