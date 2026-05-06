@@ -58,13 +58,20 @@ export default function Navbar() {
             )}
             <Link to="/" className="flex items-center gap-2 group" aria-label="SwiftShare home">
               <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
-                style={{ background: 'var(--accent)', boxShadow: '0 2px 8px var(--accent-glow)' }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 logo-icon"
+                style={{ 
+                  background: 'var(--accent)', 
+                  boxShadow: '0 2px 8px var(--accent-glow)',
+                  transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease'
+                }}
                 aria-hidden="true"
               >
                 <Zap size={16} color={theme === 'dark' ? '#0F1014' : '#fff'} strokeWidth={2.5} />
               </div>
-              <span className="font-display font-bold text-lg hidden sm:inline" style={{ color: 'var(--text)' }}>
+              <span 
+                className="font-display font-bold text-lg hidden sm:inline transition-all duration-300 group-hover:tracking-wide" 
+                style={{ color: 'var(--text)' }}
+              >
                 SwiftShare
               </span>
             </Link>

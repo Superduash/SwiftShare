@@ -11,68 +11,53 @@ function usePrefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-/* ── SUNSET: Golden rays + dust motes + warm horizon glow ── */
+/* ── SUNSET: Warm horizon glow + gentle drifting sparks ── */
 function SunsetScene() {
   const motes = useMemo(() => {
     const r = makeRand(11)
-    return Array.from({ length: 18 }, (_, i) => ({
+    return Array.from({ length: 12 }, (_, i) => ({
       id: i,
       left: `${r() * 100}%`,
       top: `${20 + r() * 70}%`,
-      size: `${1.5 + r() * 3}px`,
-      dur: `${12 + r() * 20}s`,
-      delay: `${-(r() * 25)}s`,
-      tx: `${(r() - 0.5) * 120}px`,
-      ty: `${-(20 + r() * 80)}px`,
-      opacity: 0.25 + r() * 0.45,
-      color: i % 3 === 0 ? 'rgba(255,160,40,0.8)' : i % 3 === 1 ? 'rgba(255,100,20,0.7)' : 'rgba(255,200,80,0.6)',
-    }))
-  }, [])
-
-  const rays = useMemo(() => {
-    const r = makeRand(22)
-    return Array.from({ length: 5 }, (_, i) => ({
-      id: i,
-      angle: -30 + i * 18 + r() * 8,
-      left: `${25 + i * 12 + r() * 6}%`,
-      opacity: 0.04 + r() * 0.05,
-      width: `${3 + r() * 4}px`,
-      dur: `${8 + r() * 8}s`,
-      delay: `${-(r() * 10)}s`,
+      size: `${1.5 + r() * 2}px`,
+      dur: `${14 + r() * 16}s`,
+      delay: `${-(r() * 20)}s`,
+      tx: `${(r() - 0.5) * 90}px`,
+      ty: `${-(10 + r() * 50)}px`,
+      opacity: 0.16 + r() * 0.28,
+      color: i % 3 === 0 ? 'rgba(255,178,92,0.78)' : i % 3 === 1 ? 'rgba(245,110,40,0.72)' : 'rgba(255,214,140,0.58)',
     }))
   }, [])
 
   return (
     <>
-      {/* Warm horizon gradient orbs */}
       <div style={{
-        position: 'absolute', left: '-5%', bottom: '-10%', width: '60vw', height: '45vw',
-        borderRadius: '50%', filter: 'blur(80px)',
-        background: 'radial-gradient(ellipse, rgba(240,100,20,0.22) 0%, rgba(255,140,0,0.10) 40%, transparent 70%)',
-        animation: 'ss-float-slow 28s -4s ease-in-out infinite alternate',
-        willChange: 'transform',
-      }} />
-      <div style={{
-        position: 'absolute', right: '-5%', top: '-5%', width: '50vw', height: '38vw',
+        position: 'absolute', left: '12%', bottom: '-6%', width: '42vw', height: '30vw',
         borderRadius: '50%', filter: 'blur(70px)',
-        background: 'radial-gradient(ellipse, rgba(255,180,40,0.16) 0%, rgba(240,120,0,0.08) 45%, transparent 70%)',
-        animation: 'ss-float-slow 34s -14s ease-in-out infinite alternate-reverse',
+        background: 'radial-gradient(ellipse, rgba(255,138,54,0.18) 0%, rgba(255,193,99,0.08) 48%, transparent 72%)',
+        animation: 'ss-float-slow 34s -6s ease-in-out infinite alternate',
         willChange: 'transform',
       }} />
       <div style={{
-        position: 'absolute', left: '30%', top: '15%', width: '40vw', height: '28vw',
+        position: 'absolute', right: '-8%', top: '-8%', width: '36vw', height: '26vw',
+        borderRadius: '50%', filter: 'blur(80px)',
+        background: 'radial-gradient(ellipse, rgba(255,188,96,0.10) 0%, rgba(231,72,32,0.05) 44%, transparent 72%)',
+        animation: 'ss-float-slow 42s -16s ease-in-out infinite alternate-reverse',
+        willChange: 'transform',
+      }} />
+      <div style={{
+        position: 'absolute', left: '42%', top: '18%', width: '28vw', height: '18vw',
         borderRadius: '50%', filter: 'blur(60px)',
-        background: 'radial-gradient(ellipse, rgba(255,220,80,0.10) 0%, transparent 65%)',
-        animation: 'ss-float-slow 22s -8s ease-in-out infinite alternate',
+        background: 'radial-gradient(ellipse, rgba(255,220,150,0.08) 0%, transparent 68%)',
+        animation: 'ss-float-slow 28s -10s ease-in-out infinite alternate',
         willChange: 'transform',
       }} />
 
-      {/* Subtle extra warm glow — no lines */}
       <div style={{
-        position: 'absolute', left: '20%', bottom: '5%', width: '50vw', height: '30vw',
-        borderRadius: '50%', filter: 'blur(100px)',
-        background: 'radial-gradient(ellipse, rgba(255,140,30,0.09) 0%, transparent 70%)',
-        animation: 'ss-float-slow 40s -20s ease-in-out infinite alternate',
+        position: 'absolute', left: '24%', bottom: '0%', width: '48vw', height: '22vw',
+        borderRadius: '50%', filter: 'blur(90px)',
+        background: 'radial-gradient(ellipse, rgba(255,120,40,0.07) 0%, transparent 72%)',
+        animation: 'ss-float-slow 46s -18s ease-in-out infinite alternate',
         willChange: 'transform',
       }} />
 
@@ -145,62 +130,50 @@ function SakuraScene() {
   )
 }
 
-/* ── MIDNIGHT: Stars + aurora bands ── */
+/* ── MIDNIGHT: Deep space starfield ── */
 function MidnightScene() {
   const stars = useMemo(() => {
     const r = makeRand(7)
-    return Array.from({ length: 60 }, (_, i) => ({
+    return Array.from({ length: 88 }, (_, i) => ({
       id: i,
       left: `${r() * 100}%`, top: `${r() * 85}%`,
-      size: `${0.8 + r() * 2}px`,
-      opacity: 0.2 + r() * 0.7,
-      dur: `${2 + r() * 4}s`, delay: `${-(r() * 5)}s`,
-      color: i % 4 === 0 ? 'rgba(147,210,255,0.9)' : i % 4 === 1 ? 'rgba(200,230,255,0.8)' : i % 4 === 2 ? 'rgba(62,142,255,0.9)' : 'rgba(255,255,255,0.85)',
-    }))
-  }, [])
-
-  const aurora = useMemo(() => {
-    const r = makeRand(17)
-    return Array.from({ length: 4 }, (_, i) => ({
-      id: i,
-      top: `${5 + i * 15 + r() * 8}%`,
-      height: `${60 + r() * 80}px`,
-      opacity: 0.04 + r() * 0.06,
-      dur: `${18 + r() * 14}s`, delay: `${-(r() * 20)}s`,
-      color1: i % 2 === 0 ? 'rgba(62,142,255,1)' : 'rgba(14,168,164,1)',
-      color2: i % 2 === 0 ? 'rgba(14,168,164,1)' : 'rgba(62,142,255,1)',
-      tx: `${(r() - 0.5) * 200}px`,
+      size: `${0.7 + r() * 1.8}px`,
+      opacity: 0.16 + r() * 0.72,
+      dur: `${2.8 + r() * 5.2}s`, delay: `${-(r() * 7)}s`,
+      color: i % 5 === 0 ? 'rgba(182,220,255,0.92)' : i % 5 === 1 ? 'rgba(255,255,255,0.82)' : i % 5 === 2 ? 'rgba(122,183,255,0.86)' : i % 5 === 3 ? 'rgba(96,165,250,0.82)' : 'rgba(208,232,255,0.74)',
     }))
   }, [])
 
   return (
     <>
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'radial-gradient(circle at 50% 18%, rgba(30,64,175,0.08) 0%, rgba(7,12,24,0.02) 30%, transparent 62%)',
+        opacity: 0.9,
+      }} />
       {stars.map(s => (
         <div key={s.id} style={{
           position: 'absolute', left: s.left, top: s.top,
           width: s.size, height: s.size, borderRadius: '50%',
-          background: s.color, boxShadow: `0 0 ${parseFloat(s.size) * 3}px ${s.color}`,
+          background: s.color,
+          boxShadow: `0 0 ${parseFloat(s.size) * 2}px ${s.color}`,
           '--max-opacity': s.opacity,
           animation: `ss-star-twinkle ${s.dur} ${s.delay} ease-in-out infinite alternate`,
           willChange: 'opacity, transform',
         }} />
       ))}
-      {aurora.map(a => (
-        <div key={a.id} style={{
-          position: 'absolute', left: '-10%', right: '-10%', top: a.top,
-          height: a.height, filter: 'blur(30px)',
-          background: `linear-gradient(90deg, transparent 0%, rgba(62,142,255,${a.opacity}) 20%, rgba(14,168,164,${a.opacity * 0.8}) 60%, transparent 100%)`,
-          '--tx': a.tx,
-          opacity: 0,
-          animation: `ss-aurora-flow ${a.dur} ${a.delay} ease-in-out infinite alternate`,
-          willChange: 'transform, opacity',
-        }} />
-      ))}
       <div style={{
-        position: 'absolute', left: '15%', bottom: '-10%', width: '70vw', height: '40vw',
-        borderRadius: '50%', filter: 'blur(90px)',
-        background: 'radial-gradient(ellipse, rgba(62,142,255,0.14) 0%, rgba(14,168,164,0.07) 50%, transparent 70%)',
-        animation: 'ss-float-slow 38s -8s ease-in-out infinite alternate',
+        position: 'absolute', left: '14%', bottom: '-12%', width: '72vw', height: '34vw',
+        borderRadius: '50%', filter: 'blur(100px)',
+        background: 'radial-gradient(ellipse, rgba(20,54,130,0.18) 0%, rgba(9,14,28,0.05) 52%, transparent 74%)',
+        animation: 'ss-float-slow 44s -10s ease-in-out infinite alternate',
+        willChange: 'transform',
+      }} />
+      <div style={{
+        position: 'absolute', right: '8%', top: '14%', width: '24vw', height: '18vw',
+        borderRadius: '50%', filter: 'blur(80px)',
+        background: 'radial-gradient(ellipse, rgba(59,130,246,0.08) 0%, transparent 70%)',
+        animation: 'ss-float-slow 52s -20s ease-in-out infinite alternate-reverse',
         willChange: 'transform',
       }} />
     </>
