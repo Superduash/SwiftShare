@@ -106,7 +106,7 @@ export default function ShareTextModal({ open, onClose, onShare }) {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[90] flex items-start sm:items-center justify-center p-2 sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -120,7 +120,7 @@ export default function ShareTextModal({ open, onClose, onShare }) {
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 rounded-2xl overflow-hidden w-full max-w-2xl max-h-[90vh] flex flex-col"
+            className="relative z-10 rounded-2xl overflow-hidden w-full max-w-2xl h-[calc(100dvh-1rem)] sm:h-auto sm:max-h-[90vh] flex flex-col"
             style={{ background: 'var(--bg-raised)' }}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -128,7 +128,7 @@ export default function ShareTextModal({ open, onClose, onShare }) {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="flex items-start justify-between gap-3 p-3 sm:p-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
               <div className="flex items-center gap-2">
                 <FileText size={18} style={{ color: 'var(--accent)' }} />
                 <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
@@ -141,7 +141,7 @@ export default function ShareTextModal({ open, onClose, onShare }) {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto p-4 space-y-4">
+            <div className="flex-1 min-h-0 overflow-auto p-3 sm:p-4 space-y-4">
               {/* Title input */}
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>
@@ -205,7 +205,7 @@ export default function ShareTextModal({ open, onClose, onShare }) {
                 <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--text-3)' }}>
                   Expires in
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     { value: 10, label: '10 min' },
                     { value: 60, label: '1 hour' },
@@ -334,16 +334,16 @@ export default function ShareTextModal({ open, onClose, onShare }) {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between gap-3 p-4 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 sm:p-4 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
               <button
-                className="btn-secondary flex-1"
+                className="btn-secondary flex-1 w-full"
                 onClick={onClose}
                 disabled={sharing}
               >
                 Cancel
               </button>
               <button
-                className="btn-primary flex-1"
+                className="btn-primary flex-1 w-full"
                 onClick={handleShare}
                 disabled={!content.trim() || isOverLimit || sharing || (passwordProtected && !password.trim())}
               >

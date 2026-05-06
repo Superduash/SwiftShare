@@ -336,13 +336,19 @@
     radial-gradient(ellipse 75% 50% at 12% 100%, rgba(229,77,36,0.12) 0%, transparent 62%),
     radial-gradient(ellipse 60% 42% at 92% 0%, rgba(240,138,23,0.10) 0%, transparent 58%),
     radial-gradient(ellipse 42% 34% at 50% 54%, rgba(244,194,27,0.05) 0%, transparent 62%);
-  background-attachment: fixed;
+  background-attachment: scroll;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
 }
 
 [data-theme="midnight"] body {
   background-color: #000000;
   background-image: radial-gradient(ellipse at center, #000B1A 0%, #000308 40%, #000000 100%);
-  background-attachment: fixed;
+  background-attachment: scroll;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
   position: relative;
 }
 
@@ -413,7 +419,10 @@
     radial-gradient(ellipse 90% 65% at 80% 5%, rgba(233,30,99,0.08) 0%, transparent 60%),
     radial-gradient(ellipse 70% 50% at 15% 90%, rgba(248,187,208,0.12) 0%, transparent 58%),
     radial-gradient(ellipse 50% 40% at 50% 50%, rgba(245,249,252,0.6) 0%, transparent 60%);
-  background-attachment: fixed;
+  background-attachment: scroll;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
 }
 
 [data-theme="lavender"] body {
@@ -421,7 +430,10 @@
     radial-gradient(ellipse 80% 55% at 90% 5%, rgba(167,139,250,0.14) 0%, transparent 58%),
     radial-gradient(ellipse 60% 45% at 5% 90%, rgba(129,140,248,0.10) 0%, transparent 54%),
     radial-gradient(ellipse 50% 40% at 50% 50%, rgba(196,165,253,0.06) 0%, transparent 60%);
-  background-attachment: fixed;
+  background-attachment: scroll;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
 }
 
 [data-theme="forest"] body {
@@ -429,7 +441,10 @@
     radial-gradient(ellipse 130% 60% at 50% 0%, rgba(0,216,124,0.13) 0%, transparent 62%),
     radial-gradient(ellipse 60% 45% at 10% 60%, rgba(136,216,24,0.09) 0%, transparent 56%),
     radial-gradient(ellipse 40% 30% at 85% 80%, rgba(0,216,124,0.07) 0%, transparent 54%);
-  background-attachment: fixed;
+  background-attachment: scroll;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
 }
 
 [data-theme="volcanic"] body {
@@ -437,7 +452,10 @@
     radial-gradient(ellipse 95% 60% at 50% 105%, rgba(245,96,8,0.17) 0%, transparent 62%),
     radial-gradient(ellipse 50% 38% at 5% 80%, rgba(224,48,0,0.12) 0%, transparent 54%),
     radial-gradient(ellipse 40% 30% at 90% 20%, rgba(248,196,0,0.06) 0%, transparent 52%);
-  background-attachment: fixed;
+  background-attachment: scroll;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
 }
 
 /* ═══════════════════════════════════════════

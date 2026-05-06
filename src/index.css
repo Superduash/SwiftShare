@@ -63,7 +63,7 @@ img, video, canvas, svg {
 }
 
 /* Performance: Reduce paint on scroll */
-.fixed, .sticky, [class*="fixed"], [class*="sticky"] {
+.fixed, .sticky {
   will-change: transform;
   transform: translateZ(0);
 }
