@@ -215,6 +215,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const src = open && file ? previewUrl(code, fileIndex, password) : ''
   const mediaSrc = mediaTry > 0 ? `${src}${src.includes('?') ? '&' : '?'}_previewTry=${mediaTry}` : src
   const previewSrc = type === 'docx' ? getDocxPreviewUrl(src) : src
+  const isMobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
   const canPlayVideo = type !== 'video' || canBrowserPlay(file, 'video')
   const canPlayAudio = type !== 'audio' || canBrowserPlay(file, 'audio')
 
@@ -274,14 +275,14 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+        className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 bg-black/70"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
         <motion.div
-          className="w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl"
+          className="w-full max-w-4xl h-[calc(100dvh-1rem)] sm:h-auto sm:max-h-[90vh] overflow-hidden rounded-2xl"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -289,8 +290,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between gap-3 p-4 border-b" style={{ borderColor: 'var(--border)' }}>
-            <div className="min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 border-b" style={{ borderColor: 'var(--border)' }}>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="font-semibold truncate" style={{ color: 'var(--text)' }}>{file.name || 'Preview'}</p>
                 {passwordRequired && (
@@ -302,23 +303,23 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
               <p className="text-xs" style={{ color: 'var(--text-3)' }}>{file.mimeType || file.type || 'unknown type'}</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
               {onDownload && (
-                <button className="btn-ghost text-sm" onClick={() => onDownload(fileIndex)}>
+                <button className="btn-ghost text-xs sm:text-sm px-3 sm:px-4" onClick={() => onDownload(fileIndex)}>
                   <Download size={14} /> Download
                 </button>
               )}
-              <button className="btn-ghost text-sm" onClick={openInNewTab}>
+              <button className="btn-ghost text-xs sm:text-sm px-3 sm:px-4" onClick={openInNewTab}>
                 <ExternalLink size={14} /> New tab
               </button>
-              <button className="btn-ghost text-sm" onClick={onClose}>
+              <button className="btn-ghost text-xs sm:text-sm px-3 sm:px-4" onClick={onClose}>
                 <X size={16} /> Close
               </button>
             </div>
           </div>
 
           {/* Body */}
-          <div className="p-4 overflow-auto max-h-[calc(90vh-72px)]">
+          <div className="flex-1 min-h-0 p-3 sm:p-4 overflow-auto">
             {/* Image — has its own error fallback */}
             {type === 'image' && (
               error ? (
@@ -342,7 +343,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   <img
                     src={src}
                     alt={file.name || 'Preview'}
-                    className="max-w-full max-h-[65vh] object-contain rounded-xl"
+                    className="max-w-full max-h-[55vh] sm:max-h-[65vh] object-contain rounded-xl"
                     style={{
                       opacity: loading ? 0 : 1,
                       transition: 'opacity 0.15s ease',
@@ -373,15 +374,42 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   </button>
                 </div>
               ) : (
-                <div className="relative" style={{ height: '65vh' }}>
-                  <iframe
-                    src={`${src}#view=FitH`}
-                    className="w-full h-full rounded-xl"
-                    style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
-                    title={file.name || 'PDF Preview'}
-                    onLoad={() => setLoading(false)}
-                    onError={() => { setLoading(false); setError(true) }}
-                  />
+                <div className="relative" style={{ height: '55vh' }}>
+                  {isMobileViewport ? (
+                    <object
+                      data={`${src}#view=FitH&toolbar=1&navpanes=0`}
+                      type="application/pdf"
+                      className="w-full h-full rounded-xl"
+                      style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
+                      aria-label={file.name || 'PDF Preview'}
+                      onLoad={() => setLoading(false)}
+                    >
+                      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl p-6 text-center" style={{ background: 'var(--bg-sunken)' }}>
+                        <AlertTriangle size={36} style={{ color: 'var(--warning)' }} />
+                        <div>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>PDF preview unavailable on this device</p>
+                          <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Open it in a new tab or download it to view the full file.</p>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <button className="btn-secondary text-sm" onClick={openInNewTab}>Open in new tab</button>
+                          {onDownload && (
+                            <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
+                              <Download size={14} /> Download file
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </object>
+                  ) : (
+                    <iframe
+                      src={`${src}#view=FitH`}
+                      className="w-full h-full rounded-xl"
+                      style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
+                      title={file.name || 'PDF Preview'}
+                      onLoad={() => setLoading(false)}
+                      onError={() => { setLoading(false); setError(true) }}
+                    />
+                  )}
                   {loading && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
                       <div className="shimmer-block w-full h-full rounded-xl" />
@@ -418,7 +446,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   <>
                     <div
                       className="w-full rounded-xl overflow-hidden"
-                      style={{ background: '#000', aspectRatio: '16 / 9', maxHeight: '65vh' }}
+                      style={{ background: '#000', aspectRatio: '16 / 9', maxHeight: '55vh' }}
                     >
                       <video
                         ref={videoRef}
@@ -519,7 +547,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   )}
                 </div>
               ) : (
-                <div className="relative" style={{ height: '65vh' }}>
+                <div className="relative" style={{ height: '55vh' }}>
                   <iframe
                     src={previewSrc}
                     className="w-full h-full rounded-xl"
