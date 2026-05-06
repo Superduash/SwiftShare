@@ -6,7 +6,7 @@ const ThemeContext = createContext({
   setTheme: () => {}
 })
 
-const VALID_THEMES = ['sunset', 'dark', 'light', 'midnight', 'sakura', 'lavender', 'forest', 'volcanic']
+const VALID_THEMES = ['sunset', 'sunset-dark', 'dark', 'light', 'midnight', 'sakura', 'lavender', 'forest', 'volcanic']
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
