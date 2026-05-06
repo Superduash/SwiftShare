@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide-react'
+import { Document, Page, pdfjs } from 'react-pdf'
 
 import { previewUrl } from '../services/api'
 import { getPreviewType } from '../utils/preview'
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
 
 function getDocxPreviewUrl(src) {
   if (!src) return ''
@@ -107,6 +110,97 @@ function CodePreview({ src, onError, onLoad }) {
       >
         {content}
       </pre>
+    </div>
+  )
+}
+
+function MobilePdfPreview({ src, fileName, onReady, onError }) {
+  const [pageCount, setPageCount] = useState(0)
+  const [containerWidth, setContainerWidth] = useState(0)
+  const [firstPageRendered, setFirstPageRendered] = useState(false)
+  const containerRef = useRef(null)
+
+  useEffect(() => {
+    setPageCount(0)
+    setContainerWidth(0)
+    setFirstPageRendered(false)
+  }, [src])
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element) return undefined
+
+    const updateWidth = () => {
+      const nextWidth = Math.max(280, Math.floor(element.clientWidth || 0))
+      setContainerWidth(nextWidth)
+    }
+
+    updateWidth()
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(updateWidth)
+      observer.observe(element)
+      return () => observer.disconnect()
+    }
+
+    window.addEventListener('resize', updateWidth)
+    return () => window.removeEventListener('resize', updateWidth)
+  }, [src])
+
+  const pageWidth = Math.max(280, containerWidth || 0)
+
+  return (
+    <div ref={containerRef} className="space-y-4">
+      <Document
+        file={src}
+        loading={(
+          <div className="space-y-3 p-4 rounded-xl" style={{ background: 'var(--bg-sunken)' }}>
+            <div className="shimmer-block h-4 w-full" />
+            <div className="shimmer-block h-[42vh] w-full rounded-xl" />
+            <div className="shimmer-block h-4 w-3/4" />
+          </div>
+        )}
+        onLoadSuccess={({ numPages }) => setPageCount(numPages)}
+        onLoadError={onError}
+        error={(
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl p-6 text-center" style={{ background: 'var(--bg-sunken)' }}>
+            <AlertTriangle size={36} style={{ color: 'var(--warning)' }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>PDF preview unavailable on this device</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>{fileName || 'This PDF'} could not be rendered inline.</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button className="btn-secondary text-sm" onClick={() => window.open(src, '_blank', 'noopener,noreferrer')}>Open in new tab</button>
+            </div>
+          </div>
+        )}
+      >
+        <div className="space-y-4">
+          {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => (
+            <div key={pageNumber} className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border)', background: '#FFFFFF' }}>
+              <Page
+                pageNumber={pageNumber}
+                width={pageWidth}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                loading={(
+                  <div className="space-y-2 p-4" style={{ background: '#FFFFFF' }}>
+                    <div className="shimmer-block h-[42vh] w-full rounded-lg" />
+                  </div>
+                )}
+                onRenderSuccess={() => {
+                  if (!firstPageRendered) {
+                    setFirstPageRendered(true)
+                    onReady?.()
+                  }
+                }}
+                onRenderError={onError}
+              />
+            </div>
+          ))}
+        </div>
+      </Document>
+      {!firstPageRendered && pageCount === 0 && null}
     </div>
   )
 }
@@ -282,7 +376,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
         onClick={onClose}
       >
         <motion.div
-          className="w-full max-w-4xl h-[calc(100dvh-1rem)] sm:h-auto sm:max-h-[90vh] overflow-hidden rounded-2xl"
+          className="w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] overflow-hidden rounded-2xl flex flex-col"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -374,48 +468,32 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   </button>
                 </div>
               ) : (
-                <div className="relative" style={{ height: '55vh' }}>
-                  {isMobileViewport ? (
-                    <object
-                      data={`${src}#view=FitH&toolbar=1&navpanes=0`}
-                      type="application/pdf"
-                      className="w-full h-full rounded-xl"
-                      style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
-                      aria-label={file.name || 'PDF Preview'}
-                      onLoad={() => setLoading(false)}
-                    >
-                      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl p-6 text-center" style={{ background: 'var(--bg-sunken)' }}>
-                        <AlertTriangle size={36} style={{ color: 'var(--warning)' }} />
-                        <div>
-                          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>PDF preview unavailable on this device</p>
-                          <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Open it in a new tab or download it to view the full file.</p>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-center gap-2">
-                          <button className="btn-secondary text-sm" onClick={openInNewTab}>Open in new tab</button>
-                          {onDownload && (
-                            <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
-                              <Download size={14} /> Download file
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </object>
-                  ) : (
+                isMobileViewport ? (
+                  <div className="rounded-xl p-3 sm:p-4" style={{ background: 'var(--bg-sunken)' }}>
+                    <MobilePdfPreview
+                      src={src}
+                      fileName={file.name || 'PDF Preview'}
+                      onReady={() => setLoading(false)}
+                      onError={() => { setLoading(false); setError(true) }}
+                    />
+                  </div>
+                ) : (
+                  <div className="relative" style={{ minHeight: '55vh' }}>
                     <iframe
                       src={`${src}#view=FitH`}
-                      className="w-full h-full rounded-xl"
+                      className="w-full h-[55vh] rounded-xl"
                       style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
                       title={file.name || 'PDF Preview'}
                       onLoad={() => setLoading(false)}
                       onError={() => { setLoading(false); setError(true) }}
                     />
-                  )}
-                  {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
-                      <div className="shimmer-block w-full h-full rounded-xl" />
-                    </div>
-                  )}
-                </div>
+                    {loading && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
+                        <div className="shimmer-block w-full h-full rounded-xl" />
+                      </div>
+                    )}
+                  </div>
+                )
               )
             )}
 
