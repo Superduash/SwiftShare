@@ -1,24 +1,28 @@
-/* ═══ MIDNIGHT — Deep ocean abyss, cyan shimmer (DARK) ═══ */
+/* ═══════════════════════════════════════════════════════════════
+   SWIFTSHARE CINEMATIC THEMES v2.3 - Unique Logo Colors & Complete Effects
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ═══ MIDNIGHT — Deep Space with Blinking Stars (DARK) ═══ */
 [data-theme="midnight"] {
-  --bg: #03060E;
-  --bg-raised: #080F1E;
-  --bg-sunken: #020408;
-  --bg-overlay: rgba(3,6,14,0.97);
-  --surface: #080F1E;
-  --surface-hover: #0F1A30;
-  --surface-active: #182640;
-  --border: #122038;
-  --border-strong: #1E3860;
-  --text: #D8E8FA;
-  --text-2: #A4C2E4;
-  --text-3: #6080B8;
-  --text-4: #384E70;
+  --bg: #000308;
+  --bg-raised: #050B15;
+  --bg-sunken: #000104;
+  --bg-overlay: rgba(0,3,8,0.97);
+  --surface: #050B15;
+  --surface-hover: #0A1220;
+  --surface-active: #0F1A2E;
+  --border: #0D1828;
+  --border-strong: #1A2D4A;
+  --text: #D7E7FA;
+  --text-2: #A6C0E0;
+  --text-3: #6A80A8;
+  --text-4: #384866;
   --accent: #3E8EFF;
   --accent-contrast: #FFFFFF;
   --accent-hover: #1A74F0;
   --accent-soft: rgba(62,142,255,0.09);
   --accent-medium: rgba(62,142,255,0.17);
-  --accent-glow: rgba(62,142,255,0.50);
+  --accent-glow: rgba(62,142,255,0.20);
   --success: #0EA8A4;
   --success-soft: rgba(14,168,164,0.12);
   --warning: #D4A010;
@@ -27,105 +31,105 @@
   --danger-soft: rgba(240,96,128,0.12);
   --info: #22C4F5;
   --info-soft: rgba(34,196,245,0.12);
-  --ring-track: #122038;
-  --shimmer-from: #122038;
-  --shimmer-to: #1E3860;
-  --toast-bg: #080F1E;
-  --toast-text: #D8E8FA;
-  --toast-border: #1E3860;
-  --code-bg: #080F1E;
-  --code-char-bg: #0F1A30;
-  --code-char-border: #1E3860;
-  --qr-bg: #D8E8FA;
-  --qr-fg: #03060E;
-  --drop-zone-bg: #080F1E;
-  --drop-zone-border: #1E3860;
+  --ring-track: #0D1828;
+  --shimmer-from: #0D1828;
+  --shimmer-to: #1A2D4A;
+  --toast-bg: #050B15;
+  --toast-text: #D7E7FA;
+  --toast-border: #1A2D4A;
+  --code-bg: #050B15;
+  --code-char-bg: #0A1220;
+  --code-char-border: #1A2D4A;
+  --qr-bg: #D7E7FA;
+  --qr-fg: #000308;
+  --drop-zone-bg: #050B15;
+  --drop-zone-border: #1A2D4A;
   --drop-zone-active-bg: rgba(62,142,255,0.07);
   --drop-zone-active-border: #3E8EFF;
-  --nav-bg: rgba(3,6,14,0.94);
-  --nav-border: #122038;
-  --settings-bg: #080F1E;
+  --nav-bg: rgba(0,3,8,0.94);
+  --nav-border: #0D1828;
+  --settings-bg: #050B15;
   --file-icon-bg: rgba(62,142,255,0.09);
   --file-icon-color: #3E8EFF;
-  --ai-bg: linear-gradient(135deg, #0A1428 0%, #102040 100%);
-  --ai-border: #1E3860;
+  --ai-bg: linear-gradient(135deg, #050B15 0%, #0A1220 100%);
+  --ai-border: #1A2D4A;
   --ai-icon: #3E8EFF;
-  --nearby-bg: #080F1E;
+  --nearby-bg: #050B15;
   --tag-bg: rgba(62,142,255,0.16);
   --tag-text: #7AB8FF;
-  --progress-track: #122038;
+  --progress-track: #0D1828;
   --progress-fill: linear-gradient(90deg, #1A74F0 0%, #3E8EFF 50%, #22C4F5 100%);
-  --progress-glow: rgba(62,142,255,0.54);
-  --skeleton: linear-gradient(90deg, #122038 25%, #1E3860 50%, #122038 75%);
+  --progress-glow: rgba(62,142,255,0.25);
+  --skeleton: linear-gradient(90deg, #0D1828 25%, #1A2D4A 50%, #0D1828 75%);
   --gradient-hero: linear-gradient(135deg, #3E8EFF 0%, #0EA8A4 100%);
-  --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.65);
-  --shadow-elevated: 0 4px 20px rgba(62,142,255,0.15), 0 20px 60px rgba(0,0,0,0.75);
-  --glow-accent: 0 0 24px rgba(62,142,255,0.38), 0 0 56px rgba(62,142,255,0.18);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.60), 0 8px 32px rgba(0,0,0,0.70);
+  --shadow-elevated: 0 4px 20px rgba(0,0,0,0.75), 0 20px 60px rgba(0,0,0,0.80);
+  --glow-accent: 0 0 12px rgba(62,142,255,0.15), 0 0 24px rgba(62,142,255,0.08);
 }
 
-/* ═══ SAKURA — Cherry Blossom (LIGHT) ═══ */
+/* ═══ SAKURA — Cherry Blossom Spring (LIGHT) ═══ */
 [data-theme="sakura"] {
-  --bg: #FFF2F5;
+  --bg: #F5F9FC;
   --bg-raised: #FFFFFF;
-  --bg-sunken: #FFE3ED;
-  --bg-overlay: rgba(255,242,245,0.96);
+  --bg-sunken: #E8F2F7;
+  --bg-overlay: rgba(245,249,252,0.96);
   --surface: #FFFFFF;
-  --surface-hover: #FFF7F9;
-  --surface-active: #FFEDF4;
-  --border: #FFCAD6;
-  --border-strong: #FFA4BC;
+  --surface-hover: #FFF5F7;
+  --surface-active: #FFE8EE;
+  --border: #FFB8CC;
+  --border-strong: #FF8AAA;
   --text: #420818;
   --text-2: #720C28;
   --text-3: #A82048;
   --text-4: #D05878;
-  --accent: #F01852;
+  --accent: #E91E63;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #D0003C;
-  --accent-soft: rgba(240,24,82,0.08);
-  --accent-medium: rgba(240,24,82,0.15);
-  --accent-glow: rgba(240,24,82,0.38);
+  --accent-hover: #C2185B;
+  --accent-soft: rgba(233,30,99,0.08);
+  --accent-medium: rgba(233,30,99,0.15);
+  --accent-glow: rgba(233,30,99,0.32);
   --success: #0BA870;
   --success-soft: rgba(11,168,112,0.10);
   --warning: #EF7820;
   --warning-soft: rgba(239,120,32,0.10);
-  --danger: #7C0C22;
-  --danger-soft: rgba(124,12,34,0.10);
+  --danger: #D81B60;
+  --danger-soft: rgba(216,27,96,0.10);
   --info: #881EA8;
   --info-soft: rgba(136,30,168,0.10);
-  --ring-track: #FFCAD6;
-  --shimmer-from: #FFCAD6;
-  --shimmer-to: #FFA4BC;
+  --ring-track: #FFB8CC;
+  --shimmer-from: #FFB8CC;
+  --shimmer-to: #FF8AAA;
   --toast-bg: #420818;
   --toast-text: #FFF7F9;
   --toast-border: #720C28;
-  --code-bg: #FFE3ED;
+  --code-bg: #E8F2F7;
   --code-char-bg: #FFFFFF;
-  --code-char-border: #FFCAD6;
+  --code-char-border: #FFB8CC;
   --qr-bg: #FFFFFF;
   --qr-fg: #420818;
-  --drop-zone-bg: #FFF7F9;
-  --drop-zone-border: #FFA4BC;
-  --drop-zone-active-bg: #FFEDF4;
-  --drop-zone-active-border: #F01852;
-  --nav-bg: rgba(255,242,245,0.90);
-  --nav-border: #FFCAD6;
+  --drop-zone-bg: #FFF5F7;
+  --drop-zone-border: #FF8AAA;
+  --drop-zone-active-bg: #FFE8EE;
+  --drop-zone-active-border: #E91E63;
+  --nav-bg: rgba(245,249,252,0.90);
+  --nav-border: #FFB8CC;
   --settings-bg: #FFFFFF;
-  --file-icon-bg: rgba(240,24,82,0.08);
-  --file-icon-color: #F01852;
-  --ai-bg: linear-gradient(135deg, #FFE3ED 0%, #FECDD8 100%);
-  --ai-border: #FFCAD6;
-  --ai-icon: #F01852;
-  --nearby-bg: #FFF7F9;
-  --tag-bg: #FFEDF4;
-  --tag-text: #D0003C;
-  --progress-track: #FFCAD6;
-  --progress-fill: linear-gradient(90deg, #F01852 0%, #F472A4 100%);
-  --progress-glow: rgba(240,24,82,0.36);
-  --skeleton: linear-gradient(90deg, #FFCAD6 25%, #FFA4BC 50%, #FFCAD6 75%);
-  --gradient-hero: linear-gradient(135deg, #F01852 0%, #F472A4 50%, #C084E8 100%);
-  --shadow-card: 0 2px 8px rgba(240,24,82,0.08), 0 8px 28px rgba(66,8,24,0.07);
-  --shadow-elevated: 0 4px 16px rgba(240,24,82,0.13), 0 16px 48px rgba(66,8,24,0.10);
-  --glow-accent: 0 0 20px rgba(240,24,82,0.30), 0 0 48px rgba(240,24,82,0.14);
+  --file-icon-bg: rgba(233,30,99,0.08);
+  --file-icon-color: #E91E63;
+  --ai-bg: linear-gradient(135deg, #FFF5F7 0%, #FFE8EE 100%);
+  --ai-border: #FFB8CC;
+  --ai-icon: #E91E63;
+  --nearby-bg: #FFF5F7;
+  --tag-bg: #FFE8EE;
+  --tag-text: #C2185B;
+  --progress-track: #FFB8CC;
+  --progress-fill: linear-gradient(90deg, #E91E63 0%, #F06292 50%, #F8BBD0 100%);
+  --progress-glow: rgba(233,30,99,0.32);
+  --skeleton: linear-gradient(90deg, #FFB8CC 25%, #FF8AAA 50%, #FFB8CC 75%);
+  --gradient-hero: linear-gradient(135deg, #E91E63 0%, #F06292 50%, #F8BBD0 100%);
+  --shadow-card: 0 2px 8px rgba(233,30,99,0.08), 0 8px 28px rgba(66,8,24,0.07);
+  --shadow-elevated: 0 4px 16px rgba(233,30,99,0.13), 0 16px 48px rgba(66,8,24,0.10);
+  --glow-accent: 0 0 20px rgba(233,30,99,0.28), 0 0 48px rgba(233,30,99,0.12);
 }
 
 /* ═══ LAVENDER — Cosmic Violet Nebula (DARK) ═══ */
@@ -329,25 +333,86 @@
 
 [data-theme="sunset"] body {
   background-image:
-    radial-gradient(ellipse 75% 50% at 5% 100%, rgba(231,72,32,0.13) 0%, transparent 60%),
-    radial-gradient(ellipse 55% 40% at 96% 0%, rgba(245,146,22,0.10) 0%, transparent 58%),
-    radial-gradient(ellipse 45% 35% at 50% 60%, rgba(255,200,60,0.06) 0%, transparent 60%);
+    radial-gradient(ellipse 75% 50% at 12% 100%, rgba(229,77,36,0.12) 0%, transparent 62%),
+    radial-gradient(ellipse 60% 42% at 92% 0%, rgba(240,138,23,0.10) 0%, transparent 58%),
+    radial-gradient(ellipse 42% 34% at 50% 54%, rgba(244,194,27,0.05) 0%, transparent 62%);
   background-attachment: fixed;
 }
 
 [data-theme="midnight"] body {
-  background-image:
-    radial-gradient(ellipse 120% 70% at 50% 100%, rgba(62,142,255,0.14) 0%, transparent 65%),
-    radial-gradient(ellipse 65% 50% at 90% 15%, rgba(14,168,164,0.09) 0%, transparent 58%),
-    radial-gradient(ellipse 40% 30% at 10% 40%, rgba(34,196,245,0.06) 0%, transparent 55%);
+  background-color: #000000;
+  background-image: radial-gradient(ellipse at center, #000B1A 0%, #000308 40%, #000000 100%);
   background-attachment: fixed;
+  position: relative;
+}
+
+[data-theme="midnight"] body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    /* Large bright stars */
+    radial-gradient(2px 2px at 15% 25%, white, transparent),
+    radial-gradient(2px 2px at 45% 15%, rgba(255,255,255,0.9), transparent),
+    radial-gradient(2px 2px at 75% 35%, white, transparent),
+    radial-gradient(2px 2px at 25% 65%, rgba(255,255,255,0.85), transparent),
+    radial-gradient(2px 2px at 85% 75%, white, transparent),
+    radial-gradient(2px 2px at 55% 85%, rgba(255,255,255,0.9), transparent),
+    /* Medium stars */
+    radial-gradient(1.5px 1.5px at 10% 10%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1.5px 1.5px at 30% 20%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 50% 30%, rgba(255,255,255,0.75), transparent),
+    radial-gradient(1.5px 1.5px at 70% 40%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1.5px 1.5px at 20% 50%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 40% 60%, rgba(255,255,255,0.75), transparent),
+    radial-gradient(1.5px 1.5px at 60% 70%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1.5px 1.5px at 80% 80%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 35% 45%, rgba(255,255,255,0.75), transparent),
+    radial-gradient(1.5px 1.5px at 65% 55%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1.5px 1.5px at 90% 20%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 12% 80%, rgba(255,255,255,0.75), transparent),
+    /* Small stars */
+    radial-gradient(1px 1px at 8% 15%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 18% 35%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 28% 55%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 38% 75%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 48% 25%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 58% 45%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 68% 65%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 78% 85%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 88% 55%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 22% 90%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 52% 95%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 82% 12%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 42% 8%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 72% 28%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 32% 48%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 62% 88%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 92% 62%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 5% 45%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 95% 35%, rgba(255,255,255,0.6), transparent),
+    /* Blue stars (accent color) */
+    radial-gradient(2px 2px at 35% 18%, rgba(62,142,255,0.7), transparent),
+    radial-gradient(2px 2px at 65% 42%, rgba(62,142,255,0.6), transparent),
+    radial-gradient(2px 2px at 88% 68%, rgba(62,142,255,0.7), transparent),
+    radial-gradient(1.5px 1.5px at 22% 38%, rgba(34,196,245,0.6), transparent),
+    radial-gradient(1.5px 1.5px at 52% 72%, rgba(34,196,245,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 78% 22%, rgba(34,196,245,0.6), transparent);
+  background-size: 100% 100%;
+  background-position: 0 0;
+  animation: ss-stars-twinkle 4s ease-in-out infinite alternate;
 }
 
 [data-theme="sakura"] body {
   background-image:
-    radial-gradient(ellipse 85% 60% at 85% 0%, rgba(240,24,82,0.10) 0%, transparent 58%),
-    radial-gradient(ellipse 65% 45% at 15% 95%, rgba(244,114,164,0.08) 0%, transparent 54%),
-    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(192,132,252,0.05) 0%, transparent 55%);
+    radial-gradient(ellipse 90% 65% at 80% 5%, rgba(233,30,99,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 15% 90%, rgba(248,187,208,0.12) 0%, transparent 58%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(245,249,252,0.6) 0%, transparent 60%);
   background-attachment: fixed;
 }
 
@@ -385,6 +450,13 @@
   100% { transform: translate(20px, -30px) scale(1.08) translateZ(0); }
 }
 
+/* Sunset glow pulse */
+@keyframes ss-sunset-glow {
+  0%   { opacity: 0.6; transform: scale(1) translateZ(0); }
+  50%  { opacity: 1; transform: scale(1.05) translateZ(0); }
+  100% { opacity: 0.7; transform: scale(0.98) translateZ(0); }
+}
+
 /* Dust mote rise (sunset) */
 @keyframes ss-mote-rise {
   0%   { transform: translate(0, 0) translateZ(0); opacity: 0; }
@@ -407,7 +479,14 @@
   100% { transform: translateY(110vh) translateX(var(--drift, 60px)) rotate(var(--rot-end, 720deg)) translateZ(0); opacity: 0; }
 }
 
-/* Star twinkle (midnight, lavender, dark) */
+/* Star twinkle (midnight) */
+@keyframes ss-stars-twinkle {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+/* Star twinkle (lavender, dark) */
 @keyframes ss-star-twinkle {
   0%   { opacity: calc(var(--max-opacity, 0.8) * 0.15); transform: scale(0.85) translateZ(0); }
   100% { opacity: var(--max-opacity, 0.8); transform: scale(1.15) translateZ(0); }
@@ -472,11 +551,68 @@
 /* ═══ REDUCED MOTION ═══ */
 @media (prefers-reduced-motion: reduce) {
   [data-theme="sunset"] body,
+  [data-theme="sunset"] body::before,
   [data-theme="midnight"] body,
+  [data-theme="midnight"] body::before,
   [data-theme="sakura"] body,
   [data-theme="lavender"] body,
   [data-theme="forest"] body,
   [data-theme="volcanic"] body {
+    animation: none !important;
     background-image: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   THEME-SPECIFIC LOGO COLORS & HOVER EFFECTS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Midnight - Electric Blue Glow */
+[data-theme="midnight"] .logo-icon {
+  background: linear-gradient(135deg, #3E8EFF 0%, #22C4F5 100%) !important;
+  box-shadow: 0 2px 12px rgba(62,142,255,0.25), 0 0 20px rgba(62,142,255,0.15) !important;
+}
+[data-theme="midnight"] .logo-icon:hover {
+  box-shadow: 0 4px 24px rgba(62,142,255,0.45), 0 0 48px rgba(62,142,255,0.30), 0 0 80px rgba(34,196,245,0.20) !important;
+  transform: scale(1.12) rotate(8deg) !important;
+}
+
+/* Sakura - Pink Blossom Glow */
+[data-theme="sakura"] .logo-icon {
+  background: linear-gradient(135deg, #E91E63 0%, #F06292 100%) !important;
+  box-shadow: 0 2px 12px rgba(233,30,99,0.35), 0 0 20px rgba(233,30,99,0.20) !important;
+}
+[data-theme="sakura"] .logo-icon:hover {
+  box-shadow: 0 4px 24px rgba(233,30,99,0.50), 0 0 48px rgba(233,30,99,0.35), 0 0 80px rgba(248,187,208,0.25) !important;
+  transform: scale(1.12) rotate(8deg) !important;
+}
+
+/* Lavender - Violet Nebula Glow */
+[data-theme="lavender"] .logo-icon {
+  background: linear-gradient(135deg, #A78BFA 0%, #C4B5FD 100%) !important;
+  box-shadow: 0 2px 12px rgba(167,139,250,0.50), 0 0 20px rgba(167,139,250,0.30) !important;
+}
+[data-theme="lavender"] .logo-icon:hover {
+  box-shadow: 0 4px 24px rgba(167,139,250,0.65), 0 0 48px rgba(167,139,250,0.45), 0 0 80px rgba(129,140,248,0.30) !important;
+  transform: scale(1.12) rotate(8deg) !important;
+}
+
+/* Forest - Emerald Bioluminescent Glow */
+[data-theme="forest"] .logo-icon {
+  background: linear-gradient(135deg, #00D87C 0%, #88D818 100%) !important;
+  box-shadow: 0 2px 12px rgba(0,216,124,0.60), 0 0 20px rgba(0,216,124,0.35) !important;
+}
+[data-theme="forest"] .logo-icon:hover {
+  box-shadow: 0 4px 24px rgba(0,216,124,0.75), 0 0 48px rgba(0,216,124,0.55), 0 0 80px rgba(136,216,24,0.35) !important;
+  transform: scale(1.12) rotate(8deg) !important;
+}
+
+/* Volcanic - Ember Fire Glow */
+[data-theme="volcanic"] .logo-icon {
+  background: linear-gradient(135deg, #CC1010 0%, #FF2020 100%) !important;
+  box-shadow: 0 2px 12px rgba(200,16,16,0.65), 0 0 20px rgba(200,16,16,0.40) !important;
+}
+[data-theme="volcanic"] .logo-icon:hover {
+  box-shadow: 0 4px 24px rgba(200,16,16,0.80), 0 0 48px rgba(200,16,16,0.60), 0 0 80px rgba(255,32,32,0.40) !important;
+  transform: scale(1.12) rotate(8deg) !important;
 }

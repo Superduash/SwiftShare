@@ -2,24 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Version: 2.3 - Unique logo colors per theme + complete hover effects */
+
 @layer base {
   html {
     font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-feature-settings: 'kern' 1, 'liga' 1;
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   QUALITY & PERFORMANCE OPTIMIZATIONS
+   ═══════════════════════════════════════════════════════════════ */
+
 /* Themes loaded via JS imports in main.jsx */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0;
+}
+
 html { 
   scroll-behavior: smooth; 
   -webkit-text-size-adjust: 100%;
-  /* Enable hardware acceleration for smoother rendering */
+  /* High-quality font rendering */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Prevent blur on transforms */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /* Enable subpixel antialiasing */
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* High-quality rendering for interactive elements only */
+button, a, input, select, textarea, [role="button"], [tabindex] {
+  /* Smooth transforms */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* Override for images - use high quality */
+img, video, canvas, svg {
+  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Smooth scrolling containers */
+.overflow-auto, .overflow-scroll, [class*="overflow-"] {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Performance: Reduce paint on scroll */
+.fixed, .sticky, [class*="fixed"], [class*="sticky"] {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* CRITICAL: Exclude theme background layers from GPU acceleration to preserve animations */
+[data-theme] body,
+[data-theme] body::before,
+[data-theme] body::after {
+  transform: none !important;
+  will-change: auto !important;
 }
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
@@ -63,20 +117,31 @@ body {
 }
 input, button, textarea, select { 
   font: inherit;
-  /* Prevent pixelation on interactive elements */
+  /* High-quality text rendering */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Prevent blur on interactions */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
+
 img { 
   max-width: 100%; 
   display: block;
-  /* Prevent image pixelation */
+  /* High-quality image rendering */
+  image-rendering: auto;
   image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
+
 svg {
-  /* Prevent SVG pixelation */
+  /* Crisp SVG rendering */
   shape-rendering: geometricPrecision;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 a { color: inherit; text-decoration: none; }
 ::selection { background: var(--accent-medium); color: var(--text); }
@@ -359,6 +424,14 @@ a { color: inherit; text-decoration: none; }
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* Logo hover glow effect - Base (overridden by theme-specific styles) */
+.logo-icon {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease !important;
+}
+.logo-icon:hover {
+  box-shadow: 0 4px 20px var(--accent-glow), 0 0 40px var(--accent-glow) !important;
 }
 
 /* Reduce Motion */
@@ -679,4 +752,66 @@ body.reduce-motion *::after {
     border: 1px solid #000;
     box-shadow: none;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PERFORMANCE & QUALITY ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Optimize animations for 60fps */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* High-DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  img, video {
+    image-rendering: -webkit-optimize-contrast;
+  }
+}
+
+/* Prevent layout shift */
+img[width], img[height] {
+  height: auto;
+}
+
+/* Smooth momentum scrolling on iOS */
+.overflow-auto, .overflow-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* GPU acceleration for frequently animated elements */
+[class*="animate-"], 
+[class*="transition-"],
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-icon,
+.surface-card {
+  will-change: transform, opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Optimize text rendering */
+h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevent blur on scaled elements */
+.surface-card:hover,
+.btn-primary:hover,
+.btn-secondary:hover,
+[class*="hover:scale"] {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }

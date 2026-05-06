@@ -751,14 +751,21 @@ export default function HomePage() {
                     </div>
 
                     {/* Upload button */}
-                    <button
-                      className="btn-primary w-full text-base"
+                    <motion.button
+                      className="btn-primary w-full text-base group"
                       onClick={handleUpload}
                       disabled={passwordProtected && !password.trim()}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      <Upload size={18} />
+                      <motion.div
+                        animate={{ y: [0, -2, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      >
+                        <Upload size={18} className="group-hover:rotate-12 transition-transform" />
+                      </motion.div>
                       Share {files.length} file{files.length !== 1 ? 's' : ''}
-                    </button>
+                    </motion.button>
                     <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>Share the code before leaving this page</p>
                   </motion.div>
                 )}
