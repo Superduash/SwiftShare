@@ -64,7 +64,6 @@ img, video, canvas, svg {
 
 /* Performance: Reduce paint on scroll */
 .fixed, .sticky {
-  will-change: transform;
   transform: translateZ(0);
 }
 
@@ -160,7 +159,6 @@ a { color: inherit; text-decoration: none; }
     backface-visibility: hidden;
     transform: translateZ(0);
     /* GPU acceleration */
-    will-change: transform;
   }
   .surface-card:hover {
     box-shadow: var(--shadow-elevated, var(--shadow-card, 0 4px 24px rgba(0,0,0,0.08)));
@@ -197,8 +195,6 @@ a { color: inherit; text-decoration: none; }
     /* Prevent pixelation on hover/transform */
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    transform: translateZ(0);
-    will-change: transform;
     /* Touch feedback */
     -webkit-tap-highlight-color: transparent;
   }
@@ -787,31 +783,14 @@ img[width], img[height] {
   -webkit-overflow-scrolling: touch;
 }
 
-/* GPU acceleration for frequently animated elements */
-[class*="animate-"], 
-[class*="transition-"],
-.btn-primary,
-.btn-secondary,
-.btn-ghost,
-.btn-icon,
-.surface-card {
-  will-change: transform, opacity;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+/* GPU hints only when actively animating — avoid blanket will-change */
+.btn-primary:hover,
+.btn-secondary:hover,
+.surface-card:hover {
+  will-change: transform;
 }
 
 /* Optimize text rendering */
 h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {
   text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Prevent blur on scaled elements */
-.surface-card:hover,
-.btn-primary:hover,
-.btn-secondary:hover,
-[class*="hover:scale"] {
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
 }

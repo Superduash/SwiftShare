@@ -1,28 +1,28 @@
 /* ═══════════════════════════════════════════════════════════════
-   SWIFTSHARE CINEMATIC THEMES v2.3 - Unique Logo Colors & Complete Effects
+   SWIFTSHARE CINEMATIC THEMES v3.0 - Deep Space, Performance, Gradient Fonts
    ═══════════════════════════════════════════════════════════════ */
 
 /* ═══ MIDNIGHT — Deep Space with Blinking Stars (DARK) ═══ */
 [data-theme="midnight"] {
-  --bg: #000308;
-  --bg-raised: #050B15;
-  --bg-sunken: #000104;
-  --bg-overlay: rgba(0,3,8,0.97);
-  --surface: #050B15;
-  --surface-hover: #0A1220;
-  --surface-active: #0F1A2E;
-  --border: #0D1828;
-  --border-strong: #1A2D4A;
-  --text: #D7E7FA;
-  --text-2: #A6C0E0;
-  --text-3: #6A80A8;
-  --text-4: #384866;
-  --accent: #3E8EFF;
+  --bg: #000000;
+  --bg-raised: #030810;
+  --bg-sunken: #000000;
+  --bg-overlay: rgba(0,0,0,0.97);
+  --surface: #040A14;
+  --surface-hover: #08121E;
+  --surface-active: #0C1828;
+  --border: #0A1420;
+  --border-strong: #142840;
+  --text: #D0E4FA;
+  --text-2: #90B0D8;
+  --text-3: #506888;
+  --text-4: #283848;
+  --accent: #3A88FF;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #1A74F0;
-  --accent-soft: rgba(62,142,255,0.09);
-  --accent-medium: rgba(62,142,255,0.17);
-  --accent-glow: rgba(62,142,255,0.20);
+  --accent-hover: #1870F0;
+  --accent-soft: rgba(58,136,255,0.09);
+  --accent-medium: rgba(58,136,255,0.17);
+  --accent-glow: rgba(58,136,255,0.20);
   --success: #0EA8A4;
   --success-soft: rgba(14,168,164,0.12);
   --warning: #D4A010;
@@ -31,40 +31,41 @@
   --danger-soft: rgba(240,96,128,0.12);
   --info: #22C4F5;
   --info-soft: rgba(34,196,245,0.12);
-  --ring-track: #0D1828;
-  --shimmer-from: #0D1828;
-  --shimmer-to: #1A2D4A;
-  --toast-bg: #050B15;
-  --toast-text: #D7E7FA;
-  --toast-border: #1A2D4A;
-  --code-bg: #050B15;
-  --code-char-bg: #0A1220;
-  --code-char-border: #1A2D4A;
-  --qr-bg: #D7E7FA;
-  --qr-fg: #000308;
-  --drop-zone-bg: #050B15;
-  --drop-zone-border: #1A2D4A;
-  --drop-zone-active-bg: rgba(62,142,255,0.07);
-  --drop-zone-active-border: #3E8EFF;
-  --nav-bg: rgba(0,3,8,0.94);
-  --nav-border: #0D1828;
-  --settings-bg: #050B15;
-  --file-icon-bg: rgba(62,142,255,0.09);
-  --file-icon-color: #3E8EFF;
-  --ai-bg: linear-gradient(135deg, #050B15 0%, #0A1220 100%);
-  --ai-border: #1A2D4A;
-  --ai-icon: #3E8EFF;
-  --nearby-bg: #050B15;
-  --tag-bg: rgba(62,142,255,0.16);
-  --tag-text: #7AB8FF;
-  --progress-track: #0D1828;
-  --progress-fill: linear-gradient(90deg, #1A74F0 0%, #3E8EFF 50%, #22C4F5 100%);
-  --progress-glow: rgba(62,142,255,0.25);
-  --skeleton: linear-gradient(90deg, #0D1828 25%, #1A2D4A 50%, #0D1828 75%);
-  --gradient-hero: linear-gradient(135deg, #3E8EFF 0%, #0EA8A4 100%);
-  --shadow-card: 0 2px 8px rgba(0,0,0,0.60), 0 8px 32px rgba(0,0,0,0.70);
-  --shadow-elevated: 0 4px 20px rgba(0,0,0,0.75), 0 20px 60px rgba(0,0,0,0.80);
-  --glow-accent: 0 0 12px rgba(62,142,255,0.15), 0 0 24px rgba(62,142,255,0.08);
+  --ring-track: #0A1420;
+  --shimmer-from: #0A1420;
+  --shimmer-to: #142840;
+  --toast-bg: #040A14;
+  --toast-text: #D0E4FA;
+  --toast-border: #142840;
+  --code-bg: #030810;
+  --code-char-bg: #08121E;
+  --code-char-border: #142840;
+  --qr-bg: #D0E4FA;
+  --qr-fg: #000000;
+  --drop-zone-bg: #030810;
+  --drop-zone-border: #142840;
+  --drop-zone-active-bg: rgba(58,136,255,0.07);
+  --drop-zone-active-border: #3A88FF;
+  --nav-bg: rgba(0,0,0,0.95);
+  --nav-border: #0A1420;
+  --settings-bg: #030810;
+  --file-icon-bg: rgba(58,136,255,0.09);
+  --file-icon-color: #3A88FF;
+  --ai-bg: linear-gradient(135deg, #030810 0%, #08121E 100%);
+  --ai-border: #142840;
+  --ai-icon: #3A88FF;
+  --nearby-bg: #030810;
+  --tag-bg: rgba(58,136,255,0.16);
+  --tag-text: #70B0FF;
+  --progress-track: #0A1420;
+  --progress-fill: linear-gradient(90deg, #1870F0 0%, #3A88FF 50%, #22C4F5 100%);
+  --progress-glow: rgba(58,136,255,0.25);
+  --skeleton: linear-gradient(90deg, #0A1420 25%, #142840 50%, #0A1420 75%);
+  --gradient-hero: linear-gradient(135deg, #3A88FF 0%, #0EA8A4 100%);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.70), 0 8px 32px rgba(0,0,0,0.80);
+  --shadow-elevated: 0 4px 20px rgba(0,0,0,0.85), 0 20px 60px rgba(0,0,0,0.90);
+  --glow-accent: 0 0 12px rgba(58,136,255,0.15), 0 0 24px rgba(58,136,255,0.08);
+  --logo-gradient: linear-gradient(135deg, #D0E4FA 0%, #3A88FF 60%, #22C4F5 100%);
 }
 
 /* ═══ SAKURA — Cherry Blossom Spring (LIGHT) ═══ */
@@ -195,6 +196,7 @@
   --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.50);
   --shadow-elevated: 0 4px 20px rgba(167,139,250,0.15), 0 20px 60px rgba(0,0,0,0.65);
   --glow-accent: 0 0 24px rgba(167,139,250,0.40), 0 0 64px rgba(167,139,250,0.15);
+  --logo-gradient: linear-gradient(135deg, #F0ECFF 0%, #A78BFA 55%, #818CF8 100%);
 }
 
 /* ═══ FOREST — Bioluminescent Emerald (DARK) ═══ */
@@ -260,6 +262,7 @@
   --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.65);
   --shadow-elevated: 0 4px 20px rgba(0,216,124,0.15), 0 20px 60px rgba(0,0,0,0.75);
   --glow-accent: 0 0 24px rgba(0,216,124,0.42), 0 0 64px rgba(0,216,124,0.18);
+  --logo-gradient: linear-gradient(135deg, #DCF5E8 0%, #00D87C 55%, #88D818 100%);
 }
 
 /* ═══ VOLCANIC — Obsidian Ember (DARK) ═══ */
@@ -325,94 +328,28 @@
   --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.65);
   --shadow-elevated: 0 4px 20px rgba(200,16,16,0.20), 0 20px 60px rgba(0,0,0,0.75);
   --glow-accent: 0 0 24px rgba(200,16,16,0.50), 0 0 64px rgba(200,16,16,0.22);
+  --logo-gradient: linear-gradient(135deg, #F5EDE4 0%, #FF4040 55%, #CC1010 100%);
 }
 
 /* ═══════════════════════════════════════════
    AMBIENT BODY LAYER — static gradient skin per theme
    ═══════════════════════════════════════════ */
 
-[data-theme="sunset"] body {
-  background-image:
-    radial-gradient(ellipse 75% 50% at 12% 100%, rgba(229,77,36,0.12) 0%, transparent 62%),
-    radial-gradient(ellipse 60% 42% at 92% 0%, rgba(240,138,23,0.10) 0%, transparent 58%),
-    radial-gradient(ellipse 42% 34% at 50% 54%, rgba(244,194,27,0.05) 0%, transparent 62%);
-  background-attachment: scroll;
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: center center;
-}
+/* Sunset body bg → defined in themes-premium.css */
 
 [data-theme="midnight"] body {
   background-color: #000000;
-  background-image: radial-gradient(ellipse at center, #000B1A 0%, #000308 40%, #000000 100%);
-  background-attachment: scroll;
+  background-image:
+    radial-gradient(ellipse 120% 80% at 30% 20%, rgba(8,20,48,0.30) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 75% 80%, rgba(4,10,30,0.25) 0%, transparent 50%),
+    radial-gradient(ellipse at center, #000408 0%, #000000 60%);
   background-repeat: no-repeat;
   background-size: cover;
-  background-position: center center;
   position: relative;
 }
 
-[data-theme="midnight"] body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-  background-image:
-    /* Large bright stars */
-    radial-gradient(2px 2px at 15% 25%, white, transparent),
-    radial-gradient(2px 2px at 45% 15%, rgba(255,255,255,0.9), transparent),
-    radial-gradient(2px 2px at 75% 35%, white, transparent),
-    radial-gradient(2px 2px at 25% 65%, rgba(255,255,255,0.85), transparent),
-    radial-gradient(2px 2px at 85% 75%, white, transparent),
-    radial-gradient(2px 2px at 55% 85%, rgba(255,255,255,0.9), transparent),
-    /* Medium stars */
-    radial-gradient(1.5px 1.5px at 10% 10%, rgba(255,255,255,0.8), transparent),
-    radial-gradient(1.5px 1.5px at 30% 20%, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1.5px 1.5px at 50% 30%, rgba(255,255,255,0.75), transparent),
-    radial-gradient(1.5px 1.5px at 70% 40%, rgba(255,255,255,0.8), transparent),
-    radial-gradient(1.5px 1.5px at 20% 50%, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1.5px 1.5px at 40% 60%, rgba(255,255,255,0.75), transparent),
-    radial-gradient(1.5px 1.5px at 60% 70%, rgba(255,255,255,0.8), transparent),
-    radial-gradient(1.5px 1.5px at 80% 80%, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1.5px 1.5px at 35% 45%, rgba(255,255,255,0.75), transparent),
-    radial-gradient(1.5px 1.5px at 65% 55%, rgba(255,255,255,0.8), transparent),
-    radial-gradient(1.5px 1.5px at 90% 20%, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1.5px 1.5px at 12% 80%, rgba(255,255,255,0.75), transparent),
-    /* Small stars */
-    radial-gradient(1px 1px at 8% 15%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 18% 35%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 28% 55%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 38% 75%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 48% 25%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 58% 45%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 68% 65%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 78% 85%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 88% 55%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 22% 90%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 52% 95%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 82% 12%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 42% 8%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 72% 28%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 32% 48%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 62% 88%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 92% 62%, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 5% 45%, rgba(255,255,255,0.5), transparent),
-    radial-gradient(1px 1px at 95% 35%, rgba(255,255,255,0.6), transparent),
-    /* Blue stars (accent color) */
-    radial-gradient(2px 2px at 35% 18%, rgba(62,142,255,0.7), transparent),
-    radial-gradient(2px 2px at 65% 42%, rgba(62,142,255,0.6), transparent),
-    radial-gradient(2px 2px at 88% 68%, rgba(62,142,255,0.7), transparent),
-    radial-gradient(1.5px 1.5px at 22% 38%, rgba(34,196,245,0.6), transparent),
-    radial-gradient(1.5px 1.5px at 52% 72%, rgba(34,196,245,0.5), transparent),
-    radial-gradient(1.5px 1.5px at 78% 22%, rgba(34,196,245,0.6), transparent);
-  background-size: 100% 100%;
-  background-position: 0 0;
-  animation: ss-stars-twinkle 4s ease-in-out infinite alternate;
-}
+
+
 
 [data-theme="sakura"] body {
   background-image:
@@ -570,6 +507,8 @@
 @media (prefers-reduced-motion: reduce) {
   [data-theme="sunset"] body,
   [data-theme="sunset"] body::before,
+  [data-theme="sunset-dark"] body,
+  [data-theme="sunset-dark"] body::before,
   [data-theme="midnight"] body,
   [data-theme="midnight"] body::before,
   [data-theme="sakura"] body,
@@ -587,50 +526,92 @@
 
 /* Midnight - Electric Blue Glow */
 [data-theme="midnight"] .logo-icon {
-  background: linear-gradient(135deg, #3E8EFF 0%, #22C4F5 100%) !important;
-  box-shadow: 0 2px 12px rgba(62,142,255,0.25), 0 0 20px rgba(62,142,255,0.15) !important;
+  background: linear-gradient(135deg, #2060C0 0%, #1890B0 100%) !important;
+  box-shadow: 0 2px 10px rgba(58,136,255,0.20), 0 0 14px rgba(58,136,255,0.10) !important;
 }
 [data-theme="midnight"] .logo-icon:hover {
-  box-shadow: 0 4px 24px rgba(62,142,255,0.45), 0 0 48px rgba(62,142,255,0.30), 0 0 80px rgba(34,196,245,0.20) !important;
-  transform: scale(1.12) rotate(8deg) !important;
+  box-shadow: 0 4px 20px rgba(58,136,255,0.35), 0 0 36px rgba(58,136,255,0.20) !important;
+  transform: scale(1.10) rotate(6deg) !important;
 }
 
 /* Sakura - Pink Blossom Glow */
 [data-theme="sakura"] .logo-icon {
-  background: linear-gradient(135deg, #E91E63 0%, #F06292 100%) !important;
-  box-shadow: 0 2px 12px rgba(233,30,99,0.35), 0 0 20px rgba(233,30,99,0.20) !important;
+  background: linear-gradient(135deg, #D01858 0%, #E05080 100%) !important;
+  box-shadow: 0 2px 10px rgba(208,24,88,0.28), 0 0 14px rgba(208,24,88,0.14) !important;
 }
 [data-theme="sakura"] .logo-icon:hover {
-  box-shadow: 0 4px 24px rgba(233,30,99,0.50), 0 0 48px rgba(233,30,99,0.35), 0 0 80px rgba(248,187,208,0.25) !important;
-  transform: scale(1.12) rotate(8deg) !important;
+  box-shadow: 0 4px 20px rgba(208,24,88,0.42), 0 0 36px rgba(208,24,88,0.25) !important;
+  transform: scale(1.10) rotate(6deg) !important;
 }
 
 /* Lavender - Violet Nebula Glow */
 [data-theme="lavender"] .logo-icon {
-  background: linear-gradient(135deg, #A78BFA 0%, #C4B5FD 100%) !important;
-  box-shadow: 0 2px 12px rgba(167,139,250,0.50), 0 0 20px rgba(167,139,250,0.30) !important;
+  background: linear-gradient(135deg, #7858D8 0%, #9878F0 100%) !important;
+  box-shadow: 0 2px 10px rgba(120,88,216,0.35), 0 0 14px rgba(120,88,216,0.18) !important;
 }
 [data-theme="lavender"] .logo-icon:hover {
-  box-shadow: 0 4px 24px rgba(167,139,250,0.65), 0 0 48px rgba(167,139,250,0.45), 0 0 80px rgba(129,140,248,0.30) !important;
-  transform: scale(1.12) rotate(8deg) !important;
+  box-shadow: 0 4px 20px rgba(120,88,216,0.50), 0 0 36px rgba(120,88,216,0.30) !important;
+  transform: scale(1.10) rotate(6deg) !important;
 }
 
 /* Forest - Emerald Bioluminescent Glow */
 [data-theme="forest"] .logo-icon {
-  background: linear-gradient(135deg, #00D87C 0%, #88D818 100%) !important;
-  box-shadow: 0 2px 12px rgba(0,216,124,0.60), 0 0 20px rgba(0,216,124,0.35) !important;
+  background: linear-gradient(135deg, #00A060 0%, #60A818 100%) !important;
+  box-shadow: 0 2px 10px rgba(0,160,96,0.30), 0 0 14px rgba(0,160,96,0.15) !important;
 }
 [data-theme="forest"] .logo-icon:hover {
-  box-shadow: 0 4px 24px rgba(0,216,124,0.75), 0 0 48px rgba(0,216,124,0.55), 0 0 80px rgba(136,216,24,0.35) !important;
-  transform: scale(1.12) rotate(8deg) !important;
+  box-shadow: 0 4px 20px rgba(0,160,96,0.45), 0 0 36px rgba(0,160,96,0.28) !important;
+  transform: scale(1.10) rotate(6deg) !important;
 }
 
 /* Volcanic - Ember Fire Glow */
 [data-theme="volcanic"] .logo-icon {
-  background: linear-gradient(135deg, #CC1010 0%, #FF2020 100%) !important;
-  box-shadow: 0 2px 12px rgba(200,16,16,0.65), 0 0 20px rgba(200,16,16,0.40) !important;
+  background: linear-gradient(135deg, #A00808 0%, #CC1818 100%) !important;
+  box-shadow: 0 2px 10px rgba(160,8,8,0.40), 0 0 14px rgba(160,8,8,0.20) !important;
 }
 [data-theme="volcanic"] .logo-icon:hover {
-  box-shadow: 0 4px 24px rgba(200,16,16,0.80), 0 0 48px rgba(200,16,16,0.60), 0 0 80px rgba(255,32,32,0.40) !important;
-  transform: scale(1.12) rotate(8deg) !important;
+  box-shadow: 0 4px 20px rgba(160,8,8,0.55), 0 0 36px rgba(200,16,16,0.30) !important;
+  transform: scale(1.10) rotate(6deg) !important;
+}
+
+/* Sunset Dark - Ember Glow */
+[data-theme="sunset-dark"] .logo-icon {
+  background: linear-gradient(135deg, #CC3C00 0%, #FF6B1A 55%, #FFAA40 100%) !important;
+  box-shadow: 0 2px 10px rgba(255,107,26,0.32), 0 0 14px rgba(255,107,26,0.16) !important;
+}
+[data-theme="sunset-dark"] .logo-icon:hover {
+  box-shadow: 0 4px 20px rgba(255,107,26,0.48), 0 0 36px rgba(255,107,26,0.24) !important;
+  transform: scale(1.10) rotate(6deg) !important;
+}
+
+/* sunset-dark body bg → defined in themes-premium.css */
+
+
+/* ═══ Midnight stars pseudo layer ═══ */
+[data-theme="midnight"] body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 15% 25%, white, transparent),
+    radial-gradient(1.5px 1.5px at 45% 15%, rgba(255,255,255,0.85), transparent),
+    radial-gradient(1.5px 1.5px at 75% 35%, white, transparent),
+    radial-gradient(1.5px 1.5px at 25% 65%, rgba(255,255,255,0.80), transparent),
+    radial-gradient(1.5px 1.5px at 85% 75%, white, transparent),
+    radial-gradient(1.5px 1.5px at 55% 85%, rgba(255,255,255,0.85), transparent),
+    radial-gradient(1px 1px at 10% 10%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 30% 40%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 50% 30%, rgba(255,255,255,0.55), transparent),
+    radial-gradient(1px 1px at 70% 60%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 20% 80%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1px 1px at 90% 20%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 40% 50%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1px 1px at 60% 90%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 80% 45%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1.5px 1.5px at 35% 18%, rgba(58,136,255,0.6), transparent),
+    radial-gradient(1.5px 1.5px at 65% 42%, rgba(58,136,255,0.5), transparent),
+    radial-gradient(1.5px 1.5px at 88% 68%, rgba(58,136,255,0.6), transparent);
+  background-size: 100% 100%;
+  animation: ss-stars-twinkle 5s ease-in-out infinite alternate;
 }

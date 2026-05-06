@@ -1,16 +1,10 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Settings, Zap, ArrowLeft } from 'lucide-react'
+import { Settings, Zap, ArrowLeft, Sun, Moon } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useConnectionHealth } from '../context/ConnectionHealthContext'
 import SettingsPanel from './SettingsPanel'
 
-// Mapping from connection FSM state → status pill in the navbar.
-//   connected    → green "Live" (real-time channel up)
-//   syncing      → yellow "Syncing" (server up, link establishing)
-//   waking       → yellow "Waking" (cold-starting backend)
-//   reconnecting → yellow "Reconnecting" (lost link, retrying)
-//   offline      → red "Offline" (no network)
 const STATUS_PILL = {
   connected:    { label: 'Live',         tone: 'success', pulse: false },
   syncing:      { label: 'Syncing',      tone: 'warning', pulse: true  },
@@ -25,8 +19,13 @@ const TONE_VARS = {
   danger:  { bg: 'var(--danger-soft)',  fg: 'var(--danger)',  glow: '0 0 6px rgba(220,38,38,0.4)' },
 }
 
+// Sunset has two sub-modes: light (default) and dark
+// Stored as 'sunset' (light) and 'sunset-dark'
+
+
+
 export default function Navbar() {
-  const { theme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const { status } = useConnectionHealth()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const location = useLocation()
@@ -34,6 +33,17 @@ export default function Navbar() {
 
   const pill = STATUS_PILL[status] || STATUS_PILL.syncing
   const tone = TONE_VARS[pill.tone] || TONE_VARS.warning
+
+  const isSunset = theme === 'sunset' || theme === 'sunset-dark'
+  const isSunsetDark = theme === 'sunset-dark'
+
+  // Dark themes get gradient logo text
+  const darkThemes = ['dark', 'midnight', 'lavender', 'forest', 'volcanic', 'sunset-dark']
+  const isDarkTheme = darkThemes.includes(theme)
+
+  function toggleSunsetMode() {
+    setTheme(isSunsetDark ? 'sunset' : 'sunset-dark')
+  }
 
   return (
     <>
@@ -43,7 +53,7 @@ export default function Navbar() {
           top: 'calc(var(--safe-top) + var(--connection-banner-height))',
           background: 'var(--nav-bg)',
           borderBottom: '1px solid var(--nav-border)',
-          transition: 'top 0.25s ease, background 0.25s ease, border-color 0.25s ease',
+          transition: 'top 0.25s ease, background 0.3s ease, border-color 0.3s ease',
         }}
         role="navigation"
         aria-label="Main navigation"
@@ -58,7 +68,7 @@ export default function Navbar() {
             )}
             <Link to="/" className="flex items-center gap-2 group" aria-label="SwiftShare home">
               <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 logo-icon"
+                className="w-8 h-8 rounded-xl flex items-center justify-center logo-icon"
                 style={{ 
                   background: 'var(--accent)', 
                   boxShadow: '0 2px 8px var(--accent-glow)',
@@ -66,11 +76,20 @@ export default function Navbar() {
                 }}
                 aria-hidden="true"
               >
-                <Zap size={16} color={theme === 'dark' ? '#0F1014' : '#fff'} strokeWidth={2.5} />
+                <Zap size={16} color="var(--accent-contrast, #fff)" strokeWidth={2.5} />
               </div>
-              <span 
-                className="font-display font-bold text-lg hidden sm:inline transition-all duration-300 group-hover:tracking-wide" 
-                style={{ color: 'var(--text)' }}
+              <span
+                className="font-display font-bold text-lg hidden sm:inline transition-all duration-300 group-hover:tracking-wide"
+                style={
+                  isDarkTheme
+                    ? {
+                        background: 'var(--logo-gradient, linear-gradient(135deg, var(--text) 0%, var(--accent) 100%))',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                      }
+                    : { color: 'var(--text)' }
+                }
               >
                 SwiftShare
               </span>
@@ -79,6 +98,24 @@ export default function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-1">
+            {/* Sunset light/dark toggle — only shown for sunset theme */}
+            {isSunset && (
+              <button
+                className="btn-icon"
+                onClick={toggleSunsetMode}
+                aria-label={isSunsetDark ? 'Switch to Sunset Light mode' : 'Switch to Sunset Dark mode'}
+                title={isSunsetDark ? 'Sunset Light' : 'Sunset Dark'}
+                style={{ marginRight: '2px' }}
+              >
+                {isSunsetDark ? (
+                  <Sun size={16} style={{ color: 'var(--accent)' }} />
+                ) : (
+                  <Moon size={16} style={{ color: 'var(--text-3)' }} />
+                )}
+              </button>
+            )}
+
+            {/* Connection status pill */}
             <div
               className="flex items-center gap-1.5 px-2 py-1 mr-1 rounded-lg transition-colors"
               style={{ background: tone.bg }}

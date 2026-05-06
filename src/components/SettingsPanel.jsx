@@ -12,14 +12,15 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
-  { value: 'sunset', label: 'Sunset', color: '#F07020' },
-  { value: 'dark', label: 'Dark', color: '#1A1A1E' },
-  { value: 'light', label: 'Light', color: '#F0F0F2' },
-  { value: 'midnight', label: 'Midnight', color: '#06B6D4' },
-  { value: 'sakura', label: 'Sakura', color: '#F472B6' },
-  { value: 'lavender', label: 'Lavender', color: '#A78BFA' },
-  { value: 'forest', label: 'Forest', color: '#34D399' },
-  { value: 'volcanic', label: 'Volcanic', color: '#EF4444' },
+  { value: 'sunset',      label: 'Sunset',       color: '#F07020',  light: false },
+  { value: 'sunset-dark', label: 'Sunset Dark',  color: '#C85A10',  light: false },
+  { value: 'dark', label: 'Dark', color: '#1A1A1E', light: false },
+  { value: 'light', label: 'Light', color: '#F0F0F2', light: true },
+  { value: 'midnight', label: 'Midnight', color: '#1440A0', light: false },
+  { value: 'sakura', label: 'Sakura', color: '#F472B6', light: true },
+  { value: 'lavender', label: 'Lavender', color: '#A78BFA', light: false },
+  { value: 'forest', label: 'Forest', color: '#00D87C', light: false },
+  { value: 'volcanic', label: 'Volcanic', color: '#CC1010', light: false },
 ]
 
 export default function SettingsPanel({ open, onClose }) {
@@ -104,13 +105,12 @@ export default function SettingsPanel({ open, onClose }) {
                 <label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: 'var(--text-3)' }}>
                   Theme
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   {THEME_OPTIONS.map(opt => {
                     const isActive = theme === opt.value
                     // Swatches with light backgrounds need dark checkmarks
-                    const lightSwatches = ['light', 'sakura']
-                    const checkmarkColor = lightSwatches.includes(opt.value) ? '#111827' : '#FFFFFF'
-                    
+                    const checkmarkColor = opt.light ? '#111827' : '#FFFFFF'
+
                     return (
                       <button
                         key={opt.value}
