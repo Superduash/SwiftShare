@@ -1,0 +1,482 @@
+/* ═══ MIDNIGHT — Deep ocean abyss, cyan shimmer (DARK) ═══ */
+[data-theme="midnight"] {
+  --bg: #03060E;
+  --bg-raised: #080F1E;
+  --bg-sunken: #020408;
+  --bg-overlay: rgba(3,6,14,0.97);
+  --surface: #080F1E;
+  --surface-hover: #0F1A30;
+  --surface-active: #182640;
+  --border: #122038;
+  --border-strong: #1E3860;
+  --text: #D8E8FA;
+  --text-2: #A4C2E4;
+  --text-3: #6080B8;
+  --text-4: #384E70;
+  --accent: #3E8EFF;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #1A74F0;
+  --accent-soft: rgba(62,142,255,0.09);
+  --accent-medium: rgba(62,142,255,0.17);
+  --accent-glow: rgba(62,142,255,0.50);
+  --success: #0EA8A4;
+  --success-soft: rgba(14,168,164,0.12);
+  --warning: #D4A010;
+  --warning-soft: rgba(212,160,16,0.12);
+  --danger: #F06080;
+  --danger-soft: rgba(240,96,128,0.12);
+  --info: #22C4F5;
+  --info-soft: rgba(34,196,245,0.12);
+  --ring-track: #122038;
+  --shimmer-from: #122038;
+  --shimmer-to: #1E3860;
+  --toast-bg: #080F1E;
+  --toast-text: #D8E8FA;
+  --toast-border: #1E3860;
+  --code-bg: #080F1E;
+  --code-char-bg: #0F1A30;
+  --code-char-border: #1E3860;
+  --qr-bg: #D8E8FA;
+  --qr-fg: #03060E;
+  --drop-zone-bg: #080F1E;
+  --drop-zone-border: #1E3860;
+  --drop-zone-active-bg: rgba(62,142,255,0.07);
+  --drop-zone-active-border: #3E8EFF;
+  --nav-bg: rgba(3,6,14,0.94);
+  --nav-border: #122038;
+  --settings-bg: #080F1E;
+  --file-icon-bg: rgba(62,142,255,0.09);
+  --file-icon-color: #3E8EFF;
+  --ai-bg: linear-gradient(135deg, #0A1428 0%, #102040 100%);
+  --ai-border: #1E3860;
+  --ai-icon: #3E8EFF;
+  --nearby-bg: #080F1E;
+  --tag-bg: rgba(62,142,255,0.16);
+  --tag-text: #7AB8FF;
+  --progress-track: #122038;
+  --progress-fill: linear-gradient(90deg, #1A74F0 0%, #3E8EFF 50%, #22C4F5 100%);
+  --progress-glow: rgba(62,142,255,0.54);
+  --skeleton: linear-gradient(90deg, #122038 25%, #1E3860 50%, #122038 75%);
+  --gradient-hero: linear-gradient(135deg, #3E8EFF 0%, #0EA8A4 100%);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.65);
+  --shadow-elevated: 0 4px 20px rgba(62,142,255,0.15), 0 20px 60px rgba(0,0,0,0.75);
+  --glow-accent: 0 0 24px rgba(62,142,255,0.38), 0 0 56px rgba(62,142,255,0.18);
+}
+
+/* ═══ SAKURA — Cherry Blossom (LIGHT) ═══ */
+[data-theme="sakura"] {
+  --bg: #FFF2F5;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #FFE3ED;
+  --bg-overlay: rgba(255,242,245,0.96);
+  --surface: #FFFFFF;
+  --surface-hover: #FFF7F9;
+  --surface-active: #FFEDF4;
+  --border: #FFCAD6;
+  --border-strong: #FFA4BC;
+  --text: #420818;
+  --text-2: #720C28;
+  --text-3: #A82048;
+  --text-4: #D05878;
+  --accent: #F01852;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #D0003C;
+  --accent-soft: rgba(240,24,82,0.08);
+  --accent-medium: rgba(240,24,82,0.15);
+  --accent-glow: rgba(240,24,82,0.38);
+  --success: #0BA870;
+  --success-soft: rgba(11,168,112,0.10);
+  --warning: #EF7820;
+  --warning-soft: rgba(239,120,32,0.10);
+  --danger: #7C0C22;
+  --danger-soft: rgba(124,12,34,0.10);
+  --info: #881EA8;
+  --info-soft: rgba(136,30,168,0.10);
+  --ring-track: #FFCAD6;
+  --shimmer-from: #FFCAD6;
+  --shimmer-to: #FFA4BC;
+  --toast-bg: #420818;
+  --toast-text: #FFF7F9;
+  --toast-border: #720C28;
+  --code-bg: #FFE3ED;
+  --code-char-bg: #FFFFFF;
+  --code-char-border: #FFCAD6;
+  --qr-bg: #FFFFFF;
+  --qr-fg: #420818;
+  --drop-zone-bg: #FFF7F9;
+  --drop-zone-border: #FFA4BC;
+  --drop-zone-active-bg: #FFEDF4;
+  --drop-zone-active-border: #F01852;
+  --nav-bg: rgba(255,242,245,0.90);
+  --nav-border: #FFCAD6;
+  --settings-bg: #FFFFFF;
+  --file-icon-bg: rgba(240,24,82,0.08);
+  --file-icon-color: #F01852;
+  --ai-bg: linear-gradient(135deg, #FFE3ED 0%, #FECDD8 100%);
+  --ai-border: #FFCAD6;
+  --ai-icon: #F01852;
+  --nearby-bg: #FFF7F9;
+  --tag-bg: #FFEDF4;
+  --tag-text: #D0003C;
+  --progress-track: #FFCAD6;
+  --progress-fill: linear-gradient(90deg, #F01852 0%, #F472A4 100%);
+  --progress-glow: rgba(240,24,82,0.36);
+  --skeleton: linear-gradient(90deg, #FFCAD6 25%, #FFA4BC 50%, #FFCAD6 75%);
+  --gradient-hero: linear-gradient(135deg, #F01852 0%, #F472A4 50%, #C084E8 100%);
+  --shadow-card: 0 2px 8px rgba(240,24,82,0.08), 0 8px 28px rgba(66,8,24,0.07);
+  --shadow-elevated: 0 4px 16px rgba(240,24,82,0.13), 0 16px 48px rgba(66,8,24,0.10);
+  --glow-accent: 0 0 20px rgba(240,24,82,0.30), 0 0 48px rgba(240,24,82,0.14);
+}
+
+/* ═══ LAVENDER — Cosmic Violet Nebula (DARK) ═══ */
+[data-theme="lavender"] {
+  --bg: #0A0618;
+  --bg-raised: #120E24;
+  --bg-sunken: #06040E;
+  --bg-overlay: rgba(10,6,24,0.97);
+  --surface: #161030;
+  --surface-hover: #1E183C;
+  --surface-active: #282048;
+  --border: #1E1840;
+  --border-strong: #302860;
+  --text: #F0ECFF;
+  --text-2: #B8A8E0;
+  --text-3: #7A68B0;
+  --text-4: #4C3C78;
+  --accent: #A78BFA;
+  --accent-contrast: #0A0618;
+  --accent-hover: #C4B5FD;
+  --accent-soft: rgba(167,139,250,0.10);
+  --accent-medium: rgba(167,139,250,0.18);
+  --accent-glow: rgba(167,139,250,0.45);
+  --success: #4ADE80;
+  --success-soft: rgba(74,222,128,0.12);
+  --warning: #FBBF24;
+  --warning-soft: rgba(251,191,36,0.12);
+  --danger: #FB7185;
+  --danger-soft: rgba(251,113,133,0.12);
+  --info: #818CF8;
+  --info-soft: rgba(129,140,248,0.12);
+  --ring-track: #1E1840;
+  --shimmer-from: #1E1840;
+  --shimmer-to: #302860;
+  --toast-bg: #161030;
+  --toast-text: #F0ECFF;
+  --toast-border: #302860;
+  --code-bg: #120E24;
+  --code-char-bg: #161030;
+  --code-char-border: #302860;
+  --qr-bg: #F0ECFF;
+  --qr-fg: #0A0618;
+  --drop-zone-bg: #120E24;
+  --drop-zone-border: #302860;
+  --drop-zone-active-bg: rgba(167,139,250,0.08);
+  --drop-zone-active-border: #A78BFA;
+  --nav-bg: rgba(10,6,24,0.94);
+  --nav-border: #1E1840;
+  --settings-bg: #120E24;
+  --file-icon-bg: rgba(167,139,250,0.10);
+  --file-icon-color: #A78BFA;
+  --ai-bg: linear-gradient(135deg, #181030 0%, #201840 100%);
+  --ai-border: #302860;
+  --ai-icon: #A78BFA;
+  --nearby-bg: #120E24;
+  --tag-bg: rgba(167,139,250,0.15);
+  --tag-text: #C4B5FD;
+  --progress-track: #1E1840;
+  --progress-fill: linear-gradient(90deg, #7C3AED 0%, #A78BFA 50%, #C4B5FD 100%);
+  --progress-glow: rgba(167,139,250,0.45);
+  --skeleton: linear-gradient(90deg, #1E1840 25%, #302860 50%, #1E1840 75%);
+  --gradient-hero: linear-gradient(135deg, #7C3AED 0%, #A78BFA 50%, #818CF8 100%);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.50);
+  --shadow-elevated: 0 4px 20px rgba(167,139,250,0.15), 0 20px 60px rgba(0,0,0,0.65);
+  --glow-accent: 0 0 24px rgba(167,139,250,0.40), 0 0 64px rgba(167,139,250,0.15);
+}
+
+/* ═══ FOREST — Bioluminescent Emerald (DARK) ═══ */
+[data-theme="forest"] {
+  --bg: #050C08;
+  --bg-raised: #0A1610;
+  --bg-sunken: #030806;
+  --bg-overlay: rgba(5,12,8,0.97);
+  --surface: #0A1610;
+  --surface-hover: #122018;
+  --surface-active: #1A2E20;
+  --border: #152A1C;
+  --border-strong: #224036;
+  --text: #DCF5E8;
+  --text-2: #AEDCC4;
+  --text-3: #64A87E;
+  --text-4: #2E5840;
+  --accent: #00D87C;
+  --accent-contrast: #030804;
+  --accent-hover: #00BC6A;
+  --accent-soft: rgba(0,216,124,0.08);
+  --accent-medium: rgba(0,216,124,0.16);
+  --accent-glow: rgba(0,216,124,0.54);
+  --success: #88D818;
+  --success-soft: rgba(136,216,24,0.12);
+  --warning: #F5C400;
+  --warning-soft: rgba(245,196,0,0.12);
+  --danger: #F46070;
+  --danger-soft: rgba(244,96,112,0.12);
+  --info: #18D0E8;
+  --info-soft: rgba(24,208,232,0.12);
+  --ring-track: #152A1C;
+  --shimmer-from: #152A1C;
+  --shimmer-to: #224036;
+  --toast-bg: #0A1610;
+  --toast-text: #DCF5E8;
+  --toast-border: #224036;
+  --code-bg: #0A1610;
+  --code-char-bg: #122018;
+  --code-char-border: #224036;
+  --qr-bg: #DCF5E8;
+  --qr-fg: #050C08;
+  --drop-zone-bg: #0A1610;
+  --drop-zone-border: #224036;
+  --drop-zone-active-bg: rgba(0,216,124,0.06);
+  --drop-zone-active-border: #00D87C;
+  --nav-bg: rgba(5,12,8,0.95);
+  --nav-border: #152A1C;
+  --settings-bg: #0A1610;
+  --file-icon-bg: rgba(0,216,124,0.08);
+  --file-icon-color: #00D87C;
+  --ai-bg: linear-gradient(135deg, #071A0E 0%, #0E2818 100%);
+  --ai-border: #224036;
+  --ai-icon: #00D87C;
+  --nearby-bg: #0A1610;
+  --tag-bg: rgba(0,216,124,0.16);
+  --tag-text: #58E8A8;
+  --progress-track: #152A1C;
+  --progress-fill: linear-gradient(90deg, #00D87C 0%, #88D818 100%);
+  --progress-glow: rgba(0,216,124,0.58);
+  --skeleton: linear-gradient(90deg, #152A1C 25%, #224036 50%, #152A1C 75%);
+  --gradient-hero: linear-gradient(135deg, #00D87C 0%, #88D818 100%);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.65);
+  --shadow-elevated: 0 4px 20px rgba(0,216,124,0.15), 0 20px 60px rgba(0,0,0,0.75);
+  --glow-accent: 0 0 24px rgba(0,216,124,0.42), 0 0 64px rgba(0,216,124,0.18);
+}
+
+/* ═══ VOLCANIC — Obsidian Ember (DARK) ═══ */
+[data-theme="volcanic"] {
+  --bg: #0A0806;
+  --bg-raised: #181410;
+  --bg-sunken: #060402;
+  --bg-overlay: rgba(10,8,6,0.97);
+  --surface: #181410;
+  --surface-hover: #241E18;
+  --surface-active: #302820;
+  --border: #2A2018;
+  --border-strong: #462020;
+  --text: #F5EDE4;
+  --text-2: #DCCABC;
+  --text-3: #A08070;
+  --text-4: #6A5040;
+  --accent: #CC1010;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #AA0000;
+  --accent-soft: rgba(200,16,16,0.10);
+  --accent-medium: rgba(200,16,16,0.18);
+  --accent-glow: rgba(200,16,16,0.60);
+  --success: #78BB0A;
+  --success-soft: rgba(120,187,10,0.12);
+  --warning: #E88000;
+  --warning-soft: rgba(232,128,0,0.12);
+  --danger: #E83030;
+  --danger-soft: rgba(232,48,48,0.12);
+  --info: #08A8C8;
+  --info-soft: rgba(8,168,200,0.12);
+  --ring-track: #2A2018;
+  --shimmer-from: #2A2018;
+  --shimmer-to: #3A2020;
+  --toast-bg: #241E18;
+  --toast-text: #F5EDE4;
+  --toast-border: #462020;
+  --code-bg: #181410;
+  --code-char-bg: #241E18;
+  --code-char-border: #462020;
+  --qr-bg: #F5EDE4;
+  --qr-fg: #0A0806;
+  --drop-zone-bg: #181410;
+  --drop-zone-border: #462020;
+  --drop-zone-active-bg: rgba(200,16,16,0.08);
+  --drop-zone-active-border: #CC1010;
+  --nav-bg: rgba(10,8,6,0.95);
+  --nav-border: #2A2018;
+  --settings-bg: #181410;
+  --file-icon-bg: rgba(200,16,16,0.10);
+  --file-icon-color: #CC1010;
+  --ai-bg: linear-gradient(135deg, #200808 0%, #380A0A 100%);
+  --ai-border: #462020;
+  --ai-icon: #CC1010;
+  --nearby-bg: #181410;
+  --tag-bg: rgba(200,16,16,0.18);
+  --tag-text: #FF6060;
+  --progress-track: #2A2018;
+  --progress-fill: linear-gradient(90deg, #880000 0%, #CC1010 50%, #FF2020 100%);
+  --progress-glow: rgba(200,16,16,0.60);
+  --skeleton: linear-gradient(90deg, #2A2018 25%, #3A2020 50%, #2A2018 75%);
+  --gradient-hero: linear-gradient(135deg, #660000 0%, #CC1010 50%, #FF2020 100%);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.65);
+  --shadow-elevated: 0 4px 20px rgba(200,16,16,0.20), 0 20px 60px rgba(0,0,0,0.75);
+  --glow-accent: 0 0 24px rgba(200,16,16,0.50), 0 0 64px rgba(200,16,16,0.22);
+}
+
+/* ═══════════════════════════════════════════
+   AMBIENT BODY LAYER — static gradient skin per theme
+   ═══════════════════════════════════════════ */
+
+[data-theme="sunset"] body {
+  background-image:
+    radial-gradient(ellipse 75% 50% at 5% 100%, rgba(231,72,32,0.13) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 40% at 96% 0%, rgba(245,146,22,0.10) 0%, transparent 58%),
+    radial-gradient(ellipse 45% 35% at 50% 60%, rgba(255,200,60,0.06) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+[data-theme="midnight"] body {
+  background-image:
+    radial-gradient(ellipse 120% 70% at 50% 100%, rgba(62,142,255,0.14) 0%, transparent 65%),
+    radial-gradient(ellipse 65% 50% at 90% 15%, rgba(14,168,164,0.09) 0%, transparent 58%),
+    radial-gradient(ellipse 40% 30% at 10% 40%, rgba(34,196,245,0.06) 0%, transparent 55%);
+  background-attachment: fixed;
+}
+
+[data-theme="sakura"] body {
+  background-image:
+    radial-gradient(ellipse 85% 60% at 85% 0%, rgba(240,24,82,0.10) 0%, transparent 58%),
+    radial-gradient(ellipse 65% 45% at 15% 95%, rgba(244,114,164,0.08) 0%, transparent 54%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(192,132,252,0.05) 0%, transparent 55%);
+  background-attachment: fixed;
+}
+
+[data-theme="lavender"] body {
+  background-image:
+    radial-gradient(ellipse 80% 55% at 90% 5%, rgba(167,139,250,0.14) 0%, transparent 58%),
+    radial-gradient(ellipse 60% 45% at 5% 90%, rgba(129,140,248,0.10) 0%, transparent 54%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(196,165,253,0.06) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+[data-theme="forest"] body {
+  background-image:
+    radial-gradient(ellipse 130% 60% at 50% 0%, rgba(0,216,124,0.13) 0%, transparent 62%),
+    radial-gradient(ellipse 60% 45% at 10% 60%, rgba(136,216,24,0.09) 0%, transparent 56%),
+    radial-gradient(ellipse 40% 30% at 85% 80%, rgba(0,216,124,0.07) 0%, transparent 54%);
+  background-attachment: fixed;
+}
+
+[data-theme="volcanic"] body {
+  background-image:
+    radial-gradient(ellipse 95% 60% at 50% 105%, rgba(245,96,8,0.17) 0%, transparent 62%),
+    radial-gradient(ellipse 50% 38% at 5% 80%, rgba(224,48,0,0.12) 0%, transparent 54%),
+    radial-gradient(ellipse 40% 30% at 90% 20%, rgba(248,196,0,0.06) 0%, transparent 52%);
+  background-attachment: fixed;
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATION KEYFRAMES — New unique system
+   ═══════════════════════════════════════════ */
+
+/* Generic slow float for large blobs */
+@keyframes ss-float-slow {
+  0%   { transform: translate(0, 0) scale(1) translateZ(0); }
+  100% { transform: translate(20px, -30px) scale(1.08) translateZ(0); }
+}
+
+/* Dust mote rise (sunset) */
+@keyframes ss-mote-rise {
+  0%   { transform: translate(0, 0) translateZ(0); opacity: 0; }
+  10%  { opacity: var(--max-opacity, 0.6); }
+  80%  { opacity: calc(var(--max-opacity, 0.6) * 0.5); }
+  100% { transform: translate(var(--tx, 30px), var(--ty, -80px)) translateZ(0); opacity: 0; }
+}
+
+/* Ray pulse (sunset) */
+@keyframes ss-ray-pulse {
+  0%   { opacity: 0.3; transform: scaleX(0.8) rotate(var(--angle, 0deg)); }
+  100% { opacity: 1;   transform: scaleX(1.2) rotate(var(--angle, 0deg)); }
+}
+
+/* Petal fall (sakura) — uses inline vars set on each element */
+@keyframes ss-petal-fall {
+  0%   { transform: translateY(-40px) translateX(0) rotate(var(--rot-start, 0deg)) translateZ(0); opacity: 0; }
+  8%   { opacity: var(--max-opacity, 0.7); }
+  85%  { opacity: var(--max-opacity, 0.7); }
+  100% { transform: translateY(110vh) translateX(var(--drift, 60px)) rotate(var(--rot-end, 720deg)) translateZ(0); opacity: 0; }
+}
+
+/* Star twinkle (midnight, lavender, dark) */
+@keyframes ss-star-twinkle {
+  0%   { opacity: calc(var(--max-opacity, 0.8) * 0.15); transform: scale(0.85) translateZ(0); }
+  100% { opacity: var(--max-opacity, 0.8); transform: scale(1.15) translateZ(0); }
+}
+
+/* Aurora flow (midnight) */
+@keyframes ss-aurora-flow {
+  0%   { transform: translateX(0) scaleY(0.8) translateZ(0); opacity: 0; }
+  20%  { opacity: 0.6; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(var(--tx, 150px)) scaleY(1.5) translateZ(0); opacity: 0.3; }
+}
+
+/* Nebula drift (lavender, forest firefly movement) */
+@keyframes ss-nebula-drift {
+  0%   { transform: translate(0, 0) scale(1) translateZ(0); }
+  100% { transform: translate(var(--tx, 30px), var(--ty, -20px)) scale(var(--scale-end, 1.15)) translateZ(0); }
+}
+
+/* Firefly blink (forest) */
+@keyframes ss-firefly-blink {
+  0%, 100% { opacity: 0.05; transform: scale(0.6); }
+  30%       { opacity: var(--max-opacity, 0.9); transform: scale(1.2); }
+  60%       { opacity: 0.3; transform: scale(0.9); }
+  80%       { opacity: var(--max-opacity, 0.9); transform: scale(1.1); }
+}
+
+/* Ember rise (volcanic) */
+@keyframes ss-ember-rise {
+  0%   { transform: translateY(0) translateX(0) scale(1) translateZ(0); opacity: 0; }
+  12%  { opacity: var(--max-opacity, 0.85); }
+  75%  { opacity: calc(var(--max-opacity, 0.85) * 0.6); }
+  100% { transform: translateY(var(--rise, -60vh)) translateX(var(--drift, 20px)) scale(0.15) translateZ(0); opacity: 0; }
+}
+
+/* Lava glow pulse (volcanic) */
+@keyframes ss-lava-pulse {
+  0%   { opacity: 0.6; transform: scaleX(0.95) translateZ(0); }
+  100% { opacity: 1;   transform: scaleX(1.05) translateZ(0); }
+}
+
+/* Mist drift (forest) */
+@keyframes ss-mist-drift {
+  0%   { transform: translateX(0) scaleY(1) translateZ(0); opacity: 0.4; }
+  100% { transform: translateX(var(--tx, 60px)) scaleY(1.3) translateZ(0); opacity: 1; }
+}
+
+/* Grid fade (dark) */
+@keyframes ss-grid-fade {
+  0%   { opacity: 0.4; }
+  100% { opacity: 1;   }
+}
+
+/* Bubble float (light) */
+@keyframes ss-bubble-float {
+  0%   { transform: translateY(0) translateX(0) translateZ(0); opacity: 0; }
+  10%  { opacity: var(--max-opacity, 0.3); }
+  85%  { opacity: var(--max-opacity, 0.3); }
+  100% { transform: translateY(var(--rise, -60vh)) translateX(var(--drift, 20px)) translateZ(0); opacity: 0; }
+}
+
+/* ═══ REDUCED MOTION ═══ */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="sunset"] body,
+  [data-theme="midnight"] body,
+  [data-theme="sakura"] body,
+  [data-theme="lavender"] body,
+  [data-theme="forest"] body,
+  [data-theme="volcanic"] body {
+    background-image: none;
+  }
+}
