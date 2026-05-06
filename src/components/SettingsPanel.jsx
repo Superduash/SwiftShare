@@ -12,14 +12,14 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
-  { value: 'sunset', label: 'Sunset', color: '#F0522A' },
-  { value: 'dark', label: 'Dark', color: '#818CF8' },
-  { value: 'light', label: 'Light', color: '#4F46E5' },
-  { value: 'midnight', label: 'Midnight', color: '#3B82F6' },
-  { value: 'sakura', label: 'Sakura', color: '#FF4D6D' },
-  { value: 'lavender', label: 'Lavender', color: '#7C3AED' },
-  { value: 'forest', label: 'Forest', color: '#10D98A' },
-  { value: 'volcanic', label: 'Volcanic', color: '#F97316' },
+  { value: 'sunset', label: 'Sunset', color: '#F07020' },
+  { value: 'dark', label: 'Dark', color: '#1A1A1E' },
+  { value: 'light', label: 'Light', color: '#F0F0F2' },
+  { value: 'midnight', label: 'Midnight', color: '#06B6D4' },
+  { value: 'sakura', label: 'Sakura', color: '#F472B6' },
+  { value: 'lavender', label: 'Lavender', color: '#A78BFA' },
+  { value: 'forest', label: 'Forest', color: '#34D399' },
+  { value: 'volcanic', label: 'Volcanic', color: '#EF4444' },
 ]
 
 export default function SettingsPanel({ open, onClose }) {
@@ -107,7 +107,9 @@ export default function SettingsPanel({ open, onClose }) {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {THEME_OPTIONS.map(opt => {
                     const isActive = theme === opt.value
-                    const checkmarkColor = opt.value === 'light' ? '#111827' : '#FFFFFF'
+                    // Swatches with light backgrounds need dark checkmarks
+                    const lightSwatches = ['light', 'sakura']
+                    const checkmarkColor = lightSwatches.includes(opt.value) ? '#111827' : '#FFFFFF'
                     
                     return (
                       <button

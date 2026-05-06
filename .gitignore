@@ -13,6 +13,9 @@ build/
 
 # Deployment manifests (must stay tracked)
 !vercel.json
+!postcss.config.js
+!tailwind.config.js
+!vite.config.js
 
 # Logs
 logs/

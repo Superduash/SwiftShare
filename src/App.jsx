@@ -14,6 +14,7 @@ import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
 import ConnectionBanner from './components/ConnectionBanner'
+import AmbientBackground from './components/AmbientBackground'
 
 // ── Error boundary for lazy routes ───────────
 class RouteErrorBoundary extends React.Component {
@@ -197,6 +198,7 @@ export default function App() {
         <ConnectionHealthProvider>
           <TransferProvider>
             <BrowserRouter>
+              <AmbientBackground />
               <ConnectionBanner />
               <NearbyOfferListener />
               <AnimatedRoutes />
