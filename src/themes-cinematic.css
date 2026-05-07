@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   SWIFTSHARE CINEMATIC THEMES v3.0 - Deep Space, Performance, Gradient Fonts
+   SWIFTSHARE CINEMATIC THEMES v3.1 - Refined Volcanic + Complete Effects
    ═══════════════════════════════════════════════════════════════ */
 
 /* ═══ MIDNIGHT — Deep Space with Blinking Stars (DARK) ═══ */
@@ -266,71 +266,71 @@
   --logo-gradient: linear-gradient(135deg, #A7F3D0 0%, #10B981 50%, #064E3B 100%);
 }
 
-/* ═══ VOLCANIC — Obsidian Ember (DARK) ═══ */
+/* ═══ VOLCANIC — Deep Crimson Ember (DARK) ═══ */
 [data-theme="volcanic"] {
-  --bg: #0A0806;
-  --bg-raised: #181410;
-  --bg-sunken: #060402;
-  --bg-overlay: rgba(10,8,6,0.97);
-  --surface: #181410;
-  --surface-hover: #241E18;
-  --surface-active: #302820;
-  --border: #2A2018;
-  --border-strong: #462020;
-  --text: #F5EDE4;
-  --text-2: #DCCABC;
-  --text-3: #A08070;
-  --text-4: #6A5040;
-  --accent: #CC1010;
+  --bg: #0D0505;
+  --bg-raised: #1A0C0C;
+  --bg-sunken: #080303;
+  --bg-overlay: rgba(13,5,5,0.97);
+  --surface: #1A0C0C;
+  --surface-hover: #261212;
+  --surface-active: #321818;
+  --border: #2A1414;
+  --border-strong: #4A2020;
+  --text: #FFE8E8;
+  --text-2: #F0C0C0;
+  --text-3: #C08080;
+  --text-4: #804040;
+  --accent: #DC2626;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #AA0000;
-  --accent-soft: rgba(200,16,16,0.10);
-  --accent-medium: rgba(200,16,16,0.18);
-  --accent-glow: rgba(200,16,16,0.60);
-  --success: #78BB0A;
-  --success-soft: rgba(120,187,10,0.12);
-  --warning: #E88000;
-  --warning-soft: rgba(232,128,0,0.12);
-  --danger: #E83030;
-  --danger-soft: rgba(232,48,48,0.12);
-  --info: #08A8C8;
-  --info-soft: rgba(8,168,200,0.12);
-  --ring-track: #2A2018;
-  --shimmer-from: #2A2018;
-  --shimmer-to: #3A2020;
-  --toast-bg: #241E18;
-  --toast-text: #F5EDE4;
-  --toast-border: #462020;
-  --code-bg: #181410;
-  --code-char-bg: #241E18;
-  --code-char-border: #462020;
-  --qr-bg: #F5EDE4;
-  --qr-fg: #0A0806;
-  --drop-zone-bg: #181410;
-  --drop-zone-border: #462020;
-  --drop-zone-active-bg: rgba(200,16,16,0.08);
-  --drop-zone-active-border: #CC1010;
-  --nav-bg: rgba(10,8,6,0.95);
-  --nav-border: #2A2018;
-  --settings-bg: #181410;
-  --file-icon-bg: rgba(200,16,16,0.10);
-  --file-icon-color: #CC1010;
-  --ai-bg: linear-gradient(135deg, #200808 0%, #380A0A 100%);
-  --ai-border: #462020;
-  --ai-icon: #CC1010;
-  --nearby-bg: #181410;
-  --tag-bg: rgba(200,16,16,0.18);
-  --tag-text: #FF6060;
-  --progress-track: #2A2018;
-  --progress-fill: linear-gradient(90deg, #880000 0%, #CC1010 50%, #FF2020 100%);
-  --progress-glow: rgba(200,16,16,0.60);
-  --skeleton: linear-gradient(90deg, #2A2018 25%, #3A2020 50%, #2A2018 75%);
-  --gradient-hero: linear-gradient(135deg, #660000 0%, #CC1010 50%, #FF2020 100%);
-  --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.65);
-  --shadow-elevated: 0 4px 20px rgba(200,16,16,0.20), 0 20px 60px rgba(0,0,0,0.75);
-  --glow-accent: 0 0 24px rgba(200,16,16,0.50), 0 0 64px rgba(200,16,16,0.22);
-  --logo-gradient: linear-gradient(135deg, #FF5050 0%, #CC1010 50%, #700000 100%);
-  --logo-icon: #FFF7EE;
+  --accent-hover: #B91C1C;
+  --accent-soft: rgba(220,38,38,0.10);
+  --accent-medium: rgba(220,38,38,0.18);
+  --accent-glow: rgba(220,38,38,0.35);
+  --success: #84CC16;
+  --success-soft: rgba(132,204,22,0.12);
+  --warning: #F59E0B;
+  --warning-soft: rgba(245,158,11,0.12);
+  --danger: #EF4444;
+  --danger-soft: rgba(239,68,68,0.12);
+  --info: #06B6D4;
+  --info-soft: rgba(6,182,212,0.12);
+  --ring-track: #2A1414;
+  --shimmer-from: #2A1414;
+  --shimmer-to: #4A2020;
+  --toast-bg: #1A0C0C;
+  --toast-text: #FFE8E8;
+  --toast-border: #4A2020;
+  --code-bg: #1A0C0C;
+  --code-char-bg: #261212;
+  --code-char-border: #4A2020;
+  --qr-bg: #FFE8E8;
+  --qr-fg: #0D0505;
+  --drop-zone-bg: #1A0C0C;
+  --drop-zone-border: #4A2020;
+  --drop-zone-active-bg: rgba(220,38,38,0.08);
+  --drop-zone-active-border: #DC2626;
+  --nav-bg: rgba(13,5,5,0.95);
+  --nav-border: #2A1414;
+  --settings-bg: #1A0C0C;
+  --file-icon-bg: rgba(220,38,38,0.10);
+  --file-icon-color: #DC2626;
+  --ai-bg: linear-gradient(135deg, #1A0C0C 0%, #261212 100%);
+  --ai-border: #4A2020;
+  --ai-icon: #DC2626;
+  --nearby-bg: #1A0C0C;
+  --tag-bg: rgba(220,38,38,0.18);
+  --tag-text: #FCA5A5;
+  --progress-track: #2A1414;
+  --progress-fill: linear-gradient(90deg, #991B1B 0%, #DC2626 50%, #EF4444 100%);
+  --progress-glow: rgba(220,38,38,0.40);
+  --skeleton: linear-gradient(90deg, #2A1414 25%, #4A2020 50%, #2A1414 75%);
+  --gradient-hero: linear-gradient(135deg, #7F1D1D 0%, #DC2626 50%, #EF4444 100%);
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.60), 0 8px 32px rgba(0,0,0,0.70);
+  --shadow-elevated: 0 4px 20px rgba(220,38,38,0.18), 0 20px 60px rgba(0,0,0,0.75);
+  --glow-accent: 0 0 20px rgba(220,38,38,0.35), 0 0 48px rgba(220,38,38,0.18);
+  --logo-gradient: linear-gradient(135deg, #FCA5A5 0%, #DC2626 50%, #7F1D1D 100%);
+  --logo-icon: #FFFFFF;
 }
 
 /* ═══════════════════════════════════════════
@@ -388,9 +388,9 @@
 
 [data-theme="volcanic"] body {
   background-image:
-    radial-gradient(ellipse 95% 60% at 50% 105%, rgba(245,96,8,0.17) 0%, transparent 62%),
-    radial-gradient(ellipse 50% 38% at 5% 80%, rgba(224,48,0,0.12) 0%, transparent 54%),
-    radial-gradient(ellipse 40% 30% at 90% 20%, rgba(248,196,0,0.06) 0%, transparent 52%);
+    radial-gradient(ellipse 90% 55% at 50% 100%, rgba(220,38,38,0.15) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 10% 70%, rgba(185,28,28,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 85% 25%, rgba(239,68,68,0.08) 0%, transparent 52%);
   background-attachment: scroll;
   background-repeat: no-repeat;
   background-size: cover;
@@ -566,14 +566,14 @@
   transform: scale(1.10) rotate(6deg) !important;
 }
 
-/* Volcanic - Ember Fire Glow */
+/* Volcanic - Refined Crimson Glow */
 [data-theme="volcanic"] .logo-icon {
-  background: linear-gradient(135deg, #A00808 0%, #CC1818 100%) !important;
-  box-shadow: 0 2px 10px rgba(160,8,8,0.40), 0 0 14px rgba(160,8,8,0.20) !important;
+  background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%) !important;
+  box-shadow: 0 2px 12px rgba(220,38,38,0.40), 0 0 20px rgba(220,38,38,0.22) !important;
 }
 [data-theme="volcanic"] .logo-icon:hover {
-  box-shadow: 0 4px 20px rgba(160,8,8,0.55), 0 0 36px rgba(200,16,16,0.30) !important;
-  transform: scale(1.10) rotate(6deg) !important;
+  box-shadow: 0 4px 24px rgba(220,38,38,0.55), 0 0 48px rgba(220,38,38,0.35), 0 0 80px rgba(239,68,68,0.20) !important;
+  transform: scale(1.12) rotate(8deg) !important;
 }
 
 /* Sunset Dark - Ember Glow */
