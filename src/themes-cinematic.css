@@ -355,13 +355,6 @@
   min-height: -webkit-fill-available;
 }
 
-/* Mobile fix: use scroll instead of fixed to prevent shifting */
-@media (max-width: 768px) {
-  [data-theme="midnight"] body {
-    background-attachment: scroll;
-  }
-}
-
 
 
 
@@ -419,16 +412,6 @@
   /* Fix mobile scroll black bar */
   min-height: 100vh;
   min-height: -webkit-fill-available;
-}
-
-/* Mobile fix: use scroll instead of fixed to prevent shifting */
-@media (max-width: 768px) {
-  [data-theme="sakura"] body,
-  [data-theme="lavender"] body,
-  [data-theme="forest"] body,
-  [data-theme="volcanic"] body {
-    background-attachment: scroll;
-  }
 }
 
 /* ═══════════════════════════════════════════
