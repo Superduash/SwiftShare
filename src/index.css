@@ -106,11 +106,19 @@ body {
   /* Fix mobile scroll black bar issue */
   min-height: 100vh;
   min-height: -webkit-fill-available;
+  /* Ensure body fills viewport on mobile */
+  position: relative;
 }
 
 html {
   /* Prevent mobile address bar from causing layout shifts */
   height: -webkit-fill-available;
+}
+
+/* Fix for React root to fill viewport */
+#root {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 .min-h-screen {
