@@ -251,7 +251,11 @@ export default function DownloadPage() {
     setRequestError(null)
 
     try {
-      const outcome = await getFileMetadataOutcome(normalizedCode, { timeout: 45000, noRetry: true })
+      const requestConfig = { timeout: 45000, noRetry: true }
+      if (verifiedPasswordRef.current) {
+        requestConfig.headers = { 'X-Transfer-Password': verifiedPasswordRef.current }
+      }
+      const outcome = await getFileMetadataOutcome(normalizedCode, requestConfig)
 
       if (!mountedRef.current || requestToken !== requestTokenRef.current) return
 
@@ -266,6 +270,11 @@ export default function DownloadPage() {
         }
 
         applyTransferSnapshot(data, { persist: true })
+        // If backend inlined text content into metadata, use it immediately
+        if (data?.text?.content) {
+          setTextContent(data.text.content)
+          setTextLoading(false)
+        }
         setRetryAttempt(0)
         setRequestError(null)
         setRequestState(REQUEST_STATE.SUCCESS)
@@ -332,6 +341,10 @@ export default function DownloadPage() {
       setRequestError(null)
       setRequestState(REQUEST_STATE.SUCCESS)
       applyTransferSnapshot(seed, { persist: true })
+      if (seed?.text?.content) {
+        setTextContent(seed.text.content)
+        setTextLoading(false)
+      }
     }
 
     if (cachedAi) {

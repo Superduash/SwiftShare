@@ -243,6 +243,10 @@ export default function SenderPage() {
       setError(null)
       setLoading(false)
       applyTransferSnapshot(seed, { persist: true })
+      if (seed?.text?.content) {
+        setTextContent(seed.text.content)
+        setTextLoading(false)
+      }
     }
 
     if (cachedAi) {
@@ -282,6 +286,10 @@ export default function SenderPage() {
         }
 
         applyTransferSnapshot(data, { persist: true })
+        if (data?.text?.content) {
+          setTextContent(data.text.content)
+          setTextLoading(false)
+        }
       } catch (err) {
         if (!mountedRef.current) return
         const errCode = err?.response?.data?.error?.code
