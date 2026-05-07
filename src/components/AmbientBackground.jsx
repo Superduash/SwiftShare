@@ -6,48 +6,61 @@ function makeRand(seed) {
   return () => { s = Math.imul(s, 1664525) + 1013904223 >>> 0; return s / 0xffffffff }
 }
 
-/* ── SUNSET LIGHT ── */
-const SunsetScene = memo(function SunsetScene() {
+/* ── SUNRISE (light): Warm flowing waves + evenly spread glowing motes ── */
+const SunriseScene = memo(function SunriseScene() {
   const motes = useMemo(() => {
     const r = makeRand(11)
-    return Array.from({ length: 14 }, (_, i) => ({
-      id: i, left: `${r() * 100}%`, top: `${20 + r() * 70}%`,
-      size: `${1.5 + r() * 2.5}px`, dur: `${14 + r() * 16}s`, delay: `${-(r() * 20)}s`,
-      tx: `${(r() - 0.5) * 90}px`, ty: `${-(10 + r() * 50)}px`,
-      color: i % 3 === 0 ? 'rgba(255,178,92,0.75)' : i % 3 === 1 ? 'rgba(245,110,40,0.68)' : 'rgba(255,214,140,0.55)',
-    }))
+    return Array.from({ length: 18 }, (_, i) => {
+      const col = i % 6
+      const row = Math.floor(i / 6)
+      return {
+        id: i,
+        left: `${8 + col * 16 + (r() - 0.5) * 10}%`,
+        top: `${12 + row * 30 + (r() - 0.5) * 18}%`,
+        size: `${3 + r() * 5}px`, dur: `${12 + r() * 14}s`, delay: `${-(r() * 18)}s`,
+        tx: `${(r() - 0.5) * 80}px`, ty: `${-(15 + r() * 50)}px`,
+        color: i % 3 === 0 ? 'rgba(255,140,50,0.85)' : i % 3 === 1 ? 'rgba(240,100,30,0.78)' : 'rgba(255,190,100,0.72)',
+      }
+    })
   }, [])
   return (
     <>
-      <div style={{ position:'absolute',left:'10%',bottom:'-8%',width:'42vw',height:'30vw',borderRadius:'50%',filter:'blur(70px)',background:'radial-gradient(ellipse,rgba(255,138,54,0.18) 0%,rgba(255,193,99,0.08) 48%,transparent 72%)',animation:'ss-float-slow 34s -6s ease-in-out infinite alternate'}} />
-      <div style={{ position:'absolute',right:'-8%',top:'-8%',width:'36vw',height:'26vw',borderRadius:'50%',filter:'blur(80px)',background:'radial-gradient(ellipse,rgba(255,188,96,0.10) 0%,rgba(231,72,32,0.05) 44%,transparent 72%)',animation:'ss-float-slow 42s -16s ease-in-out infinite alternate-reverse'}} />
-      <div style={{ position:'absolute',left:'42%',top:'18%',width:'28vw',height:'18vw',borderRadius:'50%',filter:'blur(60px)',background:'radial-gradient(ellipse,rgba(255,220,150,0.08) 0%,transparent 68%)',animation:'ss-float-slow 28s -10s ease-in-out infinite alternate'}} />
+      <div style={{ position:'absolute',left:'-15%',bottom:'-25%',width:'80vw',height:'60vw',borderRadius:'50%',filter:'blur(60px)',background:'radial-gradient(ellipse 80% 60% at 30% 70%,rgba(255,138,54,0.28) 0%,rgba(255,180,90,0.15) 40%,rgba(255,210,140,0.06) 65%,transparent 80%)',animation:'ss-float-slow 30s -5s ease-in-out infinite alternate'}} />
+      <div style={{ position:'absolute',right:'-20%',top:'-15%',width:'70vw',height:'50vw',borderRadius:'50%',filter:'blur(70px)',background:'radial-gradient(ellipse 70% 55% at 60% 40%,rgba(255,170,70,0.22) 0%,rgba(245,120,40,0.10) 45%,transparent 75%)',animation:'ss-float-slow 38s -14s ease-in-out infinite alternate-reverse'}} />
+      <div style={{ position:'absolute',left:'15%',top:'25%',width:'65vw',height:'40vw',borderRadius:'50%',filter:'blur(80px)',background:'radial-gradient(ellipse,rgba(255,200,120,0.14) 0%,rgba(255,160,60,0.06) 50%,transparent 72%)',animation:'ss-float-slow 26s -8s ease-in-out infinite alternate'}} />
+      <div style={{ position:'absolute',left:'-5%',right:'-5%',bottom:'-10%',height:'40%',filter:'blur(50px)',background:'radial-gradient(ellipse 90% 60% at 50% 100%,rgba(255,120,40,0.25) 0%,rgba(255,170,80,0.12) 45%,transparent 72%)',animation:'ss-lava-pulse 20s ease-in-out infinite alternate'}} />
       {motes.map(m => (
-        <div key={m.id} style={{ position:'absolute',left:m.left,top:m.top,width:m.size,height:m.size,borderRadius:'50%',background:m.color,'--tx':m.tx,'--ty':m.ty,opacity:0,animation:`ss-mote-rise ${m.dur} ${m.delay} ease-out infinite`,boxShadow:`0 0 ${parseFloat(m.size)*3}px ${m.color}`}} />
+        <div key={m.id} style={{ position:'absolute',left:m.left,top:m.top,width:m.size,height:m.size,borderRadius:'50%',background:m.color,'--tx':m.tx,'--ty':m.ty,opacity:0,animation:`ss-mote-rise ${m.dur} ${m.delay} ease-out infinite`,boxShadow:`0 0 ${parseFloat(m.size)*4}px ${m.color}`}} />
       ))}
     </>
   )
 })
 
-/* ── SUNSET DARK ── */
-const SunsetDarkScene = memo(function SunsetDarkScene() {
+/* ── SUNSET (dark): Deep amber glow + evenly spread rising embers ── */
+const SunsetScene = memo(function SunsetScene() {
   const embers = useMemo(() => {
     const r = makeRand(55)
-    return Array.from({ length: 16 }, (_, i) => ({
-      id: i, left: `${3 + r() * 94}%`, bottom: `${r() * 18}%`,
-      size: `${1.5 + r() * 3.5}px`, dur: `${6 + r() * 10}s`, delay: `${-(r() * 14)}s`,
-      drift: `${(r() - 0.5) * 80}px`, rise: `${-(40 + r() * 55)}vh`,
-      color: i % 3 === 0 ? '#FF8830' : i % 3 === 1 ? '#FF5500' : '#FFAA44',
-      outer: i % 3 === 0 ? 'rgba(200,80,0,0.45)' : 'rgba(180,50,0,0.40)',
-    }))
+    return Array.from({ length: 22 }, (_, i) => {
+      const col = i % 6
+      return {
+        id: i,
+        left: `${5 + col * 16 + (r() - 0.5) * 10}%`,
+        bottom: `${r() * 20}%`,
+        size: `${2 + r() * 4}px`, dur: `${5 + r() * 10}s`, delay: `${-(r() * 14)}s`,
+        drift: `${(r() - 0.5) * 70}px`, rise: `${-(40 + r() * 55)}vh`,
+        color: i % 3 === 0 ? '#FF8830' : i % 3 === 1 ? '#FF5500' : '#FFAA44',
+        outer: i % 3 === 0 ? 'rgba(200,80,0,0.50)' : 'rgba(180,50,0,0.45)',
+      }
+    })
   }, [])
   return (
     <>
-      <div style={{ position:'absolute',left:'-5%',bottom:'-18%',right:'-5%',height:'50%',filter:'blur(80px)',background:'radial-gradient(ellipse 90% 70% at 50% 100%,rgba(180,50,0,0.30) 0%,rgba(120,30,0,0.14) 50%,transparent 75%)',animation:'ss-lava-pulse 10s ease-in-out infinite alternate'}} />
-      <div style={{ position:'absolute',left:'12%',bottom:'-8%',width:'32vw',height:'24vw',borderRadius:'50%',filter:'blur(60px)',background:'radial-gradient(ellipse,rgba(200,60,0,0.22) 0%,transparent 70%)',animation:'ss-float-slow 20s -4s ease-in-out infinite alternate'}} />
-      <div style={{ position:'absolute',right:'8%',bottom:'-5%',width:'28vw',height:'20vw',borderRadius:'50%',filter:'blur(55px)',background:'radial-gradient(ellipse,rgba(180,40,0,0.18) 0%,transparent 70%)',animation:'ss-float-slow 26s -12s ease-in-out infinite alternate-reverse'}} />
+      <div style={{ position:'absolute',left:'-8%',bottom:'-22%',right:'-8%',height:'55%',filter:'blur(80px)',background:'radial-gradient(ellipse 90% 65% at 50% 100%,rgba(200,60,0,0.35) 0%,rgba(150,30,0,0.18) 45%,transparent 72%)',animation:'ss-lava-pulse 9s ease-in-out infinite alternate'}} />
+      <div style={{ position:'absolute',left:'5%',bottom:'-8%',width:'38vw',height:'28vw',borderRadius:'50%',filter:'blur(65px)',background:'radial-gradient(ellipse,rgba(220,70,0,0.25) 0%,rgba(180,40,0,0.12) 55%,transparent 72%)',animation:'ss-float-slow 22s -4s ease-in-out infinite alternate'}} />
+      <div style={{ position:'absolute',right:'3%',bottom:'-5%',width:'32vw',height:'22vw',borderRadius:'50%',filter:'blur(60px)',background:'radial-gradient(ellipse,rgba(200,50,0,0.20) 0%,transparent 70%)',animation:'ss-float-slow 28s -14s ease-in-out infinite alternate-reverse'}} />
+      <div style={{ position:'absolute',left:'25%',top:'8%',width:'50vw',height:'35vw',borderRadius:'50%',filter:'blur(100px)',background:'radial-gradient(ellipse,rgba(180,50,0,0.08) 0%,transparent 70%)',animation:'ss-float-slow 36s -10s ease-in-out infinite alternate'}} />
       {embers.map(e => (
-        <div key={e.id} style={{ position:'absolute',left:e.left,bottom:e.bottom,width:e.size,height:e.size,borderRadius:'50%',background:`radial-gradient(circle,${e.color} 0%,${e.outer} 60%,transparent 100%)`,boxShadow:`0 0 ${parseFloat(e.size)*4}px ${e.color}`,'--drift':e.drift,'--rise':e.rise,'--max-opacity':0.75,animation:`ss-ember-rise ${e.dur} ${e.delay} ease-out infinite`}} />
+        <div key={e.id} style={{ position:'absolute',left:e.left,bottom:e.bottom,width:e.size,height:e.size,borderRadius:'50%',background:`radial-gradient(circle,${e.color} 0%,${e.outer} 60%,transparent 100%)`,boxShadow:`0 0 ${parseFloat(e.size)*4}px ${e.color},0 0 ${parseFloat(e.size)*8}px ${e.outer}`,'--drift':e.drift,'--rise':e.rise,'--max-opacity':0.80,animation:`ss-ember-rise ${e.dur} ${e.delay} ease-out infinite`}} />
       ))}
     </>
   )
@@ -168,31 +181,42 @@ const ForestScene = memo(function ForestScene() {
   )
 })
 
-/* ── VOLCANIC: Heavy lava glow + dense embers ── */
+/* ── VOLCANIC: Immersive magma with heat haze, lava veins, dense embers ── */
 const VolcanicScene = memo(function VolcanicScene() {
   const embers = useMemo(() => {
     const r = makeRand(77)
-    return Array.from({ length: 28 }, (_, i) => ({
-      id: i, left: `${3+r()*90}%`, bottom: `${r()*20}%`,
-      size: `${2+r()*5}px`, dur: `${5+r()*9}s`, delay: `${-(r()*14)}s`,
-      drift: `${(r()-0.5)*90}px`, rise: `${-(55+r()*60)}vh`,
-      opacity: 0.60+r()*0.35,
-      core: i%3===0?'#FF1A1A':i%3===1?'#CC0000':'#E83030',
-      outer: i%3===0?'rgba(200,0,0,0.55)':i%3===1?'rgba(180,0,0,0.50)':'rgba(220,20,20,0.50)',
-    }))
+    return Array.from({ length: 32 }, (_, i) => {
+      const isLarge = i < 6
+      return {
+        id: i, left: `${2+r()*96}%`, bottom: `${r()*(isLarge?10:22)}%`,
+        size: `${isLarge ? (4+r()*6) : (1.5+r()*4)}px`,
+        dur: `${isLarge ? (8+r()*6) : (4+r()*8)}s`,
+        delay: `${-(r()*14)}s`,
+        drift: `${(r()-0.5)*(isLarge?60:100)}px`,
+        rise: `${-(isLarge ? (30+r()*40) : (50+r()*60))}vh`,
+        opacity: isLarge ? (0.7+r()*0.25) : (0.5+r()*0.40),
+        core: i%4===0?'#FF2020':i%4===1?'#CC0000':i%4===2?'#FF4D1A':'#E83030',
+        outer: i%4===0?'rgba(220,0,0,0.6)':i%4===1?'rgba(180,0,0,0.55)':i%4===2?'rgba(255,60,0,0.5)':'rgba(200,20,20,0.55)',
+      }
+    })
   }, [])
   return (
     <>
-      {/* Deep crimson lava pool at bottom */}
-      <div style={{ position:'absolute',left:'-5%',bottom:'-15%',right:'-5%',height:'55%',filter:'blur(80px)',background:'radial-gradient(ellipse 80% 60% at 50% 100%,rgba(180,0,0,0.32) 0%,rgba(200,20,0,0.18) 45%,transparent 70%)',animation:'ss-lava-pulse 8s ease-in-out infinite alternate'}} />
-      {/* Left lava orb */}
-      <div style={{ position:'absolute',left:'8%',bottom:'-5%',width:'30vw',height:'25vw',borderRadius:'50%',filter:'blur(65px)',background:'radial-gradient(ellipse,rgba(200,0,0,0.25) 0%,rgba(160,0,0,0.12) 55%,transparent 72%)',animation:'ss-float-slow 18s -6s ease-in-out infinite alternate'}} />
-      {/* Right lava orb */}
-      <div style={{ position:'absolute',right:'5%',bottom:'-5%',width:'26vw',height:'20vw',borderRadius:'50%',filter:'blur(60px)',background:'radial-gradient(ellipse,rgba(170,0,0,0.22) 0%,rgba(200,20,0,0.10) 55%,transparent 72%)',animation:'ss-float-slow 24s -12s ease-in-out infinite alternate-reverse'}} />
-      {/* Center lava streak */}
-      <div style={{ position:'absolute',left:'25%',bottom:'-10%',width:'50vw',height:'18vw',borderRadius:'50%',filter:'blur(70px)',background:'radial-gradient(ellipse,rgba(220,20,0,0.18) 0%,transparent 68%)',animation:'ss-lava-pulse 12s -4s ease-in-out infinite alternate'}} />
+      {/* Primary magma pool — wide, deep */}
+      <div style={{ position:'absolute',left:'-8%',bottom:'-20%',right:'-8%',height:'60%',filter:'blur(80px)',background:'radial-gradient(ellipse 90% 65% at 50% 100%,rgba(200,10,0,0.38) 0%,rgba(180,0,0,0.22) 35%,rgba(120,0,0,0.10) 55%,transparent 72%)',animation:'ss-lava-pulse 7s ease-in-out infinite alternate'}} />
+      {/* Secondary magma — shifted left, slower pulse */}
+      <div style={{ position:'absolute',left:'-5%',bottom:'-12%',width:'55vw',height:'35vw',borderRadius:'50%',filter:'blur(70px)',background:'radial-gradient(ellipse,rgba(220,20,0,0.30) 0%,rgba(180,0,0,0.15) 50%,transparent 72%)',animation:'ss-lava-pulse 11s -3s ease-in-out infinite alternate'}} />
+      {/* Tertiary magma — right side accent */}
+      <div style={{ position:'absolute',right:'-5%',bottom:'-8%',width:'45vw',height:'28vw',borderRadius:'50%',filter:'blur(65px)',background:'radial-gradient(ellipse,rgba(200,0,0,0.26) 0%,rgba(160,10,0,0.12) 55%,transparent 72%)',animation:'ss-lava-pulse 9s -6s ease-in-out infinite alternate-reverse'}} />
+      {/* Center molten core */}
+      <div style={{ position:'absolute',left:'30%',bottom:'-6%',width:'40vw',height:'20vw',borderRadius:'50%',filter:'blur(55px)',background:'radial-gradient(ellipse,rgba(255,40,0,0.20) 0%,rgba(200,10,0,0.10) 55%,transparent 72%)',animation:'ss-lava-pulse 14s -7s ease-in-out infinite alternate'}} />
+      {/* Heat shimmer haze across lower third */}
+      <div style={{ position:'absolute',left:0,right:0,bottom:0,height:'40%',background:'linear-gradient(to top,rgba(200,30,0,0.10) 0%,rgba(160,10,0,0.05) 40%,transparent 100%)',animation:'ss-float-slow 16s ease-in-out infinite alternate',filter:'blur(2px)'}} />
+      {/* Ambient red wash on upper area */}
+      <div style={{ position:'absolute',left:'20%',top:'10%',width:'60vw',height:'40vw',borderRadius:'50%',filter:'blur(120px)',background:'radial-gradient(ellipse,rgba(120,0,0,0.08) 0%,transparent 70%)',animation:'ss-float-slow 40s -8s ease-in-out infinite alternate'}} />
+      {/* Embers */}
       {embers.map(e => (
-        <div key={e.id} style={{ position:'absolute',left:e.left,bottom:e.bottom,width:e.size,height:e.size,borderRadius:'50%',background:`radial-gradient(circle,${e.core} 0%,${e.outer} 55%,transparent 100%)`,boxShadow:`0 0 ${parseFloat(e.size)*4}px ${e.core},0 0 ${parseFloat(e.size)*8}px rgba(180,0,0,0.3)`,'--drift':e.drift,'--rise':e.rise,'--max-opacity':e.opacity,animation:`ss-ember-rise ${e.dur} ${e.delay} ease-out infinite`}} />
+        <div key={e.id} style={{ position:'absolute',left:e.left,bottom:e.bottom,width:e.size,height:e.size,borderRadius:'50%',background:`radial-gradient(circle,${e.core} 0%,${e.outer} 50%,transparent 100%)`,boxShadow:`0 0 ${parseFloat(e.size)*4}px ${e.core},0 0 ${parseFloat(e.size)*8}px ${e.outer},0 0 ${parseFloat(e.size)*14}px rgba(180,0,0,0.25)`,'--drift':e.drift,'--rise':e.rise,'--max-opacity':e.opacity,animation:`ss-ember-rise ${e.dur} ${e.delay} ease-out infinite`}} />
       ))}
     </>
   )
@@ -241,7 +265,7 @@ const LightScene = memo(function LightScene() {
 })
 
 const SCENES = {
-  sunset: SunsetScene, 'sunset-dark': SunsetDarkScene,
+  sunset: SunriseScene, 'sunset-dark': SunsetScene,
   sakura: SakuraScene, midnight: MidnightScene,
   lavender: LavenderScene, forest: ForestScene,
   volcanic: VolcanicScene, dark: DarkScene, light: LightScene,

@@ -12,8 +12,8 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
-  { value: 'sunset',      label: 'Sunset',       color: '#F07020',  light: false },
-  { value: 'sunset-dark', label: 'Sunset Dark',  color: '#C85A10',  light: false },
+  { value: 'sunset',      label: 'Sunrise',      color: '#F07020',  light: false },
+  { value: 'sunset-dark', label: 'Sunset',       color: '#C85A10',  light: false },
   { value: 'dark', label: 'Dark', color: '#1A1A1E', light: false },
   { value: 'light', label: 'Light', color: '#F0F0F2', light: true },
   { value: 'midnight', label: 'Midnight', color: '#1440A0', light: false },

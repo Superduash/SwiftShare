@@ -19,8 +19,8 @@ const TONE_VARS = {
   danger:  { bg: 'var(--danger-soft)',  fg: 'var(--danger)',  glow: '0 0 6px rgba(220,38,38,0.4)' },
 }
 
-// Sunset has two sub-modes: light (default) and dark
-// Stored as 'sunset' (light) and 'sunset-dark'
+// Sunrise (light) ↔ Sunset (dark) toggle
+// Stored as 'sunset' (sunrise/light) and 'sunset-dark' (sunset/dark)
 
 
 
@@ -76,20 +76,16 @@ export default function Navbar() {
                 }}
                 aria-hidden="true"
               >
-                <Zap size={16} color="var(--accent-contrast, #fff)" strokeWidth={2.5} />
+                <Zap size={16} color="var(--logo-icon, var(--accent-contrast, #fff))" strokeWidth={2.5} />
               </div>
               <span
                 className="font-display font-bold text-lg hidden sm:inline transition-all duration-300 group-hover:tracking-wide"
-                style={
-                  isDarkTheme
-                    ? {
-                        background: 'var(--logo-gradient, linear-gradient(135deg, var(--text) 0%, var(--accent) 100%))',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                      }
-                    : { color: 'var(--text)' }
-                }
+                style={{
+                  background: 'var(--logo-gradient, linear-gradient(135deg, var(--text) 0%, var(--accent) 100%))',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
               >
                 SwiftShare
               </span>
