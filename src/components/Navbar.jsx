@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, memo, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Settings, Zap, ArrowLeft, Sun, Moon } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
@@ -22,9 +22,7 @@ const TONE_VARS = {
 // Sunrise (light) ↔ Sunset (dark) toggle
 // Stored as 'sunset' (sunrise/light) and 'sunset-dark' (sunset/dark)
 
-
-
-export default function Navbar() {
+function Navbar() {
   const { theme, setTheme } = useTheme()
   const { status } = useConnectionHealth()
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -41,9 +39,12 @@ export default function Navbar() {
   const darkThemes = ['dark', 'midnight', 'lavender', 'forest', 'volcanic', 'sunset-dark']
   const isDarkTheme = darkThemes.includes(theme)
 
-  function toggleSunsetMode() {
+  const toggleSunsetMode = useCallback(() => {
     setTheme(isSunsetDark ? 'sunset' : 'sunset-dark')
-  }
+  }, [isSunsetDark, setTheme])
+
+  const openSettings = useCallback(() => setSettingsOpen(true), [])
+  const closeSettings = useCallback(() => setSettingsOpen(false), [])
 
   return (
     <>
@@ -135,7 +136,7 @@ export default function Navbar() {
 
             <button
               className="btn-icon"
-              onClick={() => setSettingsOpen(true)}
+              onClick={openSettings}
               aria-label="Open settings"
             >
               <Settings size={18} />
@@ -144,7 +145,10 @@ export default function Navbar() {
         </div>
       </nav>
 
-      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsPanel open={settingsOpen} onClose={closeSettings} />
     </>
   )
 }
+
+// Memoize Navbar - only re-render when theme, status, or location changes
+export default memo(Navbar)

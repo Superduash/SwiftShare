@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Maximize2 } from 'lucide-react'
 import { QRCode } from 'react-qr-code'
 
-export default function QRModal({ open, onClose, value, code }) {
+function QRModal({ open, onClose, value, code }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     if (open) window.addEventListener('keydown', onKey)
@@ -71,3 +71,5 @@ export default function QRModal({ open, onClose, value, code }) {
     </AnimatePresence>
   )
 }
+
+export default memo(QRModal)

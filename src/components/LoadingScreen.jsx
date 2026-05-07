@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
 
-export default function LoadingScreen({ message = 'Loading...' }) {
+function LoadingScreen({ message = 'Loading...' }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
       <motion.div
@@ -36,3 +36,5 @@ export default function LoadingScreen({ message = 'Loading...' }) {
     </div>
   )
 }
+
+export default memo(LoadingScreen)

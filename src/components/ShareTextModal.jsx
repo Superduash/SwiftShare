@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, FileText, Lock, Eye, EyeOff, Flame, Clock, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function ShareTextModal({ open, onClose, onShare }) {
+function ShareTextModal({ open, onClose, onShare }) {
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
   const [expiry, setExpiry] = useState(60)
@@ -60,7 +60,7 @@ export default function ShareTextModal({ open, onClose, onShare }) {
     return () => window.removeEventListener('paste', handlePaste)
   }, [open, content])
 
-  async function handleShare() {
+  const handleShare = useCallback(async () => {
     if (!content.trim()) {
       toast.error('Please enter some text')
       return
@@ -92,7 +92,7 @@ export default function ShareTextModal({ open, onClose, onShare }) {
     } finally {
       setSharing(false)
     }
-  }
+  }, [content, title, expiry, burn, passwordProtected, password, isOverLimit, onShare, onClose])
 
   function formatBytes(bytes) {
     if (bytes < 1024) return `${bytes} B`
@@ -366,3 +366,5 @@ export default function ShareTextModal({ open, onClose, onShare }) {
     </AnimatePresence>
   )
 }
+
+export default memo(ShareTextModal)

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -37,7 +37,7 @@ function statusToExpiredReason(status) {
   return 'expired'
 }
 
-export default function RecentTransfers() {
+function RecentTransfers() {
   const [transfers, setTransfers] = useState(() => {
     const list = getRecentTransfers()
     // Instantly calculate status based on the local clock so the UI doesn't wait for the backend.
@@ -90,7 +90,7 @@ export default function RecentTransfers() {
 
   if (!transfers.length) return null
 
-  function handleClear() {
+  const handleClear = useCallback(() => {
     if (!confirmClear) {
       setConfirmClear(true)
       setTimeout(() => setConfirmClear(false), 3000)
@@ -99,16 +99,16 @@ export default function RecentTransfers() {
     clearTransfers()
     setTransfers([])
     setConfirmClear(false)
-  }
+  }, [confirmClear])
 
-  function handleRemove(e, code) {
+  const handleRemove = useCallback((e, code) => {
     e.stopPropagation()
     const normalizedCode = normalizeCode(code)
     removeTransfer(normalizedCode)
     setTransfers(prev => prev.filter(t => normalizeCode(t.code) !== normalizedCode))
-  }
+  }, [])
 
-  async function handleClick(t) {
+  const handleClick = useCallback(async (t) => {
     const normalizedCode = normalizeCode(t.code)
     if (!normalizedCode) return
 
@@ -168,7 +168,7 @@ export default function RecentTransfers() {
       // Fallback: navigate without state
       navigate(isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`)
     }
-  }
+  }, [navigate])
 
   return (
     <motion.div
@@ -248,3 +248,5 @@ export default function RecentTransfers() {
     </motion.div>
   )
 }
+
+export default memo(RecentTransfers)

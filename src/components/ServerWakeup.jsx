@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, memo } from 'react'
 import { motion } from 'framer-motion'
 import { Zap, Loader2 } from 'lucide-react'
 import { pingServer } from '../services/api'
 
-export default function ServerWakeup() {
+function ServerWakeup() {
   const [dots, setDots] = useState(0)
 
   useEffect(() => {
@@ -41,3 +41,5 @@ export default function ServerWakeup() {
     </div>
   )
 }
+
+export default memo(ServerWakeup)

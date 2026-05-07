@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, WifiOff, Zap, CheckCircle2, RefreshCw } from 'lucide-react'
 import { useConnectionHealth } from '../context/ConnectionHealthContext'
@@ -63,7 +63,7 @@ const RESTORED_FLASH_MS = 1600
 // Statuses that count as a real outage (used to decide whether to flash "restored").
 const OUTAGE_STATES = new Set(['offline', 'reconnecting', 'waking'])
 
-export default function ConnectionBanner() {
+function ConnectionBanner() {
   const { status } = useConnectionHealth()
 
   // displayStatus is what we actually render. It can lag the FSM state for two
@@ -190,3 +190,5 @@ export default function ConnectionBanner() {
     </AnimatePresence>
   )
 }
+
+export default memo(ConnectionBanner)

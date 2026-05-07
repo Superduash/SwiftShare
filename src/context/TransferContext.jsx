@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react'
 
 const TransferContext = createContext(null)
 
@@ -32,13 +32,14 @@ export function TransferProvider({ children }) {
     setAiData(null)
   }, [])
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    uploadState, uploadData, setUploadData, aiData, setAiData,
+    startUpload, setUploadProgress, setError, clearTransfer,
+  }), [uploadState, uploadData, aiData, startUpload, setUploadProgress, setError, clearTransfer])
+
   return (
-    <TransferContext.Provider
-      value={{
-        uploadState, uploadData, setUploadData, aiData, setAiData,
-        startUpload, setUploadProgress, setError, clearTransfer,
-      }}
-    >
+    <TransferContext.Provider value={contextValue}>
       {children}
     </TransferContext.Provider>
   )

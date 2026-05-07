@@ -40,11 +40,25 @@ export default defineConfig({
           if (/\/node_modules\/(socket\.io-client|engine\.io-client)\//.test(id)) return 'socket'
           if (/\/node_modules\/(react-qr-code|qrcode)\//.test(id)) return 'qr'
           if (/\/node_modules\/lucide-react\//.test(id)) return 'icons'
+          if (/\/node_modules\/react-hot-toast\//.test(id)) return 'toast'
+          if (/\/node_modules\/react-dropzone\//.test(id)) return 'dropzone'
+          if (/\/node_modules\/canvas-confetti\//.test(id)) return 'confetti'
         },
       },
     },
     // Larger chunk warning threshold — react-pdf legitimately ships 700KB+ and
     // we don't want CI noise.
     chunkSizeWarningLimit: 1500,
+  },
+  // Optimize dependency pre-bundling
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'framer-motion',
+      'socket.io-client',
+      'react-hot-toast',
+    ],
   },
 })

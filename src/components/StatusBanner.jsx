@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 
 // ── Unified inline status banner ────────────────────────────────────────────
@@ -24,7 +24,7 @@ const TONE_VARS = {
   accent:  { bg: 'var(--accent-soft)',  border: 'var(--accent-medium)',  fg: 'var(--accent)'  },
 }
 
-export default function StatusBanner({
+function StatusBanner({
   tone = 'info',
   icon: Icon,
   title,
@@ -73,3 +73,5 @@ export default function StatusBanner({
     </motion.div>
   )
 }
+
+export default memo(StatusBanner)

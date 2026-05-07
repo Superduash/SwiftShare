@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, FileText, Image, Video, FileArchive,
@@ -43,7 +43,7 @@ function cleanKeyPoints(points) {
     .filter((point) => !/^(pdf|image|video|audio|zip|txt|csv|docx?)\s*format$/i.test(point))
 }
 
-export default function AISummaryCard({ ai, loading = false }) {
+function AISummaryCard({ ai, loading = false }) {
   const [showFiles, setShowFiles] = useState(false)
   const [copied, setCopied] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
@@ -71,7 +71,7 @@ export default function AISummaryCard({ ai, loading = false }) {
     return () => clearTimeout(timer)
   }, [loading])
 
-  const handleCopySummary = async () => {
+  const handleCopySummary = useCallback(async () => {
     if (!summary) return
     try {
       await navigator.clipboard.writeText(summary)
@@ -81,7 +81,7 @@ export default function AISummaryCard({ ai, loading = false }) {
     } catch {
       toast.error('Could not copy')
     }
-  }
+  }, [summary])
 
   return (
     <motion.div
@@ -247,3 +247,4 @@ export default function AISummaryCard({ ai, loading = false }) {
   )
 }
 
+export default memo(AISummaryCard)
