@@ -345,8 +345,10 @@
     radial-gradient(ellipse 120% 80% at 30% 20%, rgba(8,20,48,0.30) 0%, transparent 55%),
     radial-gradient(ellipse 80% 60% at 75% 80%, rgba(4,10,30,0.25) 0%, transparent 50%),
     radial-gradient(ellipse at center, #000408 0%, #000000 60%);
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
+  background-position: center center;
   position: relative;
 }
 
@@ -358,7 +360,7 @@
     radial-gradient(ellipse 90% 65% at 80% 5%, rgba(233,30,99,0.08) 0%, transparent 60%),
     radial-gradient(ellipse 70% 50% at 15% 90%, rgba(248,187,208,0.12) 0%, transparent 58%),
     radial-gradient(ellipse 50% 40% at 50% 50%, rgba(245,249,252,0.6) 0%, transparent 60%);
-  background-attachment: scroll;
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
@@ -369,7 +371,7 @@
     radial-gradient(ellipse 80% 55% at 90% 5%, rgba(167,139,250,0.14) 0%, transparent 58%),
     radial-gradient(ellipse 60% 45% at 5% 90%, rgba(129,140,248,0.10) 0%, transparent 54%),
     radial-gradient(ellipse 50% 40% at 50% 50%, rgba(196,165,253,0.06) 0%, transparent 60%);
-  background-attachment: scroll;
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
@@ -380,7 +382,7 @@
     radial-gradient(ellipse 130% 60% at 50% 0%, rgba(0,216,124,0.13) 0%, transparent 62%),
     radial-gradient(ellipse 60% 45% at 10% 60%, rgba(136,216,24,0.09) 0%, transparent 56%),
     radial-gradient(ellipse 40% 30% at 85% 80%, rgba(0,216,124,0.07) 0%, transparent 54%);
-  background-attachment: scroll;
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
@@ -391,7 +393,7 @@
     radial-gradient(ellipse 90% 55% at 50% 100%, rgba(220,38,38,0.15) 0%, transparent 60%),
     radial-gradient(ellipse 50% 40% at 10% 70%, rgba(185,28,28,0.10) 0%, transparent 55%),
     radial-gradient(ellipse 40% 30% at 85% 25%, rgba(239,68,68,0.08) 0%, transparent 52%);
-  background-attachment: scroll;
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;

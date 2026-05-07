@@ -451,6 +451,12 @@ export async function shareText({ content, title, expiryMinutes, burnAfterDownlo
   return unwrapResponse(data)
 }
 
+export async function getTextContent(code, password = undefined) {
+  const config = password ? { headers: { 'X-Transfer-Password': password } } : undefined
+  const { data } = await API.get(`/api/file/${normalizeCode(code)}/text`, config)
+  return unwrapResponse(data)
+}
+
 // ── Metadata & Status ───────────────────────
 export async function getFileMetadata(code, requestConfig = undefined) {
   const { data } = await API.get(`/api/file/${normalizeCode(code)}`, requestConfig)

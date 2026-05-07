@@ -321,8 +321,10 @@
     radial-gradient(ellipse 100% 55% at 0% 100%, rgba(229,80,32,0.09) 0%, transparent 60%),
     radial-gradient(ellipse 80% 50% at 100% 0%, rgba(240,140,24,0.07) 0%, transparent 58%),
     radial-gradient(ellipse 60% 40% at 50% 58%, rgba(244,196,28,0.04) 0%, transparent 64%);
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
+  background-position: center center;
 }
 
 [data-theme="sunset-dark"] body {
@@ -330,16 +332,20 @@
     radial-gradient(ellipse 100% 60% at 0% 100%, rgba(180,50,0,0.22) 0%, transparent 62%),
     radial-gradient(ellipse 70% 50% at 100% 5%, rgba(200,80,0,0.12) 0%, transparent 55%),
     radial-gradient(ellipse 50% 35% at 50% 70%, rgba(255,120,20,0.07) 0%, transparent 60%);
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
+  background-position: center center;
 }
 
 [data-theme="dark"] body {
   background-color: #09090B;
   background-image:
     radial-gradient(ellipse 80% 40% at 50% 0%, rgba(30,30,35,0.8) 0%, transparent 70%);
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
+  background-position: center center;
 }
 
 [data-theme="light"] body {
@@ -347,6 +353,8 @@
   background-image:
     radial-gradient(ellipse 90% 55% at 80% 10%, rgba(200,200,210,0.12) 0%, transparent 60%),
     radial-gradient(ellipse 60% 40% at 10% 80%, rgba(210,210,220,0.08) 0%, transparent 55%);
+  background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
+  background-position: center center;
 }
