@@ -25,10 +25,8 @@ const SunriseScene = memo(function SunriseScene() {
   }, [])
   return (
     <>
-      <div style={{ position:'absolute',left:'-15%',bottom:'-25%',width:'80vw',height:'60vw',borderRadius:'50%',filter:'blur(60px)',background:'radial-gradient(ellipse 80% 60% at 30% 70%,rgba(255,138,54,0.28) 0%,rgba(255,180,90,0.15) 40%,rgba(255,210,140,0.06) 65%,transparent 80%)',animation:'ss-float-slow 30s -5s ease-in-out infinite alternate'}} />
       <div style={{ position:'absolute',right:'-20%',top:'-15%',width:'70vw',height:'50vw',borderRadius:'50%',filter:'blur(70px)',background:'radial-gradient(ellipse 70% 55% at 60% 40%,rgba(255,170,70,0.22) 0%,rgba(245,120,40,0.10) 45%,transparent 75%)',animation:'ss-float-slow 38s -14s ease-in-out infinite alternate-reverse'}} />
       <div style={{ position:'absolute',left:'15%',top:'25%',width:'65vw',height:'40vw',borderRadius:'50%',filter:'blur(80px)',background:'radial-gradient(ellipse,rgba(255,200,120,0.14) 0%,rgba(255,160,60,0.06) 50%,transparent 72%)',animation:'ss-float-slow 26s -8s ease-in-out infinite alternate'}} />
-      <div style={{ position:'absolute',left:'-5%',right:'-5%',bottom:'-10%',height:'40%',filter:'blur(50px)',background:'radial-gradient(ellipse 90% 60% at 50% 100%,rgba(255,120,40,0.25) 0%,rgba(255,170,80,0.12) 45%,transparent 72%)',animation:'ss-lava-pulse 20s ease-in-out infinite alternate'}} />
       {motes.map(m => (
         <div key={m.id} style={{ position:'absolute',left:m.left,top:m.top,width:m.size,height:m.size,borderRadius:'50%',background:m.color,'--tx':m.tx,'--ty':m.ty,opacity:0,animation:`ss-mote-rise ${m.dur} ${m.delay} ease-out infinite`,boxShadow:`0 0 ${parseFloat(m.size)*4}px ${m.color}`}} />
       ))}
@@ -55,7 +53,6 @@ const SunsetScene = memo(function SunsetScene() {
   }, [])
   return (
     <>
-      <div style={{ position:'absolute',left:'-8%',bottom:'-22%',right:'-8%',height:'55%',filter:'blur(80px)',background:'radial-gradient(ellipse 90% 65% at 50% 100%,rgba(200,60,0,0.35) 0%,rgba(150,30,0,0.18) 45%,transparent 72%)',animation:'ss-lava-pulse 9s ease-in-out infinite alternate'}} />
       <div style={{ position:'absolute',left:'5%',bottom:'-8%',width:'38vw',height:'28vw',borderRadius:'50%',filter:'blur(65px)',background:'radial-gradient(ellipse,rgba(220,70,0,0.25) 0%,rgba(180,40,0,0.12) 55%,transparent 72%)',animation:'ss-float-slow 22s -4s ease-in-out infinite alternate'}} />
       <div style={{ position:'absolute',right:'3%',bottom:'-5%',width:'32vw',height:'22vw',borderRadius:'50%',filter:'blur(60px)',background:'radial-gradient(ellipse,rgba(200,50,0,0.20) 0%,transparent 70%)',animation:'ss-float-slow 28s -14s ease-in-out infinite alternate-reverse'}} />
       <div style={{ position:'absolute',left:'25%',top:'8%',width:'50vw',height:'35vw',borderRadius:'50%',filter:'blur(100px)',background:'radial-gradient(ellipse,rgba(180,50,0,0.08) 0%,transparent 70%)',animation:'ss-float-slow 36s -10s ease-in-out infinite alternate'}} />
@@ -210,21 +207,6 @@ const VolcanicScene = memo(function VolcanicScene() {
       <div style={{ position:'absolute',right:'-5%',bottom:'-8%',width:'45vw',height:'28vw',borderRadius:'50%',filter:'blur(65px)',background:'radial-gradient(ellipse,rgba(200,0,0,0.26) 0%,rgba(160,10,0,0.12) 55%,transparent 72%)',animation:'ss-lava-pulse 9s -6s ease-in-out infinite alternate-reverse'}} />
       {/* Center molten core */}
       <div style={{ position:'absolute',left:'30%',bottom:'-6%',width:'40vw',height:'20vw',borderRadius:'50%',filter:'blur(55px)',background:'radial-gradient(ellipse,rgba(255,40,0,0.20) 0%,rgba(200,10,0,0.10) 55%,transparent 72%)',animation:'ss-lava-pulse 14s -7s ease-in-out infinite alternate'}} />
-      {/* Heat shimmer haze across lower third (curved top to avoid rectangular strip) */}
-      <div style={{
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: '40%',
-        background: 'linear-gradient(to top, rgba(200,30,0,0.10) 0%, rgba(160,10,0,0.05) 40%, transparent 100%)',
-        animation: 'ss-float-slow 16s ease-in-out infinite alternate',
-        filter: 'blur(2px)',
-        borderTopLeftRadius: '28%',
-        borderTopRightRadius: '28%',
-        transform: 'translateZ(0)',
-        willChange: 'transform, opacity',
-      }} />
       {/* Ambient red wash on upper area */}
       <div style={{ position:'absolute',left:'20%',top:'10%',width:'60vw',height:'40vw',borderRadius:'50%',filter:'blur(120px)',background:'radial-gradient(ellipse,rgba(120,0,0,0.08) 0%,transparent 70%)',animation:'ss-float-slow 40s -8s ease-in-out infinite alternate'}} />
       {/* Embers */}
