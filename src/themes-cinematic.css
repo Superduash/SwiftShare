@@ -424,6 +424,28 @@
   100% { transform: translate3d(20px, -30px, 0) scale(1.08); }
 }
 
+/* Premium cinematic bloom animations for Sunset theme */
+@keyframes ss-bloom-drift-1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(30px, -40px, 0) scale(1.15); }
+}
+
+@keyframes ss-bloom-drift-2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-25px, 35px, 0) scale(1.12); }
+}
+
+@keyframes ss-bloom-drift-3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(20px, 20px, 0) scale(1.08); }
+}
+
+@keyframes ss-light-sweep {
+  0% { transform: translate3d(-10%, -10%, 0); opacity: 0.6; }
+  50% { transform: translate3d(10%, 10%, 0); opacity: 1; }
+  100% { transform: translate3d(-10%, -10%, 0); opacity: 0.6; }
+}
+
 /* Sunset glow pulse */
 @keyframes ss-sunset-glow {
   0%   { opacity: 0.6; transform: translate3d(0, 0, 0) scale(1); }
