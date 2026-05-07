@@ -541,15 +541,10 @@ export default function SenderPage() {
 
     setExtending(true)
     try {
-      const result = await extendTransfer(normalizedCode)
+      await extendTransfer(normalizedCode)
       setExtended(true)
       setConfirmExtend(false)
-      if (result?.expiresAt) {
-        const newSeconds = Math.max(0, Math.ceil((new Date(result.expiresAt).getTime() - Date.now()) / 1000))
-        setSecondsRemaining(newSeconds)
-        // Derive totalSeconds from actual remaining time, not hardcoded value
-        setTotalSeconds(newSeconds)
-      }
+      // Don't update state here - let the socket event handle it to avoid double updates
       toast.success('Extended by 10 minutes')
     } catch {
       toast.error('Failed to extend')
