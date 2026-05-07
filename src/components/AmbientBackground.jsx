@@ -268,7 +268,14 @@ const SCENES = {
 
 export default memo(function AmbientBackground() {
   const { theme } = useTheme()
-  if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null
+  
+  // Check if reduce motion is enabled - if so, don't render anything
+  if (typeof window !== 'undefined') {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const bodyHasReduceMotion = document.body.classList.contains('reduce-motion')
+    if (reducedMotion || bodyHasReduceMotion) return null
+  }
+  
   const Scene = SCENES[theme]
   if (!Scene) return null
   return (
