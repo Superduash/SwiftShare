@@ -55,6 +55,11 @@ export default function SettingsPanel({ open, onClose }) {
     const next = { ...settings, ...patch }
     setSettings(next)
     saveSettings(patch)
+    
+    // Force re-render of AmbientBackground when reducedMotion changes
+    if ('reducedMotion' in patch) {
+      window.dispatchEvent(new CustomEvent('swiftshare:settings-changed'))
+    }
   }
 
   function handleClearHistory() {
@@ -176,38 +181,6 @@ export default function SettingsPanel({ open, onClose }) {
                 </div>
               </div>
 
-              {/* Burn toggle */}
-              <div className="mb-8">
-                <label className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
-                  <Flame size={13} />
-                  Burn After Download
-                </label>
-                <button
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all"
-                  style={{
-                    background: settings.defaultBurn ? 'var(--accent-soft)' : 'transparent',
-                    border: `1px solid ${settings.defaultBurn ? 'var(--accent)' : 'var(--border)'}`,
-                  }}
-                  onClick={() => update({ defaultBurn: !settings.defaultBurn })}
-                >
-                  <span className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>
-                    {settings.defaultBurn ? 'Enabled by default' : 'Disabled by default'}
-                  </span>
-                  <div
-                    className="w-10 h-6 rounded-full relative transition-all"
-                    style={{ background: settings.defaultBurn ? 'var(--accent)' : 'var(--border-strong)' }}
-                  >
-                    <div
-                      className="w-4 h-4 rounded-full absolute top-1 transition-all"
-                      style={{
-                        background: '#fff',
-                        left: settings.defaultBurn ? '22px' : '4px',
-                      }}
-                    />
-                  </div>
-                </button>
-              </div>
-
               {/* Preferences */}
               <div className="mb-8">
                 <label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: 'var(--text-3)' }}>
@@ -229,7 +202,7 @@ export default function SettingsPanel({ open, onClose }) {
                         Reduce Motion
                       </p>
                       <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-                        Disable UI animations for better performance
+                        Remove animations & particles
                       </p>
                     </div>
                     <div
@@ -278,6 +251,38 @@ export default function SettingsPanel({ open, onClose }) {
                     </div>
                   </button>
                 </div>
+              </div>
+
+              {/* Burn toggle */}
+              <div className="mb-8">
+                <label className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
+                  <Flame size={13} />
+                  Burn After Download
+                </label>
+                <button
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                  style={{
+                    background: settings.defaultBurn ? 'var(--accent-soft)' : 'transparent',
+                    border: `1px solid ${settings.defaultBurn ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                  onClick={() => update({ defaultBurn: !settings.defaultBurn })}
+                >
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>
+                    {settings.defaultBurn ? 'Enabled by default' : 'Disabled by default'}
+                  </span>
+                  <div
+                    className="w-10 h-6 rounded-full relative transition-all"
+                    style={{ background: settings.defaultBurn ? 'var(--accent)' : 'var(--border-strong)' }}
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                      style={{
+                        background: '#fff',
+                        left: settings.defaultBurn ? '22px' : '4px',
+                      }}
+                    />
+                  </div>
+                </button>
               </div>
 
               {/* Clear history */}
