@@ -62,9 +62,15 @@ img, video, canvas, svg {
   scroll-behavior: smooth;
 }
 
-/* Performance: Reduce paint on scroll */
+/* Performance: Optimize compositing layers */
 .fixed, .sticky {
+  will-change: transform;
   transform: translateZ(0);
+}
+
+/* Optimize particle animations - selective will-change */
+[style*="animation"][style*="infinite"] {
+  will-change: transform, opacity;
 }
 
 /* CRITICAL: Exclude theme background layers from GPU acceleration to preserve animations */
@@ -165,6 +171,12 @@ a { color: inherit; text-decoration: none; }
    UTILITY CLASSES
    ═══════════════════════════════════════════ */
 @layer components {
+  /* Performance: CSS Containment for cards */
+  .surface-card,
+  .surface-card-flat {
+    contain: layout style paint;
+  }
+  
   .surface-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -770,10 +782,16 @@ body.reduce-motion *::after {
    PERFORMANCE & QUALITY ENHANCEMENTS
    ═══════════════════════════════════════════════════════════════ */
 
-/* Optimize animations for 60fps */
+/* Optimize animations for 60fps - use transform and opacity only */
 @media (prefers-reduced-motion: no-preference) {
   * {
     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Hint browser to optimize animated elements */
+  [style*="animation"] {
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 }
 
@@ -799,11 +817,17 @@ img[width], img[height] {
   -webkit-overflow-scrolling: touch;
 }
 
-/* GPU hints only when actively animating — avoid blanket will-change */
+/* GPU hints only when actively animating */
 .btn-primary:hover,
 .btn-secondary:hover,
 .surface-card:hover {
   will-change: transform;
+}
+
+.btn-primary:not(:hover),
+.btn-secondary:not(:hover),
+.surface-card:not(:hover) {
+  will-change: auto;
 }
 
 /* Optimize text rendering */

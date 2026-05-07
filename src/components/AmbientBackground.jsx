@@ -26,10 +26,10 @@ const SunriseScene = memo(function SunriseScene() {
   }, [])
   return (
     <>
-      <div style={{ position:'absolute',right:'-20%',top:'-15%',width:'70vw',height:'50vw',borderRadius:'50%',filter:'blur(70px)',background:'radial-gradient(ellipse 70% 55% at 60% 40%,rgba(255,170,70,0.22) 0%,rgba(245,120,40,0.10) 45%,transparent 75%)',animation:'ss-float-slow 38s -14s ease-in-out infinite alternate-reverse'}} />
-      <div style={{ position:'absolute',left:'15%',top:'25%',width:'65vw',height:'40vw',borderRadius:'50%',filter:'blur(80px)',background:'radial-gradient(ellipse,rgba(255,200,120,0.14) 0%,rgba(255,160,60,0.06) 50%,transparent 72%)',animation:'ss-float-slow 26s -8s ease-in-out infinite alternate'}} />
+      <div style={{ position:'absolute',right:'-20%',top:'-15%',width:'70vw',height:'50vw',borderRadius:'50%',filter:'blur(70px)',background:'radial-gradient(ellipse 70% 55% at 60% 40%,rgba(255,170,70,0.22) 0%,rgba(245,120,40,0.10) 45%,transparent 75%)',animation:'ss-float-slow 38s -14s ease-in-out infinite alternate-reverse',willChange:'transform'}} />
+      <div style={{ position:'absolute',left:'15%',top:'25%',width:'65vw',height:'40vw',borderRadius:'50%',filter:'blur(80px)',background:'radial-gradient(ellipse,rgba(255,200,120,0.14) 0%,rgba(255,160,60,0.06) 50%,transparent 72%)',animation:'ss-float-slow 26s -8s ease-in-out infinite alternate',willChange:'transform'}} />
       {motes.map(m => (
-        <div key={m.id} style={{ position:'absolute',left:m.left,top:m.top,width:m.size,height:m.size,borderRadius:'50%',background:m.color,'--tx':m.tx,'--ty':m.ty,opacity:0,animation:`ss-mote-rise ${m.dur} ${m.delay} ease-out infinite`,boxShadow:`0 0 ${parseFloat(m.size)*4}px ${m.color}`}} />
+        <div key={m.id} style={{ position:'absolute',left:m.left,top:m.top,width:m.size,height:m.size,borderRadius:'50%',background:m.color,'--tx':m.tx,'--ty':m.ty,opacity:0,animation:`ss-mote-rise ${m.dur} ${m.delay} ease-out infinite`,boxShadow:`0 0 ${parseFloat(m.size)*4}px ${m.color}`,willChange:'transform,opacity'}} />
       ))}
     </>
   )
@@ -294,11 +294,9 @@ export default memo(function AmbientBackground() {
         pointerEvents: 'none',
         overflow: 'hidden',
         zIndex: 0,
-        contain: 'strict',
+        contain: 'layout style paint',
+        isolation: 'isolate',
         background: 'transparent',
-        transform: 'translateZ(0)',
-        willChange: 'transform',
-        backfaceVisibility: 'hidden',
       }}
     >
       <Scene />
