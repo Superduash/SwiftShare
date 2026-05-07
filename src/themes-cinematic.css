@@ -350,6 +350,9 @@
   background-size: cover;
   background-position: center center;
   position: relative;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 
@@ -364,6 +367,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 [data-theme="lavender"] body {
@@ -375,6 +381,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 [data-theme="forest"] body {
@@ -386,6 +395,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 [data-theme="volcanic"] body {
@@ -397,6 +409,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 /* ═══════════════════════════════════════════

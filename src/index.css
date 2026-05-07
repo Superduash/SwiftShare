@@ -103,6 +103,14 @@ body {
   color: var(--text);
   line-height: 1.6;
   transition: background 0.25s ease, color 0.25s ease;
+  /* Fix mobile scroll black bar issue */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+html {
+  /* Prevent mobile address bar from causing layout shifts */
+  height: -webkit-fill-available;
 }
 
 .min-h-screen {

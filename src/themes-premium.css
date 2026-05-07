@@ -325,6 +325,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 [data-theme="sunset-dark"] body {
@@ -336,6 +339,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 [data-theme="dark"] body {
@@ -346,6 +352,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 [data-theme="light"] body {
@@ -357,4 +366,7 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center center;
+  /* Fix mobile scroll black bar */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
