@@ -62,9 +62,10 @@
   --progress-glow: rgba(224,74,30,0.32);
   --skeleton: linear-gradient(90deg, #EEC4A0 25%, #FAE0C8 50%, #EEC4A0 75%);
   --gradient-hero: linear-gradient(135deg, #E04A1E 0%, #EE8818 55%, #F2C018 100%);
-  --shadow-card: 0 1px 4px rgba(224,74,30,0.04), 0 6px 24px rgba(26,7,0,0.07);
-  --shadow-elevated: 0 4px 16px rgba(224,74,30,0.10), 0 16px 48px rgba(26,7,0,0.09);
-  --glow-accent: 0 0 18px rgba(224,74,30,0.22), 0 0 42px rgba(224,74,30,0.09);
+  /* Premium luxury shadows with warm tint */
+  --shadow-card: 0 2px 8px rgba(255,140,40,0.04), 0 8px 32px rgba(224,74,30,0.06);
+  --shadow-elevated: 0 4px 20px rgba(255,140,40,0.08), 0 20px 60px rgba(224,74,30,0.08);
+  --glow-accent: 0 0 24px rgba(224,74,30,0.20), 0 0 48px rgba(224,74,30,0.08);
   /* Logo gradient var */
   --logo-gradient: linear-gradient(135deg, #A82000 0%, #E04A1E 50%, #F59E0B 100%);
   --logo-icon: #FFFFFF;
@@ -317,10 +318,17 @@
 /* ═══ Body background layers ═══ */
 
 [data-theme="sunset"] body {
+  /* Premium warm cream base with cinematic depth */
+  background-color: #FEF3E8;
   background-image:
-    radial-gradient(ellipse 100% 55% at 0% 100%, rgba(229,80,32,0.09) 0%, transparent 60%),
-    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(240,140,24,0.07) 0%, transparent 58%),
-    radial-gradient(ellipse 60% 40% at 50% 58%, rgba(244,196,28,0.04) 0%, transparent 64%);
+    /* Soft vignette for depth */
+    radial-gradient(circle at center, transparent 40%, rgba(26,7,0,0.02) 100%),
+    /* Warm ambient glow - bottom left */
+    radial-gradient(ellipse 100% 60% at 0% 100%, rgba(229,80,32,0.08) 0%, transparent 65%),
+    /* Soft peach accent - top right */
+    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(240,140,24,0.06) 0%, transparent 60%),
+    /* Center warmth - very subtle */
+    radial-gradient(ellipse 60% 40% at 50% 50%, rgba(244,196,28,0.03) 0%, transparent 70%);
   background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
@@ -328,6 +336,8 @@
   /* Fix mobile scroll black bar */
   min-height: 100vh;
   min-height: -webkit-fill-available;
+  /* Premium texture */
+  position: relative;
 }
 
 [data-theme="sunset-dark"] body {

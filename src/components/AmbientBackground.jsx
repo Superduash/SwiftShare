@@ -21,120 +21,65 @@ function getParticleDensity() {
   return 1.0 // 100% particles on standard devices
 }
 
-/* ── SUNRISE (light): Premium ambient sunlight atmosphere ── */
+/* ── SUNRISE (light): Premium cinematic ambient lighting - NO PARTICLES ── */
 const SunriseScene = memo(function SunriseScene() {
-  const density = getParticleDensity()
-  
-  // Cinematic bloom layers - large soft glows
-  const blooms = useMemo(() => [
-    { id: 'bloom1', left: '-5%', top: '-10%', width: '50vw', height: '50vw', color: 'rgba(255,140,40,0.10)', blur: '120px', dur: '45s', delay: '0s' },
-    { id: 'bloom2', right: '-8%', top: '15%', width: '45vw', height: '45vw', color: 'rgba(255,190,120,0.06)', blur: '140px', dur: '52s', delay: '-15s' },
-    { id: 'bloom3', left: '20%', bottom: '-15%', width: '55vw', height: '40vw', color: 'rgba(255,160,80,0.08)', blur: '130px', dur: '48s', delay: '-25s' },
-  ], [])
-  
-  // Premium particles - mostly invisible dust with few hero particles
-  const particles = useMemo(() => {
-    const r = makeRand(11)
-    const count = Math.floor(18 * density) // Reduced from 24 to 18
-    return Array.from({ length: count }, (_, i) => {
-      const isHero = i < 3 // Only first 3 are hero particles
-      const isMedium = i >= 3 && i < 8 // Next 5 are medium
-      // Rest are almost invisible dust
-      
-      // Asymmetrical clustering - avoid center, cluster in corners/edges
-      let left, top
-      if (i % 4 === 0) {
-        // Top-right cluster
-        left = 70 + r() * 25
-        top = 5 + r() * 20
-      } else if (i % 4 === 1) {
-        // Bottom-left cluster
-        left = 5 + r() * 25
-        top = 70 + r() * 25
-      } else if (i % 4 === 2) {
-        // Top-left cluster
-        left = 5 + r() * 30
-        top = 5 + r() * 25
-      } else {
-        // Scattered elsewhere
-        left = 30 + r() * 40
-        top = 30 + r() * 40
-      }
-      
-      return {
-        id: i,
-        left: `${left}%`,
-        top: `${top}%`,
-        // Size variation: mostly tiny, few large
-        size: isHero ? `${6 + r() * 4}px` : isMedium ? `${3 + r() * 3}px` : `${1 + r() * 2}px`,
-        // Blur variation for depth
-        blur: isHero ? `${r() * 3}px` : isMedium ? `${2 + r() * 4}px` : `${r() * 2}px`,
-        // Extremely slow movement - barely alive
-        dur: `${22 + r() * 20}s`, // 22-42s
-        delay: `${-(r() * 30)}s`,
-        // Subtle movement
-        tx: `${(r() - 0.5) * 40}px`,
-        ty: `${-(10 + r() * 30)}px`,
-        // Opacity: 70% almost invisible, 20% medium, 10% hero
-        opacity: isHero ? (0.15 + r() * 0.10) : isMedium ? (0.08 + r() * 0.06) : (0.04 + r() * 0.05),
-        // Warm sunlight colors
-        color: i % 3 === 0 ? 'rgba(255,140,50,1)' : i % 3 === 1 ? 'rgba(240,120,40,1)' : 'rgba(255,180,90,1)',
-        // Depth layer (for z-index simulation via animation timing)
-        layer: isHero ? 'front' : isMedium ? 'mid' : 'back',
-      }
-    })
-  }, [density])
-  
   return (
     <>
-      {/* Cinematic bloom layers - creates atmosphere */}
-      {blooms.map(b => (
-        <div 
-          key={b.id} 
-          style={{ 
-            position: 'absolute',
-            left: b.left,
-            right: b.right,
-            top: b.top,
-            bottom: b.bottom,
-            width: b.width,
-            height: b.height,
-            borderRadius: '50%',
-            filter: `blur(${b.blur})`,
-            background: `radial-gradient(ellipse, ${b.color} 0%, transparent 70%)`,
-            animation: `ss-float-slow ${b.dur} ${b.delay} ease-in-out infinite alternate`,
-            willChange: 'transform',
-          }} 
-        />
-      ))}
+      {/* Cinematic vignette depth */}
+      <div style={{ 
+        position:'absolute', inset:0,
+        background:'radial-gradient(circle at center, transparent 45%, rgba(26,7,0,0.03) 100%)',
+        pointerEvents:'none'
+      }} />
       
-      {/* Premium particles - soft sunlight dust */}
-      {particles.map(p => (
-        <div 
-          key={p.id} 
-          style={{ 
-            position: 'absolute',
-            left: p.left,
-            top: p.top,
-            width: p.size,
-            height: p.size,
-            borderRadius: '50%',
-            background: p.color,
-            opacity: 0,
-            filter: `blur(${p.blur})`,
-            boxShadow: p.layer === 'front' 
-              ? `0 0 ${parseFloat(p.size)*6}px ${p.color.replace('1)', '0.4)')}, 0 0 ${parseFloat(p.size)*12}px ${p.color.replace('1)', '0.2)')}` 
-              : p.layer === 'mid'
-              ? `0 0 ${parseFloat(p.size)*4}px ${p.color.replace('1)', '0.3)')}`
-              : `0 0 ${parseFloat(p.size)*2}px ${p.color.replace('1)', '0.2)')}`,
-            '--tx': p.tx,
-            '--ty': p.ty,
-            '--max-opacity': p.opacity,
-            animation: `ss-mote-rise ${p.dur} ${p.delay} ease-out infinite`,
-            willChange: 'transform,opacity',
-          }} 
-        />
-      ))}
+      {/* Bottom-left warm orange bloom */}
+      <div style={{ 
+        position:'absolute', left:'-15%', bottom:'-20%', 
+        width:'60vw', height:'60vw', borderRadius:'50%',
+        filter:'blur(100px)',
+        background:'radial-gradient(circle, rgba(255,140,50,0.12) 0%, rgba(240,100,30,0.06) 40%, transparent 70%)',
+        animation:'ss-bloom-drift-1 32s ease-in-out infinite alternate',
+        willChange:'transform'
+      }} />
+      
+      {/* Top-right soft peach glow */}
+      <div style={{ 
+        position:'absolute', right:'-10%', top:'-15%',
+        width:'55vw', height:'55vw', borderRadius:'50%',
+        filter:'blur(90px)',
+        background:'radial-gradient(circle, rgba(255,190,100,0.10) 0%, rgba(255,160,80,0.05) 45%, transparent 70%)',
+        animation:'ss-bloom-drift-2 28s -8s ease-in-out infinite alternate-reverse',
+        willChange:'transform'
+      }} />
+      
+      {/* Center warmth - subtle */}
+      <div style={{ 
+        position:'absolute', left:'25%', top:'30%',
+        width:'50vw', height:'40vw', borderRadius:'50%',
+        filter:'blur(110px)',
+        background:'radial-gradient(ellipse, rgba(244,196,28,0.04) 0%, transparent 65%)',
+        animation:'ss-bloom-drift-3 40s -15s ease-in-out infinite alternate',
+        willChange:'transform'
+      }} />
+      
+      {/* Moving light sweep - diagonal */}
+      <div style={{ 
+        position:'absolute', left:'-30%', top:'-30%',
+        width:'160%', height:'160%',
+        background:'linear-gradient(135deg, transparent 0%, rgba(255,200,120,0.03) 45%, rgba(255,170,70,0.04) 55%, transparent 100%)',
+        animation:'ss-light-sweep 45s ease-in-out infinite',
+        willChange:'transform'
+      }} />
+      
+      {/* Atmospheric noise layer - ultra subtle */}
+      <div style={{ 
+        position:'absolute', inset:0,
+        opacity:0.015,
+        mixBlendMode:'multiply',
+        backgroundImage:'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
+        backgroundRepeat:'repeat',
+        backgroundSize:'200px 200px'
+      }} />
     </>
   )
 })
