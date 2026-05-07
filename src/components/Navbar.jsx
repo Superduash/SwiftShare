@@ -79,7 +79,7 @@ export default function Navbar() {
                 <Zap size={16} color="var(--logo-icon, var(--accent-contrast, #fff))" strokeWidth={2.5} />
               </div>
               <span
-                className="font-display font-bold text-lg hidden sm:inline transition-all duration-300 group-hover:tracking-wide"
+                className="font-display font-bold text-lg transition-all duration-300 group-hover:tracking-wide"
                 style={{
                   background: 'var(--logo-gradient, linear-gradient(135deg, var(--text) 0%, var(--accent) 100%))',
                   WebkitBackgroundClip: 'text',
