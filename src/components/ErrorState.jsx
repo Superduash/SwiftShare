@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, memo } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { getErrorInfo } from '../utils/errors'
 
-export default function ErrorState({ code, title, description, action, onAction, onRetry, autoRetry = false }) {
+function ErrorState({ code, title, description, action, onAction, onRetry, autoRetry = false }) {
   const navigate = useNavigate()
   const info = code ? getErrorInfo(code) : null
   const Icon = info?.icon
@@ -93,3 +93,5 @@ export default function ErrorState({ code, title, description, action, onAction,
     </motion.div>
   )
 }
+
+export default memo(ErrorState)

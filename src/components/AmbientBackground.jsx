@@ -7,29 +7,133 @@ function makeRand(seed) {
   return () => { s = Math.imul(s, 1664525) + 1013904223 >>> 0; return s / 0xffffffff }
 }
 
-/* ── SUNRISE (light): Warm flowing waves + evenly spread glowing motes ── */
+// Adaptive particle density based on device capability
+function getParticleDensity() {
+  // Check for low-end devices
+  const isLowEnd = navigator.hardwareConcurrency <= 4 || 
+                   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  
+  // Check for high refresh rate displays
+  const isHighRefresh = window.screen?.availWidth > 1920 || window.devicePixelRatio > 2
+  
+  if (isLowEnd) return 0.6 // 60% particles on low-end
+  if (isHighRefresh) return 1.2 // 120% particles on high-end
+  return 1.0 // 100% particles on standard devices
+}
+
+/* ── SUNRISE (light): Premium ambient sunlight atmosphere ── */
 const SunriseScene = memo(function SunriseScene() {
-  const motes = useMemo(() => {
+  const density = getParticleDensity()
+  
+  // Cinematic bloom layers - large soft glows
+  const blooms = useMemo(() => [
+    { id: 'bloom1', left: '-5%', top: '-10%', width: '50vw', height: '50vw', color: 'rgba(255,140,40,0.10)', blur: '120px', dur: '45s', delay: '0s' },
+    { id: 'bloom2', right: '-8%', top: '15%', width: '45vw', height: '45vw', color: 'rgba(255,190,120,0.06)', blur: '140px', dur: '52s', delay: '-15s' },
+    { id: 'bloom3', left: '20%', bottom: '-15%', width: '55vw', height: '40vw', color: 'rgba(255,160,80,0.08)', blur: '130px', dur: '48s', delay: '-25s' },
+  ], [])
+  
+  // Premium particles - mostly invisible dust with few hero particles
+  const particles = useMemo(() => {
     const r = makeRand(11)
-    return Array.from({ length: 18 }, (_, i) => {
-      const col = i % 6
-      const row = Math.floor(i / 6)
+    const count = Math.floor(18 * density) // Reduced from 24 to 18
+    return Array.from({ length: count }, (_, i) => {
+      const isHero = i < 3 // Only first 3 are hero particles
+      const isMedium = i >= 3 && i < 8 // Next 5 are medium
+      // Rest are almost invisible dust
+      
+      // Asymmetrical clustering - avoid center, cluster in corners/edges
+      let left, top
+      if (i % 4 === 0) {
+        // Top-right cluster
+        left = 70 + r() * 25
+        top = 5 + r() * 20
+      } else if (i % 4 === 1) {
+        // Bottom-left cluster
+        left = 5 + r() * 25
+        top = 70 + r() * 25
+      } else if (i % 4 === 2) {
+        // Top-left cluster
+        left = 5 + r() * 30
+        top = 5 + r() * 25
+      } else {
+        // Scattered elsewhere
+        left = 30 + r() * 40
+        top = 30 + r() * 40
+      }
+      
       return {
         id: i,
-        left: `${8 + col * 16 + (r() - 0.5) * 10}%`,
-        top: `${12 + row * 30 + (r() - 0.5) * 18}%`,
-        size: `${3 + r() * 5}px`, dur: `${12 + r() * 14}s`, delay: `${-(r() * 18)}s`,
-        tx: `${(r() - 0.5) * 80}px`, ty: `${-(15 + r() * 50)}px`,
-        color: i % 3 === 0 ? 'rgba(255,140,50,0.85)' : i % 3 === 1 ? 'rgba(240,100,30,0.78)' : 'rgba(255,190,100,0.72)',
+        left: `${left}%`,
+        top: `${top}%`,
+        // Size variation: mostly tiny, few large
+        size: isHero ? `${6 + r() * 4}px` : isMedium ? `${3 + r() * 3}px` : `${1 + r() * 2}px`,
+        // Blur variation for depth
+        blur: isHero ? `${r() * 3}px` : isMedium ? `${2 + r() * 4}px` : `${r() * 2}px`,
+        // Extremely slow movement - barely alive
+        dur: `${22 + r() * 20}s`, // 22-42s
+        delay: `${-(r() * 30)}s`,
+        // Subtle movement
+        tx: `${(r() - 0.5) * 40}px`,
+        ty: `${-(10 + r() * 30)}px`,
+        // Opacity: 70% almost invisible, 20% medium, 10% hero
+        opacity: isHero ? (0.15 + r() * 0.10) : isMedium ? (0.08 + r() * 0.06) : (0.04 + r() * 0.05),
+        // Warm sunlight colors
+        color: i % 3 === 0 ? 'rgba(255,140,50,1)' : i % 3 === 1 ? 'rgba(240,120,40,1)' : 'rgba(255,180,90,1)',
+        // Depth layer (for z-index simulation via animation timing)
+        layer: isHero ? 'front' : isMedium ? 'mid' : 'back',
       }
     })
-  }, [])
+  }, [density])
+  
   return (
     <>
-      <div style={{ position:'absolute',right:'-20%',top:'-15%',width:'70vw',height:'50vw',borderRadius:'50%',filter:'blur(70px)',background:'radial-gradient(ellipse 70% 55% at 60% 40%,rgba(255,170,70,0.22) 0%,rgba(245,120,40,0.10) 45%,transparent 75%)',animation:'ss-float-slow 38s -14s ease-in-out infinite alternate-reverse',willChange:'transform'}} />
-      <div style={{ position:'absolute',left:'15%',top:'25%',width:'65vw',height:'40vw',borderRadius:'50%',filter:'blur(80px)',background:'radial-gradient(ellipse,rgba(255,200,120,0.14) 0%,rgba(255,160,60,0.06) 50%,transparent 72%)',animation:'ss-float-slow 26s -8s ease-in-out infinite alternate',willChange:'transform'}} />
-      {motes.map(m => (
-        <div key={m.id} style={{ position:'absolute',left:m.left,top:m.top,width:m.size,height:m.size,borderRadius:'50%',background:m.color,'--tx':m.tx,'--ty':m.ty,opacity:0,animation:`ss-mote-rise ${m.dur} ${m.delay} ease-out infinite`,boxShadow:`0 0 ${parseFloat(m.size)*4}px ${m.color}`,willChange:'transform,opacity'}} />
+      {/* Cinematic bloom layers - creates atmosphere */}
+      {blooms.map(b => (
+        <div 
+          key={b.id} 
+          style={{ 
+            position: 'absolute',
+            left: b.left,
+            right: b.right,
+            top: b.top,
+            bottom: b.bottom,
+            width: b.width,
+            height: b.height,
+            borderRadius: '50%',
+            filter: `blur(${b.blur})`,
+            background: `radial-gradient(ellipse, ${b.color} 0%, transparent 70%)`,
+            animation: `ss-float-slow ${b.dur} ${b.delay} ease-in-out infinite alternate`,
+            willChange: 'transform',
+          }} 
+        />
+      ))}
+      
+      {/* Premium particles - soft sunlight dust */}
+      {particles.map(p => (
+        <div 
+          key={p.id} 
+          style={{ 
+            position: 'absolute',
+            left: p.left,
+            top: p.top,
+            width: p.size,
+            height: p.size,
+            borderRadius: '50%',
+            background: p.color,
+            opacity: 0,
+            filter: `blur(${p.blur})`,
+            boxShadow: p.layer === 'front' 
+              ? `0 0 ${parseFloat(p.size)*6}px ${p.color.replace('1)', '0.4)')}, 0 0 ${parseFloat(p.size)*12}px ${p.color.replace('1)', '0.2)')}` 
+              : p.layer === 'mid'
+              ? `0 0 ${parseFloat(p.size)*4}px ${p.color.replace('1)', '0.3)')}`
+              : `0 0 ${parseFloat(p.size)*2}px ${p.color.replace('1)', '0.2)')}`,
+            '--tx': p.tx,
+            '--ty': p.ty,
+            '--max-opacity': p.opacity,
+            animation: `ss-mote-rise ${p.dur} ${p.delay} ease-out infinite`,
+            willChange: 'transform,opacity',
+          }} 
+        />
       ))}
     </>
   )
@@ -37,9 +141,11 @@ const SunriseScene = memo(function SunriseScene() {
 
 /* ── SUNSET (dark): Deep amber glow + evenly spread rising embers ── */
 const SunsetScene = memo(function SunsetScene() {
+  const density = getParticleDensity()
   const embers = useMemo(() => {
     const r = makeRand(55)
-    return Array.from({ length: 22 }, (_, i) => {
+    const count = Math.floor(22 * density)
+    return Array.from({ length: count }, (_, i) => {
       const col = i % 6
       return {
         id: i,
@@ -51,7 +157,7 @@ const SunsetScene = memo(function SunsetScene() {
         outer: i % 3 === 0 ? 'rgba(200,80,0,0.50)' : 'rgba(180,50,0,0.45)',
       }
     })
-  }, [])
+  }, [density])
   return (
     <>
       <div style={{ position:'absolute',left:'5%',bottom:'-8%',width:'38vw',height:'28vw',borderRadius:'50%',filter:'blur(65px)',background:'radial-gradient(ellipse,rgba(220,70,0,0.25) 0%,rgba(180,40,0,0.12) 55%,transparent 72%)',animation:'ss-float-slow 22s -4s ease-in-out infinite alternate'}} />
@@ -66,9 +172,11 @@ const SunsetScene = memo(function SunsetScene() {
 
 /* ── SAKURA ── */
 const SakuraScene = memo(function SakuraScene() {
+  const density = getParticleDensity()
   const petals = useMemo(() => {
     const r = makeRand(42)
-    return Array.from({ length: 18 }, (_, i) => ({
+    const count = Math.floor(18 * density)
+    return Array.from({ length: count }, (_, i) => ({
       id: i, left: `${r() * 110 - 5}%`, size: `${6 + r() * 9}px`,
       dur: `${9 + r() * 10}s`, delay: `${-(r() * 20)}s`,
       drift: `${(r()-0.5)*160}px`, rotStart: `${r()*180}deg`, rotEnd: `${400+r()*520}deg`,
@@ -76,7 +184,7 @@ const SakuraScene = memo(function SakuraScene() {
       color: i%4===0?'rgba(244,114,182,0.70)':i%4===1?'rgba(236,72,153,0.60)':i%4===2?'rgba(249,168,212,0.55)':'rgba(253,164,175,0.65)',
       shape: i % 5,
     }))
-  }, [])
+  }, [density])
   return (
     <>
       <div style={{ position:'absolute',right:'-10%',top:'-10%',width:'55vw',height:'45vw',borderRadius:'50%',filter:'blur(90px)',background:'radial-gradient(ellipse,rgba(236,72,153,0.12) 0%,rgba(244,114,182,0.06) 50%,transparent 70%)',animation:'ss-float-slow 30s -5s ease-in-out infinite alternate'}} />
@@ -90,15 +198,17 @@ const SakuraScene = memo(function SakuraScene() {
 
 /* ── MIDNIGHT: Deep space ── */
 const MidnightScene = memo(function MidnightScene() {
+  const density = getParticleDensity()
   const stars = useMemo(() => {
     const r = makeRand(7)
-    return Array.from({ length: 70 }, (_, i) => ({
+    const count = Math.floor(70 * density)
+    return Array.from({ length: count }, (_, i) => ({
       id: i, left: `${r()*100}%`, top: `${r()*90}%`,
       size: `${0.6+r()*1.8}px`, opacity: 0.15+r()*0.72,
       dur: `${2.8+r()*5.2}s`, delay: `${-(r()*7)}s`,
       color: i%5===0?'rgba(150,200,255,0.92)':i%5===1?'rgba(255,255,255,0.82)':i%5===2?'rgba(100,170,255,0.86)':i%5===3?'rgba(80,150,240,0.82)':'rgba(200,225,255,0.74)',
     }))
-  }, [])
+  }, [density])
   return (
     <>
       <div style={{ position:'absolute',inset:0,background:'radial-gradient(ellipse 60% 40% at 20% 30%,rgba(15,30,80,0.22) 0%,transparent 60%)'}} />
@@ -114,9 +224,11 @@ const MidnightScene = memo(function MidnightScene() {
 
 /* ── LAVENDER ── */
 const LavenderScene = memo(function LavenderScene() {
+  const density = getParticleDensity()
   const petals = useMemo(() => {
     const r = makeRand(33)
-    return Array.from({ length: 18 }, (_, i) => ({
+    const count = Math.floor(18 * density)
+    return Array.from({ length: count }, (_, i) => ({
       id: i, left: `${r()*110-5}%`, size: `${5+r()*8}px`,
       dur: `${10+r()*12}s`, delay: `${-(r()*22)}s`,
       drift: `${(r()-0.5)*140}px`, rotStart: `${r()*200}deg`, rotEnd: `${380+r()*480}deg`,
@@ -124,7 +236,7 @@ const LavenderScene = memo(function LavenderScene() {
       color: i%4===0?'rgba(167,139,250,0.75)':i%4===1?'rgba(196,165,253,0.65)':i%4===2?'rgba(216,180,254,0.60)':'rgba(139,92,246,0.70)',
       shape: i % 3,
     }))
-  }, [])
+  }, [density])
   return (
     <>
       <div style={{ position:'absolute',right:'-8%',top:'-8%',width:'55vw',height:'45vw',borderRadius:'50%',filter:'blur(90px)',background:'radial-gradient(ellipse,rgba(139,92,246,0.14) 0%,rgba(167,139,250,0.07) 50%,transparent 70%)',animation:'ss-float-slow 32s -5s ease-in-out infinite alternate'}} />
@@ -138,9 +250,11 @@ const LavenderScene = memo(function LavenderScene() {
 
 /* ── FOREST: Full-screen fireflies with emphasis on right side ── */
 const ForestScene = memo(function ForestScene() {
+  const density = getParticleDensity()
   const fireflies = useMemo(() => {
     const r = makeRand(66)
-    return Array.from({ length: 28 }, (_, i) => {
+    const count = Math.floor(28 * density)
+    return Array.from({ length: count }, (_, i) => {
       // Bias distribution: first 10 spread everywhere, next 10 biased right, last 8 far right
       let leftPos
       if (i < 10) leftPos = 3 + r() * 94
@@ -154,7 +268,7 @@ const ForestScene = memo(function ForestScene() {
         color: i%3===0?'rgba(52,211,153,0.9)':i%3===1?'rgba(110,231,183,0.8)':'rgba(134,239,172,0.85)',
       }
     })
-  }, [])
+  }, [density])
   const mist = useMemo(() => {
     const r = makeRand(88)
     return Array.from({ length: 5 }, (_, i) => ({
@@ -181,9 +295,11 @@ const ForestScene = memo(function ForestScene() {
 
 /* ── VOLCANIC: Immersive magma with heat haze, lava veins, dense embers ── */
 const VolcanicScene = memo(function VolcanicScene() {
+  const density = getParticleDensity()
   const embers = useMemo(() => {
     const r = makeRand(77)
-    return Array.from({ length: 32 }, (_, i) => {
+    const count = Math.floor(32 * density)
+    return Array.from({ length: count }, (_, i) => {
       const isLarge = i < 6
       return {
         id: i, left: `${2+r()*96}%`, bottom: `${r()*(isLarge?10:22)}%`,
@@ -197,7 +313,7 @@ const VolcanicScene = memo(function VolcanicScene() {
         outer: i%4===0?'rgba(220,0,0,0.6)':i%4===1?'rgba(180,0,0,0.55)':i%4===2?'rgba(255,60,0,0.5)':'rgba(200,20,20,0.55)',
       }
     })
-  }, [])
+  }, [density])
   return (
     <>
       {/* Primary magma pool — wide, deep */}

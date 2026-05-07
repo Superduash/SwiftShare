@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import { History, Upload, Download, Eye, Trash2, Clock, Smartphone, Ban, Flame, ArrowUpRight } from 'lucide-react'
 import { timeAgo } from '../utils/format'
@@ -35,7 +35,7 @@ function formatEventLabel(event) {
   return event || 'Event'
 }
 
-export default function ActivityLog({ activity = [] }) {
+function ActivityLog({ activity = [] }) {
   if (!activity.length) return null
 
   return (
@@ -77,3 +77,5 @@ export default function ActivityLog({ activity = [] }) {
     </div>
   )
 }
+
+export default memo(ActivityLog)

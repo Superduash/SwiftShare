@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, Download, Clock, Send, RefreshCw, WifiOff, AlertCircle } from 'lucide-react'
 import { formatBytes, formatRelativeExpiry } from '../utils/format'
@@ -28,7 +28,7 @@ function dedupeDevices(list, selfSocketId) {
 const POLL_INTERVAL = 30000 // 30 seconds auto-refresh
 const MIN_REFRESH_INTERVAL = 2000 // Minimum 2s between manual refreshes
 
-export default function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
+function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const [devices, setDevices] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -49,7 +49,7 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     }
   }, [])
 
-  const handleShareToDevice = (targetSocketId) => {
+  const handleShareToDevice = useCallback((targetSocketId) => {
     const safeTargetSocketId = String(targetSocketId || '').trim()
     if (!socket || !safeTargetSocketId || !normalizedTransferCode) return
 
@@ -63,10 +63,10 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     } catch (err) {
       toast.error('Failed to send share prompt')
     }
-  }
+  }, [socket, normalizedTransferCode, currentFilename])
 
   // Manual refresh function
-  const handleManualRefresh = () => {
+  const handleManualRefresh = useCallback(() => {
     if (!socket || !isConnected) {
       toast.error('Not connected to server')
       return
@@ -94,7 +94,7 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
       setError('Failed to refresh')
       toast.error('Failed to refresh nearby devices')
     }
-  }
+  }, [socket, isConnected])
 
   // Single unified polling via socket only (no duplicate API calls)
   useEffect(() => {
@@ -392,3 +392,5 @@ export default function NearbyDevices({ currentTransferCode = '', currentFilenam
     </motion.div>
   )
 }
+
+export default memo(NearbyDevices)

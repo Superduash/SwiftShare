@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, Edit2, Save, X, Lock, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-export default function SharedTextDisplay({ 
+function SharedTextDisplay({ 
   textContent, 
   title, 
   isPasswordProtected, 
@@ -31,7 +31,7 @@ export default function SharedTextDisplay({
     }
   }, [isEditing])
 
-  async function handleCopy() {
+  const handleCopy = useCallback(async () => {
     if (!isUnlocked) {
       toast.error('Unlock to copy text')
       return
@@ -45,22 +45,22 @@ export default function SharedTextDisplay({
     } catch {
       toast.error('Failed to copy text')
     }
-  }
+  }, [isUnlocked, textContent])
 
-  function handleEdit() {
+  const handleEdit = useCallback(() => {
     if (!isUnlocked) {
       toast.error('Unlock to edit text')
       return
     }
     setIsEditing(true)
-  }
+  }, [isUnlocked])
 
-  function handleCancelEdit() {
+  const handleCancelEdit = useCallback(() => {
     setEditedContent(textContent)
     setIsEditing(false)
-  }
+  }, [textContent])
 
-  async function handleSaveEdit() {
+  const handleSaveEdit = useCallback(async () => {
     if (onSave) {
       try {
         await onSave(editedContent)
@@ -70,9 +70,9 @@ export default function SharedTextDisplay({
         toast.error('Failed to save changes')
       }
     }
-  }
+  }, [onSave, editedContent])
 
-  async function handleUnlockSubmit(e) {
+  const handleUnlockSubmit = useCallback(async (e) => {
     e?.preventDefault()
     if (!password.trim()) {
       toast.error('Please enter password')
@@ -88,7 +88,7 @@ export default function SharedTextDisplay({
     } finally {
       setUnlocking(false)
     }
-  }
+  }, [password, onUnlock])
 
   const displayContent = isEditing ? editedContent : textContent
 
@@ -284,3 +284,5 @@ export default function SharedTextDisplay({
     </motion.div>
   )
 }
+
+export default memo(SharedTextDisplay)

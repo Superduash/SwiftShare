@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { getTheme, saveTheme } from '../utils/storage'
 
 const ThemeContext = createContext({
@@ -25,8 +25,11 @@ export function ThemeProvider({ children }) {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({ theme, setTheme }), [theme, setTheme])
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   )

@@ -1,9 +1,9 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import { CheckCircle2, FileText, User, HardDrive, Hash, Flame } from 'lucide-react'
 import { formatBytes } from '../utils/format'
 
-export default function TransferReceipt({ code, files, senderDevice, totalSize, burnAfterDownload }) {
+function TransferReceipt({ code, files, senderDevice, totalSize, burnAfterDownload }) {
   const items = [
     { icon: Hash, label: 'Transfer code', value: code },
     { icon: FileText, label: 'Files', value: files?.length ? files.map(f => f.name).join(', ') : 'Unknown' },
@@ -50,3 +50,5 @@ export default function TransferReceipt({ code, files, senderDevice, totalSize, 
     </motion.div>
   )
 }
+
+export default memo(TransferReceipt)
