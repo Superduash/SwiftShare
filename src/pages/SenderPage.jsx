@@ -13,7 +13,7 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import {
   getFileMetadata, getTransferActivity,
-  extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword
+  extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword, getTextContent
 } from '../services/api'
 import {
   getCachedTransfer,
@@ -34,6 +34,7 @@ import ProgressBar from '../components/ProgressBar'
 import QRModal from '../components/QRModal'
 import ErrorState from '../components/ErrorState'
 import NearbyDevices from '../components/NearbyDevices'
+import SharedTextDisplay from '../components/SharedTextDisplay'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -100,6 +101,8 @@ export default function SenderPage() {
   const [previewUnlocking, setPreviewUnlocking] = useState(false)
   const [extending, setExtending] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [textContent, setTextContent] = useState(null)
+  const [textLoading, setTextLoading] = useState(false)
 
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
@@ -627,6 +630,52 @@ export default function SenderPage() {
     downloadSingleFile(normalizedCode, index, password)
   }
 
+  // Check if this is a text share
+  const isTextShare = meta?.files?.length === 1 && meta.files[0]?.name?.endsWith('.txt')
+
+  // Fetch text content when unlocked or not password protected
+  useEffect(() => {
+    if (!isTextShare || textContent !== null) return
+    if (meta?.passwordProtected && !passwordVerified) return
+
+    async function fetchText() {
+      setTextLoading(true)
+      try {
+        const password = meta?.passwordProtected ? verifiedPreviewPasswordRef.current : undefined
+        const result = await getTextContent(normalizedCode, password)
+        setTextContent(result.content)
+      } catch (err) {
+        console.error('Failed to fetch text content:', err)
+        toast.error('Failed to load text content')
+      } finally {
+        setTextLoading(false)
+      }
+    }
+
+    fetchText()
+  }, [isTextShare, passwordVerified, normalizedCode, meta?.passwordProtected, textContent])
+
+  async function handleTextUnlock(password) {
+    try {
+      const result = await verifyPassword(normalizedCode, password)
+      if (result?.verified) {
+        verifiedPreviewPasswordRef.current = password
+        setPasswordVerified(true)
+        toast.success('Text unlocked')
+      }
+    } catch (err) {
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'INVALID_PASSWORD') {
+        toast.error('Wrong password')
+      } else if (err?.response?.status === 429) {
+        toast.error('Too many attempts')
+      } else {
+        toast.error('Failed to unlock')
+      }
+      throw err
+    }
+  }
+
   // Share helpers
   async function handleWebShare() {
     const fileCount = Array.isArray(meta?.files) ? meta.files.length : 0
@@ -881,44 +930,26 @@ export default function SenderPage() {
         />
       </Suspense>
 
-      {/* Cancelled banner — fixed under the navbar */}
-      <AnimatePresence>
-        {cancelled && (
-          <motion.div
-            className="fixed left-0 right-0 z-40"
-            style={{
-              top: 'calc(var(--safe-top) + var(--connection-banner-height) + var(--navbar-height))',
-            }}
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-          >
-            <div
-              className="px-3 py-2.5 flex items-center justify-center gap-2"
-              style={{
-                background: 'var(--danger-soft)',
-                borderBottom: '1px solid rgba(220,38,38,0.20)',
-              }}
-              role="status"
-              aria-live="polite"
-            >
-              <XCircle size={16} style={{ color: 'var(--danger)', flexShrink: 0 }} aria-hidden="true" />
-              <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
-                Transfer cancelled — files permanently deleted.
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <main className="app-main-offset">
         <div className="page-shell-wide py-8">
           <div className="lg:grid lg:grid-cols-5 lg:gap-10">
 
             {/* ═══ LEFT: scrolling content ═══ */}
             <div className="lg:col-span-3 space-y-5">
-              {meta?.passwordProtected && !passwordVerified && (
+              {/* Cancelled banner - inline, not fixed */}
+              <AnimatePresence>
+                {cancelled && (
+                  <StatusBanner
+                    key="cancelled"
+                    tone="danger"
+                    icon={XCircle}
+                    title="Transfer cancelled — files permanently deleted"
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Password box - only show for non-text shares */}
+              {meta?.passwordProtected && !passwordVerified && !isTextShare && (
                 <motion.div
                   className="surface-card p-4"
                   initial={{ opacity: 0, y: 8 }}
@@ -977,24 +1008,49 @@ export default function SenderPage() {
                 </motion.div>
               )}
 
-              {/* Files */}
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
-                  Shared Files ({meta?.files?.length || 0})
-                </h2>
-                <div className="space-y-2">
-                  {(meta?.files || []).map((f, i) => (
-                    <FileCard
-                      key={i}
-                      file={f}
-                      index={i}
-                      showDownload={!cancelled && (!meta?.passwordProtected || passwordVerified)}
-                      onPreview={(!meta?.passwordProtected || passwordVerified) ? () => handlePreview(i) : undefined}
-                      onDownloadSingle={(!meta?.passwordProtected || passwordVerified) ? () => handleDownloadSingle(i) : undefined}
+              {/* Text Share Display or Files */}
+              {isTextShare ? (
+                /* Show text content inline */
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
+                    Shared Text
+                  </h2>
+                  {textLoading ? (
+                    <div className="surface-card p-8 text-center">
+                      <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: 'var(--accent)' }} />
+                      <p className="text-sm" style={{ color: 'var(--text-3)' }}>Loading text...</p>
+                    </div>
+                  ) : (
+                    <SharedTextDisplay
+                      textContent={textContent || ''}
+                      title={meta?.files?.[0]?.name?.replace(/\.txt$/i, '') || 'Text Snippet'}
+                      isPasswordProtected={Boolean(meta?.passwordProtected)}
+                      isUnlocked={passwordVerified}
+                      onUnlock={handleTextUnlock}
+                      allowEdit={false}
                     />
-                  ))}
-                </div>
-              </motion.div>
+                  )}
+                </motion.div>
+              ) : (
+                /* Show files as cards */
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
+                    Shared Files ({meta?.files?.length || 0})
+                  </h2>
+                  <div className="space-y-2">
+                    {(meta?.files || []).map((f, i) => (
+                      <FileCard
+                        key={i}
+                        file={f}
+                        index={i}
+                        showDownload={!cancelled && (!meta?.passwordProtected || passwordVerified)}
+                        onPreview={(!meta?.passwordProtected || passwordVerified) ? () => handlePreview(i) : undefined}
+                        onDownloadSingle={(!meta?.passwordProtected || passwordVerified) ? () => handleDownloadSingle(i) : undefined}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
               {/* Download progress */}
               {downloadProgress !== null && downloadProgress < 100 && (

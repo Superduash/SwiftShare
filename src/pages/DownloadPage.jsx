@@ -6,7 +6,7 @@ import confetti from 'canvas-confetti'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile, finalizeBurnTransfer } from '../services/api'
+import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile, finalizeBurnTransfer, getTextContent } from '../services/api'
 import { smartDownload } from '../utils/download'
 import {
   saveTransfer,
@@ -28,6 +28,7 @@ import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
 import ErrorState from '../components/ErrorState'
 import StatusBanner from '../components/StatusBanner'
+import SharedTextDisplay from '../components/SharedTextDisplay'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -91,6 +92,9 @@ export default function DownloadPage() {
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
   const [receipt, setReceipt] = useState(null)
+  const [textContent, setTextContent] = useState(null)
+  const [textLoading, setTextLoading] = useState(false)
+  
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
   const mountedRef = useRef(true)
@@ -618,6 +622,52 @@ export default function DownloadPage() {
     downloadSingleFile(normalizedCode, index, pw)
   }
 
+  // Check if this is a text share
+  const isTextShare = meta?.files?.length === 1 && meta.files[0]?.name?.endsWith('.txt')
+
+  // Fetch text content when unlocked
+  useEffect(() => {
+    if (!isTextShare || (!passwordVerified && needsPassword) || textContent !== null) return
+
+    async function fetchText() {
+      setTextLoading(true)
+      try {
+        const password = needsPassword ? verifiedPasswordRef.current : undefined
+        const result = await getTextContent(normalizedCode, password)
+        setTextContent(result.content)
+      } catch (err) {
+        console.error('Failed to fetch text content:', err)
+        toast.error('Failed to load text content')
+      } finally {
+        setTextLoading(false)
+      }
+    }
+
+    fetchText()
+  }, [isTextShare, passwordVerified, needsPassword, normalizedCode, textContent])
+
+  async function handleTextUnlock(password) {
+    try {
+      const result = await verifyPassword(normalizedCode, password)
+      if (result?.verified) {
+        verifiedPasswordRef.current = password
+        setPasswordVerified(true)
+        setNeedsPassword(false)
+        toast.success('Text unlocked')
+      }
+    } catch (err) {
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'INVALID_PASSWORD') {
+        toast.error('Wrong password')
+      } else if (err?.response?.status === 429) {
+        toast.error('Too many attempts')
+      } else {
+        toast.error('Failed to unlock')
+      }
+      throw err
+    }
+  }
+
   // Retry handler for network/server errors (must be before conditional returns for hooks rules)
   const handleRetry = useCallback(async () => {
     setRetryAttempt(0)
@@ -765,29 +815,56 @@ export default function DownloadPage() {
             </motion.div>
           )}
 
-          {/* File cards */}
-          <motion.div
-            className="space-y-2 mb-6"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-          >
-            {(meta?.files || []).map((f, i) => (
-              <FileCard
-                key={i}
-                file={f}
-                index={i}
-                showDownload={canDownload}
-                onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
-                onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
-              />
-            ))}
-            {meta?.totalSize > 0 && (
-              <p className="text-xs text-center" style={{ color: 'var(--text-4)' }}>
-                {meta.files?.length || 0} file{(meta.files?.length || 0) !== 1 ? 's' : ''} · {formatBytes(meta.totalSize)}
-              </p>
-            )}
-          </motion.div>
+          {/* Text Share Display or File cards */}
+          {isTextShare ? (
+            /* Show text content inline */
+            <motion.div
+              className="mb-6"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              {textLoading ? (
+                <div className="surface-card p-8 text-center">
+                  <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: 'var(--accent)' }} />
+                  <p className="text-sm" style={{ color: 'var(--text-3)' }}>Loading text...</p>
+                </div>
+              ) : (
+                <SharedTextDisplay
+                  textContent={textContent || ''}
+                  title={meta?.files?.[0]?.name?.replace(/\.txt$/i, '') || 'Text Snippet'}
+                  isPasswordProtected={needsPassword}
+                  isUnlocked={passwordVerified || !needsPassword}
+                  onUnlock={handleTextUnlock}
+                  allowEdit={false}
+                />
+              )}
+            </motion.div>
+          ) : (
+            /* Show files as cards */
+            <motion.div
+              className="space-y-2 mb-6"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              {(meta?.files || []).map((f, i) => (
+                <FileCard
+                  key={i}
+                  file={f}
+                  index={i}
+                  showDownload={canDownload}
+                  onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
+                  onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
+                />
+              ))}
+              {meta?.totalSize > 0 && (
+                <p className="text-xs text-center" style={{ color: 'var(--text-4)' }}>
+                  {meta.files?.length || 0} file{(meta.files?.length || 0) !== 1 ? 's' : ''} · {formatBytes(meta.totalSize)}
+                </p>
+              )}
+            </motion.div>
+          )}
 
           {/* Burn badge */}
           {meta?.burnAfterDownload && !isUnavailable && (
