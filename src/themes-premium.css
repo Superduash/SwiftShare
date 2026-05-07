@@ -370,3 +370,13 @@
   min-height: 100vh;
   min-height: -webkit-fill-available;
 }
+
+/* Mobile fix: use scroll instead of fixed to prevent shifting */
+@media (max-width: 768px) {
+  [data-theme="sunset"] body,
+  [data-theme="sunset-dark"] body,
+  [data-theme="dark"] body,
+  [data-theme="light"] body {
+    background-attachment: scroll;
+  }
+}
