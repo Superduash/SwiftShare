@@ -210,8 +210,21 @@ const VolcanicScene = memo(function VolcanicScene() {
       <div style={{ position:'absolute',right:'-5%',bottom:'-8%',width:'45vw',height:'28vw',borderRadius:'50%',filter:'blur(65px)',background:'radial-gradient(ellipse,rgba(200,0,0,0.26) 0%,rgba(160,10,0,0.12) 55%,transparent 72%)',animation:'ss-lava-pulse 9s -6s ease-in-out infinite alternate-reverse'}} />
       {/* Center molten core */}
       <div style={{ position:'absolute',left:'30%',bottom:'-6%',width:'40vw',height:'20vw',borderRadius:'50%',filter:'blur(55px)',background:'radial-gradient(ellipse,rgba(255,40,0,0.20) 0%,rgba(200,10,0,0.10) 55%,transparent 72%)',animation:'ss-lava-pulse 14s -7s ease-in-out infinite alternate'}} />
-      {/* Heat shimmer haze across lower third */}
-      <div style={{ position:'absolute',left:0,right:0,bottom:0,height:'40%',background:'linear-gradient(to top,rgba(200,30,0,0.10) 0%,rgba(160,10,0,0.05) 40%,transparent 100%)',animation:'ss-float-slow 16s ease-in-out infinite alternate',filter:'blur(2px)'}} />
+      {/* Heat shimmer haze across lower third (curved top to avoid rectangular strip) */}
+      <div style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: '40%',
+        background: 'linear-gradient(to top, rgba(200,30,0,0.10) 0%, rgba(160,10,0,0.05) 40%, transparent 100%)',
+        animation: 'ss-float-slow 16s ease-in-out infinite alternate',
+        filter: 'blur(2px)',
+        borderTopLeftRadius: '28%',
+        borderTopRightRadius: '28%',
+        transform: 'translateZ(0)',
+        willChange: 'transform, opacity',
+      }} />
       {/* Ambient red wash on upper area */}
       <div style={{ position:'absolute',left:'20%',top:'10%',width:'60vw',height:'40vw',borderRadius:'50%',filter:'blur(120px)',background:'radial-gradient(ellipse,rgba(120,0,0,0.08) 0%,transparent 70%)',animation:'ss-float-slow 40s -8s ease-in-out infinite alternate'}} />
       {/* Embers */}
@@ -277,7 +290,21 @@ export default memo(function AmbientBackground() {
   const Scene = SCENES[theme]
   if (!Scene) return null
   return (
-    <div aria-hidden="true" style={{ position:'fixed',inset:0,pointerEvents:'none',overflow:'hidden',zIndex:0,contain:'strict' }}>
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+        zIndex: 0,
+        contain: 'strict',
+        background: 'transparent',
+        transform: 'translateZ(0)',
+        willChange: 'transform',
+        backfaceVisibility: 'hidden',
+      }}
+    >
       <Scene />
     </div>
   )
