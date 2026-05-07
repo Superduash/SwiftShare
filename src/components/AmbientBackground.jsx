@@ -1,5 +1,6 @@
-import { useMemo, memo } from 'react'
+import { useMemo, memo, useState, useEffect } from 'react'
 import { useTheme } from '../context/ThemeContext'
+import { getSettings } from '../utils/storage'
 
 function makeRand(seed) {
   let s = seed >>> 0
@@ -268,13 +269,19 @@ const SCENES = {
 
 export default memo(function AmbientBackground() {
   const { theme } = useTheme()
+  const [reducedMotion, setReducedMotion] = useState(() => getSettings().reducedMotion)
+  
+  // Listen for settings changes
+  useEffect(() => {
+    const handleSettingsChange = () => {
+      setReducedMotion(getSettings().reducedMotion)
+    }
+    window.addEventListener('swiftshare:settings-changed', handleSettingsChange)
+    return () => window.removeEventListener('swiftshare:settings-changed', handleSettingsChange)
+  }, [])
   
   // Check if reduce motion is enabled - if so, don't render anything
-  if (typeof window !== 'undefined') {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const bodyHasReduceMotion = document.body.classList.contains('reduce-motion')
-    if (reducedMotion || bodyHasReduceMotion) return null
-  }
+  if (reducedMotion) return null
   
   const Scene = SCENES[theme]
   if (!Scene) return null
