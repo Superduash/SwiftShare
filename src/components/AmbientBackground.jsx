@@ -21,65 +21,47 @@ function getParticleDensity() {
   return 1.0 // 100% particles on standard devices
 }
 
-/* ── SUNRISE (light): Premium cinematic ambient lighting - NO PARTICLES ── */
+/* ── SUNRISE (light): Modern Glassmorphism Aesthetic with Visible Particles ── */
 const SunriseScene = memo(function SunriseScene() {
+  const density = getParticleDensity()
+  const particles = useMemo(() => {
+    const r = makeRand(101)
+    const count = Math.floor(45 * density) // Dense enough to be clearly visible
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      left: `${r() * 100}%`,
+      bottom: `${-10 + r() * 120}%`, // Distribute vertically as well so they are always visible
+      size: `${3 + r() * 3}px`,
+      dur: `${8 + r() * 12}s`,
+      delay: `${-(r() * 20)}s`,
+      drift: `${(r() - 0.5) * 120}px`,
+      rise: `${-(40 + r() * 80)}vh`,
+      opacity: 0.3 + r() * 0.7,
+    }))
+  }, [density])
+
   return (
     <>
-      {/* Cinematic vignette depth */}
-      <div style={{ 
-        position:'absolute', inset:0,
-        background:'radial-gradient(circle at center, transparent 45%, rgba(26,7,0,0.03) 100%)',
-        pointerEvents:'none'
-      }} />
-      
-      {/* Bottom-left warm orange bloom */}
-      <div style={{ 
-        position:'absolute', left:'-15%', bottom:'-20%', 
-        width:'60vw', height:'60vw', borderRadius:'50%',
-        filter:'blur(100px)',
-        background:'radial-gradient(circle, rgba(255,140,50,0.12) 0%, rgba(240,100,30,0.06) 40%, transparent 70%)',
-        animation:'ss-bloom-drift-1 32s ease-in-out infinite alternate',
-        willChange:'transform'
-      }} />
-      
-      {/* Top-right soft peach glow */}
-      <div style={{ 
-        position:'absolute', right:'-10%', top:'-15%',
-        width:'55vw', height:'55vw', borderRadius:'50%',
-        filter:'blur(90px)',
-        background:'radial-gradient(circle, rgba(255,190,100,0.10) 0%, rgba(255,160,80,0.05) 45%, transparent 70%)',
-        animation:'ss-bloom-drift-2 28s -8s ease-in-out infinite alternate-reverse',
-        willChange:'transform'
-      }} />
-      
-      {/* Center warmth - subtle */}
-      <div style={{ 
-        position:'absolute', left:'25%', top:'30%',
-        width:'50vw', height:'40vw', borderRadius:'50%',
-        filter:'blur(110px)',
-        background:'radial-gradient(ellipse, rgba(244,196,28,0.04) 0%, transparent 65%)',
-        animation:'ss-bloom-drift-3 40s -15s ease-in-out infinite alternate',
-        willChange:'transform'
-      }} />
-      
-      {/* Moving light sweep - diagonal */}
-      <div style={{ 
-        position:'absolute', left:'-30%', top:'-30%',
-        width:'160%', height:'160%',
-        background:'linear-gradient(135deg, transparent 0%, rgba(255,200,120,0.03) 45%, rgba(255,170,70,0.04) 55%, transparent 100%)',
-        animation:'ss-light-sweep 45s ease-in-out infinite',
-        willChange:'transform'
-      }} />
-      
-      {/* Atmospheric noise layer - ultra subtle */}
-      <div style={{ 
-        position:'absolute', inset:0,
-        opacity:0.015,
-        mixBlendMode:'multiply',
-        backgroundImage:'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 400 400\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\'/%3E%3C/svg%3E")',
-        backgroundRepeat:'repeat',
-        backgroundSize:'200px 200px'
-      }} />
+      {particles.map(p => (
+        <div 
+          key={p.id} 
+          style={{ 
+            position: 'absolute', 
+            left: p.left, 
+            bottom: p.bottom, 
+            width: p.size, 
+            height: p.size, 
+            borderRadius: '50%', 
+            background: 'rgba(255, 107, 53, 0.6)', 
+            boxShadow: `0 0 ${parseFloat(p.size) * 3}px rgba(255, 107, 53, 0.6)`,
+            zIndex: -1,
+            '--drift': p.drift, 
+            '--rise': p.rise, 
+            '--max-opacity': p.opacity, 
+            animation: `ss-bubble-float ${p.dur} ${p.delay} ease-in-out infinite, ss-stars-twinkle ${parseFloat(p.dur)/2}s ease-in-out infinite alternate`
+          }} 
+        />
+      ))}
     </>
   )
 })
@@ -322,7 +304,7 @@ const LightScene = memo(function LightScene() {
 })
 
 const SCENES = {
-  sunset: SunriseScene, 'sunset-dark': SunsetScene,
+  sunrise: SunriseScene, sunset: SunsetScene,
   sakura: SakuraScene, midnight: MidnightScene,
   lavender: LavenderScene, forest: ForestScene,
   volcanic: VolcanicScene, dark: DarkScene, light: LightScene,

@@ -7,6 +7,7 @@ import {
   QrCode, AlertTriangle, Lock, Eye, EyeOff, Loader2,
   XCircle, Flame
 } from 'lucide-react'
+import Spinner from '../components/Spinner'
 import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
 
@@ -31,13 +32,18 @@ import FileCard from '../components/FileCard'
 import AISummaryCard from '../components/AISummaryCard'
 import ActivityLog from '../components/ActivityLog'
 import ProgressBar from '../components/ProgressBar'
-import QRModal from '../components/QRModal'
 import ErrorState from '../components/ErrorState'
 import NearbyDevices from '../components/NearbyDevices'
 import SharedTextDisplay from '../components/SharedTextDisplay'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
+)
+const QRModal = lazy(() =>
+  import('../components/QRModal').catch(() => ({ default: () => null }))
+)
+const ShareTextModal = lazy(() =>
+  import('../components/ShareTextModal').catch(() => ({ default: () => null }))
 )
 
 function buildShareMessage(fileLabel, shareLink, minutesLeft) {
@@ -264,8 +270,20 @@ export default function SenderPage() {
       if (!normalizedCode || !mountedRef.current) return
       setLoading(true)
       setError(null)
+      
+      // Force React to paint the loading state before firing the request
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const startTime = Date.now()
+
       try {
         const data = await getFileMetadata(normalizedCode, { timeout: 45000, noRetry: true })
+        
+        // Guarantee Minimum Visible Duration (MVD) to prevent flashing
+        const elapsed = Date.now() - startTime
+        if (elapsed < 350) {
+          await new Promise(r => setTimeout(r, 350 - elapsed))
+        }
+
         if (!mountedRef.current) return
         
         // Check for expired/not found BEFORE setting any state
@@ -291,6 +309,11 @@ export default function SenderPage() {
           setTextLoading(false)
         }
       } catch (err) {
+        const elapsed = Date.now() - startTime
+        if (elapsed < 350) {
+          await new Promise(r => setTimeout(r, 350 - elapsed))
+        }
+
         if (!mountedRef.current) return
         const errCode = err?.response?.data?.error?.code
         // Only redirect for definitive backend responses (not network/timeout errors)
@@ -1009,7 +1032,7 @@ export default function SenderPage() {
                       className="btn-primary text-sm"
                       disabled={!previewPassword.trim() || previewUnlocking}
                     >
-                      {previewUnlocking ? <Loader2 size={15} className="animate-spin" /> : <Lock size={15} />}
+                      {previewUnlocking ? <Spinner size={15} /> : <Lock size={15} />}
                       {previewUnlocking ? 'Verifying...' : 'Unlock preview'}
                     </button>
                   </form>
@@ -1025,7 +1048,7 @@ export default function SenderPage() {
                   </h2>
                   {textLoading ? (
                     <div className="surface-card p-8 text-center">
-                      <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: 'var(--accent)' }} />
+                      <Spinner size={24} className="mx-auto mb-2" style={{ color: 'var(--accent)' }} />
                       <p className="text-sm" style={{ color: 'var(--text-3)' }}>Loading text...</p>
                     </div>
                   ) : (

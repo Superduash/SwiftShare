@@ -21,8 +21,8 @@ import ExpirySelector from '../components/ExpirySelector'
 import ProgressBar from '../components/ProgressBar'
 import RecentTransfers from '../components/RecentTransfers'
 import NearbyDevices from '../components/NearbyDevices'
-import ShareTextModal from '../components/ShareTextModal'
 
+const ShareTextModal = lazy(() => import('../components/ShareTextModal').catch(() => ({ default: () => null })))
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
 const MAX_SIZE = 100 * 1024 * 1024 // 100MB total across all files
 const MAX_FILES = 10
@@ -163,13 +163,13 @@ export default function HomePage() {
     // Navigate first to avoid any transient audio API issues blocking route transition.
     navigate(`/sender/${normalizedTransferCode}`, { state: { transferData: transferSnapshot } })
 
-    // Play success sound after navigation commit (rAF ensures the new route has painted).
-    requestAnimationFrame(() => {
+    // Play success sound after page has fully loaded (small delay ensures clean playback)
+    setTimeout(() => {
       const currentSettings = getSettings()
       if (currentSettings.soundEnabled) {
         playUploadSuccess()
       }
-    })
+    }, 300)
   }, [files, navigate])
 
   // Title
@@ -298,13 +298,13 @@ export default function HomePage() {
       // Navigate to sender page
       navigate(`/sender/${normalizedCode}`, { state: { transferData: transferSnapshot } })
 
-      // Play success sound after navigation commit
-      requestAnimationFrame(() => {
+      // Play success sound after page has fully loaded (small delay ensures clean playback)
+      setTimeout(() => {
         const currentSettings = getSettings()
         if (currentSettings.soundEnabled) {
           playUploadSuccess()
         }
-      })
+      }, 300)
 
       toast.success('Text shared successfully!')
     } catch (err) {
@@ -366,6 +366,9 @@ export default function HomePage() {
     uploadStartRef.current = Date.now()
     speedSampleRef.current = { at: Date.now(), loaded: 0, ema: 0 }
     uploadHandledRef.current = false
+
+    // Force React to paint the progress bar before starting the heavy upload fetch
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
 
     let uploadSucceeded = false
     try {
@@ -447,6 +450,14 @@ export default function HomePage() {
       const transferCode = typeof response?.code === 'string' ? response.code.trim() : ''
       if (!transferCode) {
         throw new Error('Upload response was incomplete. Please try again.')
+      }
+
+      // Guarantee Minimum Visible Duration for upload success (MVD)
+      const elapsed = Date.now() - uploadStartRef.current
+      if (elapsed < 400) {
+        setUploadPhase('finalizing')
+        setUploadPercent(100)
+        await new Promise(r => setTimeout(r, 400 - elapsed))
       }
 
       uploadSucceeded = true
@@ -899,11 +910,13 @@ export default function HomePage() {
       </main>
 
       {/* Share Text Modal */}
-      <ShareTextModal 
-        open={shareTextModalOpen}
-        onClose={() => setShareTextModalOpen(false)}
-        onShare={handleShareText}
-      />
+      <Suspense fallback={null}>
+        <ShareTextModal 
+          open={shareTextModalOpen}
+          onClose={() => setShareTextModalOpen(false)}
+          onShare={handleShareText}
+        />
+      </Suspense>
     </div>
   )
 }

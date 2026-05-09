@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, WifiOff, Zap, CheckCircle2, RefreshCw } from 'lucide-react'
+import Spinner from './Spinner'
 import { useConnectionHealth } from '../context/ConnectionHealthContext'
 
 // ── Visual config per status ────────────────────────────────────────────────
@@ -16,7 +17,7 @@ const STATUS_CONFIG = {
     tone: 'accent',
   },
   syncing: {
-    icon: Loader2,
+    icon: Spinner,
     iconSpins: true,
     text: 'Syncing...',
     sub: 'Establishing the real-time link.',

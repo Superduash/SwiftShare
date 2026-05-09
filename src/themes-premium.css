@@ -3,91 +3,169 @@
    ═══════════════════════════════════════════════════════════════ */
 
 /* ═══ SUNSET — Warm Cinematic Light (HERO, DEFAULT) ═══ */
-[data-theme="sunset"] {
-  --bg: #FEF3E8;
-  --bg-raised: #FFFFFF;
-  --bg-sunken: #FAE0C8;
-  --bg-overlay: rgba(254,243,232,0.95);
-  --surface: #FFFFFF;
-  --surface-hover: #FFF2E8;
-  --surface-active: #FAE0C8;
-  --border: #EEC4A0;
-  --border-strong: #DFA070;
-  --text: #1A0700;
-  --text-2: #3D1208;
-  --text-3: #7A3D1C;
-  --text-4: #B06840;
-  --accent: #E04A1E;
+[data-theme="sunrise"] {
+  /* Softer, more refined cream background */
+  --bg: #FDF9F3; 
+  /* Slightly warmer elevated surfaces with strong glassmorphism support */
+  --bg-raised: rgba(255, 255, 255, 0.88);
+  --bg-sunken: rgba(240, 235, 225, 0.4);
+  --bg-overlay: rgba(253, 249, 243, 0.80);
+  --surface: rgba(255, 255, 255, 0.65);
+  --surface-hover: rgba(255, 255, 255, 0.85);
+  --surface-active: rgba(255, 255, 255, 0.95);
+  
+  /* Borders with extreme subtle warmth */
+  --border: rgba(230, 215, 200, 0.45);
+  --border-strong: rgba(230, 215, 200, 0.8);
+  
+  /* Typography - richer, deeply desaturated brown/charcoal for modern look */
+  --text: #1C1917; /* Slate-like warm black */
+  --text-2: #44403C; /* Muted stone */
+  --text-3: #78716C; /* Soft tertiary */
+  --text-4: #A8A29E; /* Subtle placeholder/meta */
+  
+  /* Accent - Refined, elegant, less saturated burnt orange */
+  --accent: #E05D3A; 
   --accent-contrast: #FFFFFF;
-  --accent-hover: #C44218;
-  --accent-soft: rgba(224,74,30,0.08);
-  --accent-medium: rgba(224,74,30,0.16);
-  --accent-glow: rgba(224,74,30,0.28);
-  --success: #5A7010;
-  --success-soft: rgba(90,112,16,0.10);
-  --warning: #9A4E00;
-  --warning-soft: rgba(154,78,0,0.10);
-  --danger: #841830;
-  --danger-soft: rgba(132,24,48,0.10);
-  --info: #0A6570;
-  --info-soft: rgba(10,101,112,0.10);
-  --ring-track: #EEC4A0;
-  --shimmer-from: #EEC4A0;
-  --shimmer-to: #FAE0C8;
-  --toast-bg: #1A0700;
-  --toast-text: #FFF7F2;
-  --toast-border: #3D1208;
-  --code-bg: #FAE0C8;
+  --accent-hover: #D04F2E;
+  --accent-soft: rgba(224, 93, 58, 0.08);
+  --accent-medium: rgba(224, 93, 58, 0.15);
+  --accent-glow: rgba(224, 93, 58, 0.25);
+  
+  /* Semantic colors carefully adjusted for warm palette */
+  --success: #4F7A28;
+  --success-soft: rgba(79, 122, 40, 0.10);
+  --warning: #B46200;
+  --warning-soft: rgba(180, 98, 0, 0.10);
+  --danger: #B92B2B;
+  --danger-soft: rgba(185, 43, 43, 0.10);
+  --info: #0F766E;
+  --info-soft: rgba(15, 118, 110, 0.10);
+  
+  /* UI Elements */
+  --ring-track: rgba(230, 215, 200, 0.6);
+  --shimmer-from: rgba(255, 255, 255, 0.4);
+  --shimmer-to: rgba(255, 255, 255, 0.8);
+  --toast-bg: rgba(255, 255, 255, 0.95);
+  --toast-text: #1C1917;
+  --toast-border: rgba(230, 215, 200, 0.6);
+  --code-bg: rgba(240, 235, 225, 0.5);
   --code-char-bg: #FFFFFF;
-  --code-char-border: #EEC4A0;
+  --code-char-border: rgba(230, 215, 200, 0.5);
   --qr-bg: #FFFFFF;
-  --qr-fg: #1A0700;
-  --drop-zone-bg: #FFF2E8;
-  --drop-zone-border: #DFA070;
-  --drop-zone-active-bg: #FAE0C8;
-  --drop-zone-active-border: #E04A1E;
-  --nav-bg: rgba(254,243,232,0.88);
-  --nav-border: #EEC4A0;
-  --settings-bg: #FFFFFF;
-  --file-icon-bg: rgba(224,74,30,0.08);
-  --file-icon-color: #E04A1E;
-  --ai-bg: linear-gradient(135deg, #FDDFC8 0%, #F8C690 100%);
-  --ai-border: #EEC4A0;
-  --ai-icon: #E04A1E;
-  --nearby-bg: #FFF2E8;
-  --tag-bg: #FAE0C8;
-  --tag-text: #C44218;
-  --progress-track: #EEC4A0;
-  --progress-fill: linear-gradient(90deg, #E04A1E 0%, #EE8818 55%, #F2C018 100%);
-  --progress-glow: rgba(224,74,30,0.32);
-  --skeleton: linear-gradient(90deg, #EEC4A0 25%, #FAE0C8 50%, #EEC4A0 75%);
-  --gradient-hero: linear-gradient(135deg, #E04A1E 0%, #EE8818 55%, #F2C018 100%);
-  /* Premium luxury shadows with warm tint */
-  --shadow-card: 0 2px 8px rgba(255,140,40,0.04), 0 8px 32px rgba(224,74,30,0.06);
-  --shadow-elevated: 0 4px 20px rgba(255,140,40,0.08), 0 20px 60px rgba(224,74,30,0.08);
-  --glow-accent: 0 0 24px rgba(224,74,30,0.20), 0 0 48px rgba(224,74,30,0.08);
-  /* Logo gradient var */
-  --logo-gradient: linear-gradient(135deg, #A82000 0%, #E04A1E 50%, #F59E0B 100%);
+  --qr-fg: #1C1917;
+  
+  /* Drop Zone */
+  --drop-zone-bg: rgba(255, 255, 255, 0.4);
+  --drop-zone-border: rgba(230, 215, 200, 0.8);
+  --drop-zone-active-bg: rgba(255, 255, 255, 0.8);
+  --drop-zone-active-border: #E05D3A;
+  
+  /* Nav & Modals */
+  --nav-bg: rgba(253, 249, 243, 0.85);
+  --nav-border: transparent;
+  --settings-bg: rgba(255, 255, 255, 0.7);
+  
+  /* Icons & Gradients */
+  --file-icon-bg: rgba(224, 93, 58, 0.08);
+  --file-icon-color: #E05D3A;
+  --ai-bg: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(253,249,243,0.9) 100%);
+  --ai-border: rgba(230, 215, 200, 0.6);
+  --ai-icon: #E05D3A;
+  --nearby-bg: rgba(255, 255, 255, 0.5);
+  --tag-bg: rgba(255, 255, 255, 0.8);
+  --tag-text: #C44C2B;
+  
+  /* Progress */
+  --progress-track: rgba(230, 215, 200, 0.6);
+  --progress-fill: linear-gradient(90deg, #E05D3A 0%, #E87A5D 50%, #EF9A80 100%);
+  --progress-glow: rgba(224, 93, 58, 0.3);
+  
+  /* Skeletons & Gradients */
+  --skeleton: linear-gradient(90deg, rgba(255,255,255,0.3) 25%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.3) 75%);
+  --gradient-hero: linear-gradient(135deg, #C44C2B 0%, #E05D3A 50%, #E87A5D 100%);
+  
+  /* Premium Shadows (Linear/Vercel style but warm) */
+  --shadow-card: 0 1px 3px rgba(45, 26, 17, 0.04), 0 4px 14px rgba(45, 26, 17, 0.03);
+  --shadow-elevated: 0 4px 12px rgba(45, 26, 17, 0.06), 0 12px 32px rgba(45, 26, 17, 0.05), 0 2px 4px rgba(45, 26, 17, 0.02);
+  --glow-accent: 0 0 24px rgba(224, 93, 58, 0.15), 0 0 54px rgba(224, 93, 58, 0.08);
+  --inset-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  
+  /* Logo */
+  --logo-gradient: linear-gradient(135deg, #C44C2B 0%, #E05D3A 50%, #E87A5D 100%);
   --logo-icon: #FFFFFF;
 }
 
+/* Glassmorphism blur filters & specific interactive hover effects */
+[data-theme="sunrise"] .bg-surface,
+[data-theme="sunrise"] .bg-settings-bg,
+[data-theme="sunrise"] .bg-drop-zone-bg {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Elegant header for Sunrise */
+[data-theme="sunrise"] .bg-nav-bg {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Global Share Text Modal Styling for all themes */
+.share-text-modal {
+  background: var(--bg-raised) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-elevated) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.share-textarea {
+  background: var(--bg-sunken) !important;
+  padding: 1.25rem !important; /* p-5 */
+  border-radius: 0.75rem !important; /* rounded-xl */
+  border: 1px solid var(--border) !important;
+  outline: none !important;
+  color: var(--text) !important;
+}
+
+.share-textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft) !important;
+}
+
+.share-text-modal .btn-primary {
+  border-radius: 0.75rem !important;
+  will-change: transform;
+}
+
+.share-text-modal .btn-primary:hover {
+  box-shadow: 0 8px 24px var(--accent-soft) !important;
+}
+
+[data-theme="sunrise"] button.bg-accent:hover,
+[data-theme="sunrise"] a.bg-accent:hover {
+  box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4) !important;
+}
+
 /* ═══ SUNSET DARK — Deep Ember Night ═══ */
-[data-theme="sunset-dark"] {
-  --bg: #0E0602;
-  --bg-raised: #180C04;
-  --bg-sunken: #080400;
-  --bg-overlay: rgba(14,6,2,0.97);
-  --surface: #1C1008;
-  --surface-hover: #281808;
-  --surface-active: #382210;
-  --border: #301808;
-  --border-strong: #4A2810;
+[data-theme="sunset"] {
+  --bg: #0C0502;
+  --bg-raised: #150A04;
+  --bg-sunken: #060200;
+  --bg-overlay: rgba(12,5,2,0.85);
+  --surface: #180C05;
+  --surface-hover: #24140A;
+  --surface-active: #301A0D;
+  --border: #2A160A;
+  --border-strong: #402410;
   --text: #FDF3E8;
   --text-2: #F0C88A;
   --text-3: #C08040;
   --text-4: #7A4820;
   --accent: #FF6B1A;
-  --accent-contrast: #0E0602;
+  --accent-contrast: #0C0502;
   --accent-hover: #FF8840;
   --accent-soft: rgba(255,107,26,0.10);
   --accent-medium: rgba(255,107,26,0.18);
@@ -100,40 +178,41 @@
   --danger-soft: rgba(255,68,68,0.12);
   --info: #18C0D8;
   --info-soft: rgba(24,192,216,0.12);
-  --ring-track: #301808;
-  --shimmer-from: #301808;
-  --shimmer-to: #4A2810;
-  --toast-bg: #1C1008;
+  --ring-track: #2A160A;
+  --shimmer-from: #2A160A;
+  --shimmer-to: #402410;
+  --toast-bg: #180C05;
   --toast-text: #FDF3E8;
-  --toast-border: #4A2810;
-  --code-bg: #180C04;
-  --code-char-bg: #1C1008;
-  --code-char-border: #4A2810;
+  --toast-border: #402410;
+  --code-bg: #150A04;
+  --code-char-bg: #180C05;
+  --code-char-border: #402410;
   --qr-bg: #FDF3E8;
-  --qr-fg: #0E0602;
-  --drop-zone-bg: #180C04;
-  --drop-zone-border: #4A2810;
+  --qr-fg: #0C0502;
+  --drop-zone-bg: #150A04;
+  --drop-zone-border: #402410;
   --drop-zone-active-bg: rgba(255,107,26,0.07);
   --drop-zone-active-border: #FF6B1A;
-  --nav-bg: rgba(14,6,2,0.94);
-  --nav-border: #301808;
-  --settings-bg: #180C04;
+  --nav-bg: rgba(12,5,2,0.85);
+  --nav-border: #2A160A;
+  --settings-bg: #150A04;
   --file-icon-bg: rgba(255,107,26,0.10);
   --file-icon-color: #FF6B1A;
-  --ai-bg: linear-gradient(135deg, #1C1008 0%, #281808 100%);
-  --ai-border: #4A2810;
+  --ai-bg: linear-gradient(135deg, #180C05 0%, #24140A 100%);
+  --ai-border: #402410;
   --ai-icon: #FF6B1A;
-  --nearby-bg: #180C04;
+  --nearby-bg: #150A04;
   --tag-bg: rgba(255,107,26,0.16);
   --tag-text: #FFA860;
-  --progress-track: #301808;
+  --progress-track: #2A160A;
   --progress-fill: linear-gradient(90deg, #CC4400 0%, #FF6B1A 50%, #FFAA40 100%);
   --progress-glow: rgba(255,107,26,0.50);
-  --skeleton: linear-gradient(90deg, #301808 25%, #4A2810 50%, #301808 75%);
+  --skeleton: linear-gradient(90deg, #2A160A 25%, #402410 50%, #2A160A 75%);
   --gradient-hero: linear-gradient(135deg, #CC4400 0%, #FF6B1A 55%, #FFAA40 100%);
-  --shadow-card: 0 2px 8px rgba(0,0,0,0.60), 0 8px 32px rgba(0,0,0,0.70);
-  --shadow-elevated: 0 4px 20px rgba(255,107,26,0.18), 0 20px 60px rgba(0,0,0,0.80);
+  --shadow-card: 0 4px 12px rgba(0,0,0,0.60), 0 12px 32px rgba(0,0,0,0.80), 0 2px 4px rgba(0,0,0,0.40);
+  --shadow-elevated: 0 8px 24px rgba(255,107,26,0.12), 0 24px 64px rgba(0,0,0,0.90), 0 4px 8px rgba(0,0,0,0.60);
   --glow-accent: 0 0 20px rgba(255,107,26,0.40), 0 0 60px rgba(255,107,26,0.18);
+  --inset-shadow: inset 0 1px 0 0 rgba(255,255,255,0.05);
   /* Logo gradient var */
   --logo-gradient: linear-gradient(135deg, #EFB818 0%, #E87A14 50%, #D94418 100%);
   --logo-icon: #FFFFFF;
@@ -202,6 +281,7 @@
   --shadow-card: 0 1px 3px rgba(0,0,0,0.60), 0 6px 20px rgba(0,0,0,0.50);
   --shadow-elevated: 0 4px 16px rgba(0,0,0,0.70), 0 20px 50px rgba(0,0,0,0.60);
   --glow-accent: 0 0 20px rgba(250,250,250,0.08), 0 0 40px rgba(250,250,250,0.04);
+  --inset-shadow: inset 0 1px 0 0 rgba(255,255,255,0.04);
   --logo-gradient: linear-gradient(135deg, #E5E7EB 0%, #9CA3AF 50%, #4B5563 100%);
 }
 
@@ -268,6 +348,7 @@
   --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
   --shadow-elevated: 0 4px 12px rgba(0,0,0,0.07), 0 16px 40px rgba(0,0,0,0.05);
   --glow-accent: 0 0 16px rgba(24,24,27,0.06), 0 0 32px rgba(24,24,27,0.03);
+  --inset-shadow: inset 0 1px 0 0 rgba(255,255,255,0.6);
   --logo-gradient: linear-gradient(135deg, #111827 0%, #4B5563 50%, #9CA3AF 100%);
 }
 
@@ -275,22 +356,22 @@
    LOGO COLORS — Balanced, theme-blended, not overblown
    ═══════════════════════════════════════════════════════════════ */
 
-/* Sunset Light — Warm ember, muted glow */
-[data-theme="sunset"] .logo-icon {
-  background: linear-gradient(135deg, #D94418 0%, #E87A14 60%, #EFB818 100%) !important;
-  box-shadow: 0 2px 10px rgba(217,68,24,0.28), 0 0 16px rgba(217,68,24,0.14) !important;
+/* Sunrise Light — Warm ember, muted glow */
+[data-theme="sunrise"] .logo-icon {
+  background: linear-gradient(135deg, #D04822 0%, #E85D33 60%, #F5A211 100%) !important;
+  box-shadow: 0 2px 10px rgba(232,93,51,0.28), 0 0 16px rgba(232,93,51,0.14) !important;
 }
-[data-theme="sunset"] .logo-icon:hover {
-  box-shadow: 0 4px 20px rgba(217,68,24,0.40), 0 0 36px rgba(232,122,20,0.26) !important;
+[data-theme="sunrise"] .logo-icon:hover {
+  box-shadow: 0 4px 20px rgba(232,93,51,0.40), 0 0 36px rgba(240,138,34,0.26) !important;
   transform: scale(1.10) rotate(6deg) !important;
 }
 
 /* Sunset Dark — Warm amber glow, not blinding */
-[data-theme="sunset-dark"] .logo-icon {
+[data-theme="sunset"] .logo-icon {
   background: linear-gradient(135deg, #CC3C00 0%, #FF6B1A 55%, #FFAA40 100%) !important;
   box-shadow: 0 2px 12px rgba(255,107,26,0.38), 0 0 22px rgba(255,107,26,0.18) !important;
 }
-[data-theme="sunset-dark"] .logo-icon:hover {
+[data-theme="sunset"] .logo-icon:hover {
   box-shadow: 0 4px 24px rgba(255,107,26,0.55), 0 0 48px rgba(255,107,26,0.28) !important;
   transform: scale(1.10) rotate(6deg) !important;
 }
@@ -317,30 +398,25 @@
 
 /* ═══ Body background layers ═══ */
 
-[data-theme="sunset"] body {
-  /* Premium warm cream base with cinematic depth */
-  background-color: #FEF3E8;
-  background-image:
-    /* Soft vignette for depth */
-    radial-gradient(circle at center, transparent 40%, rgba(26,7,0,0.02) 100%),
-    /* Warm ambient glow - bottom left */
-    radial-gradient(ellipse 100% 60% at 0% 100%, rgba(229,80,32,0.08) 0%, transparent 65%),
-    /* Soft peach accent - top right */
-    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(240,140,24,0.06) 0%, transparent 60%),
-    /* Center warmth - very subtle */
-    radial-gradient(ellipse 60% 40% at 50% 50%, rgba(244,196,28,0.03) 0%, transparent 70%);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: center center;
+[data-theme="sunrise"] body {
+  /* Animated Sunrise Background */
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFE4E1 100%);
+  background-size: 200% 200%;
+  animation: ss-sunrise-gradient 15s ease infinite;
+  
   /* Fix mobile scroll black bar */
   min-height: 100vh;
   min-height: -webkit-fill-available;
-  /* Premium texture */
   position: relative;
 }
 
-[data-theme="sunset-dark"] body {
+@keyframes ss-sunrise-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+[data-theme="sunset"] body {
   background-image:
     radial-gradient(ellipse 100% 60% at 0% 100%, rgba(180,50,0,0.22) 0%, transparent 62%),
     radial-gradient(ellipse 70% 50% at 100% 5%, rgba(200,80,0,0.12) 0%, transparent 55%),
