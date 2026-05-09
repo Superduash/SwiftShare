@@ -58,25 +58,10 @@ button, a, input, select, textarea, [role="button"], [tabindex] {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Premium image rendering */
-img, video, canvas, svg {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
 /* Buttery smooth scrolling */
 .overflow-auto, .overflow-scroll, [class*="overflow-"] {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  /* Optimize scroll performance */
-  will-change: scroll-position;
-}
-
-/* Performance: Optimize compositing layers - selective GPU acceleration */
-.fixed, .sticky {
-  transform: translate3d(0, 0, 0);
 }
 
 /* Optimize particle animations - selective will-change only during animation */
@@ -223,10 +208,7 @@ a { color: inherit; text-decoration: none; }
     /* Enable GPU during hover */
     will-change: transform, box-shadow;
   }
-  .surface-card:not(:hover) {
-    /* Remove will-change when not hovering */
-  
-  }
+
   .surface-card-flat {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -295,9 +277,7 @@ a { color: inherit; text-decoration: none; }
     box-shadow: 0 2px 6px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.1);
     transition-duration: 0.1s;
   }
-  .btn-primary:not(:hover):not(:active) {
-  
-  }
+
   .btn-primary:disabled { 
     opacity: 0.5; 
     cursor: not-allowed; 
@@ -342,9 +322,7 @@ a { color: inherit; text-decoration: none; }
     box-shadow: 0 2px 8px var(--accent-glow);
     transition-duration: 0.1s;
   }
-  .btn-secondary:not(:hover):not(:active) {
-  
-  }
+
 
   .btn-ghost {
     display: inline-flex;
@@ -462,9 +440,7 @@ a { color: inherit; text-decoration: none; }
     animation: drop-zone-pulse 2s ease-in-out infinite;
     will-change: transform, box-shadow, border-color;
   }
-  .drop-zone:not(.active) {
-  
-  }
+
   .drop-zone:hover:not(.active) {
     border-color: var(--border-strong);
     background: var(--surface-hover);
@@ -574,9 +550,7 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 4px 20px var(--accent-glow), 0 0 40px var(--accent-glow) !important;
   will-change: transform, box-shadow;
 }
-.logo-icon:not(:hover) {
 
-}
 
 /* Reduce Motion */
 body.reduce-motion *,
@@ -1029,12 +1003,7 @@ img[width], img[height] {
   will-change: transform, box-shadow;
 }
 
-.btn-primary:not(:hover),
-.btn-secondary:not(:hover),
-.surface-card:not(:hover),
-.drop-zone:not(.active) {
 
-}
 
 /* Optimize text rendering for headings and bold text */
 h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {

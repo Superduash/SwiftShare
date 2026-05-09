@@ -14,6 +14,7 @@ import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
 import ConnectionBanner from './components/ConnectionBanner'
+import Navbar from './components/Navbar'
 
 const AmbientBackground = lazy(() => import('./components/AmbientBackground').catch(() => ({ default: () => null })))
 // ── Error boundary for lazy routes ───────────
@@ -211,6 +212,7 @@ export default function App() {
               </Suspense>
               <ConnectionBanner />
               <NearbyOfferListener />
+              <Navbar />
               <AnimatedRoutes />
             </BrowserRouter>
             <Toaster

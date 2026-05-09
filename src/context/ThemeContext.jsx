@@ -10,10 +10,7 @@ const VALID_THEMES = ['sunrise', 'sunset', 'dark', 'light', 'midnight', 'sakura'
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
-    let saved = getTheme()
-    // Migrate old names
-    if (saved === 'sunset') saved = 'sunrise'
-    else if (saved === 'sunset-dark') saved = 'sunset'
+    const saved = getTheme()
     return VALID_THEMES.includes(saved) ? saved : 'sunrise'
   })
 
