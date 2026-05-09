@@ -710,7 +710,6 @@ export default function DownloadPage() {
   if (isInitialLoading) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <Navbar />
         <div className="app-main-offset page-shell-narrow py-8 sm:py-10 space-y-4">
           <div className="shimmer-block h-8 w-48" />
           <div className="shimmer-block h-32 w-full" />
@@ -723,7 +722,6 @@ export default function DownloadPage() {
   if (requestState === REQUEST_STATE.FAILED && requestError) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <Navbar />
         <div className="app-main-offset">
           <ErrorState
             code={requestError}
@@ -741,7 +739,6 @@ export default function DownloadPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar />
 
       <Suspense fallback={null}>
         <FilePreviewModal

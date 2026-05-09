@@ -882,10 +882,9 @@ export default function SenderPage() {
   if (loading) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <Navbar />
-        <div className="pt-20 max-w-6xl mx-auto px-4 space-y-4">
+        <main className="app-main-offset flex flex-col items-center justify-center p-4">
           {[...Array(3)].map((_, i) => <div key={i} className="shimmer-block h-16 w-full" />)}
-        </div>
+        </main>
       </div>
     )
   }
@@ -893,8 +892,7 @@ export default function SenderPage() {
   if (error) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <Navbar />
-        <div className="pt-20">
+        <div className="app-main-offset">
           <ErrorState
             code={error}
             onRetry={handleRetry}
@@ -909,8 +907,7 @@ export default function SenderPage() {
   if (!meta || meta.status === 'EXPIRED' || cancelled) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <Navbar />
-        <div className="pt-20 max-w-2xl mx-auto px-4">
+        <div className="app-main-offset max-w-2xl mx-auto px-4">
           <motion.div
             className="surface-card p-8 text-center"
             initial={{ opacity: 0, y: 16 }}
@@ -945,7 +942,6 @@ export default function SenderPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Navbar />
       <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={normalizedCode} />
 
       <Suspense fallback={null}>
@@ -1108,11 +1104,11 @@ export default function SenderPage() {
                   transition={{ delay: 0.1, type: 'spring', damping: 20 }}
                 >
                   <button
-                    className="inline-block p-4 rounded-2xl mx-auto mb-4 transition-transform hover:scale-105 cursor-pointer relative group"
-                    style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)' }}
+                    className="inline-block p-4 rounded-2xl mx-auto mb-4 transition-transform hover:scale-105 cursor-pointer relative group w-[160px] sm:w-[180px] h-auto"
+                    style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)', transform: 'translateZ(0)' }}
                     onClick={() => setQrModal(true)}
                   >
-                    <QRCode id="sender-qr-code" value={shareLink} size={160} bgColor="var(--qr-bg)" fgColor="var(--qr-fg)" level="M" />
+                    <QRCode id="sender-qr-code" value={shareLink} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%", shapeRendering: "crispEdges" }} viewBox="0 0 256 256" bgColor="var(--qr-bg)" fgColor="var(--qr-fg)" level="M" />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" style={{ background: 'rgba(0,0,0,0.05)' }}>
                       <Maximize2 size={20} style={{ color: 'var(--text-3)' }} />
                     </div>
