@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, FileText, Lock, Eye, EyeOff, Flame, Clock, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Spinner from './Spinner'
 
 function ShareTextModal({ open, onClose, onShare }) {
   const [content, setContent] = useState('')
@@ -120,12 +121,12 @@ function ShareTextModal({ open, onClose, onShare }) {
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 rounded-2xl overflow-hidden w-full max-w-2xl h-[calc(100dvh-1rem)] sm:h-auto sm:max-h-[90vh] flex flex-col"
+            className="relative z-10 rounded-2xl overflow-hidden w-full max-w-2xl h-[calc(100dvh-1rem)] sm:h-auto sm:max-h-[90vh] flex flex-col share-text-modal"
             style={{ background: 'var(--bg-raised)' }}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
           >
             {/* Header */}
             <div className="flex items-start justify-between gap-3 p-3 sm:p-4 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -182,7 +183,7 @@ function ShareTextModal({ open, onClose, onShare }) {
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Paste or type your text here... (Ctrl+V to paste)"
-                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all resize-none font-mono"
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition-all resize-none font-mono share-textarea"
                   style={{
                     background: 'var(--bg-sunken)',
                     border: `1.5px solid ${isOverLimit ? 'var(--danger)' : 'var(--border)'}`,
@@ -349,7 +350,7 @@ function ShareTextModal({ open, onClose, onShare }) {
               >
                 {sharing ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Spinner size={16} />
                     Sharing...
                   </>
                 ) : (

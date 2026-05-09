@@ -1,6 +1,7 @@
 import React, { memo } from 'react'
 import { motion } from 'framer-motion'
 import { formatSpeed } from '../utils/format'
+import Spinner from './Spinner'
 
 // Plain CSS-driven width transition. framer-motion was creating a fresh
 // width animation on every progress prop change, which on fast uploads
@@ -19,7 +20,10 @@ function ProgressBarBase({
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>{label}</span>
+        <span className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-2)' }}>
+          {indeterminate && <Spinner size={12} style={{ color: 'var(--accent)' }} />}
+          {label}
+        </span>
         {!indeterminate && (
           <span className="text-xs font-mono font-medium tabular-nums" style={{ color: 'var(--accent)' }}>
             {Math.round(pct)}%

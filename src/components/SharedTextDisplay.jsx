@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, Edit2, Save, X, Lock, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Spinner from './Spinner'
 
 function SharedTextDisplay({ 
   textContent, 
@@ -211,7 +212,7 @@ function SharedTextDisplay({
                 >
                   {unlocking ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <Spinner size={16} />
                       Unlocking...
                     </>
                   ) : (

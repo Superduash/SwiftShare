@@ -1,6 +1,7 @@
 import React, { useEffect, useState, memo } from 'react'
 import { motion } from 'framer-motion'
 import { Zap, Loader2 } from 'lucide-react'
+import Spinner from './Spinner'
 import { pingServer } from '../services/api'
 
 function ServerWakeup() {
@@ -34,7 +35,7 @@ function ServerWakeup() {
           Free tier servers sleep after inactivity. This takes about 30 seconds on first load.
         </p>
         <div className="flex items-center justify-center gap-2" style={{ color: 'var(--text-4)' }}>
-          <Loader2 size={14} className="animate-spin" />
+          <Spinner size={14} />
           <span className="text-xs font-medium">Connecting...</span>
         </div>
       </motion.div>

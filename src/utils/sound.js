@@ -44,6 +44,91 @@ function bindUnlockListeners() {
   events.forEach((eventName) => window.addEventListener(eventName, onFirstInteraction, { passive: true }))
 }
 
+let lastPlayTime = 0
+
+function playPremiumGlassChime() {
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  // Prevent duplicate playback if triggered multiple times quickly
+  // Also prevents overlap if multiple files finish together
+  if (ctx.currentTime > 0 && ctx.currentTime - lastPlayTime < 0.5) {
+    return
+  }
+
+  const play = () => {
+    lastPlayTime = ctx.currentTime
+    const now = ctx.currentTime
+
+    const masterGain = ctx.createGain()
+    masterGain.gain.value = 0.5 // Overall subtle volume
+    masterGain.connect(ctx.destination)
+
+    // 1. Soft digital pop / attack
+    const popOsc = ctx.createOscillator()
+    const popGain = ctx.createGain()
+    popOsc.type = 'sine'
+    // Quick pitch drop for soft pop effect
+    popOsc.frequency.setValueAtTime(600, now)
+    popOsc.frequency.exponentialRampToValueAtTime(100, now + 0.05)
+    
+    popGain.gain.setValueAtTime(0, now)
+    popGain.gain.linearRampToValueAtTime(0.12, now + 0.005)
+    popGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05)
+    
+    popOsc.connect(popGain)
+    popGain.connect(masterGain)
+    
+    // 2. Glass pluck fundamental (warm, pleasant pitch ~Ab5 - 830.61Hz)
+    const glassOsc = ctx.createOscillator()
+    const glassGain = ctx.createGain()
+    glassOsc.type = 'sine' // Sine for warmth and smoothness
+    glassOsc.frequency.setValueAtTime(830.61, now + 0.02)
+    
+    glassGain.gain.setValueAtTime(0, now + 0.02)
+    glassGain.gain.linearRampToValueAtTime(0.15, now + 0.04)
+    glassGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4)
+    
+    glassOsc.connect(glassGain)
+    glassGain.connect(masterGain)
+
+    // 3. Shimmer/bell overtone (higher pitch ~Eb6 - 1244.51Hz)
+    const shimmerOsc = ctx.createOscillator()
+    const shimmerGain = ctx.createGain()
+    shimmerOsc.type = 'triangle' // Triangle for a slightly glassier tone without harshness
+    shimmerOsc.frequency.setValueAtTime(1244.51, now + 0.04) 
+    
+    shimmerGain.gain.setValueAtTime(0, now + 0.04)
+    shimmerGain.gain.linearRampToValueAtTime(0.06, now + 0.06)
+    shimmerGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6)
+    
+    shimmerOsc.connect(shimmerGain)
+    shimmerGain.connect(masterGain)
+
+    // Start & stop schedule
+    popOsc.start(now)
+    popOsc.stop(now + 0.06)
+    
+    glassOsc.start(now + 0.02)
+    glassOsc.stop(now + 0.45)
+    
+    shimmerOsc.start(now + 0.04)
+    shimmerOsc.stop(now + 0.65)
+
+    // Keep audio context alive during playback to prevent interruption
+    const keepAlive = setTimeout(() => {
+      clearTimeout(keepAlive)
+    }, 700)
+  }
+
+  if (ctx.state === 'suspended') {
+    void ctx.resume().then(play).catch(() => {})
+    return
+  }
+
+  play()
+}
+
 function playTwoTone(firstFrequency, secondFrequency) {
   const ctx = getAudioContext()
   if (!ctx) return
@@ -92,11 +177,10 @@ function playTwoTone(firstFrequency, secondFrequency) {
 
 bindUnlockListeners()
 
-// Upload success: gentle ascending chime (C5 → E5)
+// Upload success: premium lightweight glass chime
 export function playUploadSuccess() {
   try {
-    // C5 (523.25 Hz) -> E5 (659.25 Hz), ascending.
-    playTwoTone(523.25, 659.25)
+    playPremiumGlassChime()
   } catch {
     // Silently fail
   }

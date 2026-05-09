@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Loader2 } from 'lucide-react'
+import Spinner from '../components/Spinner'
 
 import { getFileMetadataOutcome } from '../services/api'
 import Navbar from '../components/Navbar'
@@ -57,6 +58,10 @@ export default function JoinPage() {
     setLoading(true)
     setError(null)
 
+    // Force React to paint the loading state before firing the request
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    const startTime = Date.now()
+
     try {
       let outcome = null
       for (let attempt = 0; attempt <= MAX_JOIN_RETRIES; attempt += 1) {
@@ -86,6 +91,12 @@ export default function JoinPage() {
         })
 
         if (!mountedRef.current) return
+      }
+
+      // Guarantee Minimum Visible Duration (MVD) to prevent flashing
+      const elapsed = Date.now() - startTime
+      if (elapsed < 350) {
+        await new Promise(r => setTimeout(r, 350 - elapsed))
       }
 
       if (!mountedRef.current) return
@@ -293,7 +304,7 @@ export default function JoinPage() {
               disabled={loading || chars.some(c => !c)}
             >
               {loading ? (
-                <><Loader2 size={16} className="animate-spin" /> Checking...</>
+                <><Spinner size={16} /> Checking...</>
               ) : (
                 <>Get file <ArrowRight size={16} /></>
               )}

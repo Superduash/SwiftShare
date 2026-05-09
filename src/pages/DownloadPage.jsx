@@ -2,9 +2,8 @@ import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, XCircle, Clock, Flame, RefreshCw } from 'lucide-react'
-import confetti from 'canvas-confetti'
+import Spinner from '../components/Spinner'
 import toast from 'react-hot-toast'
-
 import { useSocket } from '../context/SocketContext'
 import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile, finalizeBurnTransfer, getTextContent } from '../services/api'
 import { smartDownload } from '../utils/download'
@@ -250,12 +249,22 @@ export default function DownloadPage() {
     setRequestState(REQUEST_STATE.LOADING)
     setRequestError(null)
 
+    // Force React to paint the loading state before firing the request
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    const startTime = Date.now()
+
     try {
       const requestConfig = { timeout: 45000, noRetry: true }
       if (verifiedPasswordRef.current) {
         requestConfig.headers = { 'X-Transfer-Password': verifiedPasswordRef.current }
       }
       const outcome = await getFileMetadataOutcome(normalizedCode, requestConfig)
+
+      // Guarantee Minimum Visible Duration (MVD) to prevent flashing
+      const elapsed = Date.now() - startTime
+      if (elapsed < 350) {
+        await new Promise(r => setTimeout(r, 350 - elapsed))
+      }
 
       if (!mountedRef.current || requestToken !== requestTokenRef.current) return
 
@@ -593,18 +602,23 @@ export default function DownloadPage() {
 
       // Confetti! Pull the active theme's accent + success + info from CSS vars
       // so a Forest theme gets emerald confetti, Sakura gets rose, etc., instead
-      // of always firing sunset-orange.
+      // of always firing sunrise-orange.
       if (!currentSettings.reducedMotion) {
-        const cs = getComputedStyle(document.documentElement)
-        const themeColors = ['--accent', '--accent-hover', '--success', '--info', '--warning']
-          .map((v) => cs.getPropertyValue(v).trim())
-          .filter(Boolean)
-        confetti({
-          particleCount: 72,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: themeColors.length ? themeColors : ['#E8634A', '#16A34A', '#0891B2'],
-        })
+        try {
+          const { default: confetti } = await import('canvas-confetti')
+          const cs = getComputedStyle(document.documentElement)
+          const themeColors = ['--accent', '--accent-hover', '--success', '--info', '--warning']
+            .map((v) => cs.getPropertyValue(v).trim())
+            .filter(Boolean)
+          confetti({
+            particleCount: 72,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: themeColors.length ? themeColors : ['#E8634A', '#16A34A', '#0891B2'],
+          })
+        } catch (e) {
+          // Fallback if chunk fails to load
+        }
       }
 
       // Success sound
@@ -839,7 +853,7 @@ export default function DownloadPage() {
             >
               {textLoading ? (
                 <div className="surface-card p-8 text-center">
-                  <Loader2 size={24} className="animate-spin mx-auto mb-2" style={{ color: 'var(--accent)' }} />
+                  <Spinner size={24} className="mx-auto mb-2" style={{ color: 'var(--accent)' }} />
                   <p className="text-sm" style={{ color: 'var(--text-3)' }}>Loading text...</p>
                 </div>
               ) : (
@@ -946,7 +960,7 @@ export default function DownloadPage() {
                     className="btn-primary w-full text-sm"
                     disabled={!password.trim() || verifying}
                   >
-                    {verifying ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                    {verifying ? <Spinner size={16} /> : <Lock size={16} />}
                     {verifying ? 'Verifying...' : 'Unlock'}
                   </button>
                 </form>

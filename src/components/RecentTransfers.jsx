@@ -88,7 +88,7 @@ function RecentTransfers() {
     return () => clearInterval(timer)
   }, [])
 
-  if (!transfers.length) return null
+
 
   const handleClear = useCallback(() => {
     if (!confirmClear) {
@@ -169,6 +169,8 @@ function RecentTransfers() {
       navigate(isSender ? `/sender/${normalizedCode}` : `/download/${normalizedCode}`)
     }
   }, [navigate])
+
+  if (!transfers.length) return null
 
   return (
     <motion.div

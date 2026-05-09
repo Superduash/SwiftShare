@@ -12,8 +12,8 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
-  { value: 'sunset',      label: 'Sunrise',      color: '#F07020',  light: false },
-  { value: 'sunset-dark', label: 'Sunset',       color: '#C85A10',  light: false },
+  { value: 'sunrise',     label: 'Sunrise',      color: '#F07020',  light: false },
+  { value: 'sunset',      label: 'Sunset',       color: '#C85A10',  light: false },
   { value: 'dark', label: 'Dark', color: '#1A1A1E', light: false },
   { value: 'light', label: 'Light', color: '#F0F0F2', light: true },
   { value: 'midnight', label: 'Midnight', color: '#1440A0', light: false },
@@ -94,7 +94,7 @@ export default function SettingsPanel({ open, onClose }) {
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
           >
             <div className="p-6">
               {/* Header */}

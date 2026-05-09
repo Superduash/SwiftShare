@@ -20,7 +20,7 @@ const TONE_VARS = {
 }
 
 // Sunrise (light) ↔ Sunset (dark) toggle
-// Stored as 'sunset' (sunrise/light) and 'sunset-dark' (sunset/dark)
+// Stored as 'sunrise' (light) and 'sunset' (dark)
 
 function Navbar() {
   const { theme, setTheme } = useTheme()
@@ -32,16 +32,16 @@ function Navbar() {
   const pill = STATUS_PILL[status] || STATUS_PILL.syncing
   const tone = TONE_VARS[pill.tone] || TONE_VARS.warning
 
-  const isSunset = theme === 'sunset' || theme === 'sunset-dark'
-  const isSunsetDark = theme === 'sunset-dark'
+  const isSunriseFamily = theme === 'sunrise' || theme === 'sunset'
+  const isSunset = theme === 'sunset'
 
   // Dark themes get gradient logo text
-  const darkThemes = ['dark', 'midnight', 'lavender', 'forest', 'volcanic', 'sunset-dark']
+  const darkThemes = ['dark', 'midnight', 'lavender', 'forest', 'volcanic', 'sunset']
   const isDarkTheme = darkThemes.includes(theme)
 
-  const toggleSunsetMode = useCallback(() => {
-    setTheme(isSunsetDark ? 'sunset' : 'sunset-dark')
-  }, [isSunsetDark, setTheme])
+  const toggleSunriseMode = useCallback(() => {
+    setTheme(isSunset ? 'sunrise' : 'sunset')
+  }, [isSunset, setTheme])
 
   const openSettings = useCallback(() => setSettingsOpen(true), [])
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
@@ -49,7 +49,7 @@ function Navbar() {
   return (
     <>
       <nav
-        className="fixed left-0 right-0 z-50 backdrop-blur-xl"
+        className="fixed left-0 right-0 z-50 backdrop-blur-xl bg-nav-bg"
         style={{
           top: 'calc(var(--safe-top) + var(--connection-banner-height))',
           background: 'var(--nav-bg)',
@@ -95,16 +95,16 @@ function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-1">
-            {/* Sunset light/dark toggle — only shown for sunset theme */}
-            {isSunset && (
+            {/* Sunrise/Sunset toggle — only shown for sunrise family */}
+            {isSunriseFamily && (
               <button
                 className="btn-icon"
-                onClick={toggleSunsetMode}
-                aria-label={isSunsetDark ? 'Switch to Sunset Light mode' : 'Switch to Sunset Dark mode'}
-                title={isSunsetDark ? 'Sunset Light' : 'Sunset Dark'}
+                onClick={toggleSunriseMode}
+                aria-label={isSunset ? 'Switch to Sunrise mode' : 'Switch to Sunset mode'}
+                title={isSunset ? 'Sunrise' : 'Sunset'}
                 style={{ marginRight: '2px' }}
               >
-                {isSunsetDark ? (
+                {isSunset ? (
                   <Sun size={16} style={{ color: 'var(--accent)' }} />
                 ) : (
                   <Moon size={16} style={{ color: 'var(--text-3)' }} />

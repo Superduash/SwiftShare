@@ -29,7 +29,7 @@ function QRModal({ open, onClose, value, code }) {
             initial={{ scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.85, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
             role="dialog"
             aria-modal="true"
             aria-label="QR code to scan for download"

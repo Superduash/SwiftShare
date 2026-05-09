@@ -2,16 +2,19 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { getTheme, saveTheme } from '../utils/storage'
 
 const ThemeContext = createContext({
-  theme: 'sunset',
+  theme: 'sunrise',
   setTheme: () => {}
 })
 
-const VALID_THEMES = ['sunset', 'sunset-dark', 'dark', 'light', 'midnight', 'sakura', 'lavender', 'forest', 'volcanic']
+const VALID_THEMES = ['sunrise', 'sunset', 'dark', 'light', 'midnight', 'sakura', 'lavender', 'forest', 'volcanic']
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
-    const saved = getTheme()
-    return VALID_THEMES.includes(saved) ? saved : 'sunset'
+    let saved = getTheme()
+    // Migrate old names
+    if (saved === 'sunset') saved = 'sunrise'
+    else if (saved === 'sunset-dark') saved = 'sunset'
+    return VALID_THEMES.includes(saved) ? saved : 'sunrise'
   })
 
   const setTheme = useCallback((newTheme) => {

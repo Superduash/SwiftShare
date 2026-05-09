@@ -14,8 +14,8 @@ import { getSettings } from './utils/storage'
 
 import LoadingScreen from './components/LoadingScreen'
 import ConnectionBanner from './components/ConnectionBanner'
-import AmbientBackground from './components/AmbientBackground'
 
+const AmbientBackground = lazy(() => import('./components/AmbientBackground').catch(() => ({ default: () => null })))
 // ── Error boundary for lazy routes ───────────
 class RouteErrorBoundary extends React.Component {
   constructor(props) {
@@ -47,9 +47,17 @@ import HomePage from './pages/HomePage'
 import JoinPage from './pages/JoinPage'
 import ExpiredPage from './pages/ExpiredPage'
 
+// Utility to enforce a minimum load time so the loading spinner actually paints on ultra-fast networks
+function lazyWithMinLoadTime(factory, minLoadTimeMs = 350) {
+  return lazy(() => Promise.all([
+    factory(),
+    new Promise(resolve => setTimeout(resolve, minLoadTimeMs))
+  ]).then(([moduleExports]) => moduleExports))
+}
+
 // Lazy — heavier pages
-const SenderPage = lazy(() => import('./pages/SenderPage'))
-const DownloadPage = lazy(() => import('./pages/DownloadPage'))
+const SenderPage = lazyWithMinLoadTime(() => import('./pages/SenderPage'))
+const DownloadPage = lazyWithMinLoadTime(() => import('./pages/DownloadPage'))
 
 // ── Scroll to top ────────────────────────────
 function ScrollToTop() {
@@ -198,7 +206,9 @@ export default function App() {
         <ConnectionHealthProvider>
           <TransferProvider>
             <BrowserRouter>
-              <AmbientBackground />
+              <Suspense fallback={null}>
+                <AmbientBackground />
+              </Suspense>
               <ConnectionBanner />
               <NearbyOfferListener />
               <AnimatedRoutes />
