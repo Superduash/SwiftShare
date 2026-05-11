@@ -109,8 +109,9 @@ body {
   /* Premium easing for theme transitions */
   transition: background 0.32s cubic-bezier(0.4, 0, 0.2, 1), 
               color 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-  /* Fix mobile scroll black bar issue */
-  min-height: 100vh;
+  /* Use native dynamic viewport height to prevent mobile jitter */
+  min-height: 100dvh;
+  min-height: 100vh; /* fallback */
   min-height: -webkit-fill-available;
   /* Ensure body fills viewport on mobile */
   position: relative;
@@ -127,7 +128,8 @@ html {
 
 /* Fix for React root to fill viewport */
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100vh; /* fallback */
   min-height: -webkit-fill-available;
 }
 
