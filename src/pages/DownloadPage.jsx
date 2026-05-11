@@ -625,6 +625,23 @@ export default function DownloadPage() {
     }
     const onReceipt = (data) => setReceipt(data)
 
+    const onSocketReconnected = () => {
+      if (!mountedRef.current || !normalizedCode) return
+      void loadMetadata()
+    }
+    window.addEventListener('swiftshare:socket-reconnected', onSocketReconnected)
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const currentMeta = metaRef.current;
+        if (currentMeta?.expiresAt) {
+          const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
+          setSecondsRemaining(seconds)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
     socket.on('transfer-expired', onExpired)
@@ -650,6 +667,8 @@ export default function DownloadPage() {
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-claimed', onClaimed)
       socket.off('transfer-receipt', onReceipt)
+      window.removeEventListener('swiftshare:socket-reconnected', onSocketReconnected)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       if (downProgRaf) {
         cancelAnimationFrame(downProgRaf)
         downProgRaf = 0

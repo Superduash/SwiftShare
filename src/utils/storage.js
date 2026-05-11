@@ -162,8 +162,34 @@ function safeGet(key, fallback) {
     return raw ? JSON.parse(raw) : fallback
   } catch { return fallback }
 }
+function evictOldestCacheEntries() {
+  try {
+    const entries = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith(KEYS.TRANSFER_PREFIX) || key.startsWith(KEYS.AI_PREFIX))) {
+        entries.push(key);
+      }
+    }
+    // Delete up to 5 entries to free up space quickly
+    entries.slice(0, 5).forEach(k => { try { localStorage.removeItem(k) } catch {} });
+  } catch {}
+}
+
 function safeSet(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+      cleanExpiredCache()
+      try {
+        localStorage.setItem(key, JSON.stringify(value))
+      } catch (retryError) {
+        evictOldestCacheEntries()
+        try { localStorage.setItem(key, JSON.stringify(value)) } catch {}
+      }
+    }
+  }
 }
 
 export function getCachedTransfer(code) {
@@ -208,6 +234,39 @@ export function removeCachedAI(code) {
   const key = aiKey(code)
   if (!key) return
   try { localStorage.removeItem(key) } catch {}
+}
+
+// ── Cache expiration cleanup ───────────────
+// Runs once on module load to evict stale transfer/AI cache entries.
+// Prevents localStorage from growing unboundedly on devices that share many files.
+function cleanExpiredCache() {
+  try {
+    const now = Date.now()
+    const keysToRemove = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key) continue
+      if (!key.startsWith(KEYS.TRANSFER_PREFIX) && !key.startsWith(KEYS.AI_PREFIX)) continue
+      try {
+        const raw = localStorage.getItem(key)
+        if (!raw) continue
+        const parsed = JSON.parse(raw)
+        // Remove if expired (expiresAt in the past) or older than 24h (no expiresAt)
+        const expiresAt = parsed?.expiresAt ? new Date(parsed.expiresAt).getTime() : 0
+        const savedAt = parsed?.savedAt ? new Date(parsed.savedAt).getTime() : 0
+        const age = now - (savedAt || 0)
+        if ((expiresAt && now > expiresAt) || (!expiresAt && age > 24 * 60 * 60 * 1000)) {
+          keysToRemove.push(key)
+        }
+      } catch {}
+    }
+    keysToRemove.forEach(k => { try { localStorage.removeItem(k) } catch {} })
+  } catch {}
+}
+
+// Run cleanup on load (deferred to avoid blocking initial render)
+if (typeof window !== 'undefined') {
+  setTimeout(cleanExpiredCache, 2000)
 }
 
 // ── Recent Transfers ───────────────────────

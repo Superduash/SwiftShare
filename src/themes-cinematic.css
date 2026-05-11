@@ -357,6 +357,7 @@
   position: relative;
   /* Fix mobile scroll black bar */
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: -webkit-fill-available;
 }
 
@@ -374,6 +375,7 @@
   background-position: center center;
   /* Fix mobile scroll black bar */
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: -webkit-fill-available;
 }
 
@@ -388,6 +390,7 @@
   background-position: center center;
   /* Fix mobile scroll black bar */
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: -webkit-fill-available;
 }
 
@@ -402,6 +405,7 @@
   background-position: center center;
   /* Fix mobile scroll black bar */
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: -webkit-fill-available;
 }
 
@@ -416,6 +420,7 @@
   background-position: center center;
   /* Fix mobile scroll black bar */
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: -webkit-fill-available;
 }
 

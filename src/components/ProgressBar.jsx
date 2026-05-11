@@ -35,15 +35,17 @@ function ProgressBarBase({
         style={{ background: 'var(--progress-track)' }}
       >
         {indeterminate ? (
+          // Finalizing: full-width bar that pulses opacity — communicates
+          // "almost done, server is finishing up" without the jitter of a
+          // bouncing indicator. Feels premium and intentional on mobile.
           <motion.div
-            className="h-full rounded-full absolute"
+            className="h-full rounded-full w-full"
             style={{
-              width: '40%',
               background: 'var(--progress-fill)',
               boxShadow: '0 0 8px var(--progress-glow)',
             }}
-            animate={{ left: ['-40%', '100%'] }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
           />
         ) : (
           <div

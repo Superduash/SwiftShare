@@ -41,14 +41,14 @@ function QRModal({ open, onClose, value, code }) {
             <h3 className="font-display font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>Scan to Download</h3>
             <p className="text-sm mb-6" style={{ color: 'var(--text-3)' }}>Point your camera at this code</p>
 
-            <div className="inline-block p-3 sm:p-4 rounded-2xl mb-6 w-[200px] sm:w-[240px] max-w-full overflow-hidden" style={{ background: 'var(--qr-bg)', border: '1px solid var(--border)', transform: 'translateZ(0)' }}>
+            <div className="inline-block p-3 sm:p-4 rounded-2xl mb-6 w-[200px] sm:w-[240px] max-w-full overflow-hidden" style={{ background: '#FFFFFF', border: '1px solid var(--border)', transform: 'translateZ(0)' }}>
               <QRCode
                 value={value || ''}
                 size={256}
                 style={{ height: "auto", maxWidth: "100%", width: "100%", shapeRendering: "crispEdges" }}
                 viewBox="0 0 256 256"
-                bgColor="var(--qr-bg)"
-                fgColor="var(--qr-fg)"
+                bgColor="#FFFFFF"
+                fgColor="#000000"
                 level="M"
                 aria-label={`QR code for transfer ${code || ''}`}
               />
