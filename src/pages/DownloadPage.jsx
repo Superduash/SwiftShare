@@ -18,54 +18,60 @@ import {
   mergeTransferData,
 } from '../utils/storage'
 
-// Password session storage — memory-only, no persistence to avoid XSS/extension attacks
-// Passwords are kept only in RAM and cleared when browser tab closes or expires
-const passwordSessionCache = new Map() // code -> { password, expiresAt }
+// Password session storage (5 minute expiry)
+const PASSWORD_SESSION_KEY_PREFIX = 'pwd_session_'
 const PASSWORD_SESSION_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
-
-// Cleanup expired sessions periodically
-const cleanupIntervalId = setInterval(() => {
-  const now = Date.now()
-  for (const [code, session] of passwordSessionCache) {
-    if (now > session.expiresAt) {
-      passwordSessionCache.delete(code)
-    }
-  }
-}, 60 * 1000) // every minute
-if (typeof cleanupIntervalId.unref === 'function') cleanupIntervalId.unref()
 
 function savePasswordSession(code, password) {
   if (!code || !password) return
   const normalizedCode = String(code).toUpperCase().trim()
   if (!normalizedCode) return
   
-  // Store only in memory — cleared automatically on expiry or tab close
-  passwordSessionCache.set(normalizedCode, {
+  const key = `${PASSWORD_SESSION_KEY_PREFIX}${normalizedCode}`
+  const session = {
     password,
     expiresAt: Date.now() + PASSWORD_SESSION_EXPIRY_MS
-  })
+  }
+  try {
+    sessionStorage.setItem(key, JSON.stringify(session))
+  } catch (e) {
+    console.warn('Failed to save password session:', e)
+  }
 }
 
 function getPasswordSession(code) {
   if (!code) return null
   const normalizedCode = String(code).toUpperCase().trim()
+  const key = `${PASSWORD_SESSION_KEY_PREFIX}${normalizedCode}`
   
-  const session = passwordSessionCache.get(normalizedCode)
-  if (!session) return null
-  
-  // Check if expired
-  if (Date.now() > session.expiresAt) {
-    passwordSessionCache.delete(normalizedCode)
+  try {
+    const stored = sessionStorage.getItem(key)
+    if (!stored) return null
+    
+    const session = JSON.parse(stored)
+    if (!session || !session.password || !session.expiresAt) return null
+    
+    // Check if expired
+    if (Date.now() > session.expiresAt) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+    
+    return session.password
+  } catch (e) {
     return null
   }
-  
-  return session.password
 }
 
 function clearPasswordSession(code) {
   if (!code) return
   const normalizedCode = String(code).toUpperCase().trim()
-  passwordSessionCache.delete(normalizedCode)
+  const key = `${PASSWORD_SESSION_KEY_PREFIX}${normalizedCode}`
+  try {
+    sessionStorage.removeItem(key)
+  } catch (e) {
+    // ignore
+  }
 }
 import { formatBytes } from '../utils/format'
 import { playDownloadSuccess } from '../utils/sound'
