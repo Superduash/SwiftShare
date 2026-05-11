@@ -61,10 +61,16 @@ function AISummaryCard({ ai, loading = false }) {
   // AI result with only a warning and no summary means the service was unavailable
   const isAiUnavailable = activeAi && !summary && !activeAi.category && Boolean(activeAi.warning)
   
-  // Extract model and provider info
+  // Extract model name — show clean short label, no "Powered by AI" fallback
   const model = activeAi?.model
   const provider = activeAi?.provider
-  const modelDisplay = model && provider ? `${provider} ${model}` : (model || (provider ? `${provider}` : null))
+  const modelDisplay = (() => {
+    if (!model) return provider || null
+    // Strip org prefix for OpenRouter models (e.g. "meta-llama/llama-3.3-70b-versatile" → "llama-3.3-70b-versatile")
+    const shortModel = model.includes('/') ? model.split('/').pop() : model
+    // Strip ":free" suffix
+    return shortModel.replace(/:free$/, '')
+  })()
 
   useEffect(() => {
     if (!loading) {
@@ -121,13 +127,15 @@ function AISummaryCard({ ai, loading = false }) {
               }
             </button>
           )}
-          <span 
-            className="text-[10px] px-2 py-0.5 rounded-full font-medium" 
-            style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}
-            title={modelDisplay || 'Powered by AI'}
-          >
-            {modelDisplay || 'Powered by AI'}
-          </span>
+          {modelDisplay && (
+            <span 
+              className="text-[10px] px-2 py-0.5 rounded-full font-medium" 
+              style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}
+              title={`${provider ? provider + ' · ' : ''}${model || ''}`}
+            >
+              {modelDisplay}
+            </span>
+          )}
         </div>
       </div>
 
