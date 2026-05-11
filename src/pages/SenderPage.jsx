@@ -451,7 +451,8 @@ export default function SenderPage() {
     if (!socket || !normalizedCode) return
 
     const connectRoom = () => {
-      const ownershipToken = cachedTransfer?.transfer?.ownershipToken || cachedTransfer?.ownershipToken
+      const currentTransfer = metaRef.current
+      const ownershipToken = currentTransfer?.transfer?.ownershipToken || currentTransfer?.ownershipToken
       registerSender(normalizedCode, ownershipToken)
       rejoinRoom(normalizedCode)
     }
