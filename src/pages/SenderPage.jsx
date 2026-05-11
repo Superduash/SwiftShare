@@ -93,9 +93,6 @@ const FilePreviewModal = lazy(() =>
 const QRModal = lazy(() =>
   import('../components/QRModal').catch(() => ({ default: () => null }))
 )
-const ShareTextModal = lazy(() =>
-  import('../components/ShareTextModal').catch(() => ({ default: () => null }))
-)
 
 function buildShareMessage(fileLabel, shareLink, minutesLeft) {
   const expiryNote = minutesLeft <= 1 ? 'less than a minute' : `${minutesLeft} min`
@@ -1082,7 +1079,9 @@ export default function SenderPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={normalizedCode} />
+      <Suspense fallback={null}>
+        <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={normalizedCode} />
+      </Suspense>
 
       <Suspense fallback={null}>
         <FilePreviewModal
