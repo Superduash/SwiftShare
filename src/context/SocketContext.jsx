@@ -123,9 +123,26 @@ export function SocketProvider({ children }) {
     socketRef.current = s
     setSocket(s)
 
+    // Track whether this is the very first connect. iOS aggressively suspends
+    // WebSocket connections when the screen locks. When the user unlocks, Socket.io
+    // may fire 'connect' (with a brand-new socket.id) instead of 'reconnect',
+    // because the transport was fully destroyed. Without dispatching the
+    // reconnect event on these subsequent 'connect' fires, pages never re-fetch
+    // transfer state and the sender sees a stale UI forever.
+    let hasConnectedBefore = false
+
     s.on('connect', () => {
       setIsConnected(true)
       setSocketId(s.id)
+
+      if (hasConnectedBefore && typeof window !== 'undefined') {
+        // This is a RE-connect (not the initial connect). Dispatch the same
+        // event that 'reconnect' fires so pages reconcile missed events.
+        window.dispatchEvent(new CustomEvent('swiftshare:socket-reconnected', {
+          detail: { socketId: s.id, timestamp: Date.now() }
+        }))
+      }
+      hasConnectedBefore = true
     })
 
     s.on('disconnect', () => {
@@ -139,6 +156,15 @@ export function SocketProvider({ children }) {
     s.on('reconnect', () => {
       setIsConnected(true)
       setSocketId(s.id)
+      // Dispatch a custom event so active pages (SenderPage, DownloadPage) can
+      // silently re-fetch their transfer state to reconcile any missed events
+      // while the socket was offline. Each page listens for this and calls its
+      // own refresh logic — no polling, no duplicate socket events.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('swiftshare:socket-reconnected', {
+          detail: { socketId: s.id, timestamp: Date.now() }
+        }))
+      }
     })
 
     return () => {

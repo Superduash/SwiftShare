@@ -12,38 +12,15 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'kern' 1, 'liga' 1;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-overflow-scrolling: touch;
   }
   h1, h2, h3, h4, h5, h6, .font-display {
     font-family: 'Outfit', 'Inter', system-ui, sans-serif;
     letter-spacing: -0.02em;
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   QUALITY & PERFORMANCE OPTIMIZATIONS - PREMIUM POLISH v2.0
-   ═══════════════════════════════════════════════════════════════ */
-
-/* Themes loaded via JS imports in main.jsx */
-*, *::before, *::after { 
-  box-sizing: border-box; 
-  margin: 0; 
-  padding: 0;
-}
-
-html { 
-  scroll-behavior: smooth; 
-  -webkit-text-size-adjust: 100%;
-  /* Premium font rendering - crisp and clear */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
-  /* Prevent blur on transforms */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  /* Smooth scrolling on all devices */
-  -webkit-overflow-scrolling: touch;
 }
 
 /* High-quality rendering for interactive elements */
@@ -110,8 +87,8 @@ body {
   transition: background 0.32s cubic-bezier(0.4, 0, 0.2, 1), 
               color 0.32s cubic-bezier(0.4, 0, 0.2, 1);
   /* Use native dynamic viewport height to prevent mobile jitter */
+  min-height: 100vh;
   min-height: 100dvh;
-  min-height: 100vh; /* fallback */
   min-height: -webkit-fill-available;
   /* Ensure body fills viewport on mobile */
   position: relative;
@@ -128,8 +105,8 @@ html {
 
 /* Fix for React root to fill viewport */
 #root {
+  min-height: 100vh;
   min-height: 100dvh;
-  min-height: 100vh; /* fallback */
   min-height: -webkit-fill-available;
 }
 

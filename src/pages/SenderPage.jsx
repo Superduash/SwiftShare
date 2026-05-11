@@ -589,6 +589,34 @@ export default function SenderPage() {
     socket.on('transfer-extended', onExtended)
     socket.on('activity-updated', onActivityUpdated)
 
+    // On socket reconnect: silently re-fetch transfer state to reconcile
+    // any events missed while offline (download, extend, cancel, etc.)
+    const onSocketReconnected = () => {
+      if (!mountedRef.current || !normalizedCode) return
+      void getFileMetadata(normalizedCode, { timeout: 10000, noRetry: true })
+        .then((data) => {
+          if (!mountedRef.current || !data) return
+          // Only apply non-terminal states — don't overwrite a cancelled/expired UI
+          if (data.status === 'EXPIRED' || data.status === 'CANCELLED' || data.status === 'DELETED') return
+          applyTransferSnapshot(data, { persist: true })
+          requestActivityRefresh()
+        })
+        .catch(() => { /* silent — reconnect refresh is best-effort */ })
+    }
+    window.addEventListener('swiftshare:socket-reconnected', onSocketReconnected)
+
+    // Handle timer drift when tab is backgrounded on mobile
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const currentMeta = metaRef.current;
+        if (currentMeta?.expiresAt) {
+          const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
+          setSecondsRemaining(seconds)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
     return () => {
       if (aiTimeoutId) {
         clearTimeout(aiTimeoutId)
@@ -604,6 +632,8 @@ export default function SenderPage() {
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-extended', onExtended)
       socket.off('activity-updated', onActivityUpdated)
+      window.removeEventListener('swiftshare:socket-reconnected', onSocketReconnected)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       if (downProgRaf) {
         cancelAnimationFrame(downProgRaf)
         downProgRaf = 0
