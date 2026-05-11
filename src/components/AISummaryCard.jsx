@@ -60,6 +60,11 @@ function AISummaryCard({ ai, loading = false }) {
   }))
   // AI result with only a warning and no summary means the service was unavailable
   const isAiUnavailable = activeAi && !summary && !activeAi.category && Boolean(activeAi.warning)
+  
+  // Extract model and provider info
+  const model = activeAi?.model
+  const provider = activeAi?.provider
+  const modelDisplay = model && provider ? `${provider} ${model}` : (model || (provider ? `${provider}` : null))
 
   useEffect(() => {
     if (!loading) {
@@ -116,8 +121,12 @@ function AISummaryCard({ ai, loading = false }) {
               }
             </button>
           )}
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}>
-            Powered by AI
+          <span 
+            className="text-[10px] px-2 py-0.5 rounded-full font-medium" 
+            style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}
+            title={modelDisplay || 'Powered by AI'}
+          >
+            {modelDisplay || 'Powered by AI'}
           </span>
         </div>
       </div>

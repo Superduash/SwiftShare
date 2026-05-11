@@ -17,6 +17,57 @@ import {
   saveCachedAI,
   mergeTransferData,
 } from '../utils/storage'
+
+// Password session storage (5 minute expiry)
+const PASSWORD_SESSION_KEY_PREFIX = 'pwd_session_'
+const PASSWORD_SESSION_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
+
+function savePasswordSession(code, password) {
+  if (!code || !password) return
+  const key = `${PASSWORD_SESSION_KEY_PREFIX}${code.toUpperCase()}`
+  const session = {
+    password,
+    expiresAt: Date.now() + PASSWORD_SESSION_EXPIRY_MS
+  }
+  try {
+    localStorage.setItem(key, JSON.stringify(session))
+  } catch (e) {
+    console.warn('Failed to save password session:', e)
+  }
+}
+
+function getPasswordSession(code) {
+  if (!code) return null
+  const key = `${PASSWORD_SESSION_KEY_PREFIX}${code.toUpperCase()}`
+  try {
+    const stored = localStorage.getItem(key)
+    if (!stored) return null
+    
+    const session = JSON.parse(stored)
+    if (!session || !session.password || !session.expiresAt) return null
+    
+    // Check if expired
+    if (Date.now() > session.expiresAt) {
+      localStorage.removeItem(key)
+      return null
+    }
+    
+    return session.password
+  } catch (e) {
+    console.warn('Failed to get password session:', e)
+    return null
+  }
+}
+
+function clearPasswordSession(code) {
+  if (!code) return
+  const key = `${PASSWORD_SESSION_KEY_PREFIX}${code.toUpperCase()}`
+  try {
+    localStorage.removeItem(key)
+  } catch (e) {
+    console.warn('Failed to clear password session:', e)
+  }
+}
 import { formatBytes } from '../utils/format'
 import { playDownloadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
@@ -108,6 +159,16 @@ export default function DownloadPage() {
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
   useEffect(() => { transferStatusRef.current = transferStatus }, [transferStatus])
+
+  // Load password from session on mount
+  useEffect(() => {
+    const sessionPassword = getPasswordSession(normalizedCode)
+    if (sessionPassword && needsPassword) {
+      verifiedPasswordRef.current = sessionPassword
+      setPasswordVerified(true)
+      setNeedsPassword(false)
+    }
+  }, [normalizedCode, needsPassword])
 
   const finalizeBurnSessionIfNeeded = useCallback(async () => {
     if (burnFinalizeRequestedRef.current) return
@@ -441,6 +502,25 @@ export default function DownloadPage() {
     }
 
     connectRoom()
+    
+    // AI loading timeout - if AI is still loading after 65 seconds, stop loading
+    let aiTimeoutId = null
+    if (aiLoading) {
+      aiTimeoutId = setTimeout(() => {
+        if (mountedRef.current) {
+          setAiLoading(false)
+          // Set a fallback AI state to show unavailable message
+          const fallbackAi = {
+            warning: 'AI analysis timed out',
+            summary: null,
+            category: null,
+            files: [],
+          }
+          setAi(fallbackAi)
+          saveCachedAI(normalizedCode, fallbackAi)
+        }
+      }, 65000)
+    }
 
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     const onExpired = () => {
@@ -449,9 +529,31 @@ export default function DownloadPage() {
       patchCachedTransfer({ status: 'EXPIRED', secondsRemaining: 0 })
     }
     const onAi = (data) => {
-      if (!data) return
-      setAi(data)
+      // Always stop loading, even if data is null or has warning
       setAiLoading(false)
+      
+      if (!data) {
+        // No data received, keep existing AI or show fallback
+        return
+      }
+      
+      // Check if this is an unavailable/error response
+      if (data.warning && !data.summary && !data.category) {
+        // AI service unavailable - save the warning state
+        const fallbackAi = {
+          warning: data.warning,
+          summary: null,
+          category: null,
+          files: [],
+        }
+        setAi(fallbackAi)
+        saveCachedAI(normalizedCode, fallbackAi)
+        patchCachedTransfer({ ai: fallbackAi })
+        return
+      }
+      
+      // Valid AI data received
+      setAi(data)
       saveCachedAI(normalizedCode, data)
       patchCachedTransfer({ ai: data })
     }
@@ -530,6 +632,9 @@ export default function DownloadPage() {
     socket.on('transfer-receipt', onReceipt)
 
     return () => {
+      if (aiTimeoutId) {
+        clearTimeout(aiTimeoutId)
+      }
       socket.off('connect', connectRoom)
       socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)
@@ -546,7 +651,7 @@ export default function DownloadPage() {
       }
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, joinRoom, rejoinRoom, leaveRoom, navigate, patchCachedTransfer])
+  }, [socket, normalizedCode, joinRoom, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, aiLoading])
 
   // Password verification
   async function handlePasswordSubmit(e) {
@@ -561,6 +666,8 @@ export default function DownloadPage() {
       if (result?.verified) {
         setPasswordVerified(true)
         verifiedPasswordRef.current = password
+        // Save password session for 5 minutes
+        savePasswordSession(normalizedCode, password)
         // Now set preview for images with the verified password
         const firstFile = meta?.files?.[0]
         const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
@@ -680,6 +787,8 @@ export default function DownloadPage() {
         verifiedPasswordRef.current = password
         setPasswordVerified(true)
         setNeedsPassword(false)
+        // Save password session for 5 minutes
+        savePasswordSession(normalizedCode, password)
         toast.success('Text unlocked')
       }
     } catch (err) {
