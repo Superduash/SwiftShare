@@ -167,7 +167,27 @@ export function SocketProvider({ children }) {
       }
     })
 
+    // iOS Safari zombie socket fix: when the user backgrounds the app, iOS
+    // suspends JS and the WebSocket heartbeat fails silently. The socket stays
+    // half-open, keeping the device visible in Nearby Devices for everyone else.
+    // Manually disconnect on hide and reconnect on show so the server gets a
+    // clean disconnect event and removes the socket from all rooms immediately.
+    const onVisibilityChange = () => {
+      if (typeof document === 'undefined') return
+      if (document.visibilityState === 'hidden') {
+        // Graceful disconnect — server fires 'disconnect' event, clears socket rooms
+        try { s.disconnect() } catch {}
+      } else if (document.visibilityState === 'visible') {
+        // Reconnect if not already connected (socket.connect() is idempotent)
+        if (!s.connected) {
+          try { s.connect() } catch {}
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
     return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       s.disconnect()
     }
   }, [])
