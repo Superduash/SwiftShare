@@ -387,7 +387,12 @@ export default function HomePage() {
         const next = pendingProgressRef.current
         if (!next) return
         pendingProgressRef.current = null
-        setUploadPercent((prev) => (Math.abs(prev - next.percent) >= 0.5 ? next.percent : prev))
+        setUploadPercent((prev) => {
+          // Never let the bar go backward — clamp to max of previous value.
+          // This prevents rubber-banding when a retry resets XHR bytesLoaded.
+          const clamped = Math.max(prev, next.percent)
+          return Math.abs(prev - clamped) >= 0.5 ? clamped : prev
+        })
         if (Number.isFinite(next.speed)) {
           setUploadSpeed((prev) => (Math.abs(prev - next.speed) >= 1024 ? next.speed : prev))
         }
