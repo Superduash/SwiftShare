@@ -6,12 +6,12 @@ const ThemeContext = createContext({
   setTheme: () => {}
 })
 
-const VALID_THEMES = ['sunrise', 'sunset', 'dark', 'light', 'midnight', 'sakura', 'lavender', 'forest', 'volcanic']
+const VALID_THEMES = ['sunset', 'sunrise', 'dark', 'light', 'midnight', 'sakura', 'lavender', 'forest', 'volcanic']
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
     const saved = getTheme()
-    return VALID_THEMES.includes(saved) ? saved : 'sunrise'
+    return VALID_THEMES.includes(saved) ? saved : 'sunset'
   })
 
   const setTheme = useCallback((newTheme) => {
