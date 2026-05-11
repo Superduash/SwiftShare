@@ -25,8 +25,8 @@ function dedupeDevices(list, selfSocketId) {
     })
 }
 
-const POLL_INTERVAL = 30000 // 30 seconds auto-refresh
-const MIN_REFRESH_INTERVAL = 2000 // Minimum 2s between manual refreshes
+const POLL_INTERVAL = 60000 // 60 seconds auto-refresh — rely on socket push for real-time updates
+const MIN_REFRESH_INTERVAL = 3000 // Minimum 3s between manual refreshes
 
 function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const [devices, setDevices] = useState([])

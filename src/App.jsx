@@ -180,24 +180,34 @@ export default function App() {
   }, [reducedMotion])
 
   useEffect(() => {
+    // Minimal viewport sync: use CSS 100dvh natively, only fallback to JS for legacy browsers
+    // This removes viewport jitter caused by frequent resize recalculations
     const syncViewportHeight = () => {
-      const viewport = window.visualViewport
-      const height = viewport?.height || window.innerHeight || document.documentElement.clientHeight
+      const height = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight
       const vh = Math.max(1, height * 0.01)
-      document.documentElement.style.setProperty('--app-vh', `${vh}px`)
+      // Only update if there's a meaningful change (> 10px), reducing thrashing
+      const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-vh'))
+      if (Math.abs(vh - current) > 0.1) {
+        document.documentElement.style.setProperty('--app-vh', `${vh}px`)
+      }
     }
 
     syncViewportHeight()
-    window.addEventListener('resize', syncViewportHeight)
-    window.addEventListener('orientationchange', syncViewportHeight)
-    window.visualViewport?.addEventListener('resize', syncViewportHeight)
-    window.visualViewport?.addEventListener('orientationchange', syncViewportHeight)
+    // Use passive listeners and debounce resize for better performance
+    let resizeTimeout
+    const debouncedSync = () => {
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(syncViewportHeight, 100)
+    }
+    window.addEventListener('resize', debouncedSync, { passive: true })
+    window.addEventListener('orientationchange', syncViewportHeight, { passive: true })
+    window.visualViewport?.addEventListener('resize', debouncedSync, { passive: true })
 
     return () => {
-      window.removeEventListener('resize', syncViewportHeight)
+      clearTimeout(resizeTimeout)
+      window.removeEventListener('resize', debouncedSync)
       window.removeEventListener('orientationchange', syncViewportHeight)
-      window.visualViewport?.removeEventListener('resize', syncViewportHeight)
-      window.visualViewport?.removeEventListener('orientationchange', syncViewportHeight)
+      window.visualViewport?.removeEventListener('resize', debouncedSync)
     }
   }, [])
 
