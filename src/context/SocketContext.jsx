@@ -55,20 +55,7 @@ function getSocketUrl() {
   const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : ''
   const runtimeIsLocal = isLocalRuntimeHost(runtimeHost)
 
-  // Priority 1: Explicit VITE_SOCKET_URL
-  const envSocketUrl = import.meta.env.VITE_SOCKET_URL
-  if (envSocketUrl && envSocketUrl.trim()) {
-    const candidate = normalizeUrl(envSocketUrl)
-    const rewrittenLanUrl = rewriteLoopbackUrlForLanRuntime(candidate)
-    if (rewrittenLanUrl) return rewrittenLanUrl
-    if (!runtimeIsLocal && targetsLoopback(candidate)) {
-      // localhost URL won't work from deployed frontend — fall through
-    } else {
-      return candidate
-    }
-  }
-
-  // Priority 2: VITE_API_URL
+  // Priority 1: VITE_API_URL
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
     const candidate = normalizeUrl(envApiUrl)
@@ -171,10 +158,10 @@ export function SocketProvider({ children }) {
     socketRef.current?.emit('leave-room', { code: normalizedCode })
   }, [])
 
-  const registerSender = useCallback((code) => {
+  const registerSender = useCallback((code, ownershipToken) => {
     const normalizedCode = normalizeCode(code)
-    if (!normalizedCode) return
-    socketRef.current?.emit('register-sender', { code: normalizedCode })
+    if (!normalizedCode || !ownershipToken) return
+    socketRef.current?.emit('register-sender', { code: normalizedCode, ownershipToken })
   }, [])
 
   const rejoinRoom = useCallback((code) => {

@@ -226,12 +226,11 @@ export default function App() {
               <AnimatedRoutes />
             </BrowserRouter>
             <Toaster
-              position="top-center"
+              position="bottom-center"
               gutter={8}
               containerStyle={{
-                // Slide the toast container below the connection banner + navbar
-                // so toasts never overlap the banner or the nav.
-                top: 'calc(var(--app-header-offset) + 8px)',
+                bottom: 'env(safe-area-inset-bottom, 24px)',
+                zIndex: 9999,
               }}
               toastOptions={{
                 duration: 3500,

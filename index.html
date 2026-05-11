@@ -15,6 +15,10 @@
           var raw = localStorage.getItem('swiftshare_theme');
           var theme = raw && valid.indexOf(JSON.parse(raw)) !== -1 ? JSON.parse(raw) : 'sunset';
           document.documentElement.setAttribute('data-theme', theme);
+          if (['dark','midnight','volcanic'].includes(theme)) {
+            document.documentElement.style.backgroundColor = '#121212';
+            document.documentElement.style.color = '#ffffff';
+          }
         } catch(e) {
           document.documentElement.setAttribute('data-theme', 'sunset');
         }

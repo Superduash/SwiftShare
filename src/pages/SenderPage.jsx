@@ -38,7 +38,7 @@ function savePasswordSession(code, password) {
     expiresAt: Date.now() + PASSWORD_SESSION_EXPIRY_MS
   }
   try {
-    localStorage.setItem(key, JSON.stringify(session))
+    sessionStorage.setItem(key, JSON.stringify(session))
   } catch (e) {
     console.warn('Failed to save password session:', e)
   }
@@ -48,7 +48,7 @@ function getPasswordSession(code) {
   if (!code) return null
   const key = `${PASSWORD_SESSION_KEY_PREFIX}${code.toUpperCase()}`
   try {
-    const stored = localStorage.getItem(key)
+    const stored = sessionStorage.getItem(key)
     if (!stored) return null
     
     const session = JSON.parse(stored)
@@ -56,7 +56,7 @@ function getPasswordSession(code) {
     
     // Check if expired
     if (Date.now() > session.expiresAt) {
-      localStorage.removeItem(key)
+      sessionStorage.removeItem(key)
       return null
     }
     
@@ -71,7 +71,7 @@ function clearPasswordSession(code) {
   if (!code) return
   const key = `${PASSWORD_SESSION_KEY_PREFIX}${code.toUpperCase()}`
   try {
-    localStorage.removeItem(key)
+    sessionStorage.removeItem(key)
   } catch (e) {
     console.warn('Failed to clear password session:', e)
   }
@@ -451,7 +451,8 @@ export default function SenderPage() {
     if (!socket || !normalizedCode) return
 
     const connectRoom = () => {
-      registerSender(normalizedCode)
+      const ownershipToken = cachedTransfer?.transfer?.ownershipToken || cachedTransfer?.ownershipToken
+      registerSender(normalizedCode, ownershipToken)
       rejoinRoom(normalizedCode)
     }
 
