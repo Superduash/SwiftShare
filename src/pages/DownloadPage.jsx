@@ -555,6 +555,13 @@ export default function DownloadPage() {
         // No data received, keep existing AI or show fallback
         return
       }
+
+      if (data.aiDisabled) {
+        setAi(data)
+        saveCachedAI(normalizedCode, data)
+        patchCachedTransfer({ ai: data })
+        return
+      }
       
       // Check if this is an unavailable/error response
       if (data.warning && !data.summary && !data.category) {

@@ -107,6 +107,8 @@ function AISummaryCard({ ai, loading = false }) {
     [ai]
   )
 
+  const isMaintenanceMode = Boolean(ai?.aiDisabled)
+
   const tags = useMemo(() => normalizeTags(ai), [ai])
 
   const fileList = useMemo(() => {
@@ -119,7 +121,7 @@ function AISummaryCard({ ai, loading = false }) {
 
   const modelLabel = ai?.model || ai?._model || ''
   const hasAi = Boolean(ai)
-  const aiFailedSoftly = hasAi && !summary && Boolean(ai?.warning)
+  const aiFailedSoftly = hasAi && !summary && Boolean(ai?.warning) && !isMaintenanceMode
   const errorMessage = cleanText(ai?.warning || ai?.error)
 
   // "Still working..." after 10s of loading
@@ -223,6 +225,28 @@ function AISummaryCard({ ai, loading = false }) {
                   Taking longer than usual — still working.
                 </p>
               )}
+            </motion.div>
+          ) : isMaintenanceMode ? (
+            <motion.div
+              key="maintenance"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <div
+                className="p-4 rounded-2xl"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(148,163,184,0.12), rgba(148,163,184,0.06))',
+                  border: '1px solid rgba(148,163,184,0.22)',
+                }}
+              >
+                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  AI-powered smart previews are temporarily under maintenance while improvements are being deployed.
+                </p>
+                <p className="text-xs mt-2" style={{ color: 'var(--text-4)' }}>
+                  Uploads and sharing continue to work normally.
+                </p>
+              </div>
             </motion.div>
           ) : hasAi ? (
             <motion.div
