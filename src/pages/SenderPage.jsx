@@ -207,8 +207,9 @@ export default function SenderPage() {
 
   // Title
   useEffect(() => {
-    if (meta?.files?.[0]?.name) {
-      document.title = `Sharing ${meta.files[0].name} · SwiftShare`
+    const fileName = meta?.files?.[0]?.name
+    if (fileName) {
+      document.title = `Sharing ${fileName} · SwiftShare`
     }
   }, [meta])
 
@@ -814,7 +815,7 @@ export default function SenderPage() {
   }
 
   // Check if this is a text share
-  const isTextShare = meta?.files?.length === 1 && meta.files[0]?.name?.endsWith('.txt')
+  const isTextShare = meta?.files?.length === 1 && meta?.files?.[0]?.name?.endsWith('.txt')
 
   // Fetch text content when unlocked or not password protected
   useEffect(() => {
