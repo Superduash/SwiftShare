@@ -508,7 +508,7 @@ export default function DownloadPage() {
 
     connectRoom()
     
-    // AI loading timeout - if AI is still loading after 65 seconds, stop loading
+    // AI loading timeout - fail fast so the UI surfaces an error quickly.
     let aiTimeoutId = null
     if (aiLoading) {
       aiTimeoutId = setTimeout(() => {
@@ -516,7 +516,8 @@ export default function DownloadPage() {
           setAiLoading(false)
           // Set a fallback AI state to show unavailable message
           const fallbackAi = {
-            warning: 'AI analysis timed out',
+            warning: 'AI analysis timed out after 15 seconds',
+            error: 'AI analysis timed out after 15 seconds',
             summary: null,
             category: null,
             files: [],
@@ -524,10 +525,21 @@ export default function DownloadPage() {
           setAi(fallbackAi)
           saveCachedAI(normalizedCode, fallbackAi)
         }
-      }, 65000)
+      }, 15000)
     }
 
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
+    
+    // Local timer to update countdown every second (interpolate between server ticks)
+    const localTimerRef = useRef(null)
+    const startLocalTimer = () => {
+      if (localTimerRef.current) clearInterval(localTimerRef.current)
+      localTimerRef.current = setInterval(() => {
+        setSecondsRemaining(prev => Math.max(0, prev - 1))
+      }, 1000)
+    }
+    startLocalTimer()
+    
     const onExpired = () => {
       setTransferStatus('EXPIRED')
       setSecondsRemaining(0)
@@ -547,6 +559,7 @@ export default function DownloadPage() {
         // AI service unavailable - save the warning state
         const fallbackAi = {
           warning: data.warning,
+          error: data.error || data.warning,
           summary: null,
           category: null,
           files: [],
@@ -656,6 +669,10 @@ export default function DownloadPage() {
     return () => {
       if (aiTimeoutId) {
         clearTimeout(aiTimeoutId)
+      }
+      if (localTimerRef.current) {
+        clearInterval(localTimerRef.current)
+        localTimerRef.current = null
       }
       socket.off('connect', connectRoom)
       socket.off('countdown-tick', onTick)

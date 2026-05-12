@@ -51,6 +51,7 @@ function AISummaryCard({ ai, loading = false }) {
 
   const CatIcon = activeAi?.category ? getCategoryIcon(activeAi.category) : Sparkles
   const summary = cleanSummary(activeAi?.summary || activeAi?.overall_summary)
+  const aiErrorMessage = cleanSummary(activeAi?.error || activeAi?.warning)
   const detectedIntent = activeAi?.detectedIntent || activeAi?.detected_intent
   const riskFlags = activeAi?.riskFlags || activeAi?.risk_flags || []
   const fileAnalysis = (activeAi?.files || []).map((file) => ({
@@ -78,7 +79,7 @@ function AISummaryCard({ ai, loading = false }) {
       return undefined
     }
 
-    const timer = setTimeout(() => setTimedOut(true), 25000)
+    const timer = setTimeout(() => setTimedOut(true), 10000)
     return () => clearTimeout(timer)
   }, [loading])
 
@@ -180,9 +181,14 @@ function AISummaryCard({ ai, loading = false }) {
                 {summary}
               </p>
             ) : isAiUnavailable ? (
-              <p className="text-sm leading-relaxed mb-3 italic" style={{ color: 'var(--text-4)' }}>
-                AI summary currently unavailable.
-              </p>
+              <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--danger-soft)', border: '1px solid rgba(239,68,68,0.18)' }}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+                  AI summary unavailable.
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
+                  {aiErrorMessage || 'AI analysis timed out or failed before a summary was generated.'}
+                </p>
+              </div>
             ) : (
               <p className="text-sm leading-relaxed mb-3 italic" style={{ color: 'var(--text-4)' }}>
                 AI analysis completed but no summary was generated.

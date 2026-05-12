@@ -7,6 +7,8 @@ const KEYS = {
   AI_PREFIX: 'ai_',
 }
 
+const MAX_RECENT_TRANSFERS = 10;
+
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase()
 }
@@ -168,11 +170,19 @@ function evictOldestCacheEntries() {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && (key.startsWith(KEYS.TRANSFER_PREFIX) || key.startsWith(KEYS.AI_PREFIX))) {
-        entries.push(key);
+        try {
+          const parsed = JSON.parse(localStorage.getItem(key));
+          entries.push({ key, savedAt: parsed?.savedAt ? new Date(parsed.savedAt).getTime() : 0 });
+        } catch {
+          entries.push({ key, savedAt: 0 });
+        }
       }
     }
-    // Delete up to 5 entries to free up space quickly
-    entries.slice(0, 5).forEach(k => { try { localStorage.removeItem(k) } catch {} });
+    // Sort by age (oldest first) and delete up to 5 entries
+    entries
+      .sort((a, b) => a.savedAt - b.savedAt)
+      .slice(0, 5)
+      .forEach(({ key }) => { try { localStorage.removeItem(key) } catch {} });
   } catch {}
 }
 
@@ -266,12 +276,25 @@ function cleanExpiredCache() {
 
 // Run cleanup on load (deferred to avoid blocking initial render)
 if (typeof window !== 'undefined') {
-  setTimeout(cleanExpiredCache, 2000)
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => cleanExpiredCache(), { timeout: 5000 });
+  } else {
+    setTimeout(cleanExpiredCache, 2000);
+  }
 }
 
 // ── Recent Transfers ───────────────────────
+// In-memory cache for getRecentTransfers
+let _recentCache = null;
+
+function invalidateRecentCache() {
+  _recentCache = null;
+}
+
 export function getRecentTransfers() {
-  return safeGet(KEYS.RECENT, []).map((entry) => {
+  if (_recentCache) return _recentCache;
+  
+  _recentCache = safeGet(KEYS.RECENT, []).map((entry) => {
     const normalizedCode = normalizeCode(entry?.code)
     const cachedTransfer = getCachedTransfer(normalizedCode)
     const cachedAI = getCachedAI(normalizedCode)
@@ -294,9 +317,13 @@ export function getRecentTransfers() {
       ai: cachedAI || mergedTransfer?.ai || entry?.ai || null,
       filename: entry?.filename || mergedTransfer?.files?.[0]?.name || normalizedCode,
     }
-  }).filter((entry) => Boolean(entry?.code))
+  }).filter((entry) => Boolean(entry?.code));
+  
+  return _recentCache;
 }
+
 export function saveTransfer(entry) {
+  invalidateRecentCache();
   const normalizedCode = normalizeCode(entry?.code)
   if (!normalizedCode) return
 
@@ -340,9 +367,10 @@ export function saveTransfer(entry) {
     transfer: mergedTransfer ? { ...mergedTransfer, isSender: shouldKeepSender, role } : mergedTransfer,
     savedAt: new Date().toISOString(),
   })
-  safeSet(KEYS.RECENT, list.slice(0, 10))
+  safeSet(KEYS.RECENT, list.slice(0, MAX_RECENT_TRANSFERS))
 }
 export function removeTransfer(code) {
+  invalidateRecentCache();
   const normalizedCode = normalizeCode(code)
   const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
   safeSet(KEYS.RECENT, list)
@@ -362,11 +390,12 @@ export function updateTransferStatus(code, status) {
   }
 }
 export function clearTransfers() {
+  invalidateRecentCache();
   localStorage.removeItem(KEYS.RECENT)
   clearPrefix(KEYS.TRANSFER_PREFIX)
   clearPrefix(KEYS.AI_PREFIX)
   // Dispatch custom event for same-tab updates
-  window.dispatchEvent(new Event('transfersCleared'))
+  window.dispatchEvent(new Event('swiftshare:transfers-cleared'))
 }
 
 // ── Settings ───────────────────────────────
@@ -375,6 +404,8 @@ const DEFAULT_SETTINGS = {
   defaultBurn: false,
   reducedMotion: false,
   soundEnabled: true,
+  autoDownload: false,
+  notificationsEnabled: false,
 }
 export function getSettings() {
   return { ...DEFAULT_SETTINGS, ...safeGet(KEYS.SETTINGS, {}) }
