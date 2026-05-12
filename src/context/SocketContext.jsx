@@ -55,7 +55,7 @@ function getSocketUrl() {
   const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : ''
   const runtimeIsLocal = isLocalRuntimeHost(runtimeHost)
 
-  // Priority 1: VITE_API_URL or VITE_SOCKET_URL
+  // Priority 1: VITE_SOCKET_URL or VITE_API_URL
   const envSocketUrl = import.meta.env.VITE_SOCKET_URL
   const envApiUrl = import.meta.env.VITE_API_URL
   
