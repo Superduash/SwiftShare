@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, lazy, Suspense, useTransition } from 'react'
+import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
@@ -57,7 +57,6 @@ class LocalErrorBoundary extends React.Component {
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const [, startTransition] = useTransition()
   const { socket, isConnected, socketId } = useSocket()
   const { uploadState, setUploadProgress, startUpload, setError } = useTransfer()
 
@@ -160,23 +159,23 @@ export default function HomePage() {
       transfer: transferSnapshot,
     })
 
-    // Use startTransition to avoid React error #321
-    startTransition(() => {
-      setUploading(false)
+    // Set uploading to false first, then navigate in next tick
+    setUploading(false)
+    
+    // Use queueMicrotask to defer navigation until after current render
+    queueMicrotask(() => {
       navigate(`/sender/${normalizedTransferCode}`, { 
         state: { transferData: transferSnapshot },
         replace: false
       })
       
       // Play success sound after navigation
-      requestAnimationFrame(() => {
-        const currentSettings = getSettings()
-        if (currentSettings.soundEnabled) {
-          playUploadSuccess()
-        }
-      })
+      const currentSettings = getSettings()
+      if (currentSettings.soundEnabled) {
+        playUploadSuccess()
+      }
     })
-  }, [files, navigate, startTransition])
+  }, [files, navigate])
 
   // Title
   useEffect(() => { document.title = 'SwiftShare — Files sent, not stored' }, [])
@@ -301,21 +300,19 @@ export default function HomePage() {
         transfer: transferSnapshot,
       })
 
-      // Use startTransition to avoid React error #321
-      startTransition(() => {
+      // Use queueMicrotask to defer navigation
+      queueMicrotask(() => {
         navigate(`/sender/${normalizedCode}`, { 
           state: { transferData: transferSnapshot },
           replace: false
         })
         
         // Play success sound and show toast after navigation
-        requestAnimationFrame(() => {
-          const currentSettings = getSettings()
-          if (currentSettings.soundEnabled) {
-            playUploadSuccess()
-          }
-          toast.success('Text shared successfully!')
-        })
+        const currentSettings = getSettings()
+        if (currentSettings.soundEnabled) {
+          playUploadSuccess()
+        }
+        toast.success('Text shared successfully!')
       })
     } catch (err) {
       if (import.meta.env.DEV) {
