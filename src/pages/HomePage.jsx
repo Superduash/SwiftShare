@@ -436,7 +436,7 @@ export default function HomePage() {
             speedSampleRef.current = { at: now, loaded, ema: smoothedSpeed }
           }
 
-          const phase = 'uploading'
+          const phase = loaded >= total ? 'finalizing' : 'uploading'
 
           // Coalesce: only the latest values matter — older pending values are
           // safely overwritten before the next frame paint.
@@ -453,6 +453,14 @@ export default function HomePage() {
       const transferCode = typeof response?.code === 'string' ? response.code.trim() : ''
       if (!transferCode) {
         throw new Error('Upload response was incomplete. Please try again.')
+      }
+
+      // Guarantee Minimum Visible Duration for upload success (MVD)
+      const elapsed = Date.now() - uploadStartRef.current
+      if (elapsed < 400) {
+        setUploadPhase('finalizing')
+        setUploadPercent(100)
+        await new Promise(r => setTimeout(r, 400 - elapsed))
       }
 
       uploadSucceeded = true
@@ -785,11 +793,17 @@ export default function HomePage() {
                     exit={{ opacity: 0 }}
                   >
                     <ProgressBar
-                      percent={uploadPercent}
-                      speed={uploadSpeed}
-                      label={uploadPhase === 'retrying' ? 'Connection hiccup, retrying...' : 'Uploading...'}
-                      indeterminate={uploadPhase === 'retrying'}
-                      showSpeed={uploadPhase !== 'retrying'}
+                      percent={uploadPhase === 'finalizing' ? 100 : uploadPercent}
+                      speed={uploadPhase === 'uploading' ? uploadSpeed : 0}
+                      label={
+                        uploadPhase === 'retrying'
+                          ? 'Connection hiccup, retrying...'
+                          : uploadPhase === 'finalizing'
+                            ? 'Finalizing on server...'
+                            : 'Uploading...'
+                      }
+                      indeterminate={uploadPhase === 'finalizing' || uploadPhase === 'retrying'}
+                      showSpeed={uploadPhase === 'uploading'}
                     />
                   </motion.div>
                 )}
