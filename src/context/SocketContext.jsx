@@ -98,12 +98,12 @@ export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
   const [socketId, setSocketId] = useState(null)
-  const initializedRef = useRef(false)
 
   useEffect(() => {
-    // Prevent duplicate socket creation in React StrictMode (development double-mount)
-    if (initializedRef.current) return
-    initializedRef.current = true
+    // No initializedRef guard. StrictMode's mount→cleanup→mount cycle is intentional;
+    // the cleanup below cleanly disconnects the dev-only first socket, and the remount
+    // builds a fresh one. The old guard kept the disconnected socket forever in dev,
+    // leaving the banner stuck on "Syncing...".
     let socketUrl = getSocketUrl()
 
     // Rewrite http:// → https:// for non-local URLs to avoid mixed-content blocks
@@ -180,21 +180,15 @@ export function SocketProvider({ children }) {
       }
     })
 
-    // iOS Safari zombie socket fix: when the user backgrounds the app, iOS
-    // suspends JS and the WebSocket heartbeat fails silently. The socket stays
-    // half-open, keeping the device visible in Nearby Devices for everyone else.
-    // Manually disconnect on hide and reconnect on show so the server gets a
-    // clean disconnect event and removes the socket from all rooms immediately.
+    // Passive return-to-foreground: if the socket happened to drop while we were
+    // hidden (iOS suspending the tab, OS sleep, network handoff), reconnect on
+    // return. We DO NOT proactively disconnect on hide — that breaks desktop
+    // where the connection would otherwise survive a tab switch unscathed.
+    // Socket.IO's pingTimeout (60s) handles genuinely-stale connections.
     const onVisibilityChange = () => {
       if (typeof document === 'undefined') return
-      if (document.visibilityState === 'hidden') {
-        // Graceful disconnect — server fires 'disconnect' event, clears socket rooms
-        try { s.disconnect() } catch {}
-      } else if (document.visibilityState === 'visible') {
-        // Reconnect if not already connected (socket.connect() is idempotent)
-        if (!s.connected) {
-          try { s.connect() } catch {}
-        }
+      if (document.visibilityState === 'visible' && !s.connected) {
+        try { s.connect() } catch {}
       }
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
