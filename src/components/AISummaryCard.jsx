@@ -138,21 +138,12 @@ function AISummaryCard({ ai, loading = false }) {
           </motion.div>
         ) : activeAi ? (
           <motion.div key="data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Category + Intent */}
-            <div className="flex flex-wrap items-center gap-1.5 mb-3">
-              {activeAi.category && (
-                <div className="badge">
-                  <CatIcon size={12} aria-hidden="true" />
-                  {activeAi.category}
-                </div>
-              )}
-              {detectedIntent && (
-                <div className="badge" style={{ background: 'var(--info-soft)', color: 'var(--info)' }}>
-                  <Target size={12} aria-hidden="true" />
-                  {detectedIntent}
-                </div>
-              )}
-            </div>
+            {/* Top-level tags (semantic category tags) */}
+            {activeAi.tags && activeAi.tags.length > 0 && (
+              <div className="mb-3">
+                <TagList tags={activeAi.tags} maxVisible={5} size="md" variant="accent" />
+              </div>
+            )}
 
             {/* Summary */}
             {summary ? (
