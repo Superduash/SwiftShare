@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
-import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
@@ -120,7 +119,6 @@ export default function HomePage() {
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
   const uploadAbortRef = useRef(null)
-  const navigatingRef = useRef(false)
 
   // Password strength calculation
   function getPasswordStrength(pwd) {
@@ -140,12 +138,11 @@ export default function HomePage() {
 
   const handleUploadSuccess = useCallback((payload) => {
     const transferCode = payload?.code
-    if (!transferCode || uploadHandledRef.current || navigatingRef.current) {
+    if (!transferCode || uploadHandledRef.current) {
       return
     }
 
     uploadHandledRef.current = true
-    navigatingRef.current = true
     
     const fname = files[0]?.name || 'file'
     const normalizedTransferCode = String(transferCode).trim().toUpperCase()
@@ -162,34 +159,16 @@ export default function HomePage() {
       transfer: transferSnapshot,
     })
 
-    // Use flushSync to ensure all state updates complete before navigation
-    flushSync(() => {
-      setUploading(false)
+    setUploading(false)
+    
+    navigate(`/sender/${normalizedTransferCode}`, { 
+      state: { transferData: transferSnapshot },
+      replace: false
     })
     
-    // Use requestIdleCallback or setTimeout to defer navigation to next tick
-    const navigateToSender = () => {
-      try {
-        navigate(`/sender/${normalizedTransferCode}`, { 
-          state: { transferData: transferSnapshot },
-          replace: false
-        })
-        
-        // Play success sound after navigation
-        const currentSettings = getSettings()
-        if (currentSettings.soundEnabled) {
-          playUploadSuccess()
-        }
-      } catch (err) {
-        console.error('[HomePage] Navigation error:', err)
-        navigatingRef.current = false
-      }
-    }
-
-    if (typeof requestIdleCallback !== 'undefined') {
-      requestIdleCallback(navigateToSender, { timeout: 100 })
-    } else {
-      setTimeout(navigateToSender, 0)
+    const currentSettings = getSettings()
+    if (currentSettings.soundEnabled) {
+      playUploadSuccess()
     }
   }, [files, navigate])
 
@@ -290,10 +269,6 @@ export default function HomePage() {
       throw new Error('Not connected')
     }
 
-    if (navigatingRef.current) {
-      return
-    }
-
     try {
       const response = await shareText({
         ...textData,
@@ -320,33 +295,16 @@ export default function HomePage() {
         transfer: transferSnapshot,
       })
 
-      navigatingRef.current = true
+      navigate(`/sender/${normalizedCode}`, { 
+        state: { transferData: transferSnapshot },
+        replace: false
+      })
       
-      // Use requestIdleCallback or setTimeout to defer navigation
-      const navigateToSender = () => {
-        try {
-          navigate(`/sender/${normalizedCode}`, { 
-            state: { transferData: transferSnapshot },
-            replace: false
-          })
-          
-          // Play success sound and show toast after navigation
-          const currentSettings = getSettings()
-          if (currentSettings.soundEnabled) {
-            playUploadSuccess()
-          }
-          toast.success('Text shared successfully!')
-        } catch (err) {
-          console.error('[HomePage] Navigation error:', err)
-          navigatingRef.current = false
-        }
+      const currentSettings = getSettings()
+      if (currentSettings.soundEnabled) {
+        playUploadSuccess()
       }
-
-      if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(navigateToSender, { timeout: 100 })
-      } else {
-        setTimeout(navigateToSender, 0)
-      }
+      toast.success('Text shared successfully!')
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('[HomePage] Share text error:', err)
