@@ -25,7 +25,7 @@ function dedupeDevices(list, selfSocketId) {
     })
 }
 
-const POLL_INTERVAL = 60000 // 60 seconds auto-refresh — rely on socket push for real-time updates
+const POLL_INTERVAL = 120000 // 2 minutes auto-refresh — rely on socket push for real-time updates
 const MIN_REFRESH_INTERVAL = 3000 // Minimum 3s between manual refreshes
 
 function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
@@ -178,10 +178,14 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
     // Initial request
     requestNearby()
 
-    // Poll at reduced interval
-    const iv = setInterval(requestNearby, POLL_INTERVAL)
+    // Poll at reduced interval (only when tab is visible)
+    const iv = setInterval(() => {
+      if (!document.hidden && mountedRef.current) {
+        requestNearby()
+      }
+    }, POLL_INTERVAL)
 
-    // Pause polling when tab is hidden
+    // Refresh when tab becomes visible (but not on every visibility change - debounced by requestNearby)
     const onVisibility = () => {
       if (!document.hidden && mountedRef.current) {
         requestNearby()
@@ -189,20 +193,10 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
     }
     document.addEventListener('visibilitychange', onVisibility)
 
-    // Refresh when browser comes back online (e.g. after WiFi reconnect)
-    const onOnline = () => {
-      if (mountedRef.current) {
-        lastPingRef.current = 0 // reset debounce so we ping immediately
-        requestNearby()
-      }
-    }
-    window.addEventListener('online', onOnline)
-
     return () => {
       clearTimeout(loadingTimeoutId)
       clearInterval(iv)
       document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('online', onOnline)
       socket.off('connect', requestNearby)
       socket.off('nearby-devices', onNearbyDevices)
       socket.off('nearby-device-added', onNearbyDeviceAdded)

@@ -89,8 +89,12 @@ export function SocketProvider({ children }) {
   const [socket, setSocket] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
   const [socketId, setSocketId] = useState(null)
+  const initializedRef = useRef(false)
 
   useEffect(() => {
+    // Prevent duplicate socket creation in React StrictMode (development double-mount)
+    if (initializedRef.current) return
+    initializedRef.current = true
     let socketUrl = getSocketUrl()
 
     // Rewrite http:// → https:// for non-local URLs to avoid mixed-content blocks
