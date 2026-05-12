@@ -5,6 +5,7 @@ import {
   Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target, Copy, Check
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import TagList from './TagList'
 
 const CATEGORY_ICONS = {
   document: FileText, image: Image, video: Video, archive: FileArchive,
@@ -61,17 +62,6 @@ function AISummaryCard({ ai, loading = false }) {
   }))
   // AI result with only a warning and no summary means the service was unavailable
   const isAiUnavailable = activeAi && !summary && !activeAi.category && Boolean(activeAi.warning)
-  
-  // Extract model name — show clean short label, no "Powered by AI" fallback
-  const model = activeAi?.model
-  const provider = activeAi?.provider
-  const modelDisplay = (() => {
-    if (!model) return provider || null
-    // Strip org prefix for OpenRouter models (e.g. "meta-llama/llama-3.3-70b-versatile" → "llama-3.3-70b-versatile")
-    const shortModel = model.includes('/') ? model.split('/').pop() : model
-    // Strip ":free" suffix
-    return shortModel.replace(/:free$/, '')
-  })()
 
   useEffect(() => {
     if (!loading) {
@@ -114,30 +104,19 @@ function AISummaryCard({ ai, loading = false }) {
           </div>
           <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>AI Analysis</span>
         </div>
-        <div className="flex items-center gap-2">
-          {summary && !loading && (
-            <button
-              className="btn-icon !w-6 !h-6"
-              onClick={handleCopySummary}
-              title="Copy summary"
-              aria-label="Copy AI summary"
-            >
-              {copied
-                ? <Check size={12} style={{ color: 'var(--success)' }} />
-                : <Copy size={12} style={{ color: 'var(--text-4)' }} />
-              }
-            </button>
-          )}
-          {modelDisplay && (
-            <span 
-              className="text-[10px] px-2 py-0.5 rounded-full font-medium" 
-              style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}
-              title={`${provider ? provider + ' · ' : ''}${model || ''}`}
-            >
-              {modelDisplay}
-            </span>
-          )}
-        </div>
+        {summary && !loading && (
+          <button
+            className="btn-icon !w-6 !h-6"
+            onClick={handleCopySummary}
+            title="Copy summary"
+            aria-label="Copy AI summary"
+          >
+            {copied
+              ? <Check size={12} style={{ color: 'var(--success)' }} />
+              : <Copy size={12} style={{ color: 'var(--text-4)' }} />
+            }
+          </button>
+        )}
       </div>
 
       <AnimatePresence mode="wait">
@@ -238,47 +217,24 @@ function AISummaryCard({ ai, loading = false }) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                     >
-                      {fileAnalysis.map((f, i) => {
-                        const fileTags = f.tags || [];
-                        const visibleTags = fileTags.slice(0, 5);
-                        const overflowCount = Math.max(0, fileTags.length - 5);
-                        
-                        return (
-                          <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
-                            <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
-                            <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary || 'No summary available.'}</p>
-                            {fileTags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                {visibleTags.map((tag, ti) => (
-                                  <span 
-                                    key={ti}
-                                    className="text-[10px] px-1.5 py-0.5 rounded"
-                                    style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                                {overflowCount > 0 && (
-                                  <span 
-                                    className="text-[10px] px-1.5 py-0.5 rounded font-medium"
-                                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
-                                    title={`${overflowCount} more tags: ${fileTags.slice(5).join(', ')}`}
-                                  >
-                                    +{overflowCount}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {f.key_points && f.key_points.length > 0 && (
-                              <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
-                                {f.key_points.map((point, pi) => (
-                                  <li key={pi}>• {point}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {fileAnalysis.map((f, i) => (
+                        <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
+                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary || 'No summary available.'}</p>
+                          {f.tags && f.tags.length > 0 && (
+                            <div className="mt-1.5">
+                              <TagList tags={f.tags} maxVisible={5} size="sm" variant="default" />
+                            </div>
+                          )}
+                          {f.key_points && f.key_points.length > 0 && (
+                            <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
+                              {f.key_points.map((point, pi) => (
+                                <li key={pi}>• {point}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
                     </motion.div>
                   )}
                 </AnimatePresence>
