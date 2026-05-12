@@ -479,11 +479,12 @@ export default function SenderPage() {
 
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
-    // Local timer to update countdown every second (interpolate between server ticks)
-    const localTimerRef = useRef(null)
+    // Local timer to update countdown every second (interpolate between server ticks).
+    // Plain `let` — NOT useRef. Hooks cannot be called inside a useEffect body (React error #321).
+    let localTimerId = null
     const startLocalTimer = () => {
-      if (localTimerRef.current) clearInterval(localTimerRef.current)
-      localTimerRef.current = setInterval(() => {
+      if (localTimerId) clearInterval(localTimerId)
+      localTimerId = setInterval(() => {
         setSecondsRemaining(prev => Math.max(0, prev - 1))
       }, 1000)
     }
@@ -633,9 +634,9 @@ export default function SenderPage() {
       if (aiTimeoutId) {
         clearTimeout(aiTimeoutId)
       }
-      if (localTimerRef.current) {
-        clearInterval(localTimerRef.current)
-        localTimerRef.current = null
+      if (localTimerId) {
+        clearInterval(localTimerId)
+        localTimerId = null
       }
       socket.off('connect', connectRoom)
       socket.off('countdown-tick', onTick)

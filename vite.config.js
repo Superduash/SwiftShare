@@ -15,18 +15,24 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       host: true,
+      // Proxy configuration for local development
+      // Routes /api and /socket.io to backend server
       proxy: {
         '/api': {
           target: backendTarget,
           changeOrigin: true,
           secure: false,
           ws: false,
+          timeout: 60000,
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {
               console.log('[Vite] Proxy error for /api:', err.message);
             });
             proxy.on('proxyReq', (proxyReq, req, res) => {
               console.log('[Vite] Proxying /api request:', req.method, req.url, '→', backendTarget);
+            });
+            proxy.on('proxyRes', (proxyRes, req, res) => {
+              console.log('[Vite] Proxy response for /api:', req.url, 'Status:', proxyRes.statusCode);
             });
           },
         },
@@ -35,12 +41,16 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,
+          timeout: 60000,
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {
               console.log('[Vite] Proxy error for /socket.io:', err.message);
             });
             proxy.on('proxyReq', (proxyReq, req, res) => {
               console.log('[Vite] Proxying /socket.io request:', req.method, req.url, '→', backendTarget);
+            });
+            proxy.on('upgrade', (req, socket, head) => {
+              console.log('[Vite] WebSocket upgrade for /socket.io');
             });
           },
         },

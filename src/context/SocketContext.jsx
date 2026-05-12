@@ -55,7 +55,14 @@ function getSocketUrl() {
   const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : ''
   const runtimeIsLocal = isLocalRuntimeHost(runtimeHost)
 
-  // Priority 1: VITE_SOCKET_URL or VITE_API_URL
+  // Priority 1: In local development, use same-origin (Vite proxy handles routing)
+  if (typeof window !== 'undefined' && isLocalRuntimeHost(runtimeHost)) {
+    const url = window.location.origin
+    console.log('[SocketContext] Using same-origin for local dev (Vite proxy):', url)
+    return url
+  }
+
+  // Priority 2: VITE_SOCKET_URL or VITE_API_URL for production
   const envSocketUrl = import.meta.env.VITE_SOCKET_URL
   const envApiUrl = import.meta.env.VITE_API_URL
   
@@ -68,24 +75,13 @@ function getSocketUrl() {
       console.log('[SocketContext] Using LAN-rewritten URL:', rewrittenLanUrl)
       return rewrittenLanUrl
     }
-    if (!runtimeIsLocal && targetsLoopback(candidate)) {
-      // localhost URL won't work from deployed frontend — fall through
-      console.warn('[SocketContext] Ignoring localhost URL in non-local runtime')
-    } else {
-      console.log('[SocketContext] Using env URL:', candidate)
-      return candidate
-    }
+    console.log('[SocketContext] Using env URL:', candidate)
+    return candidate
   }
 
-  // Priority 2: Runtime detection
+  // Priority 3: Same-origin fallback
   if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname
-    if (isLocalRuntimeHost(hostname)) {
-      const url = `${window.location.protocol}//${hostname}:3001`
-      console.log('[SocketContext] Using runtime-detected URL:', url)
-      return url
-    }
-    console.log('[SocketContext] Using same-origin:', window.location.origin)
+    console.log('[SocketContext] Using same-origin fallback:', window.location.origin)
     return window.location.origin
   }
 

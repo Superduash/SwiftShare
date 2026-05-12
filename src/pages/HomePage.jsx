@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
+import { flushSync } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
@@ -161,11 +162,13 @@ export default function HomePage() {
       transfer: transferSnapshot,
     })
 
-    // Set uploading to false immediately
-    setUploading(false)
+    // Use flushSync to ensure all state updates complete before navigation
+    flushSync(() => {
+      setUploading(false)
+    })
     
-    // Navigate after a small delay to ensure state updates are flushed
-    const timer = setTimeout(() => {
+    // Use requestIdleCallback or setTimeout to defer navigation to next tick
+    const navigateToSender = () => {
       try {
         navigate(`/sender/${normalizedTransferCode}`, { 
           state: { transferData: transferSnapshot },
@@ -181,9 +184,13 @@ export default function HomePage() {
         console.error('[HomePage] Navigation error:', err)
         navigatingRef.current = false
       }
-    }, 100)
-    
-    return () => clearTimeout(timer)
+    }
+
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(navigateToSender, { timeout: 100 })
+    } else {
+      setTimeout(navigateToSender, 0)
+    }
   }, [files, navigate])
 
   // Title
@@ -315,8 +322,8 @@ export default function HomePage() {
 
       navigatingRef.current = true
       
-      // Navigate after a small delay
-      setTimeout(() => {
+      // Use requestIdleCallback or setTimeout to defer navigation
+      const navigateToSender = () => {
         try {
           navigate(`/sender/${normalizedCode}`, { 
             state: { transferData: transferSnapshot },
@@ -333,7 +340,13 @@ export default function HomePage() {
           console.error('[HomePage] Navigation error:', err)
           navigatingRef.current = false
         }
-      }, 100)
+      }
+
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(navigateToSender, { timeout: 100 })
+      } else {
+        setTimeout(navigateToSender, 0)
+      }
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('[HomePage] Share text error:', err)

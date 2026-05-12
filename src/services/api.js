@@ -73,51 +73,37 @@ function ensureSecureForPage(urlValue) {
 }
 
 function getApiBaseUrl() {
-  // Priority 1: Explicit VITE_API_URL from environment
+  // Priority 1: In local development, use same-origin (Vite proxy handles routing)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+
+    // Local development - use Vite proxy
+    if (isLocalRuntimeHost(hostname)) {
+      console.log('[API] Using same-origin for local dev (Vite proxy):', window.location.origin)
+      return window.location.origin
+    }
+  }
+
+  // Priority 2: Explicit VITE_API_URL from environment (production)
   const envApiUrl = import.meta.env.VITE_API_URL
   if (envApiUrl && envApiUrl.trim()) {
     const candidate = ensureSecureForPage(normalizeUrl(envApiUrl))
 
     if (typeof window !== 'undefined') {
-      const runtimeHost = window.location.hostname
-
       const rewrittenLanUrl = rewriteLoopbackUrlForLanRuntime(candidate)
       if (rewrittenLanUrl) {
+        console.log('[API] Using LAN-rewritten URL:', rewrittenLanUrl)
         return rewrittenLanUrl
       }
-
-      if (!isLocalRuntimeHost(runtimeHost) && targetsLoopback(candidate)) {
-        console.warn('[API] Ignoring localhost VITE_API_URL in non-local runtime, using same-origin instead')
-      } else {
-        return candidate
-      }
-    } else {
-      return candidate
     }
+    
+    console.log('[API] Using env URL:', candidate)
+    return candidate
   }
   
-  // Priority 2: Runtime detection
+  // Priority 3: Same-origin fallback for production
   if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname
-
-    // Local development
-    if (isLocalRuntimeHost(hostname)) {
-      return `${window.location.protocol}//${hostname}:3001`
-    }
-
-    // Production: same-origin fallback. This is correct only if the frontend
-    // and backend are deployed under the same hostname (reverse proxy or a
-    // single Render service serving both). On split deployments (Vercel
-    // frontend + Render backend) this silently sends every API call to the
-    // frontend host, producing 404s with no diagnostic. Make the misconfig
-    // loud so it can be diagnosed in 5 seconds instead of an afternoon.
-    // eslint-disable-next-line no-console
-    console.error(
-      '[SwiftShare] VITE_API_URL is not set. Falling back to window.location.origin (' +
-      window.location.origin + '). If your backend runs on a different host ' +
-      '(e.g. Render), set VITE_API_URL in your frontend deployment env to the ' +
-      'backend URL and redeploy.'
-    )
+    console.log('[API] Using same-origin fallback:', window.location.origin)
     return window.location.origin
   }
 
