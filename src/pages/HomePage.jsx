@@ -119,6 +119,7 @@ export default function HomePage() {
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
   const uploadAbortRef = useRef(null)
+  const navigatingRef = useRef(false)
 
   // Password strength calculation
   function getPasswordStrength(pwd) {
@@ -138,11 +139,12 @@ export default function HomePage() {
 
   const handleUploadSuccess = useCallback((payload) => {
     const transferCode = payload?.code
-    if (!transferCode || uploadHandledRef.current) {
+    if (!transferCode || uploadHandledRef.current || navigatingRef.current) {
       return
     }
 
     uploadHandledRef.current = true
+    navigatingRef.current = true
     
     const fname = files[0]?.name || 'file'
     const normalizedTransferCode = String(transferCode).trim().toUpperCase()
@@ -159,22 +161,29 @@ export default function HomePage() {
       transfer: transferSnapshot,
     })
 
-    // Set uploading to false first, then navigate in next tick
+    // Set uploading to false immediately
     setUploading(false)
     
-    // Use queueMicrotask to defer navigation until after current render
-    queueMicrotask(() => {
-      navigate(`/sender/${normalizedTransferCode}`, { 
-        state: { transferData: transferSnapshot },
-        replace: false
-      })
-      
-      // Play success sound after navigation
-      const currentSettings = getSettings()
-      if (currentSettings.soundEnabled) {
-        playUploadSuccess()
+    // Navigate after a small delay to ensure state updates are flushed
+    const timer = setTimeout(() => {
+      try {
+        navigate(`/sender/${normalizedTransferCode}`, { 
+          state: { transferData: transferSnapshot },
+          replace: false
+        })
+        
+        // Play success sound after navigation
+        const currentSettings = getSettings()
+        if (currentSettings.soundEnabled) {
+          playUploadSuccess()
+        }
+      } catch (err) {
+        console.error('[HomePage] Navigation error:', err)
+        navigatingRef.current = false
       }
-    })
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [files, navigate])
 
   // Title
@@ -274,6 +283,10 @@ export default function HomePage() {
       throw new Error('Not connected')
     }
 
+    if (navigatingRef.current) {
+      return
+    }
+
     try {
       const response = await shareText({
         ...textData,
@@ -300,20 +313,27 @@ export default function HomePage() {
         transfer: transferSnapshot,
       })
 
-      // Use queueMicrotask to defer navigation
-      queueMicrotask(() => {
-        navigate(`/sender/${normalizedCode}`, { 
-          state: { transferData: transferSnapshot },
-          replace: false
-        })
-        
-        // Play success sound and show toast after navigation
-        const currentSettings = getSettings()
-        if (currentSettings.soundEnabled) {
-          playUploadSuccess()
+      navigatingRef.current = true
+      
+      // Navigate after a small delay
+      setTimeout(() => {
+        try {
+          navigate(`/sender/${normalizedCode}`, { 
+            state: { transferData: transferSnapshot },
+            replace: false
+          })
+          
+          // Play success sound and show toast after navigation
+          const currentSettings = getSettings()
+          if (currentSettings.soundEnabled) {
+            playUploadSuccess()
+          }
+          toast.success('Text shared successfully!')
+        } catch (err) {
+          console.error('[HomePage] Navigation error:', err)
+          navigatingRef.current = false
         }
-        toast.success('Text shared successfully!')
-      })
+      }, 100)
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('[HomePage] Share text error:', err)
