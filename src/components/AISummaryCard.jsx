@@ -232,19 +232,47 @@ function AISummaryCard({ ai, loading = false }) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                     >
-                      {fileAnalysis.map((f, i) => (
-                        <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
-                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary || 'No summary available.'}</p>
-                          {f.key_points && f.key_points.length > 0 && (
-                            <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
-                              {f.key_points.map((point, pi) => (
-                                <li key={pi}>• {point}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
+                      {fileAnalysis.map((f, i) => {
+                        const fileTags = f.tags || [];
+                        const visibleTags = fileTags.slice(0, 5);
+                        const overflowCount = Math.max(0, fileTags.length - 5);
+                        
+                        return (
+                          <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
+                            <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary || 'No summary available.'}</p>
+                            {fileTags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {visibleTags.map((tag, ti) => (
+                                  <span 
+                                    key={ti}
+                                    className="text-[10px] px-1.5 py-0.5 rounded"
+                                    style={{ background: 'var(--accent-soft)', color: 'var(--text-3)' }}
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                                {overflowCount > 0 && (
+                                  <span 
+                                    className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                                    title={`${overflowCount} more tags: ${fileTags.slice(5).join(', ')}`}
+                                  >
+                                    +{overflowCount}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {f.key_points && f.key_points.length > 0 && (
+                              <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
+                                {f.key_points.map((point, pi) => (
+                                  <li key={pi}>• {point}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        );
+                      })}
                     </motion.div>
                   )}
                 </AnimatePresence>

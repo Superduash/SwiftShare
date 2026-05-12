@@ -23,7 +23,7 @@ const ConnectionHealthContext = createContext(null)
 //        - ping failing, was connected before  → reconnecting
 
 const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
-const HEALTHY_POLL_MS = 25000
+const HEALTHY_POLL_MS = 60000 // 60s when healthy and connected
 
 // Hard ceiling: after this long stuck non-connected with the same status,
 // reset failure counters so the next successful event clears cleanly.
@@ -117,6 +117,17 @@ export function ConnectionHealthProvider({ children }) {
   // ── Ping-based health check ───────────────────────────────────────────────
   const checkHealth = useCallback(async () => {
     if (checkingRef.current) return
+    
+    // Skip ping if tab is hidden - no point pinging when user isn't looking
+    if (typeof document !== 'undefined' && document.hidden) {
+      return
+    }
+    
+    // Skip ping if socket is already connected and healthy - socket.io handles its own heartbeat
+    if (socketConnectedRef.current && pingOkRef.current && failureCountRef.current === 0) {
+      return
+    }
+    
     checkingRef.current = true
 
     try {
@@ -195,20 +206,27 @@ export function ConnectionHealthProvider({ children }) {
   useEffect(() => {
     function onVisibilityChange() {
       if (document.visibilityState === 'visible') {
-        // On tab focus, re-verify immediately. Don't optimistically set
-        // 'connected' — the FSM will compute the right state from real signals.
+        // On tab focus, reset failure state and recompute status.
+        // The polling loop will handle the next ping check automatically.
         failureCountRef.current = 0
         stuckStartRef.current = null
         recomputeStatus()
-        void checkHealth()
+        // Only ping if socket is NOT connected (otherwise socket.io handles it)
+        if (!socketConnectedRef.current) {
+          void checkHealth()
+        }
       }
     }
 
     function onOnline() {
+      // Browser came back online - reset failure state
       failureCountRef.current = 0
       stuckStartRef.current = null
       recomputeStatus()
-      void checkHealth()
+      // Only ping if socket is NOT connected
+      if (!socketConnectedRef.current) {
+        void checkHealth()
+      }
     }
 
     function onOffline() {
