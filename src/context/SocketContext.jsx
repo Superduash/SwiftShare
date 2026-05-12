@@ -72,6 +72,10 @@ function getSocketUrl() {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
     if (isLocalRuntimeHost(hostname)) {
+      // Dev mode warning if VITE_SOCKET_URL not set
+      if (import.meta.env.DEV && !import.meta.env.VITE_SOCKET_URL) {
+        console.warn('[SwiftShare] VITE_SOCKET_URL not set, falling back to VITE_API_URL for WebSocket');
+      }
       return `${window.location.protocol}//${hostname}:3001`
     }
     return window.location.origin

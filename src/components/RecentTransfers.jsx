@@ -65,11 +65,11 @@ function RecentTransfers() {
 
     window.addEventListener('storage', handleStorageChange)
     // Also listen for custom event for same-tab updates
-    window.addEventListener('transfersCleared', handleStorageChange)
+    window.addEventListener('swiftshare:transfers-cleared', handleStorageChange)
     
     return () => {
       window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('transfersCleared', handleStorageChange)
+      window.removeEventListener('swiftshare:transfers-cleared', handleStorageChange)
     }
   }, [])
 

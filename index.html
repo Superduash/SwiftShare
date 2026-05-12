@@ -7,13 +7,22 @@
     <meta name="description" content="SwiftShare — Zero-login instant file transfer. Drop, share, done." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta property="og:title" content="SwiftShare — Instant File Transfer" />
+    <meta property="og:description" content="Zero-login file sharing. Drop, share, done." />
+    <meta property="og:image" content="https://your-frontend.vercel.app/og-image.png" />
+    <meta property="og:url" content="https://your-frontend.vercel.app" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>SwiftShare</title>
     <script>
       (function() {
         try {
           var valid = ['sunset','dark','light','midnight','sakura','lavender','forest','volcanic'];
           var raw = localStorage.getItem('swiftshare_theme');
-          var theme = raw && valid.indexOf(JSON.parse(raw)) !== -1 ? JSON.parse(raw) : 'sunset';
+          var parsed = raw ? JSON.parse(raw) : null;
+          var theme = parsed && valid.indexOf(parsed) !== -1 ? parsed : 'sunset';
           document.documentElement.setAttribute('data-theme', theme);
           if (['dark','midnight','volcanic'].includes(theme)) {
             document.documentElement.style.backgroundColor = '#121212';

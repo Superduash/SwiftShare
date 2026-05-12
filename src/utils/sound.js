@@ -114,11 +114,6 @@ function playPremiumGlassChime() {
     
     shimmerOsc.start(now + 0.04)
     shimmerOsc.stop(now + 0.65)
-
-    // Keep audio context alive during playback to prevent interruption
-    const keepAlive = setTimeout(() => {
-      clearTimeout(keepAlive)
-    }, 700)
   }
 
   if (ctx.state === 'suspended') {
@@ -137,7 +132,8 @@ function playTwoTone(firstFrequency, secondFrequency) {
     const now = ctx.currentTime
     const osc1 = ctx.createOscillator()
     const osc2 = ctx.createOscillator()
-    const gain = ctx.createGain()
+    const gain1 = ctx.createGain()
+    const gain2 = ctx.createGain()
 
     osc1.frequency.setValueAtTime(firstFrequency, now)
     osc1.type = 'sine'
@@ -145,26 +141,26 @@ function playTwoTone(firstFrequency, secondFrequency) {
     osc2.frequency.setValueAtTime(secondFrequency, now + 0.08)
     osc2.type = 'sine'
 
-    gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(0.12, now + 0.04)
-    gain.gain.linearRampToValueAtTime(0.08, now + 0.12)
-    gain.gain.linearRampToValueAtTime(0, now + 0.25)
+    gain1.gain.setValueAtTime(0, now)
+    gain1.gain.linearRampToValueAtTime(0.12, now + 0.04)
+    gain1.gain.linearRampToValueAtTime(0, now + 0.15)
 
-    osc1.connect(gain)
-    osc2.connect(gain)
-    gain.connect(ctx.destination)
+    gain2.gain.setValueAtTime(0, now + 0.08)
+    gain2.gain.linearRampToValueAtTime(0.12, now + 0.12)
+    gain2.gain.linearRampToValueAtTime(0, now + 0.28)
+
+    osc1.connect(gain1)
+    gain1.connect(ctx.destination)
+    
+    osc2.connect(gain2)
+    gain2.connect(ctx.destination)
 
     osc1.start(now)
-    osc1.stop(now + 0.12)
+    osc1.stop(now + 0.15)
+    
     osc2.start(now + 0.08)
-    osc2.stop(now + 0.25)
+    osc2.stop(now + 0.28)
 
-    // Keep audio context alive during playback to prevent interruption
-    // This ensures sound completes even if page navigation starts
-    const keepAlive = setTimeout(() => {
-      // Cleanup after sound completes
-      clearTimeout(keepAlive)
-    }, 300)
   }
 
   if (ctx.state === 'suspended') {
