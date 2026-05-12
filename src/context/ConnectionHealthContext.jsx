@@ -22,12 +22,12 @@ const ConnectionHealthContext = createContext(null)
 //        - ping failing, never reached server  → waking
 //        - ping failing, was connected before  → reconnecting
 
-const BACKOFF_SCHEDULE = [2000, 4000, 8000, 12000, 15000]
-const HEALTHY_POLL_MS = 60000 // 60s when healthy and connected
+const BACKOFF_SCHEDULE = [1000, 2000, 3000, 5000, 8000] // Faster initial retries for localhost
+const HEALTHY_POLL_MS = 30000 // 30s when healthy and connected (reduced from 60s)
 
 // Hard ceiling: after this long stuck non-connected with the same status,
 // reset failure counters so the next successful event clears cleanly.
-const MAX_STUCK_MS = 60000
+const MAX_STUCK_MS = 30000 // Reduced from 60s for faster recovery
 
 export function ConnectionHealthProvider({ children }) {
   const { socket, isConnected: socketConnected } = useSocket()

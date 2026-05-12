@@ -298,18 +298,20 @@ export default function HomePage() {
         transfer: transferSnapshot,
       })
 
-      // Navigate to sender page
-      navigate(`/sender/${normalizedCode}`, { state: { transferData: transferSnapshot } })
-
-      // Play success sound after page has fully loaded (small delay ensures clean playback)
+      // Defer navigation to next tick to avoid React error #321
       setTimeout(() => {
-        const currentSettings = getSettings()
-        if (currentSettings.soundEnabled) {
-          playUploadSuccess()
-        }
-      }, 300)
-
-      toast.success('Text shared successfully!')
+        navigate(`/sender/${normalizedCode}`, { state: { transferData: transferSnapshot } })
+        
+        // Play success sound after page has fully loaded
+        setTimeout(() => {
+          const currentSettings = getSettings()
+          if (currentSettings.soundEnabled) {
+            playUploadSuccess()
+          }
+        }, 300)
+        
+        toast.success('Text shared successfully!')
+      }, 0)
     } catch (err) {
       if (import.meta.env.DEV) {
         console.error('[HomePage] Share text error:', err)
