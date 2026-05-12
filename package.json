@@ -7,7 +7,6 @@
   },
   "type": "module",
   "scripts": {
-    "predev": "node scripts/ensure-port-free.cjs 5173",
     "dev": "vite --open",
     "build": "vite build",
     "preview": "vite preview"
