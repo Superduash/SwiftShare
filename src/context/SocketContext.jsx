@@ -55,32 +55,41 @@ function getSocketUrl() {
   const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : ''
   const runtimeIsLocal = isLocalRuntimeHost(runtimeHost)
 
-  // Priority 1: VITE_API_URL
+  // Priority 1: VITE_API_URL or VITE_SOCKET_URL
+  const envSocketUrl = import.meta.env.VITE_SOCKET_URL
   const envApiUrl = import.meta.env.VITE_API_URL
-  if (envApiUrl && envApiUrl.trim()) {
-    const candidate = normalizeUrl(envApiUrl)
+  
+  const envUrl = envSocketUrl || envApiUrl
+  
+  if (envUrl && envUrl.trim()) {
+    const candidate = normalizeUrl(envUrl)
     const rewrittenLanUrl = rewriteLoopbackUrlForLanRuntime(candidate)
-    if (rewrittenLanUrl) return rewrittenLanUrl
+    if (rewrittenLanUrl) {
+      console.log('[SocketContext] Using LAN-rewritten URL:', rewrittenLanUrl)
+      return rewrittenLanUrl
+    }
     if (!runtimeIsLocal && targetsLoopback(candidate)) {
       // localhost URL won't work from deployed frontend — fall through
+      console.warn('[SocketContext] Ignoring localhost URL in non-local runtime')
     } else {
+      console.log('[SocketContext] Using env URL:', candidate)
       return candidate
     }
   }
 
-  // Priority 3: Runtime detection
+  // Priority 2: Runtime detection
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname
     if (isLocalRuntimeHost(hostname)) {
-      // Dev mode warning if VITE_SOCKET_URL not set
-      if (import.meta.env.DEV && !import.meta.env.VITE_SOCKET_URL) {
-        console.warn('[SwiftShare] VITE_SOCKET_URL not set, falling back to VITE_API_URL for WebSocket');
-      }
-      return `${window.location.protocol}//${hostname}:3001`
+      const url = `${window.location.protocol}//${hostname}:3001`
+      console.log('[SocketContext] Using runtime-detected URL:', url)
+      return url
     }
+    console.log('[SocketContext] Using same-origin:', window.location.origin)
     return window.location.origin
   }
 
+  console.warn('[SocketContext] No valid socket URL found, returning empty string')
   return ''
 }
 
