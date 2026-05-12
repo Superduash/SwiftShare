@@ -143,8 +143,7 @@ export default function HomePage() {
     }
 
     uploadHandledRef.current = true
-    setUploading(false)
-
+    
     const fname = files[0]?.name || 'file'
     const normalizedTransferCode = String(transferCode).trim().toUpperCase()
     const transferSnapshot = { ...payload, code: normalizedTransferCode }
@@ -160,16 +159,20 @@ export default function HomePage() {
       transfer: transferSnapshot,
     })
 
-    // Navigate first to avoid any transient audio API issues blocking route transition.
-    navigate(`/sender/${normalizedTransferCode}`, { state: { transferData: transferSnapshot } })
-
-    // Play success sound after page has fully loaded (small delay ensures clean playback)
+    // Defer navigation to next tick to avoid React error #321
+    // (Cannot update a component while rendering a different component)
     setTimeout(() => {
-      const currentSettings = getSettings()
-      if (currentSettings.soundEnabled) {
-        playUploadSuccess()
-      }
-    }, 300)
+      setUploading(false)
+      navigate(`/sender/${normalizedTransferCode}`, { state: { transferData: transferSnapshot } })
+      
+      // Play success sound after page has fully loaded
+      setTimeout(() => {
+        const currentSettings = getSettings()
+        if (currentSettings.soundEnabled) {
+          playUploadSuccess()
+        }
+      }, 300)
+    }, 0)
   }, [files, navigate])
 
   // Title
