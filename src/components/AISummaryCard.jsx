@@ -1,79 +1,138 @@
-import React, { useEffect, useState, useCallback, memo } from 'react'
+// frontend/src/components/AISummaryCard.jsx
+//
+// Clean smart-preview card.
+//
+// Renders (in order):
+//   1. Header strip — "AI Analysis" badge + model name + copy button
+//   2. Top tags row — semantic category pills with emoji icons (3–5 max)
+//   3. Overall summary — one natural sentence, slightly larger text
+//   4. Expandable per-file list — filename + one clean summary line
+//
+// REMOVED from previous versions:
+//   - per-file tags (keyword dump)
+//   - key_points (bullet noise)
+//   - risk flags / detected intent / image description
+//   - track/artist/album sections
+//
+// Backend contract (new aiAnalyzer.js):
+//   ai = {
+//     overallSummary, summary, overall_summary,   // any of these = the same thing
+//     topTags: [{ key, label, icon }],
+//     tags: ["📚 Notes", "🎬 Media"],              // legacy string form
+//     files: [{ filename, name, summary }],
+//     model, provider, _model, _provider,
+//     warning?: "AI analysis unavailable",         // present if AI failed
+//   }
+
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Sparkles, FileText, Image, Video, FileArchive,
-  Music, BookOpen, Code, Presentation, Table2, AlertTriangle, Target, Copy, Check
-} from 'lucide-react'
+import { Sparkles, FileText, Copy, Check, ChevronDown, ChevronUp } from 'lucide-react'
 import toast from 'react-hot-toast'
-import TagList from './TagList'
 
-const CATEGORY_ICONS = {
-  document: FileText, image: Image, video: Video, archive: FileArchive,
-  audio: Music, ebook: BookOpen, code: Code, presentation: Presentation,
-  spreadsheet: Table2, media: Video, mixed: FileArchive, default: FileText,
+// ── Tag pill (inline, no external dependency) ────────────────────────────────
+
+function TagPill({ icon, label }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{
+        background: 'var(--accent-soft)',
+        color: 'var(--accent)',
+        border: '1px solid var(--accent-soft)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {icon ? <span style={{ fontSize: '13px', lineHeight: 1 }}>{icon}</span> : null}
+      <span>{label}</span>
+    </span>
+  )
 }
 
-function getCategoryIcon(cat) {
-  if (!cat) return CATEGORY_ICONS.default
-  const key = cat.toLowerCase()
-  for (const [k, v] of Object.entries(CATEGORY_ICONS)) {
-    if (key.includes(k)) return v
+// Accept either the new {icon, label} shape or the legacy "📚 Notes" string
+// shape. Returns a uniform array of {icon, label} objects.
+function normalizeTags(ai) {
+  if (Array.isArray(ai?.topTags) && ai.topTags.length > 0) {
+    return ai.topTags
+      .map((t) => {
+        if (t && typeof t === 'object') {
+          return { icon: t.icon || '', label: String(t.label || '').trim() }
+        }
+        return parseLegacyTagString(String(t || ''))
+      })
+      .filter((t) => t && t.label)
   }
-  return CATEGORY_ICONS.default
+  if (Array.isArray(ai?.tags) && ai.tags.length > 0) {
+    return ai.tags
+      .map((t) => (t && typeof t === 'object'
+        ? { icon: t.icon || '', label: String(t.label || '').trim() }
+        : parseLegacyTagString(String(t || ''))))
+      .filter((t) => t && t.label)
+  }
+  return []
 }
 
-const BANNED_PHRASES_RE = /\b(this file contains|this file is a|appears to be|analyzed using|purpose inferred|cannot extract|cannot be previewed|binary content|image containing readable text|files centered on|code focused on application logic|captured text reads|media shared for media sharing|context derived from|in summary|to summarize|overall,?)\b/gi
+// "📚 Notes" → { icon: "📚", label: "Notes" }
+// Falls back to label-only if no leading emoji is present.
+function parseLegacyTagString(s) {
+  const trimmed = String(s || '').trim()
+  if (!trimmed) return null
+  // Match a leading non-word char cluster (emoji) followed by space + label
+  const m = trimmed.match(/^([^\w\s][^\s]*)\s+(.+)$/)
+  if (m) return { icon: m[1], label: m[2].trim() }
+  return { icon: '', label: trimmed }
+}
 
-function cleanSummary(text) {
+// ── Summary cleanup (safety net — backend already sanitizes) ─────────────────
+// Strips a small set of leftover phrasings if any provider slips through.
+
+const STRIP_PHRASES_RE = /\b(this file (?:contains|is)|appears to be|in summary,?|to summarize,?|overall,?)\b/gi
+
+function cleanText(text) {
   return String(text || '')
-    .replace(BANNED_PHRASES_RE, '')
-    .replace(/\b(mime|format|extension|file size)\b\s*[:\-]?/gi, '')
-    .replace(/\b\d+(?:\.\d+)?\s*(kb|mb|gb|bytes?)\b/gi, '')
-    .replace(/\bmetadata\b/gi, '')
+    .replace(STRIP_PHRASES_RE, '')
     .replace(/\s+/g, ' ')
     .replace(/^[\s.,;:]+/, '')
     .trim()
 }
 
-function cleanKeyPoints(points) {
-  if (!Array.isArray(points)) return []
-
-  return points
-    .map((point) => cleanSummary(point))
-    .filter((point) => point.length > 2)
-    .filter((point) => !/^(pdf|image|video|audio|zip|txt|csv|docx?)\s*format$/i.test(point))
-}
+// ── Main card ────────────────────────────────────────────────────────────────
 
 function AISummaryCard({ ai, loading = false }) {
   const [showFiles, setShowFiles] = useState(false)
   const [copied, setCopied] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
-  const activeAi = ai
 
-  const CatIcon = activeAi?.category ? getCategoryIcon(activeAi.category) : Sparkles
-  const summary = cleanSummary(activeAi?.summary || activeAi?.overall_summary)
-  const aiErrorMessage = cleanSummary(activeAi?.error || activeAi?.warning)
-  const detectedIntent = activeAi?.detectedIntent || activeAi?.detected_intent
-  const riskFlags = activeAi?.riskFlags || activeAi?.risk_flags || []
-  const fileAnalysis = (activeAi?.files || []).map((file) => ({
-    ...file,
-    summary: cleanSummary(file?.summary),
-    key_points: cleanKeyPoints(file?.key_points),
-  }))
-  // AI result with only a warning and no summary means the service was unavailable
-  const isAiUnavailable = activeAi && !summary && !activeAi.category && Boolean(activeAi.warning)
+  const summary = useMemo(
+    () => cleanText(ai?.overallSummary || ai?.summary || ai?.overall_summary),
+    [ai]
+  )
 
+  const tags = useMemo(() => normalizeTags(ai), [ai])
+
+  const fileList = useMemo(() => {
+    const raw = Array.isArray(ai?.files) ? ai.files : []
+    return raw.map((f) => ({
+      filename: f?.filename || f?.name || 'Untitled file',
+      summary: cleanText(f?.summary),
+    }))
+  }, [ai])
+
+  const modelLabel = ai?.model || ai?._model || ''
+  const hasAi = Boolean(ai)
+  const aiFailedSoftly = hasAi && !summary && Boolean(ai?.warning)
+  const errorMessage = cleanText(ai?.warning || ai?.error)
+
+  // "Still working..." after 10s of loading
   useEffect(() => {
     if (!loading) {
       setTimedOut(false)
       return undefined
     }
-
-    const timer = setTimeout(() => setTimedOut(true), 10000)
-    return () => clearTimeout(timer)
+    const t = setTimeout(() => setTimedOut(true), 10000)
+    return () => clearTimeout(t)
   }, [loading])
 
-  const handleCopySummary = useCallback(async () => {
+  const handleCopy = useCallback(async () => {
     if (!summary) return
     try {
       await navigator.clipboard.writeText(summary)
@@ -87,160 +146,199 @@ function AISummaryCard({ ai, loading = false }) {
 
   return (
     <motion.div
-      className="rounded-2xl p-4 overflow-hidden relative"
+      className="rounded-2xl overflow-hidden relative"
       style={{
         background: 'var(--ai-bg)',
         border: '1px solid var(--ai-border)',
       }}
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-soft)' }}>
-            <Sparkles size={14} style={{ color: 'var(--ai-icon)' }} aria-hidden="true" />
-          </div>
-          <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>AI Analysis</span>
-        </div>
-        {summary && !loading && (
-          <button
-            className="btn-icon !w-6 !h-6"
-            onClick={handleCopySummary}
-            title="Copy summary"
-            aria-label="Copy AI summary"
-          >
-            {copied
-              ? <Check size={12} style={{ color: 'var(--success)' }} />
-              : <Copy size={12} style={{ color: 'var(--text-4)' }} />
-            }
-          </button>
-        )}
-      </div>
-
-      <AnimatePresence mode="wait">
-        {loading ? (
-          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="space-y-2">
-              <div className="shimmer-block h-4 w-3/4" />
-              <div className="shimmer-block h-4 w-full" />
-              <div className="shimmer-block h-4 w-1/2" />
+      <div className="p-4 sm:p-5">
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: 'var(--accent-soft)' }}
+            >
+              <Sparkles size={15} style={{ color: 'var(--ai-icon, var(--accent))' }} aria-hidden="true" />
             </div>
-            <p className="text-xs mt-3 animate-pulse-soft" style={{ color: 'var(--text-4)' }}>
-              Analyzing with AI...
-            </p>
-            {timedOut && (
-              <p className="text-xs mt-1" style={{ color: 'var(--text-4)' }}>
-                Taking longer than usual... still working.
-              </p>
+            <span className="text-sm font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+              AI Analysis
+            </span>
+            {modelLabel && !loading && (
+              <span
+                className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium"
+                style={{
+                  background: 'var(--bg-sunken)',
+                  color: 'var(--text-4)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                {modelLabel}
+              </span>
             )}
-          </motion.div>
-        ) : activeAi ? (
-          <motion.div key="data" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Top-level tags (semantic category tags) */}
-            {activeAi.tags && activeAi.tags.length > 0 && (
-              <div className="mb-3">
-                <TagList tags={activeAi.tags} maxVisible={5} size="md" variant="accent" />
-              </div>
-            )}
+          </div>
+          {summary && !loading && (
+            <button
+              className="btn-icon !w-7 !h-7"
+              onClick={handleCopy}
+              title="Copy summary"
+              aria-label="Copy AI summary"
+            >
+              {copied
+                ? <Check size={13} style={{ color: 'var(--success)' }} />
+                : <Copy size={13} style={{ color: 'var(--text-4)' }} />}
+            </button>
+          )}
+        </div>
 
-            {/* Summary */}
-            {summary ? (
-              <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-2)' }}>
-                {summary}
-              </p>
-            ) : isAiUnavailable ? (
-              <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--danger-soft)', border: '1px solid rgba(239,68,68,0.18)' }}>
-                <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
-                  AI summary unavailable.
-                </p>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
-                  {aiErrorMessage || 'AI analysis timed out or failed before a summary was generated.'}
-                </p>
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <div className="flex gap-2 mb-3">
+                <div className="shimmer-block h-6 w-16 rounded-full" />
+                <div className="shimmer-block h-6 w-20 rounded-full" />
+                <div className="shimmer-block h-6 w-14 rounded-full" />
               </div>
-            ) : (
-              <p className="text-sm leading-relaxed mb-3 italic" style={{ color: 'var(--text-4)' }}>
-                AI analysis completed but no summary was generated.
+              <div className="space-y-2">
+                <div className="shimmer-block h-4 w-11/12" />
+                <div className="shimmer-block h-4 w-3/4" />
+              </div>
+              <p
+                className="text-xs mt-3 animate-pulse-soft"
+                style={{ color: 'var(--text-4)' }}
+              >
+                Generating preview...
               </p>
-            )}
-
-            {/* Risk flags */}
-            {riskFlags.length > 0 && (
-              <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--warning-soft)', border: '1px solid rgba(217,119,6,0.15)' }}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <AlertTriangle size={12} style={{ color: 'var(--warning)' }} aria-hidden="true" />
-                  <p className="text-xs font-semibold" style={{ color: 'var(--warning)' }}>Risk flags</p>
-                </div>
-                <ul className="text-xs space-y-0.5" style={{ color: 'var(--text-2)' }}>
-                  {riskFlags.map((flag, i) => (
-                    <li key={i}>• {flag}</li>
+              {timedOut && (
+                <p className="text-xs mt-1" style={{ color: 'var(--text-4)' }}>
+                  Taking longer than usual — still working.
+                </p>
+              )}
+            </motion.div>
+          ) : hasAi ? (
+            <motion.div
+              key="data"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* ── Top tags (semantic, upload-level) ────────────────────── */}
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {tags.map((t, i) => (
+                    <TagPill key={`${t.label}-${i}`} icon={t.icon} label={t.label} />
                   ))}
-                </ul>
-              </div>
-            )}
+                </div>
+              )}
 
-            {/* Image description */}
-            {activeAi.imageDescription && (
-              <div className="p-2.5 rounded-lg mb-3" style={{ background: 'var(--info-soft)', border: '1px solid rgba(8,145,178,0.15)' }}>
-                <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--info)' }}>What's in the image</p>
-                <p className="text-xs" style={{ color: 'var(--text-2)' }}>{activeAi.imageDescription}</p>
-              </div>
-            )}
-
-            {/* Per-file analysis */}
-            {fileAnalysis.length > 0 && (
-              <div className="mb-3">
-                <button
-                  className="text-xs font-semibold flex items-center gap-1 mb-2"
-                  style={{ color: 'var(--accent)' }}
-                  onClick={() => setShowFiles(!showFiles)}
-                  aria-expanded={showFiles}
+              {/* ── Overall summary ──────────────────────────────────────── */}
+              {summary ? (
+                <p
+                  className="text-[15px] leading-relaxed"
+                  style={{ color: 'var(--text-2)' }}
                 >
-                  <FileText size={12} aria-hidden="true" />
-                  {showFiles ? 'Hide' : 'Show'} per-file analysis ({fileAnalysis.length})
-                </button>
-                <AnimatePresence>
-                  {showFiles && (
-                    <motion.div
-                      className="space-y-1.5"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                    >
-                      {fileAnalysis.map((f, i) => (
-                        <div key={i} className="p-2 rounded-lg" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
-                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{f.name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--text-3)' }}>{f.summary || 'No summary available.'}</p>
-                          {f.tags && f.tags.length > 0 && (
-                            <div className="mt-1.5">
-                              <TagList tags={f.tags} maxVisible={5} size="sm" variant="default" />
-                            </div>
-                          )}
-                          {f.key_points && f.key_points.length > 0 && (
-                            <ul className="text-[10px] mt-1 space-y-0.5" style={{ color: 'var(--text-4)' }}>
-                              {f.key_points.map((point, pi) => (
-                                <li key={pi}>• {point}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
+                  {summary}
+                </p>
+              ) : aiFailedSoftly ? (
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    background: 'var(--danger-soft)',
+                    border: '1px solid rgba(239,68,68,0.18)',
+                  }}
+                >
+                  <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>
+                    AI summary unavailable
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
+                    {errorMessage || 'AI analysis did not complete in time.'}
+                  </p>
+                </div>
+              ) : (
+                <p
+                  className="text-sm leading-relaxed italic"
+                  style={{ color: 'var(--text-4)' }}
+                >
+                  AI analysis completed but no summary was generated.
+                </p>
+              )}
 
-          </motion.div>
-        ) : (
-          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <p className="text-sm" style={{ color: 'var(--text-4)' }}>
-              AI summary will appear after upload.
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {/* ── Per-file expandable list ─────────────────────────────── */}
+              {fileList.length > 0 && (
+                <div className="mt-4">
+                  <button
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-80"
+                    style={{ color: 'var(--accent)' }}
+                    onClick={() => setShowFiles((v) => !v)}
+                    aria-expanded={showFiles}
+                  >
+                    <FileText size={12} aria-hidden="true" />
+                    {showFiles ? 'Hide' : 'Show'} per-file preview ({fileList.length})
+                    {showFiles
+                      ? <ChevronUp size={12} aria-hidden="true" />
+                      : <ChevronDown size={12} aria-hidden="true" />}
+                  </button>
+                  <AnimatePresence>
+                    {showFiles && (
+                      <motion.div
+                        className="mt-2 space-y-2"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                      >
+                        {fileList.map((f, i) => (
+                          <div
+                            key={`${f.filename}-${i}`}
+                            className="p-3 rounded-xl"
+                            style={{
+                              background: 'var(--bg-sunken)',
+                              border: '1px solid var(--border)',
+                            }}
+                          >
+                            <p
+                              className="text-xs font-semibold truncate"
+                              style={{ color: 'var(--text)' }}
+                              title={f.filename}
+                            >
+                              {f.filename}
+                            </p>
+                            <p
+                              className="text-[13px] mt-1 leading-relaxed"
+                              style={{ color: 'var(--text-3)' }}
+                            >
+                              {f.summary || 'No preview available.'}
+                            </p>
+                          </div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <p className="text-sm" style={{ color: 'var(--text-4)' }}>
+                AI summary will appear after upload.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </motion.div>
   )
 }
