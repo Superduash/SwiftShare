@@ -207,8 +207,9 @@ export default function DownloadPage() {
 
   // Title
   useEffect(() => {
-    if (meta?.files?.[0]?.name) {
-      document.title = `${meta.files[0].name} · SwiftShare`
+    const fileName = meta?.files?.[0]?.name
+    if (fileName) {
+      document.title = `${fileName} · SwiftShare`
     }
   }, [meta])
 
@@ -798,7 +799,7 @@ export default function DownloadPage() {
   }
 
   // Check if this is a text share
-  const isTextShare = meta?.files?.length === 1 && meta.files[0]?.name?.endsWith('.txt')
+  const isTextShare = meta?.files?.length === 1 && meta?.files?.[0]?.name?.endsWith('.txt')
 
   // Fetch text content when unlocked
   useEffect(() => {
@@ -1034,7 +1035,7 @@ export default function DownloadPage() {
               ))}
               {meta?.totalSize > 0 && (
                 <p className="text-xs text-center" style={{ color: 'var(--text-4)' }}>
-                  {meta.files?.length || 0} file{(meta.files?.length || 0) !== 1 ? 's' : ''} · {formatBytes(meta.totalSize)}
+                  {meta?.files?.length || 0} file{(meta?.files?.length || 0) !== 1 ? 's' : ''} · {formatBytes(meta.totalSize)}
                 </p>
               )}
             </motion.div>
@@ -1133,7 +1134,7 @@ export default function DownloadPage() {
                 ) : isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
                   <button className="btn-primary w-full text-base mb-6" onClick={handleDownload}>
                     <Download size={18} />
-                    Download {meta?.files?.length > 1 ? `${meta.files.length} files` : 'file'}
+                    Download {meta?.files?.length > 1 ? `${meta?.files?.length || 0} files` : 'file'}
                   </button>
                 )}
               </motion.div>
