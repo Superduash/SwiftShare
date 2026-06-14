@@ -96,7 +96,7 @@ export default function ExpiredPage() {
             </p>
             {state.tip && (
               <p className="text-xs leading-relaxed mb-8 max-w-xs mx-auto" style={{ color: 'var(--text-4)' }}>
-                \uD83D\uDCA1 {state.tip}
+                {state.tip}
               </p>
             )}
 
