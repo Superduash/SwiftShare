@@ -988,8 +988,9 @@ export default function SenderPage() {
         <div className="app-main-offset max-w-2xl mx-auto px-4">
           <motion.div
             className="surface-card p-8 text-center"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: 14 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--warning-soft)' }}>
               <Clock size={32} style={{ color: 'var(--warning)' }} />
@@ -1059,8 +1060,8 @@ export default function SenderPage() {
               {meta?.passwordProtected && !passwordVerified && !isTextShare && (
                 <motion.div
                   className="surface-card p-4"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ y: 6 }}
+                  animate={{ y: 0 }}
                 >
                   <div className="flex items-center gap-2 mb-3">
                     <Lock size={16} style={{ color: 'var(--accent)' }} />
@@ -1118,7 +1119,7 @@ export default function SenderPage() {
               {/* Text Share Display or Files */}
               {isTextShare ? (
                 /* Show text content inline */
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div initial={{ y: 6 }} animate={{ y: 0 }}>
                   <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
                     Shared Text
                   </h2>
@@ -1140,7 +1141,7 @@ export default function SenderPage() {
                 </motion.div>
               ) : (
                 /* Show files as cards */
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div initial={{ y: 6 }} animate={{ y: 0 }}>
                   <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
                     Shared Files ({meta?.files?.length || 0})
                   </h2>
@@ -1161,7 +1162,7 @@ export default function SenderPage() {
 
               {/* Download progress */}
               {downloadProgress !== null && downloadProgress < 100 && (
-                <motion.div className="surface-card p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <motion.div className="surface-card p-4" initial={{ y: 4 }} animate={{ y: 0 }}>
                   <ProgressBar percent={downloadProgress} label="Someone is downloading..." showSpeed={false} />
                 </motion.div>
               )}
@@ -1176,9 +1177,9 @@ export default function SenderPage() {
                 {/* QR Code */}
                 <motion.div
                   className="surface-card p-5 text-center"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.1, type: 'spring', damping: 20 }}
+                  initial={{ scale: 0.96 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.08, type: 'spring', damping: 20 }}
                 >
                   <button
                     className="inline-block p-4 rounded-2xl mx-auto mb-4 transition-transform hover:scale-105 cursor-pointer relative group w-[160px] sm:w-[180px] h-auto"
@@ -1202,9 +1203,9 @@ export default function SenderPage() {
                           border: '1.5px solid var(--code-char-border)',
                           color: 'var(--accent)',
                         }}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.15 + i * 0.06, type: 'spring', damping: 15 }}
+                        initial={{ y: 6 }}
+                        animate={{ y: 0 }}
+                        transition={{ delay: 0.1 + i * 0.04, type: 'spring', damping: 15 }}
                         onClick={copyCode}
                         title="Click to copy code"
                       >

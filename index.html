@@ -17,19 +17,45 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>SwiftShare</title>
     <script>
+      // FOUC prevention: set theme + body background BEFORE any CSS loads
+      // This is the ONLY place where theme initialization should happen
       (function() {
         try {
-          var valid = ['sunset','dark','light','midnight','sakura','lavender','forest','volcanic'];
+          var valid = ['sunrise','sunset','dark','light','midnight','sakura','lavender','forest','volcanic'];
+          // Map each theme to its exact --bg value so body never flashes wrong color
+          var bgMap = {
+            sunrise: '#FDF9F3',
+            sunset: '#0C0502',
+            dark: '#09090B',
+            light: '#FAFAFA',
+            midnight: '#000000',
+            sakura: '#F5F9FC',
+            lavender: '#0A0618',
+            forest: '#050C08',
+            volcanic: '#0D0505'
+          };
+          var colorMap = {
+            sunrise: '#1C1917',
+            sunset: '#FDF3E8',
+            dark: '#FAFAFA',
+            light: '#09090B',
+            midnight: '#D0E4FA',
+            sakura: '#420818',
+            lavender: '#F0ECFF',
+            forest: '#DCF5E8',
+            volcanic: '#FFE8E8'
+          };
           var raw = localStorage.getItem('swiftshare_theme');
           var parsed = raw ? JSON.parse(raw) : null;
-          var theme = parsed && valid.indexOf(parsed) !== -1 ? parsed : 'sunset';
+          var theme = parsed && valid.indexOf(parsed) !== -1 ? parsed : 'sunrise';
           document.documentElement.setAttribute('data-theme', theme);
-          if (['dark','midnight','volcanic'].includes(theme)) {
-            document.documentElement.style.backgroundColor = '#121212';
-            document.documentElement.style.color = '#ffffff';
-          }
+          // Set background + text color immediately to prevent FOUC
+          document.documentElement.style.backgroundColor = bgMap[theme] || bgMap.sunrise;
+          document.documentElement.style.color = colorMap[theme] || colorMap.sunrise;
         } catch(e) {
-          document.documentElement.setAttribute('data-theme', 'sunset');
+          document.documentElement.setAttribute('data-theme', 'sunrise');
+          document.documentElement.style.backgroundColor = '#FDF9F3';
+          document.documentElement.style.color = '#1C1917';
         }
       })();
     </script>

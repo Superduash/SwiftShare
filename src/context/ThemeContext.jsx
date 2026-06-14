@@ -11,7 +11,7 @@ const VALID_THEMES = ['sunset', 'sunrise', 'dark', 'light', 'midnight', 'sakura'
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
     const saved = getTheme()
-    return VALID_THEMES.includes(saved) ? saved : 'sunset'
+    return VALID_THEMES.includes(saved) ? saved : 'sunrise'
   })
 
   const setTheme = useCallback((newTheme) => {

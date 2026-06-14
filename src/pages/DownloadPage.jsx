@@ -876,8 +876,9 @@ export default function DownloadPage() {
           {/* Header */}
           <motion.div
             className="text-center mb-8"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: 14 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <h1 className="font-display font-extrabold text-2xl sm:text-3xl mb-1" style={{ color: 'var(--text)' }}>
               {downloaded ? 'Download complete!' : isUnavailable ? 'Transfer unavailable' : 'Ready to download'}
@@ -892,9 +893,9 @@ export default function DownloadPage() {
             <motion.div
               className="mb-6 rounded-2xl overflow-hidden"
               style={{ border: '1px solid var(--border)' }}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 }}
+              initial={{ scale: 0.97 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.08 }}
             >
               <img
                 src={previewSrc}
@@ -911,9 +912,9 @@ export default function DownloadPage() {
             /* Show text content inline */
             <motion.div
               className="mb-6"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
+              initial={{ y: 6 }}
+              animate={{ y: 0 }}
+              transition={{ delay: 0.1 }}
             >
               {textLoading ? (
                 <div className="surface-card p-8 text-center">
@@ -935,9 +936,9 @@ export default function DownloadPage() {
             /* Show files as cards */
             <motion.div
               className="space-y-2 mb-6"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
+              initial={{ y: 6 }}
+              animate={{ y: 0 }}
+              transition={{ delay: 0.1 }}
             >
               {(meta?.files || []).map((f, i) => (
                 <FileCard
@@ -972,8 +973,8 @@ export default function DownloadPage() {
           {needsPassword && !passwordVerified && !downloaded && !isUnavailable && (
             <motion.div
               className="mb-6"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ y: 6 }}
+              animate={{ y: 0 }}
             >
               <div className="surface-card p-5">
                 <div className="flex items-center gap-2 mb-3">

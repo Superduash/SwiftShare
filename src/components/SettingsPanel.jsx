@@ -65,38 +65,45 @@ export default function SettingsPanel({ open, onClose }) {
   }
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {open && (
         <React.Fragment key="settings-modal">
-          {/* Backdrop — NO backdropFilter, it causes full-page repaint on every frame */}
+          {/* Backdrop — render with opacity:0 in CSS so the very first paint
+               is always invisible. Framer Motion then animates it to 1.
+               Previous approach relied on FM's initial={{ opacity: 0 }} which
+               takes 1 render frame to apply, causing a 1-frame dark flash. */}
           <motion.div
             className="fixed inset-0 z-[60]"
             style={{
               background: 'rgba(0,0,0,0.45)',
-              willChange: 'opacity',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              contain: 'strict',
+              opacity: 0,
             }}
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             onClick={onClose}
           />
 
-          {/* Panel — smoother easing, no spring bounce */}
+          {/* Panel — isolated compositing with contain to prevent layout shifts */}
           <motion.div
             className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-sm overflow-y-auto"
             style={{
               background: 'var(--settings-bg)',
               borderLeft: '1px solid var(--border)',
-              willChange: 'transform',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              contain: 'layout style paint',
             }}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
+            initial={{ x: '100%', opacity: 1 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '100%', opacity: 1 }}
             transition={{
               type: 'tween',
-              duration: 0.22,
-              ease: [0.25, 0.46, 0.45, 0.94],
+              duration: 0.25,
+              ease: [0.32, 0.72, 0, 1],
             }}
           >
             <div className="p-6">

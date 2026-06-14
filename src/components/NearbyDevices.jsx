@@ -208,9 +208,9 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   if (loading) {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        initial={{ y: 6 }}
+        animate={{ y: 0 }}
+        transition={{ delay: 0.2 }}
       >
         <div className="flex items-center gap-2 mb-3">
           <Wifi size={14} style={{ color: 'var(--text-4)' }} className="animate-pulse" />
@@ -229,9 +229,9 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   if (error && !isConnected) {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        initial={{ y: 6 }}
+        animate={{ y: 0 }}
+        transition={{ delay: 0.2 }}
       >
         <div className="flex items-center gap-2 mb-3">
           <WifiOff size={14} style={{ color: 'var(--danger)' }} />
@@ -259,9 +259,9 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   if (!devices.length) {
     return (
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        initial={{ y: 6 }}
+        animate={{ y: 0 }}
+        transition={{ delay: 0.2 }}
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -299,9 +299,9 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   // Show devices list
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3 }}
+      initial={{ y: 6 }}
+      animate={{ y: 0 }}
+      transition={{ delay: 0.2 }}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -341,8 +341,8 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
             <motion.button
               key={dev.socketId || dev.code}
               className="w-full surface-card-flat p-3 flex items-center gap-3 text-left hover:border-[var(--accent)] transition-colors"
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ scale: 0.97 }}
+              animate={{ scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ delay: idx * 0.05 }}
               onClick={() => {

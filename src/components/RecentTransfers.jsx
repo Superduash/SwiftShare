@@ -174,9 +174,9 @@ function RecentTransfers() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
+      initial={{ y: 6 }}
+      animate={{ y: 0 }}
+      transition={{ delay: 0.15 }}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -211,8 +211,8 @@ function RecentTransfers() {
               <motion.button
                 key={t.code}
                 className="w-full surface-card-flat p-3 flex items-center gap-3 text-left group"
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ x: -6 }}
+                animate={{ x: 0 }}
                 exit={{ opacity: 0, x: 8 }}
                 transition={{ delay: idx * 0.04 }}
                 onClick={() => handleClick(t)}

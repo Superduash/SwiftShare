@@ -47,9 +47,9 @@ function FileCardBase({
   return (
     <motion.div
       className="surface-card-flat p-3 flex items-center justify-between gap-3 group"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+      initial={{ y: 5 }}
+      animate={{ y: 0 }}
+      transition={{ delay: index * 0.04 }}
       whileHover={{ scale: 1.005 }}
     >
       <div className="flex items-center gap-3 min-w-0">

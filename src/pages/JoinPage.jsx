@@ -217,8 +217,9 @@ export default function JoinPage() {
         <div className="page-shell-narrow py-12 sm:py-20">
           <motion.div
             className="text-center mb-10"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ y: 14 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <h1 className="font-display font-extrabold text-3xl sm:text-4xl mb-2" style={{ color: 'var(--text)' }}>
               Receive a file
@@ -232,9 +233,9 @@ export default function JoinPage() {
           <motion.div
             id="code-input-row"
             className="flex justify-center gap-2 sm:gap-3 mb-6"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            initial={{ y: 10 }}
+            animate={{ y: 0 }}
+            transition={{ delay: 0.08 }}
           >
             {chars.map((ch, i) => (
               <motion.input
@@ -254,9 +255,9 @@ export default function JoinPage() {
                   color: 'var(--accent)',
                   caretColor: 'var(--accent)',
                 }}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 + i * 0.04 }}
+                initial={{ y: 6 }}
+                animate={{ y: 0 }}
+                transition={{ delay: 0.1 + i * 0.03 }}
                 autoComplete="off"
                 aria-label={`Code digit ${i + 1}`}
               />
@@ -291,9 +292,9 @@ export default function JoinPage() {
           {/* Submit button */}
           <motion.div
             className="text-center mb-10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
+            initial={{ y: 6 }}
+            animate={{ y: 0 }}
+            transition={{ delay: 0.2 }}
           >
             <button
               className="btn-primary mx-auto px-10"

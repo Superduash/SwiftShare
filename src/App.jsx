@@ -68,15 +68,31 @@ function ScrollToTop() {
 }
 
 // ── Page transition wrapper ──────────────────
+// IMPORTANT: Use opacity-only transitions to prevent layout recalculation flicker.
+// On FIRST mount we skip the initial animation (initial={false}) because:
+// - The very first page render starts at opacity:0 which shows a flash of the
+//   body background for 1 frame before Framer Motion kicks in
+// - On subsequent navigations, AnimatePresence handles exit/enter transitions
 const pageVariants = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.25, ease: 'easeOut' } },
-  exit: { opacity: 0, y: -6, transition: { duration: 0.15, ease: 'easeIn' } },
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] } },
+  exit: { opacity: 0, transition: { duration: 0.1, ease: [0.4, 0, 1, 1] } },
 }
 
+// Track whether this is the very first page mount
+let isFirstMount = true
+
 function PageWrapper({ children }) {
+  const skipInitial = isFirstMount
+  if (isFirstMount) isFirstMount = false
+
   return (
-    <motion.div variants={pageVariants} initial="initial" animate="animate" exit="exit">
+    <motion.div
+      variants={pageVariants}
+      initial={skipInitial ? false : 'initial'}
+      animate="animate"
+      exit="exit"
+    >
       {children}
     </motion.div>
   )

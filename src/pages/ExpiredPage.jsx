@@ -56,9 +56,9 @@ export default function ExpiredPage() {
       <main className="app-main-offset">
         <div className="page-shell-narrow py-20 text-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15 }}
+            initial={{ scale: 0.94 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', damping: 18 }}
           >
             <div
               className="w-20 h-20 rounded-3xl mx-auto mb-6 flex items-center justify-center text-3xl"

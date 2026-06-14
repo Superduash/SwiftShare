@@ -69,8 +69,10 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
-  /* Smooth theme transitions */
-  transition: background-color 0.3s ease-out, color 0.3s ease-out;
+  /* NO transition on background-color: transitions cause a visible flash when
+     the page first loads because the browser animates from the inline style
+     (set by the FOUC-prevention script) to the CSS var value. The user sees
+     a brief dark/wrong-color frame during this transition. */
   /* Use native dynamic viewport height */
   min-height: 100vh;
   min-height: 100dvh;
@@ -83,6 +85,8 @@ body {
 }
 
 html {
+  /* Match the FOUC prevention script background — overridden by body once CSS loads */
+  background-color: var(--bg);
   /* Prevent mobile address bar from causing layout shifts */
   height: -webkit-fill-available;
 }
@@ -925,16 +929,10 @@ body.reduce-motion *::after {
    PERFORMANCE & QUALITY ENHANCEMENTS - PREMIUM POLISH v2.0
    ═══════════════════════════════════════════════════════════════ */
 
-/* Optimize animations for 60fps+ - use transform and opacity only */
-@media (prefers-reduced-motion: no-preference) {
-  /* Hint browser to optimize animated elements - use translate3d for GPU */
-  [style*="animation"] {
-    transform: translate3d(0, 0, 0);
-    backface-visibility: hidden;
-    /* Optimize compositing */
-    will-change: transform, opacity;
-  }
-}
+/* NOTE: The [style*="animation"] rule with will-change/backface-visibility was removed.
+   It caused browsers to cache the base transform before CSS custom properties
+   (--drift, --rise, --tx, --ty) could be resolved in keyframes, making all
+   CSS-variable-driven particle animations appear completely static. */
 
 /* High-DPI display optimizations - Retina, 4K, etc. */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
@@ -983,13 +981,10 @@ h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Optimize compositing for fixed/sticky elements */
-.fixed, .sticky, nav {
-  /* Use translate3d for GPU acceleration */
-  transform: translate3d(0, 0, 0);
-  /* Optimize paint */
-  backface-visibility: hidden;
-}
+/* NOTE: The .fixed/.sticky/nav transform:translate3d + backface-visibility rule was removed.
+   It matched the settings backdrop and panel (Tailwind's `fixed` class), causing the
+   browser to create GPU compositor layers before Framer Motion could apply its initial
+   opacity:0 / x:'100%' states — producing a 1-frame black flash on open/close. */
 
 /* Reduce paint cost for shadows - use efficient compositing */
 .surface-card,
@@ -1004,7 +999,4 @@ h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {
   /* Use efficient backdrop-filter */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  /* Optimize compositing */
-
-  transform: translate3d(0, 0, 0);
 }

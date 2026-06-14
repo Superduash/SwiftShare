@@ -496,9 +496,9 @@ export default function HomePage() {
               {/* Hero text */}
               <motion.div
                 className="mb-6"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
+                initial={{ y: 14 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
                 <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl leading-tight mb-2" style={{ color: 'var(--text)' }}>
                   Simple,<br />
@@ -521,9 +521,9 @@ export default function HomePage() {
 
               {/* Drop zone */}
               <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1, duration: 0.4 }}
+                initial={{ y: 10 }}
+                animate={{ y: 0 }}
+                transition={{ delay: 0.08, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
                 <div
                   {...getRootProps()}
@@ -827,9 +827,9 @@ export default function HomePage() {
                 style={{ borderColor: 'var(--border)' }}
                 whileHover={{ scale: 1.01, borderColor: 'var(--accent)' }}
                 onClick={() => navigate('/join')}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                initial={{ y: 10 }}
+                animate={{ y: 0 }}
+                transition={{ delay: 0.15 }}
               >
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)' }}>
                   <Clipboard size={18} style={{ color: 'var(--accent)' }} />
@@ -843,9 +843,9 @@ export default function HomePage() {
 
               {/* Features grid */}
               <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
+                initial={{ y: 10 }}
+                animate={{ y: 0 }}
+                transition={{ delay: 0.2 }}
               >
                 <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-4)' }}>Why SwiftShare</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -853,9 +853,9 @@ export default function HomePage() {
                     <motion.div
                       key={title}
                       className="surface-card-flat p-3 group"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 + idx * 0.05 }}
+                      initial={{ y: 6 }}
+                      animate={{ y: 0 }}
+                      transition={{ delay: 0.22 + idx * 0.04 }}
                     >
                       <Icon size={16} className="mb-1.5" style={{ color: 'var(--accent)' }} />
                       <p className="text-xs font-bold" style={{ color: 'var(--text)' }}>{title}</p>
@@ -876,9 +876,9 @@ export default function HomePage() {
               {/* How it works */}
               <motion.div
                 className="surface-card p-5"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+                initial={{ y: 10 }}
+                animate={{ y: 0 }}
+                transition={{ delay: 0.3 }}
               >
                 <h3 className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-4)' }}>How it works</h3>
                 <div className="space-y-4">
