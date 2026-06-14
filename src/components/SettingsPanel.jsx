@@ -74,9 +74,9 @@ export default function SettingsPanel({ open, onClose }) {
   }
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence>
       {open && (
-        <>
+        <React.Fragment key="settings-modal">
           {/* Backdrop */}
           <motion.div
             className="fixed inset-0 z-[60]"
@@ -336,7 +336,7 @@ export default function SettingsPanel({ open, onClose }) {
               </div>
             </div>
           </motion.div>
-        </>
+        </React.Fragment>
       )}
     </AnimatePresence>
   )

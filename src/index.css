@@ -612,6 +612,11 @@ body.reduce-motion *::after {
   50% { opacity: 0.2; }
 }
 
+@keyframes ss-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 @keyframes countdown-pulse-ring {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
   50% { transform: translate3d(0, 0, 0) scale(1.04); opacity: 0.85; }

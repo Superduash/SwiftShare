@@ -439,9 +439,6 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
         pointerEvents: 'none',
         overflow: 'hidden',
         zIndex: 0,
-        contain: 'layout style paint',
-        isolation: 'isolate',
-        background: 'transparent',
       }}
     >
       <Scene />

@@ -1,84 +1,69 @@
-import React, { memo } from 'react'
-import { motion } from 'framer-motion'
-import { formatSpeed } from '../utils/format'
-import Spinner from './Spinner'
+import React from 'react';
+import { motion } from 'framer-motion';
 
-// Plain CSS-driven width transition. framer-motion was creating a fresh
-// width animation on every progress prop change, which on fast uploads
-// (10+ updates/sec) produced visible jitter as animations interrupted each
-// other. A linear CSS transition is GPU-cheap and renders smoothly even
-// on low-end mobile.
-function ProgressBarBase({
-  percent = 0,
-  speed = 0,
-  label = 'Uploading',
-  showSpeed = true,
-  indeterminate = false,
-}) {
-  const pct = Math.max(0, Math.min(100, Number(percent) || 0))
-
+export default function ProgressBar({ percent = 0, speed = 0, label = 'Uploading...', showSpeed = true }) {
+  const speedMB = (speed / (1024 * 1024)).toFixed(1);
+  const clampedPercent = Math.max(0, Math.min(100, percent));
+  
+  // Convert percentage to 0.0 - 1.0 scale for GPU transforms
+  const scaleX = clampedPercent / 100;
+  
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--text-2)' }}>
-          {indeterminate && <Spinner size={12} style={{ color: 'var(--accent)' }} />}
+      <div className="flex justify-between items-end mb-2">
+        <span className="text-sm font-medium tracking-wide" style={{ color: 'var(--text)' }}>
           {label}
         </span>
-        {!indeterminate && (
-          <span className="text-xs font-mono font-medium tabular-nums" style={{ color: 'var(--accent)' }}>
-            {Math.round(pct)}%
-          </span>
-        )}
+        <div className="text-right">
+          <motion.span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+            {Math.round(clampedPercent)}%
+          </motion.span>
+          {showSpeed && speed > 0 && (
+            <motion.span 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-xs ml-2 tabular-nums" 
+              style={{ color: 'var(--text-3)' }}
+            >
+              ({speedMB} MB/s)
+            </motion.span>
+          )}
+        </div>
       </div>
-      <div
-        className="h-2.5 rounded-full overflow-hidden relative"
-        style={{ background: 'var(--progress-track)' }}
+      
+      {/* Container with overflow-hidden to cleanly clip the scaling bar */}
+      <div 
+        className="h-2 w-full rounded-full relative overflow-hidden"
+        style={{ background: 'var(--border)', transform: 'translateZ(0)' }}
       >
-        {indeterminate ? (
-          // Finalizing: full-width bar that pulses opacity — communicates
-          // "almost done, server is finishing up" without the jitter of a
-          // bouncing indicator. Feels premium and intentional on mobile.
-          <motion.div
-            className="h-full rounded-full w-full"
-            style={{
-              background: 'var(--progress-fill)',
-              boxShadow: '0 0 8px var(--progress-glow)',
-            }}
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        ) : (
-          <div
-            className="h-full rounded-full will-change-[width]"
-            style={{
-              width: `${pct}%`,
-              background: 'var(--progress-fill)',
-              boxShadow: '0 0 8px var(--progress-glow)',
-              transition: 'width 250ms linear',
-            }}
-            role="progressbar"
-            aria-valuenow={Math.round(pct)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          />
-        )}
+        {/* Main Progress Fill - GPU Accelerated */}
+        <motion.div
+          className="absolute top-0 left-0 bottom-0 origin-left"
+          style={{ 
+            background: 'var(--progress-fill, var(--accent))',
+            width: '100%',
+            willChange: 'transform'
+          }}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX }}
+          transition={{ 
+            type: 'tween',
+            ease: 'easeOut',
+            duration: 0.3
+          }}
+        />
+        
+        {/* Continuous Active Shimmer Effect */}
+        <motion.div
+          className="absolute top-0 bottom-0 left-0 origin-left pointer-events-none mix-blend-overlay"
+          style={{
+            width: '100%',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+          }}
+          animate={{ x: ['-100%', '100%'] }}
+          transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+        />
       </div>
-      {showSpeed && speed > 0 && !indeterminate && (
-        <p className="text-[11px] mt-1 text-right tabular-nums" style={{ color: 'var(--text-4)' }}>
-          {formatSpeed(speed)}
-        </p>
-      )}
     </div>
-  )
+  );
 }
-
-// Memoized: ProgressBar is rendered inside parents that re-render on every
-// state tick. Without memo it re-renders even when percent didn't actually
-// change (e.g. when sibling state updates).
-export default memo(ProgressBarBase, (prev, next) => (
-  Math.round(prev.percent) === Math.round(next.percent)
-  && prev.speed === next.speed
-  && prev.label === next.label
-  && prev.indeterminate === next.indeterminate
-  && prev.showSpeed === next.showSpeed
-))

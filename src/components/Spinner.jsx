@@ -1,40 +1,49 @@
 import React from 'react';
 
 /**
- * A lightweight, theme-independent loading spinner.
- * Uses `currentColor` to automatically inherit the text color of its parent container,
- * ensuring perfect visibility across light, dark, and custom themes.
+ * Highly optimized, hardware-accelerated Spinner.
+ * Uses a dedicated wrapper for rotation to prevent SVG painting jitter.
  */
-const Spinner = ({ size = 24, className = '', ...props }) => {
+const Spinner = ({ size = 24, className = '', style, ...props }) => {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={`animate-spin ${className}`}
+    <span
+      className={`inline-block ${className}`}
+      style={{
+        width: size,
+        height: size,
+        animation: 'ss-spin 0.8s linear infinite',
+        willChange: 'transform',
+        transform: 'translateZ(0)',
+        ...style
+      }}
       role="status"
       aria-label="Loading..."
       {...props}
     >
-      {/* Background Track (Subtle) */}
-      <circle
-        cx="12"
-        cy="12"
-        r="10"
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
         stroke="currentColor"
-        strokeWidth="3"
-        strokeOpacity="0.2"
-      />
-      {/* Active Spinning Arch */}
-      <path
-        d="M12 2C6.47715 2 2 6.47715 2 12"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ display: 'block' }}
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          strokeOpacity="0.2"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <path
+          d="M12 2C6.47715 2 2 6.47715 2 12"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+      </svg>
+    </span>
   );
 };
 
