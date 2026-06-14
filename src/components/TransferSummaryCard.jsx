@@ -23,7 +23,7 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
             {isTextShare ? 'Text snippet shared' : 'Files ready to download'}
           </h3>
           <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
-            {fileCount} {fileCount === 1 ? 'item' : 'items'} \u00b7 {formatBytes(meta.totalSize || 0)}
+            {fileCount} {fileCount === 1 ? 'item' : 'items'} · {formatBytes(meta.totalSize || 0)}
           </p>
         </div>
         <div 
@@ -41,7 +41,7 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
             <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-4)' }}>Status</span>
           </div>
           <span className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>
-            {meta.status === 'ACTIVE' ? 'Available' : meta.status}
+            {!meta.status || meta.status === 'ACTIVE' ? 'Available' : meta.status}
           </span>
         </div>
         

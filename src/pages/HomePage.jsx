@@ -408,6 +408,23 @@ export default function HomePage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [uploading])
 
+  // Animate the remaining 20% during 'finalizing' phase (server-side processing/R2 upload)
+  useEffect(() => {
+    if (uploadPhase !== 'finalizing' || !uploading) return
+    let active = true
+    const iv = setInterval(() => {
+      if (!active) return
+      setUploadPercent(prev => {
+        if (prev >= 99) return 99
+        return prev + (99 - prev) * 0.1
+      })
+    }, 200)
+    return () => {
+      active = false
+      clearInterval(iv)
+    }
+  }, [uploadPhase, uploading])
+
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
     if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
@@ -473,9 +490,9 @@ export default function HomePage() {
           const loaded = Number(info?.loaded) || 0
           if (!total) return
 
-          // Cap visible bar at 99% until the server response confirms finalization
-          // (the last few % is server-side R2 finalization which the client can't see).
-          const visiblePct = Math.min(99, (loaded / total) * 100)
+          // Cap visible bar at 80% for network transfer. The remaining 20%
+          // is reserved for the 'finalizing' phase (R2 upload on backend).
+          const visiblePct = Math.min(80, (loaded / total) * 80)
 
           const now = Date.now()
           const sample = speedSampleRef.current
