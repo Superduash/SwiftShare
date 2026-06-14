@@ -408,22 +408,7 @@ export default function HomePage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [uploading])
 
-  // Animate the remaining 20% during 'finalizing' phase (server-side processing/R2 upload)
-  useEffect(() => {
-    if (uploadPhase !== 'finalizing' || !uploading) return
-    let active = true
-    const iv = setInterval(() => {
-      if (!active) return
-      setUploadPercent(prev => {
-        if (prev >= 99) return 99
-        return prev + (99 - prev) * 0.1
-      })
-    }, 200)
-    return () => {
-      active = false
-      clearInterval(iv)
-    }
-  }, [uploadPhase, uploading])
+
 
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
@@ -490,9 +475,8 @@ export default function HomePage() {
           const loaded = Number(info?.loaded) || 0
           if (!total) return
 
-          // Cap visible bar at 80% for network transfer. The remaining 20%
-          // is reserved for the 'finalizing' phase (R2 upload on backend).
-          const visiblePct = Math.min(80, (loaded / total) * 80)
+          // Exact 0-100% network transfer representation
+          const visiblePct = Math.min(100, (loaded / total) * 100)
 
           const now = Date.now()
           const sample = speedSampleRef.current
