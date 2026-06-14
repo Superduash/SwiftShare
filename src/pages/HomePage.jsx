@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
 import {
-  Upload, Plus, X, Flame, Shield, Zap, Clock, Cpu, QrCode,
+  Upload, Plus, X, Flame, Shield, Zap, Clock, QrCode,
   ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -31,7 +31,6 @@ const FEATURES = [
   { icon: Shield, title: 'No Sign-Up', desc: 'Share without accounts' },
   { icon: Clock, title: 'Self-Destruct', desc: 'Gone when the timer ends' },
   { icon: Flame, title: 'Burn Mode', desc: 'Vanishes after one grab' },
-  { icon: Cpu, title: 'AI Insights', desc: 'Understands your files' },
   { icon: QrCode, title: 'QR Codes', desc: 'Point, scan, done' },
   { icon: Zap, title: 'Live Updates', desc: 'Real-time progress' },
 ]
@@ -155,7 +154,6 @@ export default function HomePage() {
       expiresAt: transferSnapshot?.expiresAt,
       createdAt: transferSnapshot?.createdAt,
       files: transferSnapshot?.files,
-      ai: transferSnapshot?.ai,
       transfer: transferSnapshot,
     })
 
@@ -291,7 +289,6 @@ export default function HomePage() {
         expiresAt: transferSnapshot?.expiresAt,
         createdAt: transferSnapshot?.createdAt,
         files: transferSnapshot?.files,
-        ai: transferSnapshot?.ai,
         transfer: transferSnapshot,
       })
 

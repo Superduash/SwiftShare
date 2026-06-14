@@ -4,7 +4,6 @@ const KEYS = {
   THEME: 'swiftshare_theme',
   PWA_DISMISSED: 'swiftshare_pwa_dismissed',
   TRANSFER_PREFIX: 'transfer_',
-  AI_PREFIX: 'ai_',
 }
 
 const MAX_RECENT_TRANSFERS = 10;
@@ -18,10 +17,7 @@ function transferKey(code) {
   return normalized ? `${KEYS.TRANSFER_PREFIX}${normalized}` : ''
 }
 
-function aiKey(code) {
-  const normalized = normalizeCode(code)
-  return normalized ? `${KEYS.AI_PREFIX}${normalized}` : ''
-}
+
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -123,9 +119,7 @@ export function mergeTransferData(prevData, nextData) {
   merged.code = normalizeCode(nextSafe.code || prevSafe.code)
   merged.files = mergeFiles(prevSafe.files, nextSafe.files)
 
-  if (!nextSafe.ai && prevSafe.ai) {
-    merged.ai = prevSafe.ai
-  }
+
 
   const nextTotal = toPositiveNumber(nextSafe.totalSize)
   const prevTotal = toPositiveNumber(prevSafe.totalSize)
@@ -169,7 +163,7 @@ function evictOldestCacheEntries() {
     const entries = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.startsWith(KEYS.TRANSFER_PREFIX) || key.startsWith(KEYS.AI_PREFIX))) {
+      if (key && key.startsWith(KEYS.TRANSFER_PREFIX)) {
         try {
           const parsed = JSON.parse(localStorage.getItem(key));
           entries.push({ key, savedAt: parsed?.savedAt ? new Date(parsed.savedAt).getTime() : 0 });
@@ -228,26 +222,8 @@ export function removeCachedTransfer(code) {
   try { localStorage.removeItem(key) } catch {}
 }
 
-export function getCachedAI(code) {
-  const key = aiKey(code)
-  if (!key) return null
-  return safeGet(key, null)
-}
-
-export function saveCachedAI(code, aiData) {
-  const normalizedCode = normalizeCode(code)
-  if (!normalizedCode || !aiData) return
-  safeSet(aiKey(normalizedCode), aiData)
-}
-
-export function removeCachedAI(code) {
-  const key = aiKey(code)
-  if (!key) return
-  try { localStorage.removeItem(key) } catch {}
-}
-
 // ── Cache expiration cleanup ───────────────
-// Runs once on module load to evict stale transfer/AI cache entries.
+// Runs once on module load to evict stale transfer cache entries.
 // Prevents localStorage from growing unboundedly on devices that share many files.
 function cleanExpiredCache() {
   try {
@@ -256,7 +232,7 @@ function cleanExpiredCache() {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
       if (!key) continue
-      if (!key.startsWith(KEYS.TRANSFER_PREFIX) && !key.startsWith(KEYS.AI_PREFIX)) continue
+      if (!key.startsWith(KEYS.TRANSFER_PREFIX)) continue
       try {
         const raw = localStorage.getItem(key)
         if (!raw) continue
@@ -297,7 +273,6 @@ export function getRecentTransfers() {
   _recentCache = safeGet(KEYS.RECENT, []).map((entry) => {
     const normalizedCode = normalizeCode(entry?.code)
     const cachedTransfer = getCachedTransfer(normalizedCode)
-    const cachedAI = getCachedAI(normalizedCode)
     const mergedTransfer = mergeTransferData(entry?.transfer || entry, cachedTransfer)
     const isSender = Boolean(
       entry?.isSender === true
@@ -314,7 +289,6 @@ export function getRecentTransfers() {
       role: isSender ? 'sender' : 'receiver',
       transfer: mergedTransfer || entry?.transfer || null,
       files: Array.isArray(mergedTransfer?.files) ? mergedTransfer.files : (Array.isArray(entry?.files) ? entry.files : []),
-      ai: cachedAI || mergedTransfer?.ai || entry?.ai || null,
       filename: entry?.filename || mergedTransfer?.files?.[0]?.name || normalizedCode,
     }
   }).filter((entry) => Boolean(entry?.code));
@@ -342,12 +316,6 @@ export function saveTransfer(entry) {
   const transferPayload = transferSource ? { ...transferSource, isSender: shouldKeepSender, role } : null
   const mergedTransfer = transferPayload ? saveCachedTransfer(normalizedCode, transferPayload) : getCachedTransfer(normalizedCode)
 
-  const aiFromEntry = entry?.ai || transferSource?.ai || null
-  if (aiFromEntry) {
-    saveCachedAI(normalizedCode, aiFromEntry)
-  }
-
-  const aiSnapshot = aiFromEntry || getCachedAI(normalizedCode) || mergedTransfer?.ai || null
   const filesSnapshot = Array.isArray(mergedTransfer?.files) && mergedTransfer.files.length
     ? mergedTransfer.files
     : (Array.isArray(entry?.files) ? entry.files : [])
@@ -363,7 +331,6 @@ export function saveTransfer(entry) {
     status: entry?.status || mergedTransfer?.status,
     expiresAt: entry?.expiresAt || mergedTransfer?.expiresAt,
     createdAt: entry?.createdAt || mergedTransfer?.createdAt,
-    ai: aiSnapshot,
     transfer: mergedTransfer ? { ...mergedTransfer, isSender: shouldKeepSender, role } : mergedTransfer,
     savedAt: new Date().toISOString(),
   })
@@ -375,7 +342,6 @@ export function removeTransfer(code) {
   const list = getRecentTransfers().filter(t => t.code !== normalizedCode)
   safeSet(KEYS.RECENT, list)
   removeCachedTransfer(normalizedCode)
-  removeCachedAI(normalizedCode)
 }
 export function updateTransferStatus(code, status) {
   const normalizedCode = normalizeCode(code)
@@ -393,7 +359,6 @@ export function clearTransfers() {
   invalidateRecentCache();
   localStorage.removeItem(KEYS.RECENT)
   clearPrefix(KEYS.TRANSFER_PREFIX)
-  clearPrefix(KEYS.AI_PREFIX)
   // Dispatch custom event for same-tab updates
   window.dispatchEvent(new Event('swiftshare:transfers-cleared'))
 }

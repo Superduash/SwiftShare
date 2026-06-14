@@ -13,8 +13,6 @@ import {
   getSettings,
   getCachedTransfer,
   saveCachedTransfer,
-  getCachedAI,
-  saveCachedAI,
   mergeTransferData,
 } from '../utils/storage'
 
@@ -78,7 +76,6 @@ import { playDownloadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
-import AISummaryCard from '../components/AISummaryCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
 import ErrorState from '../components/ErrorState'
@@ -109,11 +106,8 @@ export default function DownloadPage() {
   const { socket, joinRoom, leaveRoom, rejoinRoom } = useSocket()
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
-  const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
 
   const [meta, setMeta] = useState(initialCachedTransfer)
-  const [ai, setAi] = useState(initialCachedAI)
-  const [aiLoading, setAiLoading] = useState(!initialCachedAI)
   const [secondsRemaining, setSecondsRemaining] = useState(() => {
     const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
     if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
@@ -228,7 +222,6 @@ export default function DownloadPage() {
         expiresAt: persisted?.expiresAt,
         createdAt: persisted?.createdAt,
         files: persisted?.files,
-        ai: persisted?.ai || getCachedAI(normalizedCode) || null,
         transfer: persisted,
       })
 
@@ -272,15 +265,6 @@ export default function DownloadPage() {
       setPreviewSrc(null)
     }
 
-    const aiPayload = merged.ai || getCachedAI(normalizedCode) || null
-    if (aiPayload) {
-      setAi(aiPayload)
-      setAiLoading(false)
-      saveCachedAI(normalizedCode, aiPayload)
-    } else {
-      setAiLoading(false)
-    }
-
     if (persist) {
       const persisted = saveCachedTransfer(normalizedCode, merged) || merged
       saveTransfer({
@@ -291,7 +275,6 @@ export default function DownloadPage() {
         expiresAt: persisted?.expiresAt,
         createdAt: persisted?.createdAt,
         files: persisted?.files,
-        ai: aiPayload || persisted?.ai || null,
         transfer: persisted,
       })
     }
@@ -410,7 +393,6 @@ export default function DownloadPage() {
       : null
 
     const cachedTransfer = getCachedTransfer(normalizedCode)
-    const cachedAi = getCachedAI(normalizedCode)
     const seed = mergeTransferData(cachedTransfer, navTransfer)
 
     if (seed) {
@@ -423,22 +405,10 @@ export default function DownloadPage() {
       }
     }
 
-    if (cachedAi) {
-      setAi(cachedAi)
-      setAiLoading(false)
-    }
-
     const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
-    const hasCachedAi = Boolean(cachedAi || seed?.ai)
 
-    if (hasUsableCache && hasCachedAi) {
+    if (hasUsableCache) {
       return
-    }
-
-    // If we have cached files but no AI yet, keep the loading shimmer visible
-    // while we refetch metadata to pick up AI that may have completed since last visit
-    if (hasUsableCache && !hasCachedAi) {
-      setAiLoading(true)
     }
 
     setRetryAttempt(0)
@@ -509,26 +479,6 @@ export default function DownloadPage() {
 
     connectRoom()
     
-    // AI loading timeout - fail fast so the UI surfaces an error quickly.
-    let aiTimeoutId = null
-    if (aiLoading) {
-      aiTimeoutId = setTimeout(() => {
-        if (mountedRef.current) {
-          setAiLoading(false)
-          // Set a fallback AI state to show unavailable message
-          const fallbackAi = {
-            warning: 'AI analysis timed out after 15 seconds',
-            error: 'AI analysis timed out after 15 seconds',
-            summary: null,
-            category: null,
-            files: [],
-          }
-          setAi(fallbackAi)
-          saveCachedAI(normalizedCode, fallbackAi)
-        }
-      }, 15000)
-    }
-
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
     // Local timer to update countdown every second (interpolate between server ticks).
@@ -546,43 +496,6 @@ export default function DownloadPage() {
       setTransferStatus('EXPIRED')
       setSecondsRemaining(0)
       patchCachedTransfer({ status: 'EXPIRED', secondsRemaining: 0 })
-    }
-    const onAi = (data) => {
-      // Always stop loading, even if data is null or has warning
-      setAiLoading(false)
-      
-      if (!data) {
-        // No data received, keep existing AI or show fallback
-        return
-      }
-
-      if (data.aiDisabled) {
-        setAi(data)
-        saveCachedAI(normalizedCode, data)
-        patchCachedTransfer({ ai: data })
-        return
-      }
-      
-      // Check if this is an unavailable/error response
-      if (data.warning && !data.summary && !data.category) {
-        // AI service unavailable - save the warning state
-        const fallbackAi = {
-          warning: data.warning,
-          error: data.error || data.warning,
-          summary: null,
-          category: null,
-          files: [],
-        }
-        setAi(fallbackAi)
-        saveCachedAI(normalizedCode, fallbackAi)
-        patchCachedTransfer({ ai: fallbackAi })
-        return
-      }
-      
-      // Valid AI data received
-      setAi(data)
-      saveCachedAI(normalizedCode, data)
-      patchCachedTransfer({ ai: data })
     }
     // RAF-coalesce socket-driven download progress. Backend now throttles emits
     // to ~5/sec, but on a fast LAN we can still get bursty updates that would
@@ -667,7 +580,6 @@ export default function DownloadPage() {
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
     socket.on('transfer-expired', onExpired)
-    socket.on('ai-ready', onAi)
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-cancelled', onCancelled)
@@ -676,9 +588,6 @@ export default function DownloadPage() {
     socket.on('transfer-receipt', onReceipt)
 
     return () => {
-      if (aiTimeoutId) {
-        clearTimeout(aiTimeoutId)
-      }
       if (localTimerId) {
         clearInterval(localTimerId)
         localTimerId = null
@@ -686,7 +595,6 @@ export default function DownloadPage() {
       socket.off('connect', connectRoom)
       socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)
-      socket.off('ai-ready', onAi)
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-cancelled', onCancelled)
@@ -701,7 +609,7 @@ export default function DownloadPage() {
       }
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, joinRoom, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, aiLoading])
+  }, [socket, normalizedCode, joinRoom, rejoinRoom, leaveRoom, navigate, patchCachedTransfer])
 
   // Password verification
   async function handlePasswordSubmit(e) {
@@ -1171,29 +1079,6 @@ export default function DownloadPage() {
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* AI Summary */}
-          <div className="mt-6">
-            {needsPassword && !passwordVerified ? (
-              <motion.div
-                className="surface-card p-5 text-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--accent-soft)' }}>
-                  <Lock size={20} style={{ color: 'var(--accent)' }} />
-                </div>
-                <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-2)' }}>
-                  AI Summary Locked
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-                  AI summary is disabled for password-protected files
-                </p>
-              </motion.div>
-            ) : (
-              <AISummaryCard ai={ai} loading={aiLoading} />
-            )}
-          </div>
         </div>
       </main>
     </div>

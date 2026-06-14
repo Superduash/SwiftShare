@@ -72,7 +72,7 @@ function CountdownRingBase({ secondsRemaining = 0, totalSeconds = 600, size = 12
 }
 
 // Memoized: the ring re-renders once per second from countdown-tick events,
-// but parents may re-render more often (download progress, AI updates, etc).
+// but parents may re-render more often (download progress, updates, etc).
 // Comparing on rounded seconds prevents redundant SVG path recalculation.
 export default memo(CountdownRingBase, (prev, next) => (
   Math.round(prev.secondsRemaining) === Math.round(next.secondsRemaining)

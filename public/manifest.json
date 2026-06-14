@@ -1,7 +1,7 @@
 {
   "name": "SwiftShare",
   "short_name": "SwiftShare",
-  "description": "Fast, secure file sharing with AI-powered insights",
+  "description": "Fast, secure file sharing with temporary links and burn-after-reading mode",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

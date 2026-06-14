@@ -102,7 +102,7 @@ function Navbar() {
                 onClick={toggleSunriseMode}
                 aria-label={isSunset ? 'Switch to Sunrise mode' : 'Switch to Sunset mode'}
                 title={isSunset ? 'Sunrise' : 'Sunset'}
-                style={{ marginRight: '2px' }}
+                style={{ marginRight: '2px', position: 'relative', zIndex: 1000 }}
               >
                 {isSunset ? (
                   <Sun size={16} style={{ color: 'var(--accent)' }} />
@@ -115,7 +115,7 @@ function Navbar() {
             {/* Connection status pill */}
             <div
               className="flex items-center gap-1.5 px-2 py-1 mr-1 rounded-lg transition-colors"
-              style={{ background: tone.bg }}
+              style={{ background: tone.bg, position: 'relative', zIndex: 1000 }}
               title={`${pill.label} — ${status}`}
               role="status"
               aria-label={pill.label}
@@ -138,6 +138,7 @@ function Navbar() {
               className="btn-icon"
               onClick={openSettings}
               aria-label="Open settings"
+              style={{ position: 'relative', zIndex: 1000, pointerEvents: 'auto' }}
             >
               <Settings size={18} />
             </button>

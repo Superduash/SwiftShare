@@ -19,8 +19,6 @@ import {
 import {
   getCachedTransfer,
   saveCachedTransfer,
-  getCachedAI,
-  saveCachedAI,
   mergeTransferData,
   saveTransfer,
   updateTransferStatus,
@@ -80,7 +78,6 @@ import Navbar from '../components/Navbar'
 import StatusBanner from '../components/StatusBanner'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
-import AISummaryCard from '../components/AISummaryCard'
 import ActivityLog from '../components/ActivityLog'
 import ProgressBar from '../components/ProgressBar'
 import ErrorState from '../components/ErrorState'
@@ -113,12 +110,9 @@ export default function SenderPage() {
   const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
-  const initialCachedAI = getCachedAI(normalizedCode) || initialCachedTransfer?.ai || null
 
   const [meta, setMeta] = useState(initialCachedTransfer)
   const [activity, setActivity] = useState([])
-  const [ai, setAi] = useState(initialCachedAI)
-  const [aiLoading, setAiLoading] = useState(!initialCachedAI)
   const [secondsRemaining, setSecondsRemaining] = useState(() => {
     const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
     if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
@@ -228,7 +222,6 @@ export default function SenderPage() {
         expiresAt: persisted?.expiresAt,
         createdAt: persisted?.createdAt,
         files: persisted?.files,
-        ai: persisted?.ai || getCachedAI(normalizedCode) || null,
         transfer: persisted,
       })
 
@@ -263,15 +256,6 @@ export default function SenderPage() {
       : 600
     setTotalSeconds(Math.max(sessionDuration, 60))
 
-    const aiPayload = merged.ai || getCachedAI(normalizedCode) || null
-    if (aiPayload) {
-      setAi(aiPayload)
-      setAiLoading(false)
-      saveCachedAI(normalizedCode, aiPayload)
-    } else {
-      setAiLoading(false)
-    }
-
     if (persist) {
       const persisted = saveCachedTransfer(normalizedCode, merged) || merged
       saveTransfer({
@@ -282,7 +266,6 @@ export default function SenderPage() {
         expiresAt: persisted?.expiresAt,
         createdAt: persisted?.createdAt,
         files: persisted?.files,
-        ai: aiPayload || persisted?.ai || null,
         transfer: persisted,
       })
     }
@@ -300,7 +283,6 @@ export default function SenderPage() {
       : null
 
     const cachedTransfer = getCachedTransfer(normalizedCode)
-    const cachedAi = getCachedAI(normalizedCode)
     const seed = mergeTransferData(cachedTransfer, navTransfer)
 
     if (seed) {
@@ -311,11 +293,6 @@ export default function SenderPage() {
         setTextContent(seed.text.content)
         setTextLoading(false)
       }
-    }
-
-    if (cachedAi) {
-      setAi(cachedAi)
-      setAiLoading(false)
     }
 
     const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
@@ -457,26 +434,6 @@ export default function SenderPage() {
 
     connectRoom()
     
-    // AI loading timeout - fail fast so the UI surfaces an error quickly.
-    let aiTimeoutId = null
-    if (aiLoading) {
-      aiTimeoutId = setTimeout(() => {
-        if (mountedRef.current) {
-          setAiLoading(false)
-          // Set a fallback AI state to show unavailable message
-          const fallbackAi = {
-            warning: 'AI analysis timed out after 15 seconds',
-            error: 'AI analysis timed out after 15 seconds',
-            summary: null,
-            category: null,
-            files: [],
-          }
-          setAi(fallbackAi)
-          saveCachedAI(normalizedCode, fallbackAi)
-        }
-      }, 15000)
-    }
-
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
     // Local timer to update countdown every second (interpolate between server ticks).
@@ -494,43 +451,6 @@ export default function SenderPage() {
       if (!mountedRef.current) return
       updateTransferStatus(normalizedCode, 'EXPIRED')
       navigate('/expired?reason=expired', { replace: true })
-    }
-    const onAi = (data) => {
-      // Always stop loading, even if data is null or has warning
-      setAiLoading(false)
-      
-      if (!data) {
-        // No data received, keep existing AI or show fallback
-        return
-      }
-
-      if (data.aiDisabled) {
-        setAi(data)
-        saveCachedAI(normalizedCode, data)
-        patchCachedTransfer({ ai: data })
-        return
-      }
-      
-      // Check if this is an unavailable/error response
-      if (data.warning && !data.summary && !data.category) {
-        // AI service unavailable - save the warning state
-        const fallbackAi = {
-          warning: data.warning,
-          error: data.error || data.warning,
-          summary: null,
-          category: null,
-          files: [],
-        }
-        setAi(fallbackAi)
-        saveCachedAI(normalizedCode, fallbackAi)
-        patchCachedTransfer({ ai: fallbackAi })
-        return
-      }
-      
-      // Valid AI data received
-      setAi(data)
-      saveCachedAI(normalizedCode, data)
-      patchCachedTransfer({ ai: data })
     }
     // RAF-coalesce: percent updates can land faster than React renders,
     // especially on multi-receiver downloads where each percent is broadcast.
@@ -600,7 +520,6 @@ export default function SenderPage() {
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
     socket.on('transfer-expired', onExpired)
-    socket.on('ai-ready', onAi)
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-receipt', onReceipt)
@@ -638,9 +557,6 @@ export default function SenderPage() {
     document.addEventListener('visibilitychange', onVisibilityChange)
 
     return () => {
-      if (aiTimeoutId) {
-        clearTimeout(aiTimeoutId)
-      }
       if (localTimerId) {
         clearInterval(localTimerId)
         localTimerId = null
@@ -648,7 +564,6 @@ export default function SenderPage() {
       socket.off('connect', connectRoom)
       socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)
-      socket.off('ai-ready', onAi)
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-receipt', onReceipt)
@@ -664,7 +579,7 @@ export default function SenderPage() {
       }
       leaveRoom(normalizedCode)
     }
-  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh, aiLoading])
+  }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh])
 
   // Copy helpers
   const copyCode = useCallback(() => {
@@ -1250,9 +1165,6 @@ export default function SenderPage() {
                   <ProgressBar percent={downloadProgress} label="Someone is downloading..." showSpeed={false} />
                 </motion.div>
               )}
-
-              {/* AI Summary */}
-              <AISummaryCard ai={ai} loading={aiLoading} />
 
               {/* Activity */}
               <ActivityLog activity={activity} />

@@ -112,7 +112,6 @@ export default function JoinPage() {
           expiresAt: data?.expiresAt,
           createdAt: data?.createdAt,
           files: data?.files,
-          ai: data?.ai || null,
           transfer: { ...data, code: normalizedCode },
         })
         navigate(`/download/${normalizedCode}`, { state: { transferData: { ...data, code: normalizedCode } } })

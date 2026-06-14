@@ -74,27 +74,28 @@ export default function SettingsPanel({ open, onClose }) {
   }
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {open && (
         <>
           {/* Backdrop */}
           <motion.div
             className="fixed inset-0 z-[60]"
-            style={{ background: 'rgba(0,0,0,0.3)' }}
+            style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={onClose}
           />
 
           {/* Panel */}
           <motion.div
             className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-sm overflow-y-auto"
-            style={{ background: 'var(--settings-bg)', borderLeft: '1px solid var(--border)' }}
+            style={{ background: 'var(--settings-bg)', borderLeft: '1px solid var(--border)', willChange: 'transform' }}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
+            transition={{ type: 'tween', duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
           >
             <div className="p-6">
               {/* Header */}
@@ -318,7 +319,7 @@ export default function SettingsPanel({ open, onClose }) {
                   No accounts, no permanent storage, no tracking.
                 </p>
                 <p className="text-xs mt-2" style={{ color: 'var(--text-4)' }}>
-                  Built with React, Node.js, Cloudflare R2, MongoDB, and Gemini AI.
+                  Built with React, Node.js, Cloudflare R2, and MongoDB.
                 </p>
               </div>
             </div>
