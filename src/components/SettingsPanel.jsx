@@ -13,8 +13,8 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
-  { value: 'sunset',      label: 'Sunset',       color: '#C85A10',  light: false },
-  { value: 'sunrise',     label: 'Sunrise',      color: '#F07020',  light: false },
+  { value: 'sunset', label: 'Sunset', color: '#C85A10', light: false },
+  { value: 'sunrise', label: 'Sunrise', color: '#F07020', light: false },
   { value: 'dark', label: 'Dark', color: '#1A1A1E', light: false },
   { value: 'light', label: 'Light', color: '#F0F0F2', light: true },
   { value: 'midnight', label: 'Midnight', color: '#1440A0', light: false },
@@ -50,7 +50,7 @@ export default function SettingsPanel({ open, onClose }) {
     const next = { ...settings, ...patch }
     setSettings(next)
     saveSettings(patch)
-    
+
     // Force re-render of AmbientBackground when reducedMotion changes
     if ('reducedMotion' in patch) {
       window.dispatchEvent(new CustomEvent('swiftshare:settings-changed'))
@@ -143,8 +143,8 @@ export default function SettingsPanel({ open, onClose }) {
                             className="w-12 h-12 rounded-full transition-all"
                             style={{
                               background: opt.color,
-                              boxShadow: isActive 
-                                ? `inset 0 0 0 1px var(--border-strong), 0 0 0 3px var(--accent-soft)` 
+                              boxShadow: isActive
+                                ? `inset 0 0 0 1px var(--border-strong), 0 0 0 3px var(--accent-soft)`
                                 : `inset 0 0 0 1px var(--border-strong)`,
                               // Force hardware anti-aliasing for smooth rounded edges
                               outline: '1px solid transparent',
@@ -215,10 +215,10 @@ export default function SettingsPanel({ open, onClose }) {
                     <Activity size={16} style={{ color: 'var(--text-3)' }} />
                     <div className="flex-1 text-left">
                       <p className="text-sm font-medium" style={{ color: 'var(--text-2)' }}>
-                        Optimize in one-click
+                        Reduce Motion
                       </p>
                       <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-                        Max performance for low-end devices
+                        Optimize in one-click!
                       </p>
                     </div>
                     <div
