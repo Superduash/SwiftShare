@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { getErrorInfo } from '../utils/errors'
 
-function ErrorState({ code, title, description, action, onAction, onRetry, autoRetry = false }) {
+function ErrorState({ code, title, description, action, onAction, onRetry, autoRetry = false, hideAction = false }) {
   const navigate = useNavigate()
   const info = code ? getErrorInfo(code) : null
   const Icon = info?.icon
@@ -78,13 +78,15 @@ function ErrorState({ code, title, description, action, onAction, onRetry, autoR
       )}
       <h2 className="font-display font-bold text-xl mb-2" style={{ color: 'var(--text)' }}>{displayTitle}</h2>
       <p className="text-sm max-w-xs mx-auto mb-6" style={{ color: 'var(--text-3)' }}>{displayDesc}</p>
-      <button
-        className="btn-primary mx-auto"
-        onClick={handleAction}
-        disabled={retrying}
-      >
-        {retrying ? 'Retrying...' : displayAction}
-      </button>
+      {!hideAction && (
+        <button
+          className="btn-primary mx-auto"
+          onClick={handleAction}
+          disabled={retrying}
+        >
+          {retrying ? 'Retrying...' : displayAction}
+        </button>
+      )}
       {countdown > 0 && (
         <p className="text-xs mt-3" style={{ color: 'var(--text-4)' }}>
           Auto-retrying in {countdown}s...

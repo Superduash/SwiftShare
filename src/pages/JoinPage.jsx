@@ -285,6 +285,7 @@ export default function JoinPage() {
                   if (code.length === CODE_LENGTH) void handleSubmit(code)
                 }}
                 autoRetry={true}
+                hideAction={true}
               />
             </motion.div>
           )}
