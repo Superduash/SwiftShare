@@ -79,7 +79,7 @@ function getApiBaseUrl() {
 
     // Local development - use Vite proxy
     if (isLocalRuntimeHost(hostname)) {
-      console.log('[API] Using same-origin for local dev (Vite proxy):', window.location.origin)
+      if (import.meta.env.DEV) console.log('[API] Using same-origin for local dev (Vite proxy):', window.location.origin)
       return window.location.origin
     }
   }
@@ -92,18 +92,18 @@ function getApiBaseUrl() {
     if (typeof window !== 'undefined') {
       const rewrittenLanUrl = rewriteLoopbackUrlForLanRuntime(candidate)
       if (rewrittenLanUrl) {
-        console.log('[API] Using LAN-rewritten URL:', rewrittenLanUrl)
+        if (import.meta.env.DEV) console.log('[API] Using LAN-rewritten URL:', rewrittenLanUrl)
         return rewrittenLanUrl
       }
     }
     
-    console.log('[API] Using env URL:', candidate)
+    if (import.meta.env.DEV) console.log('[API] Using env URL:', candidate)
     return candidate
   }
   
   // Priority 3: Same-origin fallback for production
   if (typeof window !== 'undefined') {
-    console.log('[API] Using same-origin fallback:', window.location.origin)
+    if (import.meta.env.DEV) console.log('[API] Using same-origin fallback:', window.location.origin)
     return window.location.origin
   }
 

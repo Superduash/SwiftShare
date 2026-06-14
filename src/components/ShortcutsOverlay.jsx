@@ -1,8 +1,8 @@
+import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 
 const SHORTCUTS = [
-  { group: 'Global',   key: '?',         desc: 'Show this shortcuts panel' },
   { group: 'Global',   key: 'Esc',       desc: 'Close modals / dialogs' },
   { group: 'Sender',   key: 'Ctrl+C',    desc: 'Copy transfer code' },
   { group: 'Sender',   key: 'Ctrl+V',    desc: 'Paste screenshot / file' },
@@ -10,8 +10,22 @@ const SHORTCUTS = [
   { group: 'Receiver', key: 'Space / Enter', desc: 'Download files' },
 ]
 
-export default function ShortcutsOverlay({ open, onClose }) {
-  if (!open) return null
+export default function ShortcutsOverlay() {
+  const [open, setOpen] = useState(false)
+  const onClose = () => setOpen(false)
+
+  useEffect(() => {
+    const handleOpen = () => setOpen(true)
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('swiftshare:open-shortcuts', handleOpen)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('swiftshare:open-shortcuts', handleOpen)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [])
 
   const groups = [...new Set(SHORTCUTS.map(s => s.group))]
 

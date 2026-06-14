@@ -1,6 +1,6 @@
 import React, { useState, memo, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Settings, Zap, ArrowLeft, Sun, Moon } from 'lucide-react'
+import { Settings, Zap, ArrowLeft, Sun, Moon, TreePine, Flame, Keyboard } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useConnectionHealth } from '../context/ConnectionHealthContext'
 import SettingsPanel from './SettingsPanel'
@@ -32,16 +32,22 @@ function Navbar() {
   const pill = STATUS_PILL[status] || STATUS_PILL.syncing
   const tone = TONE_VARS[pill.tone] || TONE_VARS.warning
 
-  const isSunriseFamily = theme === 'sunrise' || theme === 'sunset'
-  const isSunset = theme === 'sunset'
+  const TOGGLE_MAP = {
+    sunrise: { target: 'sunset', icon: Moon, title: 'Switch to Sunset', color: 'var(--text-3)' },
+    sunset: { target: 'sunrise', icon: Sun, title: 'Switch to Sunrise', color: 'var(--accent)' },
+    light: { target: 'dark', icon: Moon, title: 'Switch to Dark', color: 'var(--text-3)' },
+    dark: { target: 'light', icon: Sun, title: 'Switch to Light', color: 'var(--accent)' },
+    sakura: { target: 'lavender', icon: Moon, title: 'Switch to Lavender', color: 'var(--text-3)' },
+    lavender: { target: 'sakura', icon: Sun, title: 'Switch to Sakura', color: 'var(--accent)' },
+    forest: { target: 'volcanic', icon: Flame, title: 'Switch to Volcanic', color: 'var(--text-3)' },
+    volcanic: { target: 'forest', icon: TreePine, title: 'Switch to Forest', color: 'var(--text-3)' },
+  }
 
-  // Dark themes get gradient logo text
-  const darkThemes = ['dark', 'midnight', 'lavender', 'forest', 'volcanic', 'sunset']
-  const isDarkTheme = darkThemes.includes(theme)
+  const toggleConfig = TOGGLE_MAP[theme]
 
-  const toggleSunriseMode = useCallback(() => {
-    setTheme(isSunset ? 'sunrise' : 'sunset')
-  }, [isSunset, setTheme])
+  const handleToggle = useCallback(() => {
+    if (toggleConfig) setTheme(toggleConfig.target)
+  }, [toggleConfig, setTheme])
 
   const openSettings = useCallback(() => setSettingsOpen(true), [])
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
@@ -95,27 +101,29 @@ function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-1">
-            {/* Sunrise/Sunset toggle — only shown for sunrise family */}
-            {isSunriseFamily && (
+            {/* Dynamic Theme Toggle */}
+            {toggleConfig && (
               <button
                 className="btn-icon"
-                onClick={toggleSunriseMode}
-                aria-label={isSunset ? 'Switch to Sunrise mode' : 'Switch to Sunset mode'}
-                title={isSunset ? 'Sunrise' : 'Sunset'}
+                onClick={handleToggle}
+                aria-label={toggleConfig.title}
+                title={toggleConfig.title}
                 style={{ marginRight: '2px', position: 'relative', zIndex: 1000 }}
               >
-                {isSunset ? (
-                  <Sun size={16} style={{ color: 'var(--accent)' }} />
-                ) : (
-                  <Moon size={16} style={{ color: 'var(--text-3)' }} />
-                )}
+                <toggleConfig.icon size={16} style={{ color: toggleConfig.color }} />
               </button>
             )}
 
-            {/* Shortcuts hint */}
-            <span className="hidden md:flex items-center text-[10px] mr-2" style={{ color: 'var(--text-4)' }}>
-              Press <kbd className="mx-1 px-1.5 py-0.5 rounded font-mono border" style={{ background: 'var(--bg-sunken)', borderColor: 'var(--border)', color: 'var(--text-2)' }}>?</kbd> for shortcuts
-            </span>
+            {/* Shortcuts button - hidden on touch devices */}
+            <button
+              className="hidden md:flex items-center gap-1.5 px-2 py-1 mr-2 rounded-lg transition-colors hide-on-touch"
+              style={{ color: 'var(--text-3)', border: '1px solid var(--border)', background: 'var(--bg-sunken)' }}
+              onClick={() => window.dispatchEvent(new CustomEvent('swiftshare:open-shortcuts'))}
+              aria-label="View shortcuts"
+            >
+              <Keyboard size={14} />
+              <span className="text-[10px] font-semibold tracking-wide uppercase">Shortcuts</span>
+            </button>
 
             {/* Connection status pill */}
             <div

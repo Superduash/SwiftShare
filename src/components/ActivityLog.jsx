@@ -37,7 +37,29 @@ function formatEventLabel(event) {
   return event || 'Event'
 }
 
-function ActivityLog({ activity = [] }) {
+function ActivityLog({ activity = [], isLoading = false }) {
+  if (isLoading) {
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <History size={14} style={{ color: 'var(--text-3)' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Activity</h3>
+        </div>
+        <div className="space-y-1.5">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="surface-card-flat px-3 py-2.5 flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg shimmer-block shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-24 rounded shimmer-block" />
+                <div className="h-2 w-16 rounded shimmer-block" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   if (!activity.length) return null
 
   const EVENT_ORDER = {

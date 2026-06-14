@@ -21,7 +21,7 @@
       // This is the ONLY place where theme initialization should happen
       (function() {
         try {
-          var valid = ['sunrise','sunset','dark','light','midnight','sakura','lavender','forest','volcanic'];
+          var valid = ['system','sunrise','sunset','dark','light','midnight','sakura','lavender','forest','volcanic'];
           // Map each theme to its exact --bg value so body never flashes wrong color
           var bgMap = {
             sunrise: '#FDF9F3',
@@ -47,7 +47,11 @@
           };
           var raw = localStorage.getItem('swiftshare_theme');
           var parsed = raw ? JSON.parse(raw) : null;
-          var theme = parsed && valid.indexOf(parsed) !== -1 ? parsed : 'sunrise';
+          var theme = parsed && valid.indexOf(parsed) !== -1 ? parsed : 'system';
+          // Resolve 'system' to actual light/dark before applying
+          if (theme === 'system') {
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
           document.documentElement.setAttribute('data-theme', theme);
           // Set background + text color immediately to prevent FOUC
           document.documentElement.style.backgroundColor = bgMap[theme] || bgMap.sunrise;

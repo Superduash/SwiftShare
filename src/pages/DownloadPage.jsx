@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
+import React, { useEffect, useRef, useState, useCallback, lazy, Suspense, useMemo } from 'react'
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, XCircle, Clock, Flame, RefreshCw, Copy, Share2 } from 'lucide-react'
+import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, ShieldCheck, XCircle, Clock, Flame, RefreshCw, Copy, Share2, AlertTriangle } from 'lucide-react'
 import Spinner from '../components/Spinner'
 import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
@@ -16,61 +16,7 @@ import {
   mergeTransferData,
 } from '../utils/storage'
 
-// Password session storage (5 minute expiry)
-const PASSWORD_SESSION_KEY_PREFIX = 'pwd_session_'
-const PASSWORD_SESSION_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
-
-function savePasswordSession(code, password) {
-  if (!code || !password) return
-  const normalizedCode = String(code).toUpperCase().trim()
-  if (!normalizedCode) return
-  
-  const key = `${PASSWORD_SESSION_KEY_PREFIX}${normalizedCode}`
-  const session = {
-    password,
-    expiresAt: Date.now() + PASSWORD_SESSION_EXPIRY_MS
-  }
-  try {
-    sessionStorage.setItem(key, JSON.stringify(session))
-  } catch (e) {
-    console.warn('Failed to save password session:', e)
-  }
-}
-
-function getPasswordSession(code) {
-  if (!code) return null
-  const normalizedCode = String(code).toUpperCase().trim()
-  const key = `${PASSWORD_SESSION_KEY_PREFIX}${normalizedCode}`
-  
-  try {
-    const stored = sessionStorage.getItem(key)
-    if (!stored) return null
-    
-    const session = JSON.parse(stored)
-    if (!session || !session.password || !session.expiresAt) return null
-    
-    // Check if expired
-    if (Date.now() > session.expiresAt) {
-      sessionStorage.removeItem(key)
-      return null
-    }
-    
-    return session.password
-  } catch (e) {
-    return null
-  }
-}
-
-function clearPasswordSession(code) {
-  if (!code) return
-  const normalizedCode = String(code).toUpperCase().trim()
-  const key = `${PASSWORD_SESSION_KEY_PREFIX}${normalizedCode}`
-  try {
-    sessionStorage.removeItem(key)
-  } catch (e) {
-    // ignore
-  }
-}
+import { savePasswordSession, getPasswordSession, clearPasswordSession } from '../utils/passwordSession'
 import { formatBytes } from '../utils/format'
 import { playDownloadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
@@ -82,6 +28,7 @@ import ErrorState from '../components/ErrorState'
 import StatusBanner from '../components/StatusBanner'
 import SharedTextDisplay from '../components/SharedTextDisplay'
 import ContextMenu from '../components/ContextMenu'
+import SecurityInfoCard from '../components/SecurityInfoCard'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -674,13 +621,26 @@ export default function DownloadPage() {
       // Confetti! Pull the active theme's accent + success + info from CSS vars
       // so a Forest theme gets emerald confetti, Sakura gets rose, etc., instead
       // of always firing sunrise-orange.
-      if (!currentSettings.reducedMotion) {
+      let confettiModule = window._confettiModule
+      if (!confettiModule) {
         try {
-          const { default: confetti } = await import('canvas-confetti')
-          const cs = getComputedStyle(document.documentElement)
-          const themeColors = ['--accent', '--accent-hover', '--success', '--info', '--warning']
-            .map((v) => cs.getPropertyValue(v).trim())
-            .filter(Boolean)
+          confettiModule = await import('canvas-confetti')
+          window._confettiModule = confettiModule
+        } catch (e) {
+          // Ignore import error
+        }
+      }
+      
+      if (currentSettings.confettiEnabled && !meta?.burnAfterDownload && confettiModule) {
+        try {
+          const confetti = confettiModule.default
+          const themeColors = []
+          const root = document.documentElement
+          const accent = getComputedStyle(root).getPropertyValue('--accent').trim()
+          const success = getComputedStyle(root).getPropertyValue('--success').trim()
+          if (accent) themeColors.push(accent)
+          if (success) themeColors.push(success)
+          
           confetti({
             particleCount: 72,
             spread: 80,
@@ -705,6 +665,23 @@ export default function DownloadPage() {
       }
     }
   }
+
+  // Space/Enter shortcut for download
+  useEffect(() => {
+    const onKey = (e) => {
+      const activeTag = document.activeElement?.tagName
+      if (['INPUT', 'TEXTAREA', 'BUTTON', 'A'].includes(activeTag)) return
+      
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault()
+        if (canDownload && !downloading && !downloaded) {
+          handleDownload()
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [canDownload, downloading, downloaded, handleDownload])
 
   // Per-file operations
   function handlePreview(index) {
@@ -784,6 +761,24 @@ export default function DownloadPage() {
     setRetryAttempt(0)
     await loadMetadata()
   }, [loadMetadata])
+
+  const memoizedFileList = useMemo(() => {
+    return (meta?.files || []).map((f, i) => (
+      <FileCard
+        key={i}
+        file={f}
+        index={i}
+        showDownload={canDownload && (meta?.files?.length ?? 0) > 1}
+        onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
+        onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
+        onContextMenu={(e, idx, pos) => {
+          if (needsPassword && !passwordVerified) return
+          e.preventDefault()
+          setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
+        }}
+      />
+    ))
+  }, [meta?.files, canDownload, needsPassword, passwordVerified, setContextMenu])
 
   const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
   const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED'
@@ -899,6 +894,25 @@ export default function DownloadPage() {
                 className="mb-4"
               />
             )}
+            {/* Expiry warning banners */}
+            {!isUnavailable && !downloaded && secondsRemaining > 0 && secondsRemaining <= 60 && (
+              <StatusBanner
+                key="expiring-critical"
+                tone="danger"
+                icon={AlertTriangle}
+                title={`Expires in ${secondsRemaining}s — download now!`}
+                className="mb-4"
+              />
+            )}
+            {!isUnavailable && !downloaded && secondsRemaining > 60 && secondsRemaining <= 300 && (
+              <StatusBanner
+                key="expiring-soon"
+                tone="warning"
+                icon={Clock}
+                title={`Expires in ${Math.ceil(secondsRemaining / 60)} min — download soon`}
+                className="mb-4"
+              />
+            )}
           </AnimatePresence>
 
           {/* Header */}
@@ -1010,21 +1024,7 @@ export default function DownloadPage() {
               animate={{ y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              {(meta?.files || []).map((f, i) => (
-                <FileCard
-                  key={i}
-                  file={f}
-                  index={i}
-                  showDownload={canDownload && (meta?.files?.length ?? 0) > 1}
-                  onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
-                  onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
-                  onContextMenu={(e, idx, pos) => {
-                    if (needsPassword && !passwordVerified) return
-                    e.preventDefault()
-                    setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
-                  }}
-                />
-              ))}
+              {memoizedFileList}
               <ContextMenu
                 open={contextMenu.open}
                 x={contextMenu.x}
@@ -1134,10 +1134,22 @@ export default function DownloadPage() {
                   </div>
                 ) : isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
                   <>
-                    <button className="btn-primary w-full text-base mb-2" onClick={handleDownload}>
-                      <Download size={18} />
-                      {meta?.files?.length > 1 ? `Download All as ZIP (${meta.files.length} files)` : `Download ${meta?.files?.[0]?.name || 'File'}`}
-                    </button>
+                    {/* Security Info Card */}
+                    <SecurityInfoCard 
+                      burnAfterDownload={meta?.burnAfterDownload} 
+                      passwordProtected={meta?.passwordProtected} 
+                    />
+
+                    {/* Download Button (with sticky mobile wrapper) */}
+                    <div className="sticky-action-bar">
+                      <button className="btn-primary w-full text-base mb-2 shadow-lg" onClick={handleDownload} disabled={downloading}>
+                        <Download size={18} />
+                        {meta?.files?.length > 1
+                          ? `Download All (${meta.files.length} files · ${formatBytes(meta.totalSize || 0)})`
+                          : `Download ${meta?.files?.[0]?.name || 'File'} (${formatBytes(meta?.files?.[0]?.size || meta?.files?.[0]?.fileSize || meta?.totalSize || 0)})`
+                        }
+                      </button>
+                    </div>
                     {meta?.files?.length > 1 && (
                       <p className="text-[11px] text-center mb-4" style={{ color: 'var(--text-4)' }}>
                         Or download individual files using the ↓ buttons next to each file

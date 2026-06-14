@@ -12,8 +12,7 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import { useTransfer } from '../context/TransferContext'
 import { uploadFiles, uploadClipboard, shareText } from '../services/api'
-import { getSettings } from '../utils/storage'
-import { saveTransfer } from '../utils/storage'
+import { getSettings, saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
 import { playUploadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
@@ -395,12 +394,19 @@ export default function HomePage() {
     return false
   }
 
-  // Cancel any pending RAF on unmount to avoid setState-after-unmount.
   useEffect(() => {
     return () => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current)
     }
   }, [])
+
+  // Warn before closing tab during upload
+  useEffect(() => {
+    if (!uploading) return
+    const onBeforeUnload = (e) => { e.preventDefault() }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [uploading])
 
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
@@ -585,7 +591,7 @@ export default function HomePage() {
                   >
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Share this text?</p>
-                      <button className="btn-icon" onClick={() => setShowPasteConfirm(false)}><X size={14} /></button>
+                      <button className="btn-icon" onClick={() => setShowPasteConfirm(false)} aria-label="Cancel paste"><X size={14} /></button>
                     </div>
                     <pre className="text-xs p-2 rounded-xl max-h-24 overflow-auto whitespace-pre-wrap font-mono"
                          style={{ background: 'var(--bg-sunken)', color: 'var(--text-3)' }}>
@@ -891,7 +897,7 @@ export default function HomePage() {
                     <motion.button
                       className="btn-primary w-full text-base group"
                       onClick={handleUpload}
-                      disabled={passwordProtected && !password.trim()}
+                      disabled={uploading || (passwordProtected && !password.trim())}
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -1030,6 +1036,13 @@ export default function HomePage() {
                   ))}
                 </div>
               </motion.div>
+
+              {/* Version Footer */}
+              <div className="text-center mt-8 pb-4">
+                <p className="text-[10px]" style={{ color: 'var(--text-5)' }}>
+                  SwiftShare v{import.meta.env.PACKAGE_VERSION || '1.0.0'}
+                </p>
+              </div>
             </div>
           </div>
         </div>

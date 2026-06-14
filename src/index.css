@@ -1154,10 +1154,27 @@ body.low-end-device [data-projection-id] {
 
 
 
-/* Accessibility: Minimum Touch Target Size */
+/* Accessibility: Minimum Touch Target Size & Touch Utilities */
 @media (pointer: coarse) {
-  .btn-icon {
-    min-width: 44px;
+  button, [role="button"], a {
     min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .hide-on-touch {
+    display: none !important;
+  }
+}
+
+/* Sticky Action Bar for Mobile */
+@media (max-width: 1024px) {
+  .sticky-action-bar {
+    position: sticky;
+    bottom: env(safe-area-inset-bottom, 16px);
+    z-index: 40;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding: 1rem;
+    background: linear-gradient(to top, var(--bg) 60%, transparent);
   }
 }

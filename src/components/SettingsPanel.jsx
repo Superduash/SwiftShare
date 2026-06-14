@@ -13,7 +13,6 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
-  { value: 'system', label: 'System', color: 'linear-gradient(135deg, #F0F0F2 50%, #1A1A1E 50%)', light: false },
   { value: 'sunset',      label: 'Sunset',       color: '#C85A10',  light: false },
   { value: 'sunrise',     label: 'Sunrise',      color: '#F07020',  light: false },
   { value: 'dark', label: 'Dark', color: '#1A1A1E', light: false },
@@ -144,8 +143,13 @@ export default function SettingsPanel({ open, onClose }) {
                             className="w-12 h-12 rounded-full transition-all"
                             style={{
                               background: opt.color,
-                              border: '1px solid var(--border-strong)',
-                              boxShadow: isActive ? `0 0 0 3px var(--accent-soft)` : 'none',
+                              boxShadow: isActive 
+                                ? `inset 0 0 0 1px var(--border-strong), 0 0 0 3px var(--accent-soft)` 
+                                : `inset 0 0 0 1px var(--border-strong)`,
+                              // Force hardware anti-aliasing for smooth rounded edges
+                              outline: '1px solid transparent',
+                              WebkitBackfaceVisibility: 'hidden',
+                              transform: 'translateZ(0)',
                             }}
                           />
                           {isActive && (

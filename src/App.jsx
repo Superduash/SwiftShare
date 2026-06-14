@@ -49,6 +49,7 @@ class RouteErrorBoundary extends React.Component {
 import HomePage from './pages/HomePage'
 import JoinPage from './pages/JoinPage'
 import ExpiredPage from './pages/ExpiredPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 // Utility to enforce a minimum load time so the loading spinner actually paints on ultra-fast networks
 function lazyWithMinLoadTime(factory, minLoadTimeMs = 350) {
@@ -134,7 +135,7 @@ function AnimatedRoutes() {
               <Route path="/g/:code" element={<LegacyShareRedirect />} />
               <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
               <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<PageWrapper><NotFoundPage /></PageWrapper>} />
             </Routes>
           </Suspense>
         </RouteErrorBoundary>
@@ -197,22 +198,9 @@ function NearbyOfferListener() {
 export default function App() {
   const [reducedMotion, setReducedMotion] = React.useState(() => {
     const settings = getSettings()
-    // Auto-detect reduced motion for low-end devices
-    return settings.reducedMotion || shouldReduceAnimations()
+    // Strictly respect user setting; don't auto-disable particles unless they explicitly want it
+    return Boolean(settings.reducedMotion)
   })
-  const [shortcutsOpen, setShortcutsOpen] = React.useState(false)
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return
-        e.preventDefault()
-        setShortcutsOpen(prev => !prev)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
 
   // Apply performance optimizations on mount
   useEffect(() => {
@@ -224,7 +212,7 @@ export default function App() {
   useEffect(() => {
     const syncSettings = () => {
       const settings = getSettings()
-      setReducedMotion(settings.reducedMotion || shouldReduceAnimations())
+      setReducedMotion(Boolean(settings.reducedMotion))
     }
     
     const handlePerformanceDowngrade = () => {
@@ -280,7 +268,7 @@ export default function App() {
       <SocketProvider>
         <ConnectionHealthProvider>
           <TransferProvider>
-            <BrowserRouter>
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <Suspense fallback={null}>
                 <AmbientBackground />
               </Suspense>
@@ -313,7 +301,7 @@ export default function App() {
                 error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
               }}
             />
-            <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+            <ShortcutsOverlay />
           </TransferProvider>
         </ConnectionHealthProvider>
       </SocketProvider>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react'
+import React, { useEffect, useState, useCallback, useRef, lazy, Suspense, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -24,56 +24,7 @@ import {
   updateTransferStatus,
 } from '../utils/storage'
 
-// Password session storage (5 minute expiry)
-const PASSWORD_SESSION_KEY_PREFIX = 'pwd_session_'
-const PASSWORD_SESSION_EXPIRY_MS = 5 * 60 * 1000 // 5 minutes
-
-function savePasswordSession(code, password) {
-  if (!code || !password) return
-  const key = `${PASSWORD_SESSION_KEY_PREFIX}${code.toUpperCase()}`
-  const session = {
-    password,
-    expiresAt: Date.now() + PASSWORD_SESSION_EXPIRY_MS
-  }
-  try {
-    sessionStorage.setItem(key, JSON.stringify(session))
-  } catch (e) {
-    console.warn('Failed to save password session:', e)
-  }
-}
-
-function getPasswordSession(code) {
-  if (!code) return null
-  const key = `${PASSWORD_SESSION_KEY_PREFIX}${code.toUpperCase()}`
-  try {
-    const stored = sessionStorage.getItem(key)
-    if (!stored) return null
-    
-    const session = JSON.parse(stored)
-    if (!session || !session.password || !session.expiresAt) return null
-    
-    // Check if expired
-    if (Date.now() > session.expiresAt) {
-      sessionStorage.removeItem(key)
-      return null
-    }
-    
-    return session.password
-  } catch (e) {
-    console.warn('Failed to get password session:', e)
-    return null
-  }
-}
-
-function clearPasswordSession(code) {
-  if (!code) return
-  const key = `${PASSWORD_SESSION_KEY_PREFIX}${code.toUpperCase()}`
-  try {
-    sessionStorage.removeItem(key)
-  } catch (e) {
-    console.warn('Failed to clear password session:', e)
-  }
-}
+import { savePasswordSession, getPasswordSession, clearPasswordSession } from '../utils/passwordSession'
 import Navbar from '../components/Navbar'
 import StatusBanner from '../components/StatusBanner'
 import CountdownRing from '../components/CountdownRing'
@@ -84,6 +35,8 @@ import ErrorState from '../components/ErrorState'
 import NearbyDevices from '../components/NearbyDevices'
 import SharedTextDisplay from '../components/SharedTextDisplay'
 import ContextMenu from '../components/ContextMenu'
+import TransferSummaryCard from '../components/TransferSummaryCard'
+import TransferStatsCard from '../components/TransferStatsCard'
 import { requestNotificationPermission, showDownloadNotification } from '../utils/notifications'
 
 const FilePreviewModal = lazy(() =>
@@ -653,16 +606,22 @@ export default function SenderPage() {
     return false
   }, [shareLink])
 
-  // Ctrl+C shortcut
+  // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !window.getSelection()?.toString()) {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !window.getSelection()?.toString()) {
+        e.preventDefault()
         copyCode()
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
+        e.preventDefault()
+        copyLink()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [copyCode])
+  }, [copyCode, copyLink])
 
   // Extend
   async function handleExtend() {
@@ -1081,6 +1040,23 @@ export default function SenderPage() {
   const _shareMinutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
   const { title: _shareTitle, text: _shareText } = buildShareMessage(_shareFileLabel, shareLink, _shareMinutesLeft)
 
+  const memoizedFileList = useMemo(() => {
+    return (meta?.files || []).map((f, i) => (
+      <FileCard
+        key={i}
+        file={f}
+        index={i}
+        showDownload={!cancelled && (!meta?.passwordProtected || passwordVerified)}
+        onPreview={(!meta?.passwordProtected || passwordVerified) ? () => handlePreview(i) : undefined}
+        onDownloadSingle={(!meta?.passwordProtected || passwordVerified) ? () => handleDownloadSingle(i) : undefined}
+        onContextMenu={(e, idx, pos) => {
+          e.preventDefault()
+          setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
+        }}
+      />
+    ))
+  }, [meta?.files, cancelled, meta?.passwordProtected, passwordVerified, setContextMenu])
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <Suspense fallback={null}>
@@ -1126,7 +1102,31 @@ export default function SenderPage() {
                     className="mb-4"
                   />
                 )}
+                {/* Expiry warning banners */}
+                {!cancelled && secondsRemaining > 0 && secondsRemaining <= 60 && (
+                  <StatusBanner
+                    key="expiring-critical"
+                    tone="danger"
+                    icon={AlertTriangle}
+                    title={`Expires in ${secondsRemaining}s — extend or share now`}
+                    className="mb-4"
+                  />
+                )}
+                {!cancelled && secondsRemaining > 60 && secondsRemaining <= 300 && (
+                  <StatusBanner
+                    key="expiring-soon"
+                    tone="warning"
+                    icon={Clock}
+                    title={`Expires in ${Math.ceil(secondsRemaining / 60)} min — extend soon`}
+                    className="mb-4"
+                  />
+                )}
               </AnimatePresence>
+
+              {/* Transfer Summary */}
+              {!cancelled && meta && (
+                <TransferSummaryCard meta={meta} url={shareLink} onCopy={copyLink} />
+              )}
 
               {/* Password box - only show for non-text shares */}
               {meta?.passwordProtected && !passwordVerified && !isTextShare && (
@@ -1221,20 +1221,7 @@ export default function SenderPage() {
                     Shared Files ({meta?.files?.length || 0})
                   </h2>
                   <div className="space-y-2">
-                    {(meta?.files || []).map((f, i) => (
-                      <FileCard
-                        key={i}
-                        file={f}
-                        index={i}
-                        showDownload={!cancelled && (!meta?.passwordProtected || passwordVerified)}
-                        onPreview={(!meta?.passwordProtected || passwordVerified) ? () => handlePreview(i) : undefined}
-                        onDownloadSingle={(!meta?.passwordProtected || passwordVerified) ? () => handleDownloadSingle(i) : undefined}
-                        onContextMenu={(e, idx, pos) => {
-                          e.preventDefault()
-                          setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
-                        }}
-                      />
-                    ))}
+                    {memoizedFileList}
                   </div>
                   <ContextMenu
                     open={contextMenu.open}
@@ -1253,8 +1240,13 @@ export default function SenderPage() {
                 </motion.div>
               )}
 
+              {/* Transfer Stats */}
+              {!cancelled && (
+                <TransferStatsCard downloadCount={downloadCount} viewCount={meta?.viewCount || activity?.filter(a => a.action === 'view').length || 0} />
+              )}
+
               {/* Activity */}
-              <ActivityLog activity={activity} />
+              <ActivityLog activity={activity} isLoading={loading} />
             </div>
 
             {/* ═══ RIGHT: sticky share panel ═══ */}
