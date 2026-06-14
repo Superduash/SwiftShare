@@ -55,10 +55,10 @@ const TransferItem = memo(({ transfer, index, onRemove, onClick }) => {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-          {transfer.filename || transfer.code}
+          {transfer.files?.length > 1 ? `${transfer.files.length} files` : (transfer.filename || transfer.code)}
         </p>
         <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
-          {timeAgo(transfer.savedAt)} · {transfer.isSender === true ? 'Sent' : 'Received'}
+          {timeAgo(transfer.savedAt)} · {transfer.isSender === true ? 'Sent' : 'Received'} {transfer.files?.length > 1 ? `· ${transfer.code}` : ''}
         </p>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
