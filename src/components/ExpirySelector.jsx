@@ -43,6 +43,7 @@ function ExpirySelector({ value = 60, onChange }) {
           <ExpiryOption key={opt.value} opt={opt} active={value === opt.value} onChange={onChange} />
         ))}
       </div>
+      {/* 
       <div className="mt-2 flex items-center gap-2">
         <input
           type="number"
@@ -58,6 +59,7 @@ function ExpirySelector({ value = 60, onChange }) {
         />
         <span className="text-xs" style={{ color: 'var(--text-4)' }}>min (max 24h)</span>
       </div>
+      */}
     </div>
   )
 }
