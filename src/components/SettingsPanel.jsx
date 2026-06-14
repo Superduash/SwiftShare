@@ -80,7 +80,14 @@ export default function SettingsPanel({ open, onClose }) {
           {/* Backdrop */}
           <motion.div
             className="fixed inset-0 z-[60]"
-            style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}
+            style={{ 
+              background: 'rgba(0,0,0,0.3)', 
+              backdropFilter: 'blur(2px)', 
+              WebkitBackdropFilter: 'blur(2px)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'translateZ(0)',
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -91,11 +98,22 @@ export default function SettingsPanel({ open, onClose }) {
           {/* Panel */}
           <motion.div
             className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-sm overflow-y-auto"
-            style={{ background: 'var(--settings-bg)', borderLeft: '1px solid var(--border)', willChange: 'transform' }}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'tween', duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            style={{ 
+              background: 'var(--settings-bg)', 
+              borderLeft: '1px solid var(--border)', 
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'translateZ(0)',
+              willChange: 'transform, opacity',
+            }}
+            initial={{ x: '100%', opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: '100%', opacity: 0 }}
+            transition={{ 
+              type: 'tween', 
+              duration: 0.25, 
+              ease: [0.32, 0.72, 0, 1]
+            }}
           >
             <div className="p-6">
               {/* Header */}

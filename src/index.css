@@ -4,7 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Version: 2.3 - Unique logo colors per theme + complete hover effects */
+/* Version: 2.4 - Anti-flickering optimizations + GPU acceleration */
+
+/* Prevent FOUC (Flash of Unstyled Content) on load */
+html:not(.fonts-loaded) {
+  visibility: hidden;
+}
+
+html.fonts-loaded {
+  visibility: visible;
+}
 
 @layer base {
   html {
@@ -16,6 +25,9 @@
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     -webkit-overflow-scrolling: touch;
+    /* Prevent flickering */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
   h1, h2, h3, h4, h5, h6, .font-display {
     font-family: 'Outfit', 'Inter', system-ui, sans-serif;
@@ -46,6 +58,14 @@ button, a, input, select, textarea, [role="button"], [tabindex] {
   will-change: transform, opacity;
   /* Force GPU layer for smooth 60fps */
   transform: translate3d(0, 0, 0);
+}
+
+/* Prevent flickering on fixed elements */
+.fixed, [style*="position: fixed"], [style*="position:fixed"] {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* CRITICAL: Exclude theme background layers from GPU acceleration to preserve animations */
@@ -83,9 +103,8 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
-  /* Premium easing for theme transitions */
-  transition: background 0.32s cubic-bezier(0.4, 0, 0.2, 1), 
-              color 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Smoother theme transitions without flickering */
+  transition: background-color 0.3s ease-out, color 0.3s ease-out;
   /* Use native dynamic viewport height to prevent mobile jitter */
   min-height: 100vh;
   min-height: 100dvh;
@@ -96,6 +115,13 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent flickering with GPU acceleration */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* Force repaint optimization */
+  will-change: background-color;
 }
 
 html {

@@ -266,6 +266,7 @@ const SCENES = {
 export default memo(function AmbientBackground() {
   const { theme } = useTheme()
   const [reducedMotion, setReducedMotion] = useState(() => getSettings().reducedMotion)
+  const [isReady, setIsReady] = useState(false)
   
   // Listen for settings changes
   useEffect(() => {
@@ -276,8 +277,14 @@ export default memo(function AmbientBackground() {
     return () => window.removeEventListener('swiftshare:settings-changed', handleSettingsChange)
   }, [])
   
+  // Delay rendering to prevent initial flicker
+  useEffect(() => {
+    const timer = setTimeout(() => setIsReady(true), 0)
+    return () => clearTimeout(timer)
+  }, [])
+  
   // Check if reduce motion is enabled - if so, don't render anything
-  if (reducedMotion) return null
+  if (reducedMotion || !isReady) return null
   
   const Scene = SCENES[theme]
   if (!Scene) return null
@@ -293,6 +300,10 @@ export default memo(function AmbientBackground() {
         contain: 'layout style paint',
         isolation: 'isolate',
         background: 'transparent',
+        opacity: 1,
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
       }}
     >
       <Scene />
