@@ -101,6 +101,7 @@ export default function HomePage() {
   const [uploading, setUploading] = useState(false)
   const [uploadPercent, setUploadPercent] = useState(0)
   const [uploadSpeed, setUploadSpeed] = useState(0)
+  const [uploadETA, setUploadETA] = useState(0)
   const [uploadPhase, setUploadPhase] = useState('uploading') // 'uploading' | 'finalizing' | 'retrying'
   const uploadStartRef = useRef(0)
   // Speed sampling state. Maintains a rolling-window calculation plus an
@@ -454,6 +455,9 @@ export default function HomePage() {
         if (Number.isFinite(next.speed)) {
           setUploadSpeed((prev) => (Math.abs(prev - next.speed) >= 1024 ? next.speed : prev))
         }
+        if (Number.isFinite(next.eta)) {
+          setUploadETA((prev) => (Math.abs(prev - next.eta) >= 1 ? next.eta : prev))
+        }
         if (next.phase) setUploadPhase((prev) => (prev === next.phase ? prev : next.phase))
       }
 
@@ -493,11 +497,17 @@ export default function HomePage() {
 
           const phase = loaded >= total ? 'finalizing' : 'uploading'
 
+          let etaSeconds = 0
+          if (phase === 'uploading' && smoothedSpeed > 0) {
+            etaSeconds = Math.max(0, (total - loaded) / smoothedSpeed)
+          }
+
           // Coalesce: only the latest values matter — older pending values are
           // safely overwritten before the next frame paint.
           pendingProgressRef.current = {
             percent: visiblePct,
             speed: smoothedSpeed,
+            eta: etaSeconds,
             phase,
           }
           scheduleFlush()
@@ -919,6 +929,7 @@ export default function HomePage() {
                     <ProgressBar
                       percent={uploadPhase === 'finalizing' ? 100 : uploadPercent}
                       speed={uploadPhase === 'uploading' ? uploadSpeed : 0}
+                      eta={uploadPhase === 'uploading' ? uploadETA : 0}
                       label={
                         uploadPhase === 'retrying'
                           ? 'Connection hiccup, retrying...'

@@ -1,9 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 
-export default function ProgressBar({ percent = 0, speed = 0, label = 'Uploading...', showSpeed = true, indeterminate = false }) {
+export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = 'Uploading...', showSpeed = true, indeterminate = false }) {
   const speedMB = (speed / (1024 * 1024)).toFixed(1);
   const clampedPercent = Math.max(0, Math.min(100, percent));
+  
+  const formatETA = (seconds) => {
+    if (!seconds || seconds <= 0 || !Number.isFinite(seconds)) return '';
+    const s = Math.round(seconds);
+    if (s < 60) return `${s}s left`;
+    const m = Math.floor(s / 60);
+    const remS = s % 60;
+    return `${m}m ${remS}s left`;
+  };
+  
+  const etaText = formatETA(eta);
   
   // Convert percentage to 0.0 - 1.0 scale for GPU transforms
   const scaleX = clampedPercent / 100;
@@ -39,10 +50,11 @@ export default function ProgressBar({ percent = 0, speed = 0, label = 'Uploading
             <motion.span 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-xs ml-2 tabular-nums" 
+              className="text-xs ml-2 tabular-nums inline-flex items-center gap-1.5" 
               style={{ color: 'var(--text-3)' }}
             >
-              ({speedMB} MB/s)
+              <span>{speedMB} MB/s</span>
+              {etaText && <span>· {etaText}</span>}
             </motion.span>
           )}
         </div>
