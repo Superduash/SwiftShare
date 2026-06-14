@@ -551,7 +551,6 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
   const { theme: contextTheme } = useTheme()
   const theme = themeProp || contextTheme
   const [reducedMotion, setReducedMotion] = useState(() => {
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return true
     return getSettings().reducedMotion
   })
 
