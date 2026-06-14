@@ -909,7 +909,7 @@ export default function HomePage() {
                       </motion.div>
                       Share {files.length} file{files.length !== 1 ? 's' : ''}
                     </motion.button>
-                    <p className="text-[11px] text-center" style={{ color: 'var(--text-4)' }}>Share the code before leaving this page</p>
+
                   </motion.div>
                 )}
               </AnimatePresence>
