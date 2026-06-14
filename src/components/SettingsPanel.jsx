@@ -69,11 +69,11 @@ export default function SettingsPanel({ open, onClose }) {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {open && (
-        <React.Fragment key="settings-modal">
-          {/* Backdrop — optimized for Firefox smooth rendering */}
+    <>
+      <AnimatePresence>
+        {open && (
           <motion.div
+            key="settings-backdrop"
             className="fixed inset-0 z-[60]"
             style={{
               background: 'rgba(0,0,0,0.45)',
@@ -86,9 +86,13 @@ export default function SettingsPanel({ open, onClose }) {
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             onClick={onClose}
           />
+        )}
+      </AnimatePresence>
 
-          {/* Panel — optimized for smooth Firefox rendering */}
+      <AnimatePresence mode="wait">
+        {open && (
           <motion.div
+            key="settings-panel"
             ref={modalRef}
             className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-sm overflow-y-auto"
             style={{
@@ -339,8 +343,8 @@ export default function SettingsPanel({ open, onClose }) {
               </div>
             </div>
           </motion.div>
-        </React.Fragment>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </>
   )
 }

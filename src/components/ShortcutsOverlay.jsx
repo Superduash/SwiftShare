@@ -33,6 +33,7 @@ export default function ShortcutsOverlay() {
     <AnimatePresence>
       {open && (
         <motion.div
+          key="shortcuts-overlay"
           className="fixed inset-0 z-[80] flex items-center justify-center p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         >
