@@ -11,7 +11,7 @@ import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
 import { ConnectionHealthProvider } from './context/ConnectionHealthContext'
 import { getSettings } from './utils/storage'
-import { applyPerformanceOptimizations, shouldReduceAnimations } from './utils/devicePerformance'
+
 
 import LoadingScreen from './components/LoadingScreen'
 import ConnectionBanner from './components/ConnectionBanner'
@@ -202,11 +202,6 @@ export default function App() {
     return Boolean(settings.reducedMotion)
   })
 
-  // Apply performance optimizations on mount
-  useEffect(() => {
-    applyPerformanceOptimizations()
-  }, [])
-
   // Backend warm-up is now handled by ConnectionHealthProvider
 
   useEffect(() => {
@@ -214,16 +209,10 @@ export default function App() {
       const settings = getSettings()
       setReducedMotion(Boolean(settings.reducedMotion))
     }
-    
-    const handlePerformanceDowngrade = () => {
-      setReducedMotion(true)
-    }
 
     window.addEventListener('swiftshare:settings-changed', syncSettings)
-    window.addEventListener('swiftshare:performance-downgraded', handlePerformanceDowngrade)
     return () => {
       window.removeEventListener('swiftshare:settings-changed', syncSettings)
-      window.removeEventListener('swiftshare:performance-downgraded', handlePerformanceDowngrade)
     }
   }, [])
 

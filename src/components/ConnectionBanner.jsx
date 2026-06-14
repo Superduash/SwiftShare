@@ -160,7 +160,8 @@ function ConnectionBanner() {
           <div
             className="connection-banner-inner"
             style={{
-              background: tone.bg,
+              backgroundColor: 'var(--bg)',
+              backgroundImage: tone.bg,
               borderBottom: `1px solid ${tone.border}`,
               minHeight: 'var(--connection-banner-height)',
               padding: '10px 16px',

@@ -7,14 +7,9 @@ function makeRand(seed) {
   return () => { s = Math.imul(s, 1664525) + 1013904223 >>> 0; return s / 0xffffffff }
 }
 
-import { getPerformanceTier } from '../utils/devicePerformance'
-
-// Adaptive particle density based on device capability
+// Adaptive particle density
 function getParticleDensity() {
-  const tier = getPerformanceTier()
   const isHighRefresh = window.screen?.availWidth > 1920 || window.devicePixelRatio > 2
-
-  if (tier === 'low') return 0.6
   if (isHighRefresh) return 1.2
   return 1.0
 }
