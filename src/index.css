@@ -4,16 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Version: 2.4 - Anti-flickering optimizations + GPU acceleration */
-
-/* Prevent FOUC (Flash of Unstyled Content) on load */
-html:not(.fonts-loaded) {
-  visibility: hidden;
-}
-
-html.fonts-loaded {
-  visibility: visible;
-}
+/* Version: 2.5 - Clean rendering without aggressive GPU hacks */
 
 @layer base {
   html {
@@ -22,12 +13,7 @@ html.fonts-loaded {
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
     -webkit-overflow-scrolling: touch;
-    /* Prevent flickering */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
   }
   h1, h2, h3, h4, h5, h6, .font-display {
     font-family: 'Outfit', 'Inter', system-ui, sans-serif;
@@ -37,11 +23,6 @@ html.fonts-loaded {
 
 /* High-quality rendering for interactive elements */
 button, a, input, select, textarea, [role="button"], [tabindex] {
-  /* Smooth transforms with proper perspective */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  -webkit-perspective: 1000px;
-  perspective: 1000px;
   /* Prevent text blur during animations */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -51,21 +32,6 @@ button, a, input, select, textarea, [role="button"], [tabindex] {
 .overflow-auto, .overflow-scroll, [class*="overflow-"] {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-}
-
-/* Optimize particle animations - selective will-change only during animation */
-[style*="animation"][style*="infinite"] {
-  will-change: transform, opacity;
-  /* Force GPU layer for smooth 60fps */
-  transform: translate3d(0, 0, 0);
-}
-
-/* Prevent flickering on fixed elements */
-.fixed, [style*="position: fixed"], [style*="position:fixed"] {
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 
 /* CRITICAL: Exclude theme background layers from GPU acceleration to preserve animations */
@@ -103,25 +69,17 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
-  /* Smoother theme transitions without flickering */
+  /* Smooth theme transitions */
   transition: background-color 0.3s ease-out, color 0.3s ease-out;
-  /* Use native dynamic viewport height to prevent mobile jitter */
+  /* Use native dynamic viewport height */
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
-  /* Ensure body fills viewport on mobile */
   position: relative;
   /* Optimize text rendering */
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Prevent flickering with GPU acceleration */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  /* Force repaint optimization */
-  will-change: background-color;
 }
 
 html {
