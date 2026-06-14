@@ -1093,7 +1093,7 @@ export default function SenderPage() {
                     className="mb-4"
                   />
                 )}
-                {transferStatus === 'CLAIMED' && (
+                {meta?.status === 'CLAIMED' && (
                   <StatusBanner
                     key="claimed"
                     tone="warning"

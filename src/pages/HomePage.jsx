@@ -477,19 +477,15 @@ export default function HomePage() {
           // (the last few % is server-side R2 finalization which the client can't see).
           const visiblePct = Math.min(99, (loaded / total) * 100)
 
-          // Speed: weighted EMA over a ~750ms sampling window. The sliding window
-          // smooths over chunky XHR delivery (browsers often batch progress events
-          // on slow networks), and the EMA dampens spikes from radio handoffs.
           const now = Date.now()
           const sample = speedSampleRef.current
           let smoothedSpeed = sample.ema
           const dt = (now - sample.at) / 1000
-          if (dt >= 0.75) {
+          if (dt >= 0.25) {
             const instantSpeed = Math.max(0, (loaded - sample.loaded) / dt)
-            // Alpha 0.4: responsive enough to reflect a stalled radio within a
-            // couple seconds, smooth enough to avoid showing wild swings.
+            // Alpha 0.5: responsive enough to reflect a stalled radio quickly
             smoothedSpeed = sample.ema > 0
-              ? Math.round(sample.ema * 0.6 + instantSpeed * 0.4)
+              ? Math.round(sample.ema * 0.5 + instantSpeed * 0.5)
               : Math.round(instantSpeed)
             speedSampleRef.current = { at: now, loaded, ema: smoothedSpeed }
           }
@@ -513,13 +509,9 @@ export default function HomePage() {
         throw new Error('Upload response was incomplete. Please try again.')
       }
 
-      // Guarantee Minimum Visible Duration for upload success (MVD)
-      const elapsed = Date.now() - uploadStartRef.current
-      if (elapsed < 400) {
-        setUploadPhase('finalizing')
-        setUploadPercent(100)
-        await new Promise(r => setTimeout(r, 400 - elapsed))
-      }
+      // Upload completed successfully
+      setUploadPhase('finalizing')
+      setUploadPercent(100)
 
       uploadSucceeded = true
       handleUploadSuccess({ ...response, code: transferCode })
