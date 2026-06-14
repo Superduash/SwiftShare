@@ -40,15 +40,6 @@ export default function SettingsPanel({ open, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  // Apply reduce motion class to body
-  useEffect(() => {
-    if (settings.reducedMotion) {
-      document.body.classList.add('reduce-motion')
-    } else {
-      document.body.classList.remove('reduce-motion')
-    }
-  }, [settings.reducedMotion])
-
   const [confirmClear, setConfirmClear] = useState(false)
 
   function update(patch) {
@@ -77,36 +68,35 @@ export default function SettingsPanel({ open, onClose }) {
     <AnimatePresence>
       {open && (
         <React.Fragment key="settings-modal">
-          {/* Backdrop */}
+          {/* Backdrop — NO backdropFilter, it causes full-page repaint on every frame */}
           <motion.div
             className="fixed inset-0 z-[60]"
-            style={{ 
-              background: 'rgba(0,0,0,0.3)', 
-              backdropFilter: 'blur(2px)', 
-              WebkitBackdropFilter: 'blur(2px)',
+            style={{
+              background: 'rgba(0,0,0,0.45)',
+              willChange: 'opacity',
             }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
             onClick={onClose}
           />
 
-          {/* Panel */}
+          {/* Panel — smoother easing, no spring bounce */}
           <motion.div
             className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-sm overflow-y-auto"
-            style={{ 
-              background: 'var(--settings-bg)', 
+            style={{
+              background: 'var(--settings-bg)',
               borderLeft: '1px solid var(--border)',
+              willChange: 'transform',
             }}
-            initial={{ x: '100%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '100%', opacity: 0 }}
-            transition={{ 
-              type: 'spring', 
-              damping: 28, 
-              stiffness: 220,
-              mass: 0.75,
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{
+              type: 'tween',
+              duration: 0.22,
+              ease: [0.25, 0.46, 0.45, 0.94],
             }}
           >
             <div className="p-6">

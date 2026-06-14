@@ -21,25 +21,140 @@ function getParticleDensity() {
   return 1.0 // 100% particles on standard devices
 }
 
-/* ── SUNRISE (light): Clean solid gradient background ── */
+/* ── SUNRISE (light): Floating dust motes ── */
 const SunriseScene = memo(function SunriseScene() {
+  const density = getParticleDensity()
+  const motes = useMemo(() => {
+    const r = makeRand(11)
+    const count = Math.floor(18 * density)
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      left: `${r() * 100}%`,
+      bottom: `${r() * 40}%`,
+      size: r() * 4 + 2,
+      dur: r() * 12 + 10,
+      delay: -(r() * 20),
+      tx: (r() - 0.5) * 80,
+      ty: -(r() * 90 + 60),
+      opacity: 0.35 + r() * 0.35,
+      color: i % 3 === 0
+        ? 'rgba(250, 180, 80, 0.85)'
+        : i % 3 === 1
+          ? 'rgba(255, 210, 120, 0.75)'
+          : 'rgba(240, 160, 60, 0.70)',
+    }))
+  }, [density])
+
   return (
-    <div style={{ 
-      position: 'absolute',
-      inset: 0,
-      background: 'linear-gradient(180deg, rgba(255, 240, 220, 0.3) 0%, rgba(255, 200, 150, 0.15) 50%, transparent 100%)',
-    }} />
+    <>
+      {/* Base warm gradient */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(180deg, rgba(255,240,200,0.30) 0%, rgba(255,200,130,0.15) 50%, transparent 100%)',
+        animation: 'ss-float-slow 20s ease-in-out infinite alternate',
+      }} />
+      {/* Warm side glow */}
+      <div style={{
+        position: 'absolute',
+        left: '-5%', bottom: '-10%',
+        width: '50vw', height: '40vw',
+        borderRadius: '50%',
+        filter: 'blur(80px)',
+        background: 'radial-gradient(ellipse, rgba(255,180,60,0.14) 0%, transparent 70%)',
+        animation: 'ss-float-slow 26s -10s ease-in-out infinite alternate-reverse',
+      }} />
+      {/* Dust motes */}
+      {motes.map(m => (
+        <div
+          key={m.id}
+          style={{
+            position: 'absolute',
+            left: m.left,
+            bottom: m.bottom,
+            width: `${m.size}px`,
+            height: `${m.size}px`,
+            borderRadius: '50%',
+            background: m.color,
+            boxShadow: `0 0 ${m.size * 3}px ${m.color}`,
+            opacity: 0,
+            animation: `ss-mote-rise ${m.dur}s ${m.delay}s ease-out infinite`,
+            '--tx': `${m.tx}px`,
+            '--ty': `${m.ty}px`,
+            '--max-opacity': m.opacity,
+          }}
+        />
+      ))}
+    </>
   )
 })
 
-/* ── SUNSET (dark): Clean solid gradient background ── */
+/* ── SUNSET (dark): Floating ember/heat orbs ── */
 const SunsetScene = memo(function SunsetScene() {
+  const density = getParticleDensity()
+  const orbs = useMemo(() => {
+    const r = makeRand(55)
+    const count = Math.floor(22 * density)
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      left: `${2 + r() * 96}%`,
+      bottom: `${r() * 30}%`,
+      size: r() * 5 + 3,
+      dur: r() * 8 + 5,
+      delay: -(r() * 16),
+      drift: (r() - 0.5) * 130,
+      rise: -(r() * 55 + 50),
+      opacity: 0.45 + r() * 0.40,
+      color: i % 4 === 0
+        ? 'rgba(220, 80, 20, 0.90)'
+        : i % 4 === 1
+          ? 'rgba(200, 60, 10, 0.80)'
+          : i % 4 === 2
+            ? 'rgba(240, 120, 30, 0.75)'
+            : 'rgba(180, 40, 5, 0.85)',
+    }))
+  }, [density])
+
   return (
-    <div style={{ 
-      position: 'absolute',
-      inset: 0,
-      background: 'linear-gradient(180deg, rgba(180, 40, 0, 0.12) 0%, rgba(140, 30, 0, 0.08) 40%, transparent 100%)',
-    }} />
+    <>
+      {/* Base gradient */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(180deg, rgba(180,40,0,0.12) 0%, rgba(140,30,0,0.08) 40%, transparent 100%)',
+        animation: 'ss-lava-pulse 12s ease-in-out infinite alternate',
+      }} />
+      {/* Wide bottom glow */}
+      <div style={{
+        position: 'absolute',
+        left: '-10%', bottom: '-18%', right: '-10%',
+        height: '50%',
+        filter: 'blur(80px)',
+        background: 'radial-gradient(ellipse 85% 60% at 50% 100%, rgba(190,50,0,0.22) 0%, rgba(160,30,0,0.12) 40%, transparent 70%)',
+        animation: 'ss-lava-pulse 9s -3s ease-in-out infinite alternate',
+      }} />
+      {/* Floating ember particles */}
+      {orbs.map(o => (
+        <div
+          key={o.id}
+          style={{
+            position: 'absolute',
+            left: o.left,
+            bottom: o.bottom,
+            width: `${o.size}px`,
+            height: `${o.size}px`,
+            borderRadius: '50%',
+            background: o.color,
+            boxShadow: `0 0 ${o.size * 4}px ${o.color}`,
+            opacity: 0,
+            animation: `ss-ember-rise ${o.dur}s ${o.delay}s ease-out infinite`,
+            '--drift': `${o.drift}px`,
+            '--rise': `${o.rise}vh`,
+            '--max-opacity': o.opacity,
+          }}
+        />
+      ))}
+    </>
   )
 })
 
@@ -408,9 +523,7 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
   const { theme: contextTheme } = useTheme()
   const theme = themeProp || contextTheme
   const [reducedMotion, setReducedMotion] = useState(() => getSettings().reducedMotion)
-  const [isReady, setIsReady] = useState(false)
-  
-  // Listen for settings changes
+
   useEffect(() => {
     const handleSettingsChange = () => {
       setReducedMotion(getSettings().reducedMotion)
@@ -418,18 +531,12 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
     window.addEventListener('swiftshare:settings-changed', handleSettingsChange)
     return () => window.removeEventListener('swiftshare:settings-changed', handleSettingsChange)
   }, [])
-  
-  // Delay rendering to prevent initial flicker
-  useEffect(() => {
-    const timer = setTimeout(() => setIsReady(true), 0)
-    return () => clearTimeout(timer)
-  }, [])
-  
-  // Check if reduce motion is enabled - if so, don't render anything
-  if (reducedMotion || !isReady) return null
-  
+
+  if (reducedMotion) return null
+
   const Scene = SCENES[theme]
   if (!Scene) return null
+
   return (
     <div
       aria-hidden="true"
@@ -439,12 +546,10 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
         pointerEvents: 'none',
         overflow: 'hidden',
         zIndex: 0,
+        willChange: 'auto',
       }}
     >
       <Scene />
     </div>
   )
-}, (prevProps, nextProps) => {
-  // Only re-render if theme actually changes
-  return prevProps.theme === nextProps.theme
 })
