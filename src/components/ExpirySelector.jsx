@@ -2,9 +2,9 @@ import React, { memo, useCallback } from 'react'
 import { Clock } from 'lucide-react'
 
 const OPTIONS = [
-  { value: 10,  label: '10 min', desc: 'Quick share — link gone soon' },
-  { value: 60,  label: '1 hour',  desc: 'Standard — plenty of time' },
-  { value: 300, label: '5 hours', desc: 'Extended — for larger files' },
+  { value: 10,  label: '10 min', desc: 'Quick' },
+  { value: 60,  label: '1 hour',  desc: 'Standard' },
+  { value: 300, label: '5 hours', desc: 'Extended' },
 ]
 
 // Memoized option button to prevent re-renders
