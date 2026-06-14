@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, memo } from 'react'
+import React, { useEffect, useState, useCallback, memo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -37,6 +37,50 @@ function statusToExpiredReason(status) {
   return 'expired'
 }
 
+// Memoized transfer item component to prevent unnecessary re-renders
+const TransferItem = memo(({ transfer, index, onRemove, onClick }) => {
+  const s = STATUS_STYLES[transfer.status] || STATUS_STYLES.unknown
+  
+  return (
+    <motion.button
+      className="w-full surface-card-flat p-3 flex items-center gap-3 text-left group"
+      initial={{ x: -6 }}
+      animate={{ x: 0 }}
+      exit={{ opacity: 0, x: 8 }}
+      transition={{ delay: index * 0.04 }}
+      onClick={() => onClick(transfer)}
+    >
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--file-icon-bg)' }}>
+        <FileText size={16} style={{ color: 'var(--file-icon-color)' }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+          {transfer.filename || transfer.code}
+        </p>
+        <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
+          {timeAgo(transfer.savedAt)} · {transfer.isSender === true ? 'Sent' : 'Received'}
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>
+          {s.label}
+        </span>
+        <button
+          className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity !w-6 !h-6"
+          onClick={(e) => onRemove(e, transfer.code)}
+          aria-label="Remove from recents"
+          title="Remove from recents"
+        >
+          <X size={12} />
+        </button>
+        <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-4)' }} />
+      </div>
+    </motion.button>
+  )
+})
+
+TransferItem.displayName = 'TransferItem'
+
 function RecentTransfers() {
   const [transfers, setTransfers] = useState(() => {
     const list = getRecentTransfers()
@@ -50,10 +94,20 @@ function RecentTransfers() {
   })
   const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
+  const mountedRef = useRef(true)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   // Listen for storage changes (e.g., when SettingsPanel clears history)
   useEffect(() => {
     const handleStorageChange = () => {
+      if (!mountedRef.current) return
       const list = getRecentTransfers()
       setTransfers(list.map(t => {
         if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
@@ -73,9 +127,10 @@ function RecentTransfers() {
     }
   }, [])
 
-  // Recalculate statuses locally from expiry time — no API spam
+  // Real-time client-side expiry check (every 10 seconds)
   useEffect(() => {
     const timer = setInterval(() => {
+      if (!mountedRef.current) return
       setTransfers(prev => prev.map(t => {
         const status = normalizeStatus(t?.status)
         if (status === 'CANCELLED' || status === 'DELETED' || status === 'EXPIRED') return t
@@ -84,7 +139,7 @@ function RecentTransfers() {
         }
         return t
       }))
-    }, 30000) // check every 30s
+    }, 10000) // Check every 10 seconds
     return () => clearInterval(timer)
   }, [])
 
@@ -205,46 +260,15 @@ function RecentTransfers() {
       <div className="space-y-1.5">
         <p className="text-[10px] mb-1" style={{ color: 'var(--text-4)' }}>Clearing removes local history only</p>
         <AnimatePresence>
-          {transfers.map((t, idx) => {
-            const s = STATUS_STYLES[t.status] || STATUS_STYLES.unknown
-            return (
-              <motion.button
-                key={t.code}
-                className="w-full surface-card-flat p-3 flex items-center gap-3 text-left group"
-                initial={{ x: -6 }}
-                animate={{ x: 0 }}
-                exit={{ opacity: 0, x: 8 }}
-                transition={{ delay: idx * 0.04 }}
-                onClick={() => handleClick(t)}
-              >
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--file-icon-bg)' }}>
-                  <FileText size={16} style={{ color: 'var(--file-icon-color)' }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                    {t.filename || t.code}
-                  </p>
-                  <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
-                    {timeAgo(t.savedAt)} · {t.isSender === true ? 'Sent' : 'Received'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>
-                    {s.label}
-                  </span>
-                  <button
-                    className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity !w-6 !h-6"
-                    onClick={(e) => handleRemove(e, t.code)}
-                    aria-label="Remove from recents"
-                    title="Remove from recents"
-                  >
-                    <X size={12} />
-                  </button>
-                  <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-4)' }} />
-                </div>
-              </motion.button>
-            )
-          })}
+          {transfers.map((t, idx) => (
+            <TransferItem
+              key={t.code}
+              transfer={t}
+              index={idx}
+              onRemove={handleRemove}
+              onClick={handleClick}
+            />
+          ))}
         </AnimatePresence>
       </div>
     </motion.div>

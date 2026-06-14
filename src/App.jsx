@@ -11,6 +11,7 @@ import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
 import { ConnectionHealthProvider } from './context/ConnectionHealthContext'
 import { getSettings } from './utils/storage'
+import { applyPerformanceOptimizations, shouldReduceAnimations } from './utils/devicePerformance'
 
 import LoadingScreen from './components/LoadingScreen'
 import ConnectionBanner from './components/ConnectionBanner'
@@ -68,15 +69,22 @@ function ScrollToTop() {
 }
 
 // ── Page transition wrapper ──────────────────
-// IMPORTANT: Use opacity-only transitions to prevent layout recalculation flicker.
-// On FIRST mount we skip the initial animation (initial={false}) because:
-// - The very first page render starts at opacity:0 which shows a flash of the
-//   body background for 1 frame before Framer Motion kicks in
-// - On subsequent navigations, AnimatePresence handles exit/enter transitions
 const pageVariants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] } },
-  exit: { opacity: 0, transition: { duration: 0.1, ease: [0.4, 0, 1, 1] } },
+  animate: { 
+    opacity: 1, 
+    transition: { 
+      duration: 0.2, 
+      ease: [0.4, 0, 0.2, 1] 
+    } 
+  },
+  exit: { 
+    opacity: 0, 
+    transition: { 
+      duration: 0.15, 
+      ease: [0.4, 0, 1, 1] 
+    } 
+  },
 }
 
 // Track whether this is the very first page mount
@@ -92,6 +100,11 @@ function PageWrapper({ children }) {
       initial={skipInitial ? false : 'initial'}
       animate="animate"
       exit="exit"
+      style={{
+        willChange: 'opacity',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+      }}
     >
       {children}
     </motion.div>
@@ -110,7 +123,7 @@ function AnimatedRoutes() {
   return (
     <>
       <ScrollToTop />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="sync">
         <RouteErrorBoundary>
           <Suspense fallback={<LoadingScreen message="Loading..." />}>
             <Routes location={location} key={location.pathname}>
@@ -181,14 +194,35 @@ function NearbyOfferListener() {
 
 // ── Root ─────────────────────────────────────
 export default function App() {
-  const [reducedMotion, setReducedMotion] = React.useState(() => getSettings().reducedMotion)
+  const [reducedMotion, setReducedMotion] = React.useState(() => {
+    const settings = getSettings()
+    // Auto-detect reduced motion for low-end devices
+    return settings.reducedMotion || shouldReduceAnimations()
+  })
+
+  // Apply performance optimizations on mount
+  useEffect(() => {
+    applyPerformanceOptimizations()
+  }, [])
 
   // Backend warm-up is now handled by ConnectionHealthProvider
 
   useEffect(() => {
-    const syncSettings = () => setReducedMotion(getSettings().reducedMotion)
+    const syncSettings = () => {
+      const settings = getSettings()
+      setReducedMotion(settings.reducedMotion || shouldReduceAnimations())
+    }
+    
+    const handlePerformanceDowngrade = () => {
+      setReducedMotion(true)
+    }
+
     window.addEventListener('swiftshare:settings-changed', syncSettings)
-    return () => window.removeEventListener('swiftshare:settings-changed', syncSettings)
+    window.addEventListener('swiftshare:performance-downgraded', handlePerformanceDowngrade)
+    return () => {
+      window.removeEventListener('swiftshare:settings-changed', syncSettings)
+      window.removeEventListener('swiftshare:performance-downgraded', handlePerformanceDowngrade)
+    }
   }, [])
 
   useEffect(() => {

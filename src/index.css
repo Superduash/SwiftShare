@@ -34,13 +34,7 @@ button, a, input, select, textarea, [role="button"], [tabindex] {
   scroll-behavior: smooth;
 }
 
-/* CRITICAL: Exclude theme background layers from GPU acceleration to preserve animations */
-[data-theme] body,
-[data-theme] body::before,
-[data-theme] body::after {
-  transform: none !important;
-  will-change: auto !important;
-}
+/* CRITICAL: Let the browser manage compositing naturally */
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --navbar-height: 56px;
@@ -82,7 +76,10 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Force GPU layer to prevent compositor flash - but only on desktop */
 }
+
+
 
 html {
   /* Match the FOUC prevention script background — overridden by body once CSS loads */
@@ -91,12 +88,17 @@ html {
   height: -webkit-fill-available;
 }
 
+
 /* Fix for React root to fill viewport */
 #root {
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
+  /* Prevent flash during page transitions - desktop only */
+  isolation: isolate;
 }
+
+
 
 .min-h-screen {
   min-height: calc(var(--app-vh) * 100);
@@ -172,8 +174,6 @@ a { color: inherit; text-decoration: none; }
     border-color: var(--border-strong);
     /* Subtle lift with depth - use translate3d for GPU */
     transform: translate3d(0, -4px, 0) scale(1.005);
-    /* Enable GPU during hover */
-    will-change: transform, box-shadow;
   }
 
   .surface-card-flat {
@@ -225,18 +225,21 @@ a { color: inherit; text-decoration: none; }
     /* Prevent pixelation on hover/transform */
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    transform: translate3d(0, 0, 0);
     /* Touch feedback */
     -webkit-tap-highlight-color: transparent;
-    /* Optimize compositing */
+    /* Optimize compositing - only on desktop */
+  }
   
+  @media (min-width: 769px) {
+    .btn-primary {
+      transform: translate3d(0, 0, 0);
+    }
   }
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
     /* Subtle lift with depth */
     transform: translate3d(0, -2px, 0) scale(1.02);
     box-shadow: var(--glow-accent, 0 8px 24px var(--accent-glow)), inset 0 1px 0 rgba(255,255,255,0.3);
-    will-change: transform, box-shadow;
   }
   .btn-primary:active:not(:disabled) { 
     /* Natural press with spring back */
@@ -282,7 +285,6 @@ a { color: inherit; text-decoration: none; }
     border-color: var(--accent);
     box-shadow: 0 4px 16px var(--accent-glow);
     transform: translate3d(0, -2px, 0) scale(1.02);
-    will-change: transform, box-shadow;
   }
   .btn-secondary:active:not(:disabled) {
     transform: translate3d(0, 0, 0) scale(0.96);
@@ -313,8 +315,13 @@ a { color: inherit; text-decoration: none; }
     min-height: 36px;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-    transform: translate3d(0, 0, 0);
     -webkit-tap-highlight-color: transparent;
+  }
+  
+  @media (min-width: 769px) {
+    .btn-ghost {
+      transform: translate3d(0, 0, 0);
+    }
   }
   .btn-ghost:hover { 
     background: var(--surface-hover); 
@@ -391,9 +398,14 @@ a { color: inherit; text-decoration: none; }
     cursor: pointer;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-
     -webkit-tap-highlight-color: transparent;
+    /* Optimize for desktop only */
+  }
   
+  @media (min-width: 769px) {
+    .drop-zone {
+      will-change: transform, box-shadow;
+    }
   }
   @keyframes drop-zone-pulse {
     0%, 100% { box-shadow: 0 12px 32px var(--accent-soft), 0 0 0 4px var(--accent-soft); border-color: var(--drop-zone-active-border); }
@@ -405,7 +417,6 @@ a { color: inherit; text-decoration: none; }
     /* Subtle scale with depth */
     transform: translate3d(0, -4px, 0) scale(1.015);
     animation: drop-zone-pulse 2s ease-in-out infinite;
-    will-change: transform, box-shadow, border-color;
   }
 
   .drop-zone:hover:not(.active) {
@@ -515,7 +526,6 @@ a { color: inherit; text-decoration: none; }
 }
 .logo-icon:hover {
   box-shadow: 0 4px 20px var(--accent-glow), 0 0 40px var(--accent-glow) !important;
-  will-change: transform, box-shadow;
 }
 
 
@@ -940,4 +950,231 @@ h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {
   /* Use efficient backdrop-filter */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOW-END DEVICE OPTIMIZATION - Performance Layer
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1. Reduce animation complexity on low-end devices */
+@media (max-width: 768px) {
+  /* Disable expensive animations on mobile */
+  .surface-card:hover,
+  .surface-card-flat:hover,
+  .btn-primary:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled) {
+    /* Disable transform-based hover effects on touch devices */
+    transform: none !important;
+  }
+  
+  /* Simplify drop zone animation */
+  .drop-zone.active {
+    animation: none !important;
+    border-color: var(--drop-zone-active-border);
+    background: var(--drop-zone-active-bg);
+  }
+  
+  /* Reduce logo animation complexity */
+  .logo-icon:hover {
+    transform: none !important;
+  }
+}
+
+/* 2. Optimize scrolling performance on mobile */
+@media (max-width: 768px) {
+  /* Use GPU acceleration only where absolutely necessary */
+  .surface-card,
+  .surface-card-flat,
+  .btn-primary,
+  .btn-secondary {
+    /* Remove will-change when not hovering (mobile has no hover) */
+    will-change: auto !important;
+  }
+  
+  /* Optimize list rendering */
+  [class*="space-y"] > * {
+    /* CSS containment for list items */
+    contain: layout style paint;
+  }
+}
+
+/* 3. Reduce paint and composite costs */
+@media (max-width: 768px) {
+  /* Simplify shadows on mobile */
+  .surface-card,
+  .btn-primary {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+  }
+  
+  /* Disable blur effects on low-end devices */
+  @supports not (backdrop-filter: blur(10px)) {
+    .glass,
+    [style*="backdrop-filter"] {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      background: var(--surface) !important;
+    }
+  }
+}
+
+/* 4. Optimize font rendering on mobile */
+@media (max-width: 768px) {
+  body, button, input, textarea {
+    /* Faster font rendering on mobile */
+    text-rendering: optimizeSpeed;
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    /* Keep quality for headings */
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* 5. Reduce motion on preference or low-end detection */
+@media (prefers-reduced-motion: reduce), (max-width: 480px) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.05s !important;
+  }
+  
+  .animate-pulse,
+  .animate-spin,
+  [class*="animate-"] {
+    animation: none !important;
+  }
+}
+
+/* 6. Optimize images and media on mobile */
+@media (max-width: 768px) {
+  img, video {
+    /* Faster image decoding */
+    image-rendering: auto;
+  }
+}
+
+/* 7. Prevent layout shifts on mobile */
+@media (max-width: 768px) {
+  /* Strict containment for cards */
+  .surface-card,
+  .surface-card-flat {
+    contain: strict;
+    content-visibility: auto;
+  }
+  
+  /* Reserve space for lazy-loaded content */
+  [loading="lazy"] {
+    min-height: 100px;
+  }
+}
+
+/* 8. Optimize interactions for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove all hover effects on touch-only devices */
+  *:hover {
+    transform: none !important;
+  }
+  
+  /* Faster tap feedback */
+  button, a, [role="button"] {
+    transition-duration: 0.1s !important;
+  }
+  
+  button:active, a:active, [role="button"]:active {
+    transition-duration: 0.05s !important;
+  }
+}
+
+/* 9. Memory optimization - limit compositor layers */
+@media (max-width: 768px) {
+  /* Remove unnecessary GPU layers */
+  * {
+    will-change: auto !important;
+  }
+  
+  /* Only promote actively animating elements */
+  [data-framer-appear-id],
+  [data-projection-id],
+  .framer-motion-element {
+    will-change: opacity, transform;
+  }
+}
+
+/* 10. Optimize for very low-end devices (budget phones) */
+@media (max-width: 480px) and (max-height: 800px) {
+  /* Minimal animations */
+  * {
+    transition-duration: 0.1s !important;
+  }
+  
+  /* Disable expensive effects */
+  [style*="box-shadow"],
+  [style*="filter"],
+  [style*="backdrop-filter"] {
+    box-shadow: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* Simplify borders */
+  * {
+    border-radius: min(var(--radius, 12px), 12px) !important;
+  }
+}
+
+/* 11. Dynamic low-end device class optimizations */
+body.low-end-device * {
+  /* Disable all animations */
+  animation: none !important;
+  transition-duration: 0.1s !important;
+}
+
+body.low-end-device .surface-card,
+body.low-end-device .btn-primary,
+body.low-end-device .drop-zone {
+  /* Remove expensive shadows */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08) !important;
+}
+
+body.low-end-device .glass,
+body.low-end-device [style*="backdrop-filter"] {
+  /* Disable blur effects */
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--surface) !important;
+}
+
+body.low-end-device [data-framer-appear-id],
+body.low-end-device [data-projection-id] {
+  /* Simplify Framer Motion animations */
+  will-change: auto !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FIREFOX COMPOSITOR OPTIMIZATION - Prevent Black Flash
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Firefox-specific: Force layer creation early to prevent flash on modal open/close */
+@supports (-moz-appearance: none) {
+  .fixed[style*="z-index"] {
+    /* Hint to Firefox compositor to prepare layers */
+    transform: translateZ(0);
+    will-change: opacity, transform;
+  }
+  
+  /* Smooth backdrop rendering in Firefox */
+  [style*="backdrop-filter"] {
+    transform: translateZ(0);
+  }
+}
+
+/* Framer Motion animated elements - optimize for all browsers */
+[data-framer-appear-id],
+[data-projection-id] {
+  /* Ensure smooth opacity transitions without compositor flash */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }

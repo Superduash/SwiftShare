@@ -7,13 +7,14 @@ function makeRand(seed) {
   return () => { s = Math.imul(s, 1664525) + 1013904223 >>> 0; return s / 0xffffffff }
 }
 
+import { getPerformanceTier } from '../utils/devicePerformance'
+
 // Adaptive particle density based on device capability
 function getParticleDensity() {
-  const isLowEnd = navigator.hardwareConcurrency <= 4 ||
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  const tier = getPerformanceTier()
   const isHighRefresh = window.screen?.availWidth > 1920 || window.devicePixelRatio > 2
 
-  if (isLowEnd) return 0.6
+  if (tier === 'low') return 0.6
   if (isHighRefresh) return 1.2
   return 1.0
 }
@@ -560,8 +561,15 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
     const handleSettingsChange = () => {
       setReducedMotion(getSettings().reducedMotion)
     }
+    const handlePerformanceDowngrade = () => {
+      setReducedMotion(true)
+    }
     window.addEventListener('swiftshare:settings-changed', handleSettingsChange)
-    return () => window.removeEventListener('swiftshare:settings-changed', handleSettingsChange)
+    window.addEventListener('swiftshare:performance-downgraded', handlePerformanceDowngrade)
+    return () => {
+      window.removeEventListener('swiftshare:settings-changed', handleSettingsChange)
+      window.removeEventListener('swiftshare:performance-downgraded', handlePerformanceDowngrade)
+    }
   }, [])
 
   if (reducedMotion) return null

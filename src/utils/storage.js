@@ -365,7 +365,7 @@ export function clearTransfers() {
 
 // ── Settings ───────────────────────────────
 const DEFAULT_SETTINGS = {
-  defaultExpiry: 60,
+  defaultExpiry: 10, // Changed from 60 to 10 minutes for new users
   defaultBurn: false,
   reducedMotion: false,
   soundEnabled: true,

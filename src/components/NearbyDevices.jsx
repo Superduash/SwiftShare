@@ -25,8 +25,44 @@ function dedupeDevices(list, selfSocketId) {
     })
 }
 
-const POLL_INTERVAL = 120000 // 2 minutes auto-refresh — rely on socket push for real-time updates
+const POLL_INTERVAL = 90000 // 90 seconds auto-refresh — rely on socket push for real-time updates
 const MIN_REFRESH_INTERVAL = 3000 // Minimum 3s between manual refreshes
+
+// Memoized device item component for better performance
+const DeviceItem = memo(({ device, index, isSenderMode, onDeviceClick }) => {
+  return (
+    <motion.button
+      className="w-full surface-card-flat p-3 flex items-center gap-3 text-left hover:border-[var(--accent)] transition-colors"
+      initial={{ scale: 0.97 }}
+      animate={{ scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{ delay: index * 0.05 }}
+      onClick={() => onDeviceClick(device)}
+    >
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--success-soft)' }}>
+        {isSenderMode
+          ? <Send size={16} style={{ color: 'var(--success)' }} />
+          : <Download size={16} style={{ color: 'var(--success)' }} />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+          {device.deviceName || device.code}
+        </p>
+        <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+          {isSenderMode
+            ? (device.socketId ? 'Tap to send share prompt' : 'Direct prompt unavailable')
+            : `${device.fileCount} file${device.fileCount !== 1 ? 's' : ''} · ${formatBytes(device.totalSize)}`}
+        </p>
+      </div>
+      <div className="flex items-center gap-1 text-[10px] shrink-0" style={{ color: 'var(--text-4)' }}>
+        <Clock size={10} />
+        {formatRelativeExpiry(device.expiresAt)}
+      </div>
+    </motion.button>
+  )
+})
+
+DeviceItem.displayName = 'DeviceItem'
 
 function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const [devices, setDevices] = useState([])
@@ -64,6 +100,21 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
       toast.error('Failed to send share prompt')
     }
   }, [socket, normalizedTransferCode, currentFilename])
+
+  const handleDeviceClick = useCallback((dev) => {
+    if (isSenderShareMode) {
+      if (dev.socketId) {
+        handleShareToDevice(dev.socketId)
+      } else {
+        toast.error('This device is not ready for direct prompt sharing yet.')
+      }
+      return
+    }
+
+    const normalizedCode = normalizeCode(dev.code)
+    if (!normalizedCode) return
+    navigate(`/download/${normalizedCode}`)
+  }, [isSenderShareMode, handleShareToDevice, navigate])
 
   // Manual refresh function
   const handleManualRefresh = useCallback(() => {
@@ -338,48 +389,13 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
       <div className="space-y-1.5">
         <AnimatePresence>
           {devices.map((dev, idx) => (
-            <motion.button
+            <DeviceItem
               key={dev.socketId || dev.code}
-              className="w-full surface-card-flat p-3 flex items-center gap-3 text-left hover:border-[var(--accent)] transition-colors"
-              initial={{ scale: 0.97 }}
-              animate={{ scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ delay: idx * 0.05 }}
-              onClick={() => {
-                if (isSenderShareMode) {
-                  if (dev.socketId) {
-                    handleShareToDevice(dev.socketId)
-                  } else {
-                    toast.error('This device is not ready for direct prompt sharing yet.')
-                  }
-                  return
-                }
-
-                const normalizedCode = normalizeCode(dev.code)
-                if (!normalizedCode) return
-                navigate(`/download/${normalizedCode}`)
-              }}
-            >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--success-soft)' }}>
-                {isSenderShareMode
-                  ? <Send size={16} style={{ color: 'var(--success)' }} />
-                  : <Download size={16} style={{ color: 'var(--success)' }} />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                  {dev.deviceName || dev.code}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-                  {isSenderShareMode
-                    ? (dev.socketId ? 'Tap to send share prompt' : 'Direct prompt unavailable')
-                    : `${dev.fileCount} file${dev.fileCount !== 1 ? 's' : ''} · ${formatBytes(dev.totalSize)}`}
-                </p>
-              </div>
-              <div className="flex items-center gap-1 text-[10px] shrink-0" style={{ color: 'var(--text-4)' }}>
-                <Clock size={10} />
-                {formatRelativeExpiry(dev.expiresAt)}
-              </div>
-            </motion.button>
+              device={dev}
+              index={idx}
+              isSenderMode={isSenderShareMode}
+              onDeviceClick={handleDeviceClick}
+            />
           ))}
         </AnimatePresence>
       </div>

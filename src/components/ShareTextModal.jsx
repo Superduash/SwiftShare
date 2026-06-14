@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, FileText, Lock, Eye, EyeOff, Flame, Clock, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Spinner from './Spinner'
+import { getSettings } from '../utils/storage'
 
 function ShareTextModal({ open, onClose, onShare }) {
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('')
-  const [expiry, setExpiry] = useState(60)
-  const [burn, setBurn] = useState(false)
+  const [expiry, setExpiry] = useState(() => getSettings().defaultExpiry)
+  const [burn, setBurn] = useState(() => getSettings().defaultBurn)
   const [passwordProtected, setPasswordProtected] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -32,8 +33,8 @@ function ShareTextModal({ open, onClose, onShare }) {
     if (!open) {
       setContent('')
       setTitle('')
-      setExpiry(60)
-      setBurn(false)
+      setExpiry(getSettings().defaultExpiry)
+      setBurn(getSettings().defaultBurn)
       setPasswordProtected(false)
       setPassword('')
       setShowPassword(false)
