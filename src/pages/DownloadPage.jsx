@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, lazy, Suspense } from 'react'
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, XCircle, Clock, Flame, RefreshCw } from 'lucide-react'
+import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, XCircle, Clock, Flame, RefreshCw, Copy, Share2 } from 'lucide-react'
 import Spinner from '../components/Spinner'
 import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
@@ -81,6 +81,7 @@ import TransferReceipt from '../components/TransferReceipt'
 import ErrorState from '../components/ErrorState'
 import StatusBanner from '../components/StatusBanner'
 import SharedTextDisplay from '../components/SharedTextDisplay'
+import ContextMenu from '../components/ContextMenu'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -143,6 +144,7 @@ export default function DownloadPage() {
   const [receipt, setReceipt] = useState(null)
   const [textContent, setTextContent] = useState(null)
   const [textLoading, setTextLoading] = useState(false)
+  const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null })
   
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
@@ -155,7 +157,10 @@ export default function DownloadPage() {
   const requestTokenRef = useRef(0)
   const retryTimerRef = useRef(null)
   const terminalNavigatedRef = useRef(false)
-  useEffect(() => { return () => { mountedRef.current = false } }, [])
+  useEffect(() => {
+    document.title = 'Downloading file · SwiftShare'
+    return () => { mountedRef.current = false }
+  }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
   useEffect(() => { transferStatusRef.current = transferStatus }, [transferStatus])
 
@@ -637,6 +642,7 @@ export default function DownloadPage() {
       const errCode = err?.response?.data?.error?.code
       if (errCode === 'INVALID_PASSWORD') {
         setPasswordError('Wrong password. Please try again.')
+        toast.error('Wrong password')
       } else if (err?.response?.status === 429) {
         setPasswordError('Too many attempts. This transfer is locked.')
       } else {
@@ -691,7 +697,7 @@ export default function DownloadPage() {
         playDownloadSuccess()
       }
     } catch {
-      toast.error('Download failed')
+      toast.error('Download failed. Please try again.')
     } finally {
       setDownloading(false)
       if (!downloadSucceeded) {
@@ -712,6 +718,17 @@ export default function DownloadPage() {
   function handleDownloadSingle(index) {
     const pw = verifiedPasswordRef.current || undefined
     downloadSingleFile(normalizedCode, index, pw)
+  }
+
+  const receiverMenuItems = () => {
+    if (contextMenu.index === null) return []
+    const file = meta?.files?.[contextMenu.index]
+    if (!file) return []
+    return [
+      { icon: Eye, label: 'Preview', action: () => handlePreview(contextMenu.index) },
+      { icon: Download, label: 'Download this file', action: () => handleDownloadSingle(contextMenu.index) },
+      { icon: Copy, label: 'Copy filename', action: () => navigator.clipboard.writeText(file.name) },
+    ]
   }
 
   // Check if this is a text share
@@ -778,9 +795,11 @@ export default function DownloadPage() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="app-main-offset page-shell-narrow py-8 sm:py-10 space-y-4">
-          <div className="shimmer-block h-8 w-48" />
-          <div className="shimmer-block h-32 w-full" />
-          <div className="shimmer-block h-14 w-full" />
+          <div className="shimmer-block h-6 w-1/3 rounded-xl mx-auto mb-6" />
+          <div className="shimmer-block h-24 w-full rounded-2xl" />
+          <div className="shimmer-block h-16 w-full rounded-xl" />
+          <div className="shimmer-block h-16 w-full rounded-xl" />
+          <div className="shimmer-block h-14 w-full rounded-xl mt-6" />
         </div>
       </div>
     )
@@ -853,6 +872,15 @@ export default function DownloadPage() {
                 className="mb-4"
               />
             )}
+            {transferStatus === 'CLAIMED' && (
+              <StatusBanner
+                key="claimed"
+                tone="warning"
+                icon={Flame}
+                title="Burn session claimed — file will self-destruct after download"
+                className="mb-4"
+              />
+            )}
             {transferStatus === 'EXPIRED' && !downloaded && (
               <StatusBanner
                 key="expired"
@@ -887,6 +915,48 @@ export default function DownloadPage() {
               {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${normalizedCode}`}
             </p>
           </motion.div>
+
+          {/* Transfer Info Panel */}
+          {meta && !needsPassword && !isTextShare && (
+            <motion.div 
+              className="surface-card-flat p-4 grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-4)' }}>
+                  From
+                </p>
+                <p className="text-sm font-medium mt-0.5 truncate" style={{ color: 'var(--text-2)' }}>
+                  {meta.senderDeviceName || 'Unknown device'}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-4)' }}>
+                  Total size
+                </p>
+                <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-2)' }}>
+                  {formatBytes(meta.totalSize || 0)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-4)' }}>
+                  Files
+                </p>
+                <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--text-2)' }}>
+                  {meta.fileCount || meta.files?.length || 0} file{(meta.fileCount || meta.files?.length) !== 1 ? 's' : ''}
+                </p>
+              </div>
+              {meta.burnAfterDownload && (
+                <div className="col-span-full flex items-center gap-1.5 pt-2 mt-1" style={{ borderTop: '1px solid var(--border)' }}>
+                  <Flame size={12} style={{ color: 'var(--danger)' }} />
+                  <span className="text-xs" style={{ color: 'var(--danger)' }}>
+                    Burns after download — files auto-delete once you download
+                  </span>
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {/* Image preview */}
           {previewSrc && (
@@ -945,11 +1015,23 @@ export default function DownloadPage() {
                   key={i}
                   file={f}
                   index={i}
-                  showDownload={canDownload}
+                  showDownload={canDownload && (meta?.files?.length ?? 0) > 1}
                   onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
                   onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
+                  onContextMenu={(e, idx, pos) => {
+                    if (needsPassword && !passwordVerified) return
+                    e.preventDefault()
+                    setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
+                  }}
                 />
               ))}
+              <ContextMenu
+                open={contextMenu.open}
+                x={contextMenu.x}
+                y={contextMenu.y}
+                items={receiverMenuItems()}
+                onClose={() => setContextMenu(prev => ({ ...prev, open: false }))}
+              />
               {meta?.totalSize > 0 && (
                 <p className="text-xs text-center" style={{ color: 'var(--text-4)' }}>
                   {meta?.files?.length || 0} file{(meta?.files?.length || 0) !== 1 ? 's' : ''} · {formatBytes(meta.totalSize)}
@@ -992,6 +1074,8 @@ export default function DownloadPage() {
                       placeholder="Enter password..."
                       maxLength={64}
                       autoFocus
+                      aria-label="Transfer password"
+                      aria-describedby={passwordError ? "password-error" : undefined}
                       className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
                       style={{
                         background: 'var(--bg-sunken)',
@@ -1015,7 +1099,7 @@ export default function DownloadPage() {
                     </button>
                   </div>
                   {passwordError && (
-                    <div className="flex items-center gap-1.5 mb-3">
+                    <div id="password-error" role="alert" className="flex items-center gap-1.5 mb-3">
                       <ShieldX size={14} style={{ color: 'var(--danger)' }} />
                       <p className="text-xs" style={{ color: 'var(--danger)' }}>{passwordError}</p>
                     </div>
@@ -1049,10 +1133,33 @@ export default function DownloadPage() {
                     <ProgressBar percent={downloadPercent} speed={downloadSpeed} label="Downloading..." showSpeed={true} />
                   </div>
                 ) : isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
-                  <button className="btn-primary w-full text-base mb-6" onClick={handleDownload}>
-                    <Download size={18} />
-                    Download {meta?.files?.length > 1 ? `${meta?.files?.length || 0} files` : 'file'}
-                  </button>
+                  <>
+                    <button className="btn-primary w-full text-base mb-2" onClick={handleDownload}>
+                      <Download size={18} />
+                      {meta?.files?.length > 1 ? `Download All as ZIP (${meta.files.length} files)` : `Download ${meta?.files?.[0]?.name || 'File'}`}
+                    </button>
+                    {meta?.files?.length > 1 && (
+                      <p className="text-[11px] text-center mb-4" style={{ color: 'var(--text-4)' }}>
+                        Or download individual files using the ↓ buttons next to each file
+                      </p>
+                    )}
+                    {!meta?.burnAfterDownload && (
+                      <button
+                        className="btn-ghost text-sm gap-2 w-full mb-6"
+                        onClick={async () => {
+                          const url = `${window.location.origin}/download/${normalizedCode}`
+                          if (navigator.share) {
+                            try { await navigator.share({ title: 'SwiftShare file', url }) } catch {}
+                          } else {
+                            await navigator.clipboard.writeText(url)
+                            toast.success('Link copied')
+                          }
+                        }}
+                      >
+                        <Share2 size={14} /> Forward to someone else
+                      </button>
+                    )}
+                  </>
                 )}
               </motion.div>
             ) : (

@@ -5,7 +5,7 @@ import {
   Copy, Check, Share2, Clock, Trash2,
   MessageCircle, Mail, Maximize2, Send,
   QrCode, AlertTriangle, Lock, Eye, EyeOff, Loader2,
-  XCircle, Flame
+  XCircle, Flame, Download, Bell
 } from 'lucide-react'
 import Spinner from '../components/Spinner'
 import { QRCode } from 'react-qr-code'
@@ -83,6 +83,8 @@ import ProgressBar from '../components/ProgressBar'
 import ErrorState from '../components/ErrorState'
 import NearbyDevices from '../components/NearbyDevices'
 import SharedTextDisplay from '../components/SharedTextDisplay'
+import ContextMenu from '../components/ContextMenu'
+import { requestNotificationPermission, showDownloadNotification } from '../utils/notifications'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -151,6 +153,9 @@ export default function SenderPage() {
   const [deleting, setDeleting] = useState(false)
   const [textContent, setTextContent] = useState(null)
   const [textLoading, setTextLoading] = useState(false)
+  const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null })
+  const [downloadCount, setDownloadCount] = useState(initialCachedTransfer?.downloadCount || 0)
+  const [notificationState, setNotificationState] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied')
 
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
@@ -194,6 +199,19 @@ export default function SenderPage() {
       setPasswordVerified(false)
     }
   }, [meta?.passwordProtected])
+
+  useEffect(() => {
+    if (meta?.files?.length) {
+      const timer = setTimeout(() => {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+          requestNotificationPermission().then(() => {
+            setNotificationState(Notification.permission)
+          })
+        }
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [meta?.files?.length])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
@@ -255,6 +273,10 @@ export default function SenderPage() {
       ? Math.ceil((new Date(merged.expiresAt).getTime() - new Date(merged.createdAt).getTime()) / 1000)
       : 600
     setTotalSeconds(Math.max(sessionDuration, 60))
+
+    if (merged.downloadCount !== undefined) {
+      setDownloadCount(merged.downloadCount)
+    }
 
     if (persist) {
       const persisted = saveCachedTransfer(normalizedCode, merged) || merged
@@ -469,6 +491,7 @@ export default function SenderPage() {
     }
     const onDownComplete = () => {
       setDownloadProgress(100)
+      setDownloadCount(prev => prev + 1)
       if (metaRef.current?.burnAfterDownload) {
         patchCachedTransfer({ status: 'CLAIMED' })
         updateTransferStatus(normalizedCode, 'CLAIMED')
@@ -482,6 +505,9 @@ export default function SenderPage() {
       if (receiptCode && receiptCode !== currentCode) return
       if (receipt?.receiver) {
         toast.success(`Downloaded by ${receipt.receiver}`)
+        showDownloadNotification(receipt.receiver)
+      } else {
+        showDownloadNotification()
       }
       requestActivityRefresh()
     }
@@ -707,6 +733,7 @@ export default function SenderPage() {
       const errCode = err?.response?.data?.error?.code
       if (errCode === 'INVALID_PASSWORD') {
         setPreviewPasswordError('Wrong password. Please try again.')
+        toast.error('Wrong password')
       } else if (err?.response?.status === 429) {
         setPreviewPasswordError('Too many attempts. This transfer is locked.')
       } else {
@@ -735,6 +762,16 @@ export default function SenderPage() {
     const protectedTransfer = Boolean(meta?.passwordProtected)
     const password = protectedTransfer ? (verifiedPreviewPasswordRef.current || undefined) : undefined
     downloadSingleFile(normalizedCode, index, password)
+  }
+
+  const senderMenuItems = () => {
+    if (contextMenu.index === null) return []
+    const file = meta?.files?.[contextMenu.index]
+    if (!file) return []
+    return [
+      { icon: Eye, label: 'Preview', action: () => handlePreview(contextMenu.index) },
+      { icon: Copy, label: 'Copy filename', action: () => navigator.clipboard.writeText(file.name) },
+    ]
   }
 
   // Check if this is a text share
@@ -822,6 +859,22 @@ export default function SenderPage() {
       toast.error('Share is not supported on this browser')
     }
   }
+
+  const handleNativeShare = useCallback(async () => {
+    const fileLabel = meta?.files?.length > 1
+      ? `${meta.files.length} files`
+      : (meta?.files?.[0]?.name || 'file')
+    const minutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
+    const { title, text } = buildShareMessage(fileLabel, shareLink, minutesLeft)
+
+    try {
+      await navigator.share({ title, text, url: shareLink })
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        toast.error('Sharing failed. Copy the link instead.')
+      }
+    }
+  }, [meta, shareLink, secondsRemaining])
 
   function handleDownloadQR() {
     const svg = document.querySelector('#sender-qr-code')
@@ -957,11 +1010,20 @@ export default function SenderPage() {
     }
   }, [normalizedCode, navigate, applyTransferSnapshot])
 
-  if (loading) {
+  if (loading && !meta) {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <main className="app-main-offset flex flex-col items-center justify-center p-4">
-          {[...Array(3)].map((_, i) => <div key={i} className="shimmer-block h-16 w-full" />)}
+        <main className="app-main-offset max-w-2xl mx-auto px-4 lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start pt-safe-nav">
+          <div className="lg:col-span-3 space-y-4">
+            <div className="shimmer-block h-6 w-1/3 rounded-xl" />
+            <div className="shimmer-block h-28 w-full rounded-2xl" />
+            <div className="shimmer-block h-16 w-full rounded-xl" />
+            <div className="shimmer-block h-16 w-full rounded-xl" />
+          </div>
+          <div className="lg:col-span-2 mt-8 lg:mt-0 space-y-5">
+             <div className="shimmer-block h-32 w-full rounded-2xl" />
+             <div className="shimmer-block h-64 w-full rounded-2xl" />
+          </div>
         </main>
       </div>
     )
@@ -1052,6 +1114,16 @@ export default function SenderPage() {
                     tone="danger"
                     icon={XCircle}
                     title="Transfer cancelled — files permanently deleted"
+                    className="mb-4"
+                  />
+                )}
+                {transferStatus === 'CLAIMED' && (
+                  <StatusBanner
+                    key="claimed"
+                    tone="warning"
+                    icon={Flame}
+                    title="Burn session claimed — file will self-destruct after download"
+                    className="mb-4"
                   />
                 )}
               </AnimatePresence>
@@ -1080,6 +1152,9 @@ export default function SenderPage() {
                         }}
                         placeholder="Enter transfer password"
                         maxLength={64}
+                        autoFocus
+                        aria-label="Transfer password"
+                        aria-describedby={previewPasswordError ? "preview-password-error" : undefined}
                         className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
                         style={{
                           background: 'var(--bg-sunken)',
@@ -1100,7 +1175,7 @@ export default function SenderPage() {
                       </button>
                     </div>
                     {previewPasswordError && (
-                      <p className="text-xs mb-3" style={{ color: 'var(--danger)' }}>
+                      <p id="preview-password-error" role="alert" className="text-xs mb-3" style={{ color: 'var(--danger)' }}>
                         {previewPasswordError}
                       </p>
                     )}
@@ -1154,9 +1229,20 @@ export default function SenderPage() {
                         showDownload={!cancelled && (!meta?.passwordProtected || passwordVerified)}
                         onPreview={(!meta?.passwordProtected || passwordVerified) ? () => handlePreview(i) : undefined}
                         onDownloadSingle={(!meta?.passwordProtected || passwordVerified) ? () => handleDownloadSingle(i) : undefined}
+                        onContextMenu={(e, idx, pos) => {
+                          e.preventDefault()
+                          setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
+                        }}
                       />
                     ))}
                   </div>
+                  <ContextMenu
+                    open={contextMenu.open}
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    items={senderMenuItems()}
+                    onClose={() => setContextMenu(prev => ({ ...prev, open: false }))}
+                  />
                 </motion.div>
               )}
 
@@ -1174,6 +1260,29 @@ export default function SenderPage() {
             {/* ═══ RIGHT: sticky share panel ═══ */}
             <div className="lg:col-span-2 mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-20 space-y-5">
+                {/* Share Link */}
+                <div className="surface-card p-4 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+                    Share Link
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="flex-1 px-3 py-2 rounded-xl text-sm font-mono truncate"
+                      style={{ background: 'var(--bg-sunken)', color: 'var(--text-3)', border: '1px solid var(--border)' }}
+                      title={shareLink}
+                    >
+                      {shareLink}
+                    </div>
+                    <button
+                      className="btn-primary shrink-0 gap-1.5 px-4"
+                      onClick={copyLink}
+                      style={copiedLink ? { background: 'var(--success)', borderColor: 'var(--success)' } : undefined}
+                    >
+                      {copiedLink ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
+                    </button>
+                  </div>
+                </div>
+
                 {/* QR Code */}
                 <motion.div
                   className="surface-card p-5 text-center"
@@ -1232,37 +1341,40 @@ export default function SenderPage() {
                   <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
                     <Share2 size={12} className="inline mr-1" /> Share via
                   </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(_shareText)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-ghost justify-center"
-                    >
-                      <MessageCircle size={14} />WhatsApp
-                    </a>
-                    <a
-                      href={`mailto:?subject=${encodeURIComponent(_shareTitle)}&body=${encodeURIComponent(_shareText)}`}
-                      className="btn-ghost justify-center"
-                    >
-                      <Mail size={14} />Email
-                    </a>
-                    <a
-                      href={`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(_shareText)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-ghost justify-center"
-                    >
-                      <Send size={14} />Telegram
-                    </a>
-                    <button className="btn-ghost justify-center" onClick={handleDownloadQR}>
-                      <QrCode size={14} />Save QR
+                  
+                  {canUseWebShare ? (
+                    <button className="btn-primary w-full gap-2" onClick={handleNativeShare}>
+                      <Share2 size={16} /> Share via Apps
                     </button>
-                    <button className="btn-ghost justify-center col-span-2" onClick={handleWebShare}>
-                      <Share2 size={14} />
-                      {canUseWebShare ? 'Share' : 'Share (copy link)'}
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(_shareText)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-ghost justify-center"
+                      >
+                        <MessageCircle size={14} />WhatsApp
+                      </a>
+                      <a
+                        href={`mailto:?subject=${encodeURIComponent(_shareTitle)}&body=${encodeURIComponent(_shareText)}`}
+                        className="btn-ghost justify-center"
+                      >
+                        <Mail size={14} />Email
+                      </a>
+                      <a
+                        href={`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(_shareText)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-ghost justify-center"
+                      >
+                        <Send size={14} />Telegram
+                      </a>
+                      <button className="btn-ghost justify-center" onClick={handleDownloadQR}>
+                        <QrCode size={14} />Save QR
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Nearby share prompts */}
@@ -1276,6 +1388,13 @@ export default function SenderPage() {
                 {/* Countdown */}
                 {!cancelled && (
                   <div className="surface-card p-5 text-center">
+                    {downloadCount > 0 && (
+                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium mb-4"
+                           style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
+                        <Download size={11} />
+                        Downloaded {downloadCount} time{downloadCount !== 1 ? 's' : ''}
+                      </div>
+                    )}
                     <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={130} />
 
                     <div className="mt-4 flex gap-2">
@@ -1310,6 +1429,18 @@ export default function SenderPage() {
                       <p className="text-[10px] mt-1" style={{ color: 'var(--text-4)' }}>
                         Can only extend once per transfer
                       </p>
+                    )}
+
+                    {notificationState === 'default' && (
+                      <button 
+                        className="btn-ghost text-[11px] gap-1.5 w-full mt-3" 
+                        onClick={async () => {
+                          await requestNotificationPermission()
+                          setNotificationState(Notification.permission)
+                        }}
+                      >
+                        <Bell size={12} /> Notify me when downloaded
+                      </button>
                     )}
                   </div>
                 )}

@@ -11,6 +11,7 @@ const EVENT_ICONS = {
   deleted: { icon: Trash2, color: 'var(--danger)' },
   cancelled: { icon: Ban, color: 'var(--danger)' },
   burned: { icon: Flame, color: 'var(--danger)' },
+  burn_claimed: { icon: Flame, color: 'var(--warning)' },
   extended: { icon: ArrowUpRight, color: 'var(--success)' },
 }
 
@@ -30,6 +31,7 @@ function formatEventLabel(event) {
   if (key === 'expired') return 'Expired'
   if (key === 'cancelled') return 'Cancelled'
   if (key === 'burned') return 'Burned (auto-deleted)'
+  if (key === 'burn_claimed') return 'Burn session claimed'
   if (key === 'extended') return 'Timer extended'
   if (key === 'deleted') return 'Deleted'
   return event || 'Event'
@@ -37,6 +39,27 @@ function formatEventLabel(event) {
 
 function ActivityLog({ activity = [] }) {
   if (!activity.length) return null
+
+  const EVENT_ORDER = {
+    uploaded: 1,
+    viewed: 2,
+    downloaded: 3,
+    extended: 4,
+    burn_claimed: 5,
+    expired: 6,
+    cancelled: 7,
+    deleted: 8,
+    burned: 9
+  }
+
+  const sortedActivity = [...activity].sort((a, b) => {
+    const tA = new Date(a.timestamp || a.createdAt).getTime()
+    const tB = new Date(b.timestamp || b.createdAt).getTime()
+    if (tB !== tA) return tB - tA // Descending time
+    const oA = EVENT_ORDER[(a.event || '').toLowerCase()] || 99
+    const oB = EVENT_ORDER[(b.event || '').toLowerCase()] || 99
+    return oA - oB
+  })
 
   return (
     <div>
@@ -46,7 +69,7 @@ function ActivityLog({ activity = [] }) {
       </div>
 
       <div className="space-y-1.5">
-        {activity.slice(0, 12).map((item, idx) => {
+        {sortedActivity.slice(0, 12).map((item, idx) => {
           const { icon: Icon, color } = getEventStyle(item.event)
           return (
             <motion.div

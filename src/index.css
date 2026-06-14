@@ -116,7 +116,7 @@ input, button, textarea, select {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   /* Prevent blur on interactions - use translate3d for GPU */
-  -webkit-backface-visibility: hidden;
+  
   backface-visibility: hidden;
 
 }
@@ -127,14 +127,14 @@ img {
   /* Premium image rendering */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
-  -webkit-backface-visibility: hidden;
+  
   backface-visibility: hidden;
 }
 
 svg {
   /* Crisp SVG rendering with proper antialiasing */
   shape-rendering: geometricPrecision;
-  -webkit-backface-visibility: hidden;
+  
   backface-visibility: hidden;
   /* Smooth SVG animations */
 
@@ -163,7 +163,7 @@ a { color: inherit; text-decoration: none; }
       border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
       transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     /* Prevent pixelation on hover - use translate3d */
-    -webkit-backface-visibility: hidden;
+    
     backface-visibility: hidden;
 
     /* Optimize compositing */
@@ -173,7 +173,7 @@ a { color: inherit; text-decoration: none; }
     box-shadow: var(--shadow-elevated, var(--shadow-card, 0 4px 24px rgba(0,0,0,0.08))), var(--inset-shadow, none);
     border-color: var(--border-strong);
     /* Subtle lift with depth - use translate3d for GPU */
-    transform: translate3d(0, -4px, 0) scale(1.005);
+    transform: translate(, ) scale(1.005);
   }
 
   .surface-card-flat {
@@ -181,7 +181,7 @@ a { color: inherit; text-decoration: none; }
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: var(--shadow-card), var(--inset-shadow, none);
-    -webkit-backface-visibility: hidden;
+    
     backface-visibility: hidden;
 
     transition: 
@@ -192,13 +192,13 @@ a { color: inherit; text-decoration: none; }
   }
   .surface-card-flat:hover {
     box-shadow: var(--shadow-elevated), var(--inset-shadow, none);
-    transform: translate3d(0, -2px, 0);
+    transform: translate(, );
     border-color: var(--border-strong);
   }
   .surface-card-flat:active {
     background: var(--surface-hover);
     /* Subtle press feedback */
-    transform: translate3d(0, 0, 0) scale(0.98);
+    transform: translate(, ) scale(0.98);
   }
   .btn-primary {
     display: inline-flex;
@@ -223,7 +223,7 @@ a { color: inherit; text-decoration: none; }
       box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     min-height: 48px;
     /* Prevent pixelation on hover/transform */
-    -webkit-backface-visibility: hidden;
+    
     backface-visibility: hidden;
     /* Touch feedback */
     -webkit-tap-highlight-color: transparent;
@@ -232,18 +232,18 @@ a { color: inherit; text-decoration: none; }
   
   @media (min-width: 769px) {
     .btn-primary {
-      transform: translate3d(0, 0, 0);
+      transform: translate(, );
     }
   }
   .btn-primary:hover:not(:disabled) {
     background: var(--accent-hover);
     /* Subtle lift with depth */
-    transform: translate3d(0, -2px, 0) scale(1.02);
+    transform: translate(, ) scale(1.02);
     box-shadow: var(--glow-accent, 0 8px 24px var(--accent-glow)), inset 0 1px 0 rgba(255,255,255,0.3);
   }
   .btn-primary:active:not(:disabled) { 
     /* Natural press with spring back */
-    transform: translate3d(0, 0, 0) scale(0.96);
+    transform: translate(, ) scale(0.96);
     box-shadow: 0 2px 6px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.1);
     transition-duration: 0.1s;
   }
@@ -274,7 +274,7 @@ a { color: inherit; text-decoration: none; }
       transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
       box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     min-height: 44px;
-    -webkit-backface-visibility: hidden;
+    
     backface-visibility: hidden;
 
     -webkit-tap-highlight-color: transparent;
@@ -284,10 +284,10 @@ a { color: inherit; text-decoration: none; }
     background: var(--accent-medium);
     border-color: var(--accent);
     box-shadow: 0 4px 16px var(--accent-glow);
-    transform: translate3d(0, -2px, 0) scale(1.02);
+    transform: translate(, ) scale(1.02);
   }
   .btn-secondary:active:not(:disabled) {
-    transform: translate3d(0, 0, 0) scale(0.96);
+    transform: translate(, ) scale(0.96);
     box-shadow: 0 2px 8px var(--accent-glow);
     transition-duration: 0.1s;
   }
@@ -313,24 +313,24 @@ a { color: inherit; text-decoration: none; }
       color 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
       transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     min-height: 36px;
-    -webkit-backface-visibility: hidden;
+    
     backface-visibility: hidden;
     -webkit-tap-highlight-color: transparent;
   }
   
   @media (min-width: 769px) {
     .btn-ghost {
-      transform: translate3d(0, 0, 0);
+      transform: translate(, );
     }
   }
   .btn-ghost:hover { 
     background: var(--surface-hover); 
     color: var(--text);
-    transform: translate3d(0, -1px, 0);
+    transform: translate(, );
   }
   .btn-ghost:active {
     background: var(--surface-active);
-    transform: translate3d(0, 0, 0) scale(0.95);
+    transform: translate(, ) scale(0.95);
     transition-duration: 0.08s;
   }
 
@@ -350,7 +350,7 @@ a { color: inherit; text-decoration: none; }
       background 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
       color 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
       transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    -webkit-backface-visibility: hidden;
+    
     backface-visibility: hidden;
 
     -webkit-tap-highlight-color: transparent;
@@ -358,11 +358,11 @@ a { color: inherit; text-decoration: none; }
   .btn-icon:hover { 
     background: var(--surface-hover); 
     color: var(--text);
-    transform: translate3d(0, -2px, 0) scale(1.05);
+    transform: translate(, ) scale(1.05);
   }
   .btn-icon:active {
     background: var(--surface-active);
-    transform: translate3d(0, 0, 0) scale(0.92);
+    transform: translate(, ) scale(0.92);
     transition-duration: 0.08s;
   }
 
@@ -396,7 +396,7 @@ a { color: inherit; text-decoration: none; }
       transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
       box-shadow 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     cursor: pointer;
-    -webkit-backface-visibility: hidden;
+    
     backface-visibility: hidden;
     -webkit-tap-highlight-color: transparent;
     /* Optimize for desktop only */
@@ -415,14 +415,14 @@ a { color: inherit; text-decoration: none; }
     border-color: var(--drop-zone-active-border);
     background: var(--drop-zone-active-bg);
     /* Subtle scale with depth */
-    transform: translate3d(0, -4px, 0) scale(1.015);
+    transform: translate(, ) scale(1.015);
     animation: drop-zone-pulse 2s ease-in-out infinite;
   }
 
   .drop-zone:hover:not(.active) {
     border-color: var(--border-strong);
     background: var(--surface-hover);
-    transform: translate3d(0, -2px, 0) scale(1.005);
+    transform: translate(, ) scale(1.005);
   }
 
   /* Smooth scroll container */
@@ -573,8 +573,8 @@ body.reduce-motion *::after {
 }
 
 @keyframes countdown-pulse-ring {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-  50% { transform: translate3d(0, 0, 0) scale(1.04); opacity: 0.85; }
+  0%, 100% { transform: translate(, ) scale(1); opacity: 1; }
+  50% { transform: translate(, ) scale(1.04); opacity: 0.85; }
 }
 
 @keyframes countdown-danger-flash {
@@ -586,22 +586,22 @@ body.reduce-motion *::after {
 @keyframes slide-in-up {
   from {
     opacity: 0;
-    transform: translate3d(0, 20px, 0);
+    transform: translate(, );
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate(, );
   }
 }
 
 @keyframes slide-in-down {
   from {
     opacity: 0;
-    transform: translate3d(0, -20px, 0);
+    transform: translate(, );
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate(, );
   }
 }
 
@@ -613,28 +613,28 @@ body.reduce-motion *::after {
 @keyframes scale-in {
   from {
     opacity: 0;
-    transform: translate3d(0, 0, 0) scale(0.95);
+    transform: translate(, ) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate(, ) scale(1);
   }
 }
 
 @keyframes bounce-in {
   0% {
     opacity: 0;
-    transform: translate3d(0, 0, 0) scale(0.3);
+    transform: translate(, ) scale(0.3);
   }
   50% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1.05);
+    transform: translate(, ) scale(1.05);
   }
   70% {
-    transform: translate3d(0, 0, 0) scale(0.97);
+    transform: translate(, ) scale(0.97);
   }
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate(, ) scale(1);
   }
 }
 
@@ -789,16 +789,16 @@ body.reduce-motion *::after {
 @media (min-width: 1025px) {
   /* Premium hover effects on desktop only - more pronounced lift */
   .surface-card:hover {
-    transform: translate3d(0, -3px, 0);
+    transform: translate(, );
   }
 
   .btn-primary:hover:not(:disabled) {
-    transform: translate3d(0, -2px, 0);
+    transform: translate(, );
   }
 
   /* Desktop-specific animations with subtle depth */
   .drop-zone:hover {
-    transform: translate3d(0, 0, 0) scale(1.005);
+    transform: translate(, ) scale(1.005);
   }
 }
 
@@ -1152,29 +1152,12 @@ body.low-end-device [data-projection-id] {
   will-change: auto !important;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   FIREFOX COMPOSITOR OPTIMIZATION - Prevent Black Flash
-   ═══════════════════════════════════════════════════════════════ */
 
-/* Firefox-specific: Force layer creation early to prevent flash on modal open/close */
-@supports (-moz-appearance: none) {
-  .fixed[style*="z-index"] {
-    /* Hint to Firefox compositor to prepare layers */
-    transform: translateZ(0);
-    will-change: opacity, transform;
-  }
-  
-  /* Smooth backdrop rendering in Firefox */
-  [style*="backdrop-filter"] {
-    transform: translateZ(0);
-  }
-}
 
-/* Framer Motion animated elements - optimize for all browsers */
-[data-framer-appear-id],
-[data-projection-id] {
-  /* Ensure smooth opacity transitions without compositor flash */
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+/* Accessibility: Minimum Touch Target Size */
+@media (pointer: coarse) {
+  .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

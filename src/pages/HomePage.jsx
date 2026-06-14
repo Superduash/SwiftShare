@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
 import {
   Upload, Plus, X, Flame, Shield, Zap, Clock, QrCode,
-  ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff
+  ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff,
+  GripVertical
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -21,6 +22,7 @@ import ExpirySelector from '../components/ExpirySelector'
 import ProgressBar from '../components/ProgressBar'
 import RecentTransfers from '../components/RecentTransfers'
 import NearbyDevices from '../components/NearbyDevices'
+import ContextMenu from '../components/ContextMenu'
 
 const ShareTextModal = lazy(() => import('../components/ShareTextModal').catch(() => ({ default: () => null })))
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
@@ -115,6 +117,9 @@ export default function HomePage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [shareTextModalOpen, setShareTextModalOpen] = useState(false)
+  const [pastedText, setPastedText] = useState('')
+  const [showPasteConfirm, setShowPasteConfirm] = useState(false)
+  const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null })
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
   const uploadAbortRef = useRef(null)
@@ -204,6 +209,18 @@ export default function HomePage() {
           }
         }
       }
+
+      // Text paste
+      if (pastedFiles.length === 0) {
+        const text = e.clipboardData.getData('text/plain')
+        if (text && text.trim().length > 0) {
+          if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return
+          e.preventDefault()
+          setPastedText(text.trim())
+          setShowPasteConfirm(true)
+          return
+        }
+      }
       
       // Add pasted files to the drop zone (up to MAX_FILES limit)
       if (pastedFiles.length > 0) {
@@ -247,7 +264,7 @@ export default function HomePage() {
     setFiles(combined)
   }, [files])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open: openFileDialog } = useDropzone({
     onDrop,
     noClick: files.length > 0,
     multiple: true,
@@ -257,8 +274,46 @@ export default function HomePage() {
     setFiles(prev => prev.filter((_, i) => i !== idx))
   }
 
+  function handleRename(idx, newName) {
+    setFiles(prev => {
+      const newFiles = [...prev]
+      const oldFile = newFiles[idx]
+      newFiles[idx] = new File([oldFile], newName, { type: oldFile.type })
+      return newFiles
+    })
+  }
+
+  const [dragOver, setDragOver] = useState(null)
+  const [dragging, setDragging] = useState(null)
+
+  const handleDragStart = (index) => setDragging(index)
+  const handleDragOver = (e, index) => {
+    e.preventDefault()
+    setDragOver(index)
+  }
+  const handleDrop = (targetIndex) => {
+    if (dragging === null || dragging === targetIndex) return
+    const newFiles = [...files]
+    const [moved] = newFiles.splice(dragging, 1)
+    newFiles.splice(targetIndex, 0, moved)
+    setFiles(newFiles)
+    setDragging(null)
+    setDragOver(null)
+  }
+
   function totalSize() {
     return files.reduce((s, f) => s + (f.size || 0), 0)
+  }
+
+  const preUploadMenuItems = () => {
+    if (contextMenu.index === null) return []
+    const file = files[contextMenu.index]
+    if (!file) return []
+    return [
+      { icon: Clipboard, label: 'Copy filename', action: () => navigator.clipboard.writeText(file.name) },
+      { divider: true },
+      { icon: X, label: 'Remove file', action: () => removeFile(contextMenu.index), danger: true },
+    ]
   }
 
   async function handleShareText(textData) {
@@ -519,6 +574,35 @@ export default function HomePage() {
                 </p>
               </motion.div>
 
+              {/* Paste Confirm */}
+              <AnimatePresence>
+                {showPasteConfirm && (
+                  <motion.div
+                    className="surface-card p-4 space-y-3 mb-6"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, height: 0, marginBottom: 0, padding: 0 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Share this text?</p>
+                      <button className="btn-icon" onClick={() => setShowPasteConfirm(false)}><X size={14} /></button>
+                    </div>
+                    <pre className="text-xs p-2 rounded-xl max-h-24 overflow-auto whitespace-pre-wrap font-mono"
+                         style={{ background: 'var(--bg-sunken)', color: 'var(--text-3)' }}>
+                      {pastedText.slice(0, 300)}{pastedText.length > 300 ? '…' : ''}
+                    </pre>
+                    <div className="flex gap-2">
+                      <button className="btn-primary flex-1 text-sm" onClick={() => handleShareText({ content: pastedText, title: 'Text Snippet' })}>
+                        Share as Snippet
+                      </button>
+                      <button className="btn-ghost text-sm" onClick={() => setShowPasteConfirm(false)}>
+                        Cancel
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Drop zone */}
               <motion.div
                 initial={{ y: 10 }}
@@ -542,12 +626,19 @@ export default function HomePage() {
                       >
                         <Upload size={28} style={{ color: 'var(--accent)' }} />
                       </motion.div>
-                      <p className="font-display font-bold text-lg mb-1" style={{ color: 'var(--text)' }}>
-                        {isDragActive ? 'Drop it here!' : 'Drop files here'}
+                      <p className="font-display font-bold text-xl mb-1" style={{ color: 'var(--text)' }}>
+                        {isDragActive ? 'Drop it here!' : 'Drag & drop anywhere to start'}
                       </p>
                       <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
-                        or click to browse · Ctrl+V to paste files
+                        or use Ctrl+V to paste
                       </p>
+                      <button 
+                        type="button"
+                        className="btn-primary mb-4 mx-auto" 
+                        onClick={(e) => { e.stopPropagation(); openFileDialog(); }}
+                      >
+                        Select Files
+                      </button>
                       <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
                         Max 100 MB total · Up to 10 files
                       </p>
@@ -575,9 +666,46 @@ export default function HomePage() {
                       {/* File list */}
                       <div className="space-y-2 mb-4">
                         {files.map((f, i) => (
-                          <FileCard key={i} file={f} index={i} showRemove onRemove={removeFile} />
+                          <div
+                            key={i}
+                            draggable
+                            onDragStart={() => handleDragStart(i)}
+                            onDragOver={(e) => handleDragOver(e, i)}
+                            onDrop={() => handleDrop(i)}
+                            onDragEnd={() => { setDragging(null); setDragOver(null) }}
+                            className="flex items-center gap-2 p-1 -mx-1 transition-colors"
+                            style={{
+                              opacity: dragging === i ? 0.4 : 1,
+                              border: dragOver === i ? '2px dashed var(--accent)' : '2px solid transparent',
+                              borderRadius: '16px',
+                              background: dragOver === i ? 'var(--accent-soft)' : 'transparent',
+                            }}
+                          >
+                            <GripVertical size={16} className="shrink-0 cursor-grab" style={{ color: 'var(--text-5)' }} />
+                            <div className="flex-1 min-w-0 pointer-events-auto">
+                              <FileCard
+                                file={f}
+                                index={i}
+                                showRemove
+                                onRemove={removeFile}
+                                onRename={handleRename}
+                                onContextMenu={(e, idx, pos) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
+                                }}
+                              />
+                            </div>
+                          </div>
                         ))}
                       </div>
+                      <ContextMenu
+                        open={contextMenu.open}
+                        x={contextMenu.x}
+                        y={contextMenu.y}
+                        items={preUploadMenuItems()}
+                        onClose={() => setContextMenu(prev => ({ ...prev, open: false }))}
+                      />
 
                       {/* Add more */}
                       {files.length < MAX_FILES && (

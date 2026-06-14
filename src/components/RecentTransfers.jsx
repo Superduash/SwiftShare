@@ -145,16 +145,9 @@ function RecentTransfers() {
 
 
 
-  const handleClear = useCallback(() => {
-    if (!confirmClear) {
-      setConfirmClear(true)
-      setTimeout(() => setConfirmClear(false), 3000)
-      return
-    }
-    clearTransfers()
-    setTransfers([])
-    setConfirmClear(false)
-  }, [confirmClear])
+  const INITIAL_SHOW = 5
+  const [showAll, setShowAll] = useState(false)
+  const visible = showAll ? transfers : transfers.slice(0, INITIAL_SHOW)
 
   const handleRemove = useCallback((e, code) => {
     e.stopPropagation()
@@ -238,29 +231,23 @@ function RecentTransfers() {
           <Clock size={14} style={{ color: 'var(--text-3)' }} />
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Recent</h3>
         </div>
-        <button
-          className="btn-ghost text-[11px] !py-1 !px-2"
-          onClick={handleClear}
-          style={confirmClear ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : undefined}
-        >
-          {confirmClear ? (
-            <>
-              <AlertTriangle size={11} />
-              Clear forever?
-            </>
-          ) : (
-            <>
-              <Trash2 size={11} />
-              Clear
-            </>
-          )}
-        </button>
+        {confirmClear ? (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px]" style={{ color: 'var(--danger)' }}>Clear history?</span>
+            <button className="btn-danger text-[11px] !py-1 !px-2" onClick={() => { clearTransfers(); setTransfers([]); setConfirmClear(false); }}>Yes</button>
+            <button className="btn-ghost text-[11px] !py-1 !px-2" onClick={() => setConfirmClear(false)}>No</button>
+          </div>
+        ) : (
+          <button className="btn-ghost text-[11px] !py-1 !px-2" onClick={() => setConfirmClear(true)}>
+            <Trash2 size={11} /> Clear
+          </button>
+        )}
       </div>
 
       <div className="space-y-1.5">
         <p className="text-[10px] mb-1" style={{ color: 'var(--text-4)' }}>Clearing removes local history only</p>
         <AnimatePresence>
-          {transfers.map((t, idx) => (
+          {visible.map((t, idx) => (
             <TransferItem
               key={t.code}
               transfer={t}
@@ -270,6 +257,11 @@ function RecentTransfers() {
             />
           ))}
         </AnimatePresence>
+        {!showAll && transfers.length > INITIAL_SHOW && (
+          <button className="btn-ghost text-xs w-full mt-2" onClick={() => setShowAll(true)}>
+            Show {transfers.length - INITIAL_SHOW} more
+          </button>
+        )}
       </div>
     </motion.div>
   )

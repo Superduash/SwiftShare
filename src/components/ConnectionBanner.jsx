@@ -146,7 +146,7 @@ function ConnectionBanner() {
     <AnimatePresence>
       {show && (
         <motion.div
-          key={displayStatus}
+          key="banner"
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}

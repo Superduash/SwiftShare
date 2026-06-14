@@ -4,6 +4,7 @@ import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2 } from 'lucide-
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, clearTransfers } from '../utils/storage'
 import toast from 'react-hot-toast'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 const EXPIRY_OPTIONS = [
   { value: 10, label: '10 min' },
@@ -12,6 +13,7 @@ const EXPIRY_OPTIONS = [
 ]
 
 const THEME_OPTIONS = [
+  { value: 'system', label: 'System', color: 'linear-gradient(135deg, #F0F0F2 50%, #1A1A1E 50%)', light: false },
   { value: 'sunset',      label: 'Sunset',       color: '#C85A10',  light: false },
   { value: 'sunrise',     label: 'Sunrise',      color: '#F07020',  light: false },
   { value: 'dark', label: 'Dark', color: '#1A1A1E', light: false },
@@ -39,6 +41,9 @@ export default function SettingsPanel({ open, onClose }) {
     if (open) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  const modalRef = React.useRef(null)
+  useFocusTrap(modalRef, open)
 
   const [confirmClear, setConfirmClear] = useState(false)
 
@@ -85,6 +90,7 @@ export default function SettingsPanel({ open, onClose }) {
 
           {/* Panel — optimized for smooth Firefox rendering */}
           <motion.div
+            ref={modalRef}
             className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-sm overflow-y-auto"
             style={{
               background: 'var(--settings-bg)',
@@ -137,7 +143,7 @@ export default function SettingsPanel({ open, onClose }) {
                           <div
                             className="w-12 h-12 rounded-full transition-all"
                             style={{
-                              backgroundColor: opt.color,
+                              background: opt.color,
                               border: '1px solid var(--border-strong)',
                               boxShadow: isActive ? `0 0 0 3px var(--accent-soft)` : 'none',
                             }}

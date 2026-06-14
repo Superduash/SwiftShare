@@ -67,7 +67,7 @@ function Navbar() {
                 <ArrowLeft size={18} />
               </Link>
             )}
-            <Link to="/" className="flex items-center gap-2 group" aria-label="SwiftShare home">
+            <Link to="/" className="flex items-center gap-2 group" aria-label="SwiftShare home" aria-current={isHome ? 'page' : undefined}>
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center logo-icon"
                 style={{ 
@@ -111,6 +111,11 @@ function Navbar() {
                 )}
               </button>
             )}
+
+            {/* Shortcuts hint */}
+            <span className="hidden md:flex items-center text-[10px] mr-2" style={{ color: 'var(--text-4)' }}>
+              Press <kbd className="mx-1 px-1.5 py-0.5 rounded font-mono border" style={{ background: 'var(--bg-sunken)', borderColor: 'var(--border)', color: 'var(--text-2)' }}>?</kbd> for shortcuts
+            </span>
 
             {/* Connection status pill */}
             <div

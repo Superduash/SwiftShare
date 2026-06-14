@@ -16,6 +16,7 @@ import { applyPerformanceOptimizations, shouldReduceAnimations } from './utils/d
 import LoadingScreen from './components/LoadingScreen'
 import ConnectionBanner from './components/ConnectionBanner'
 import Navbar from './components/Navbar'
+import ShortcutsOverlay from './components/ShortcutsOverlay'
 
 const AmbientBackground = lazy(() => import('./components/AmbientBackground').catch(() => ({ default: () => null })))
 // ── Error boundary for lazy routes ───────────
@@ -199,6 +200,19 @@ export default function App() {
     // Auto-detect reduced motion for low-end devices
     return settings.reducedMotion || shouldReduceAnimations()
   })
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false)
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return
+        e.preventDefault()
+        setShortcutsOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // Apply performance optimizations on mount
   useEffect(() => {
@@ -299,6 +313,7 @@ export default function App() {
                 error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
               }}
             />
+            <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
           </TransferProvider>
         </ConnectionHealthProvider>
       </SocketProvider>

@@ -2,9 +2,9 @@ import React, { memo, useCallback } from 'react'
 import { Clock } from 'lucide-react'
 
 const OPTIONS = [
-  { value: 10, label: '10 min', desc: 'Quick share' },
-  { value: 60, label: '1 hour', desc: 'Standard' },
-  { value: 300, label: '5 hours', desc: 'Extended' },
+  { value: 10,  label: '10 min', desc: 'Quick share — link gone soon' },
+  { value: 60,  label: '1 hour',  desc: 'Standard — plenty of time' },
+  { value: 300, label: '5 hours', desc: 'Extended — for larger files' },
 ]
 
 // Memoized option button to prevent re-renders
@@ -42,6 +42,21 @@ function ExpirySelector({ value = 60, onChange }) {
         {OPTIONS.map(opt => (
           <ExpiryOption key={opt.value} opt={opt} active={value === opt.value} onChange={onChange} />
         ))}
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <input
+          type="number"
+          min={1} max={1440}
+          placeholder="Custom (minutes)"
+          className="surface-input flex-1 text-sm rounded-xl px-3 py-2"
+          style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          value={OPTIONS.some(o => o.value === value) ? '' : value}
+          onChange={(e) => {
+            const v = Number(e.target.value)
+            if (v > 0 && v <= 1440) onChange(v)
+          }}
+        />
+        <span className="text-xs" style={{ color: 'var(--text-4)' }}>min (max 24h)</span>
       </div>
     </div>
   )

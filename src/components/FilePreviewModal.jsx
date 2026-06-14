@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Download, ExternalLink, FileText, Lock, X } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 import { previewUrl } from '../services/api'
 import { getPreviewType } from '../utils/preview'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 function getDocxPreviewUrl(src) {
   if (!src) return ''
@@ -141,6 +143,16 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     if (mediaErrorTimer.current) clearTimeout(mediaErrorTimer.current)
   }, [])
 
+  const modalRef = useRef(null)
+  useFocusTrap(modalRef, open)
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   const handleMediaError = (event) => {
     if (mediaErrorTimer.current) return
     
@@ -233,6 +245,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   useEffect(() => {
     if (open && (type === 'video' || type === 'audio') && isCrossOrigin && src) {
       console.log('[SwiftShare Preview] Cross-origin media detected - opening in new tab:', src)
+      toast('Opening in new tab for best playback', { icon: '▶️' })
       openInNewTab()
       onClose()
     }
@@ -275,13 +288,14 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 bg-black/70"
+        className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:p-4 bg-black/70"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
         <motion.div
+          ref={modalRef}
           className="w-full max-w-4xl max-h-[calc(100dvh-1rem)] sm:max-h-[90vh] overflow-hidden rounded-2xl flex flex-col"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -378,8 +392,12 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   <div className="flex flex-col items-center justify-center gap-3 rounded-xl p-6 text-center" style={{ background: 'var(--bg-sunken)' }}>
                     <AlertTriangle size={36} style={{ color: 'var(--warning)' }} />
                     <div>
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>PDF preview unavailable on phones</p>
-                      <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Open it in a new tab or download it to view the file.</p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                        PDF preview works best on desktop
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
+                        Open it in a new tab or download to read on your phone.
+                      </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-2">
                       <button className="btn-secondary text-sm" onClick={openInNewTab}>Open in new tab</button>

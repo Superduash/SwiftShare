@@ -335,11 +335,15 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
         </div>
         <div className="surface-card-flat p-4 text-center">
           <p className="text-xs mb-1" style={{ color: 'var(--text-4)' }}>
-            No devices found on same WiFi
+            No devices found on the same network
+          </p>
+          <p className="text-[10px]" style={{ color: 'var(--text-5)' }}>
+            Requires both devices on the same WiFi. VPNs and hotspots may prevent discovery.
+            Use the share code or QR instead.
           </p>
           {lastUpdated && (
-            <p className="text-[10px]" style={{ color: 'var(--text-5)' }}>
-              Last checked: {new Date(lastUpdated).toLocaleTimeString()}
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-5)' }}>
+              Checked at {new Date(lastUpdated).toLocaleTimeString()}
             </p>
           )}
         </div>

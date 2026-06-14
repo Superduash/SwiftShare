@@ -1,20 +1,44 @@
 import React, { useEffect, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Maximize2 } from 'lucide-react'
+import { X, Maximize2, Download } from 'lucide-react'
 import { QRCode } from 'react-qr-code'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 function QRModal({ open, onClose, value, code }) {
+  const modalRef = React.useRef(null)
+  useFocusTrap(modalRef, open)
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     if (open) window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  function downloadQR(code) {
+    const svg = document.querySelector('[aria-label^="QR code"]')
+    if (!svg) return
+    const canvas = document.createElement('canvas')
+    canvas.width = 512; canvas.height = 512
+    const ctx = canvas.getContext('2d')
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const img = new Image()
+    img.onload = () => {
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, 512, 512)
+      ctx.drawImage(img, 0, 0, 512, 512)
+      const a = document.createElement('a')
+      a.href = canvas.toDataURL('image/png')
+      a.download = `swiftshare-${code}.png`
+      a.click()
+    }
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData)
+  }
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[80] flex items-start sm:items-center justify-center p-3 sm:p-6"
+          className="fixed inset-0 z-[80] flex items-start sm:items-center justify-center p-3 sm:p-6 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -24,6 +48,7 @@ function QRModal({ open, onClose, value, code }) {
 
           {/* Modal */}
           <motion.div
+            ref={modalRef}
             className="relative z-10 rounded-3xl p-5 sm:p-8 text-center max-w-sm w-full max-h-[calc(100dvh-1.5rem)] sm:max-h-none overflow-auto"
             style={{ background: 'var(--bg-raised)' }}
             initial={{ scale: 0.85, opacity: 0 }}
@@ -52,6 +77,12 @@ function QRModal({ open, onClose, value, code }) {
                 level="M"
                 aria-label={`QR code for transfer ${code || ''}`}
               />
+            </div>
+
+            <div className="mb-6">
+              <button className="btn-ghost text-sm" onClick={() => downloadQR(code)}>
+                <Download size={14} /> Save QR Image
+              </button>
             </div>
 
             {code && (

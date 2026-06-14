@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 
 export default function ProgressBar({ percent = 0, speed = 0, label = 'Uploading...', showSpeed = true }) {
@@ -8,8 +8,22 @@ export default function ProgressBar({ percent = 0, speed = 0, label = 'Uploading
   // Convert percentage to 0.0 - 1.0 scale for GPU transforms
   const scaleX = clampedPercent / 100;
   
+  const [liveText, setLiveText] = useState('');
+  const announced = useRef(new Set());
+
+  useEffect(() => {
+    const milestones = [25, 50, 75, 100];
+    for (const m of milestones) {
+      if (clampedPercent >= m && !announced.current.has(m)) {
+        announced.current.add(m);
+        setLiveText(m === 100 ? `${label} complete` : `${label} ${m}% complete`);
+      }
+    }
+  }, [clampedPercent, label]);
+
   return (
     <div className="w-full">
+      <span className="sr-only" aria-live="polite" aria-atomic="true">{liveText}</span>
       <div className="flex justify-between items-end mb-2">
         <span className="text-sm font-medium tracking-wide" style={{ color: 'var(--text)' }}>
           {label}
