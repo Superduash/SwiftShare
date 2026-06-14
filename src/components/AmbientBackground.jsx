@@ -1,4 +1,4 @@
-import { useMemo, memo, useState, useEffect, useRef } from 'react'
+import { useMemo, memo, useState, useEffect, useRef, useCallback } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings } from '../utils/storage'
 
@@ -17,6 +17,60 @@ function getParticleDensity() {
   if (isHighRefresh) return 1.2
   return 1.0
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PARTICLE HOOK — Uses Web Animations API instead of CSS @keyframes
+   
+   WHY: CSS @keyframes with var() custom properties (--max-opacity, 
+   --drift, --rise, etc.) don't work in Firefox. The Web Animations 
+   API works identically in Chrome, Firefox, Edge, and Safari.
+   ═══════════════════════════════════════════════════════════════ */
+
+function useParticleAnimation(ref, keyframes, options) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const anim = el.animate(keyframes, options)
+    return () => anim.cancel()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+/* ── Single Petal (Web Animations API) ── */
+const Petal = memo(function Petal({ p }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const anim = el.animate([
+      { transform: 'translate3d(0, -40px, 0) rotate(0deg)', opacity: 0 },
+      { transform: 'translate3d(0, -20px, 0) rotate(15deg)', opacity: p.opacity, offset: 0.08 },
+      { transform: `translate3d(${p.drift * 0.5}px, 50vh, 0) rotate(360deg)`, opacity: p.opacity, offset: 0.5 },
+      { transform: `translate3d(${p.drift}px, 95vh, 0) rotate(650deg)`, opacity: p.opacity, offset: 0.85 },
+      { transform: `translate3d(${p.drift}px, 110vh, 0) rotate(720deg)`, opacity: 0 },
+    ], {
+      duration: p.dur * 1000,
+      delay: p.delay * 1000,
+      iterations: Infinity,
+      easing: 'linear',
+    })
+    return () => anim.cancel()
+  }, [p])
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        left: p.left,
+        top: '-30px',
+        width: `${p.size}px`,
+        height: `${p.size}px`,
+        borderRadius: p.shape < 2 ? '0 100% 0 100%' : p.shape < 4 ? '100% 0 100% 0' : '50% 50% 50% 0',
+        background: p.color,
+        willChange: 'transform, opacity',
+      }}
+    />
+  )
+})
 
 /* ── SAKURA — Falling petals ── */
 const SakuraScene = memo(function SakuraScene() {
@@ -40,27 +94,44 @@ const SakuraScene = memo(function SakuraScene() {
     <>
       <div style={{ position: 'absolute', right: '-10%', top: '-10%', width: '55vw', height: '45vw', borderRadius: '50%', filter: 'blur(90px)', background: 'radial-gradient(ellipse,rgba(236,72,153,0.12) 0%,rgba(244,114,182,0.06) 50%,transparent 70%)', animation: 'ss-float-slow 30s -5s ease-in-out infinite alternate' }} />
       <div style={{ position: 'absolute', left: '-5%', bottom: '10%', width: '40vw', height: '32vw', borderRadius: '50%', filter: 'blur(70px)', background: 'radial-gradient(ellipse,rgba(192,132,252,0.10) 0%,transparent 70%)', animation: 'ss-float-slow 26s -12s ease-in-out infinite alternate-reverse' }} />
-      {petals.map(p => (
-        <div
-          key={p.id}
-          style={{
-            position: 'absolute',
-            left: p.left,
-            top: '-30px',
-            width: `${p.size}px`,
-            height: `${p.size}px`,
-            borderRadius: p.shape < 2 ? '0 100% 0 100%' : p.shape < 4 ? '100% 0 100% 0' : '50% 50% 50% 0',
-            background: p.color,
-            opacity: 0,
-            willChange: 'transform, opacity',
-            animation: `ss-petal-fall ${p.dur}s ${p.delay}s linear infinite`,
-            '--drift': `${p.drift}px`,
-            '--rise': '0px',
-            '--max-opacity': p.opacity,
-          }}
-        />
-      ))}
+      {petals.map(p => <Petal key={p.id} p={p} />)}
     </>
+  )
+})
+
+/* ── Single Star (Web Animations API) ── */
+const Star = memo(function Star({ s }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const anim = el.animate([
+      { opacity: s.opacity * 0.15, transform: 'translate3d(0,0,0) scale(0.85)' },
+      { opacity: s.opacity, transform: 'translate3d(0,0,0) scale(1.15)' },
+    ], {
+      duration: s.dur * 1000,
+      delay: s.delay * 1000,
+      iterations: Infinity,
+      direction: 'alternate',
+      easing: 'ease-in-out',
+    })
+    return () => anim.cancel()
+  }, [s])
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        left: s.left,
+        top: s.top,
+        width: `${s.size}px`,
+        height: `${s.size}px`,
+        borderRadius: '50%',
+        background: s.color,
+        boxShadow: `0 0 ${s.size * 2.5}px ${s.color}`,
+        willChange: 'transform, opacity',
+      }}
+    />
   )
 })
 
@@ -87,26 +158,45 @@ const MidnightScene = memo(function MidnightScene() {
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 50% 35% at 80% 70%,rgba(8,15,50,0.20) 0%,transparent 55%)' }} />
       <div style={{ position: 'absolute', left: '60%', top: '15%', width: '20vw', height: '8vw', borderRadius: '50%', filter: 'blur(40px)', background: 'radial-gradient(ellipse,rgba(40,80,180,0.14) 0%,rgba(20,40,100,0.06) 50%,transparent 70%)', transform: 'rotate(-25deg)', animation: 'ss-float-slow 50s -20s ease-in-out infinite alternate' }} />
       <div style={{ position: 'absolute', left: '10%', bottom: '-15%', width: '70vw', height: '30vw', borderRadius: '50%', filter: 'blur(100px)', background: 'radial-gradient(ellipse,rgba(15,40,100,0.18) 0%,transparent 70%)', animation: 'ss-float-slow 46s -10s ease-in-out infinite alternate' }} />
-      {stars.map(s => (
-        <div
-          key={s.id}
-          style={{
-            position: 'absolute',
-            left: s.left,
-            top: s.top,
-            width: `${s.size}px`,
-            height: `${s.size}px`,
-            borderRadius: '50%',
-            background: s.color,
-            boxShadow: `0 0 ${s.size * 2.5}px ${s.color}`,
-            opacity: 0,
-            willChange: 'transform, opacity',
-            animation: `ss-star-twinkle ${s.dur}s ${s.delay}s ease-in-out infinite alternate`,
-            '--max-opacity': s.opacity,
-          }}
-        />
-      ))}
+      {stars.map(s => <Star key={s.id} s={s} />)}
     </>
+  )
+})
+
+/* ── Single Lavender Petal (reuses Petal logic with different shapes) ── */
+const LavenderPetal = memo(function LavenderPetal({ p }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const anim = el.animate([
+      { transform: 'translate3d(0, -40px, 0) rotate(0deg)', opacity: 0 },
+      { transform: 'translate3d(0, -20px, 0) rotate(20deg)', opacity: p.opacity, offset: 0.08 },
+      { transform: `translate3d(${p.drift * 0.5}px, 50vh, 0) rotate(340deg)`, opacity: p.opacity, offset: 0.5 },
+      { transform: `translate3d(${p.drift}px, 95vh, 0) rotate(620deg)`, opacity: p.opacity, offset: 0.85 },
+      { transform: `translate3d(${p.drift}px, 110vh, 0) rotate(720deg)`, opacity: 0 },
+    ], {
+      duration: p.dur * 1000,
+      delay: p.delay * 1000,
+      iterations: Infinity,
+      easing: 'linear',
+    })
+    return () => anim.cancel()
+  }, [p])
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        left: p.left,
+        top: '-30px',
+        width: `${p.size}px`,
+        height: `${p.size}px`,
+        borderRadius: p.shape === 0 ? '0 100% 0 100%' : p.shape === 1 ? '100% 0 100% 0' : '60% 40% 60% 40%',
+        background: p.color,
+        willChange: 'transform, opacity',
+      }}
+    />
   )
 })
 
@@ -132,27 +222,103 @@ const LavenderScene = memo(function LavenderScene() {
     <>
       <div style={{ position: 'absolute', right: '-8%', top: '-8%', width: '55vw', height: '45vw', borderRadius: '50%', filter: 'blur(90px)', background: 'radial-gradient(ellipse,rgba(139,92,246,0.14) 0%,rgba(167,139,250,0.07) 50%,transparent 70%)', animation: 'ss-float-slow 32s -5s ease-in-out infinite alternate' }} />
       <div style={{ position: 'absolute', left: '-5%', bottom: '15%', width: '42vw', height: '34vw', borderRadius: '50%', filter: 'blur(80px)', background: 'radial-gradient(ellipse,rgba(167,139,250,0.12) 0%,transparent 70%)', animation: 'ss-float-slow 28s -14s ease-in-out infinite alternate-reverse' }} />
-      {petals.map(p => (
-        <div
-          key={p.id}
-          style={{
-            position: 'absolute',
-            left: p.left,
-            top: '-30px',
-            width: `${p.size}px`,
-            height: `${p.size}px`,
-            borderRadius: p.shape === 0 ? '0 100% 0 100%' : p.shape === 1 ? '100% 0 100% 0' : '60% 40% 60% 40%',
-            background: p.color,
-            opacity: 0,
-            willChange: 'transform, opacity',
-            animation: `ss-petal-fall ${p.dur}s ${p.delay}s linear infinite`,
-            '--drift': `${p.drift}px`,
-            '--rise': '0px',
-            '--max-opacity': p.opacity,
-          }}
-        />
-      ))}
+      {petals.map(p => <LavenderPetal key={p.id} p={p} />)}
     </>
+  )
+})
+
+/* ── Single Firefly (Web Animations API) ── */
+const Firefly = memo(function Firefly({ f }) {
+  const wrapperRef = useRef(null)
+  const glowRef = useRef(null)
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    const glow = glowRef.current
+    if (!wrapper || !glow) return
+    // Movement animation (drift)
+    const moveAnim = wrapper.animate([
+      { transform: 'translate3d(0, 0, 0) scale(1)' },
+      { transform: `translate3d(${f.tx}px, ${f.ty}px, 0) scale(1.15)` },
+    ], {
+      duration: f.moveDur * 1000,
+      delay: f.moveDelay * 1000,
+      iterations: Infinity,
+      direction: 'alternate',
+      easing: 'ease-in-out',
+    })
+    // Blink animation
+    const blinkAnim = glow.animate([
+      { opacity: 0.05, transform: 'translate3d(0,0,0) scale(0.6)' },
+      { opacity: 0.9, transform: 'translate3d(0,0,0) scale(1.2)', offset: 0.3 },
+      { opacity: 0.3, transform: 'translate3d(0,0,0) scale(0.9)', offset: 0.6 },
+      { opacity: 0.9, transform: 'translate3d(0,0,0) scale(1.1)', offset: 0.8 },
+      { opacity: 0.05, transform: 'translate3d(0,0,0) scale(0.6)' },
+    ], {
+      duration: f.dur * 1000,
+      delay: f.delay * 1000,
+      iterations: Infinity,
+      easing: 'ease-in-out',
+    })
+    return () => { moveAnim.cancel(); blinkAnim.cancel() }
+  }, [f])
+  return (
+    <div
+      ref={wrapperRef}
+      style={{
+        position: 'absolute',
+        left: f.left,
+        top: f.top,
+        willChange: 'transform',
+      }}
+    >
+      <div
+        ref={glowRef}
+        style={{
+          width: `${f.size}px`,
+          height: `${f.size}px`,
+          borderRadius: '50%',
+          background: f.color,
+          boxShadow: `0 0 ${f.size * 5.5}px ${f.color},0 0 ${f.size * 11}px ${f.color.replace(/0\.\d+\)/, '0.35)')}`,
+          willChange: 'transform, opacity',
+        }}
+      />
+    </div>
+  )
+})
+
+/* ── Single Mist Cloud (Web Animations API) ── */
+const MistCloud = memo(function MistCloud({ m }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const anim = el.animate([
+      { transform: 'translate3d(0, 0, 0) scaleY(1)', opacity: 0.4 },
+      { transform: `translate3d(${m.tx}px, 0, 0) scaleY(1.3)`, opacity: 1 },
+    ], {
+      duration: m.dur * 1000,
+      delay: m.delay * 1000,
+      iterations: Infinity,
+      direction: 'alternate',
+      easing: 'ease-in-out',
+    })
+    return () => anim.cancel()
+  }, [m])
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        left: m.left,
+        bottom: m.bottom,
+        width: `${m.w}px`,
+        height: `${m.h}px`,
+        borderRadius: '50%',
+        filter: 'blur(45px)',
+        background: `radial-gradient(ellipse,rgba(0,216,124,${m.opacity * 2.2}) 0%,rgba(52,211,153,${m.opacity}) 40%,transparent 70%)`,
+        willChange: 'transform, opacity',
+      }}
+    />
   )
 })
 
@@ -198,52 +364,47 @@ const ForestScene = memo(function ForestScene() {
   }, [])
   return (
     <>
-      {mist.map(m => (
-        <div
-          key={m.id}
-          style={{
-            position: 'absolute',
-            left: m.left,
-            bottom: m.bottom,
-            width: `${m.w}px`,
-            height: `${m.h}px`,
-            borderRadius: '50%',
-            filter: 'blur(45px)',
-            background: `radial-gradient(ellipse,rgba(0,216,124,${m.opacity * 2.2}) 0%,rgba(52,211,153,${m.opacity}) 40%,transparent 70%)`,
-            willChange: 'transform, opacity',
-            animation: `ss-mist-drift ${m.dur}s ${m.delay}s ease-in-out infinite alternate`,
-            '--tx': `${m.tx}px`,
-          }}
-        />
-      ))}
+      {mist.map(m => <MistCloud key={m.id} m={m} />)}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%', filter: 'blur(60px)', background: 'linear-gradient(180deg,rgba(0,216,124,0.09) 0%,transparent 100%)', animation: 'ss-float-slow 32s ease-in-out infinite alternate' }} />
-      {fireflies.map(f => (
-        <div
-          key={f.id}
-          style={{
-            position: 'absolute',
-            left: f.left,
-            top: f.top,
-            willChange: 'transform',
-            animation: `ss-nebula-drift ${f.moveDur}s ${f.moveDelay}s ease-in-out infinite alternate`,
-            '--tx': `${f.tx}px`,
-            '--ty': `${f.ty}px`,
-          }}
-        >
-          <div
-            style={{
-              width: `${f.size}px`,
-              height: `${f.size}px`,
-              borderRadius: '50%',
-              background: f.color,
-              boxShadow: `0 0 ${f.size * 5.5}px ${f.color},0 0 ${f.size * 11}px ${f.color.replace(/0\.\d+\)/, '0.35)')}`,
-              willChange: 'transform, opacity',
-              animation: `ss-firefly-blink ${f.dur}s ${f.delay}s ease-in-out infinite`,
-            }}
-          />
-        </div>
-      ))}
+      {fireflies.map(f => <Firefly key={f.id} f={f} />)}
     </>
+  )
+})
+
+/* ── Single Ember (Web Animations API) ── */
+const Ember = memo(function Ember({ e }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const anim = el.animate([
+      { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 0 },
+      { opacity: e.opacity, offset: 0.12 },
+      { opacity: e.opacity * 0.6, offset: 0.75 },
+      { transform: `translate3d(${e.drift}px, ${e.rise}vh, 0) scale(0.15)`, opacity: 0 },
+    ], {
+      duration: e.dur * 1000,
+      delay: e.delay * 1000,
+      iterations: Infinity,
+      easing: 'ease-out',
+    })
+    return () => anim.cancel()
+  }, [e])
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        left: e.left,
+        bottom: e.bottom,
+        width: `${e.size}px`,
+        height: `${e.size}px`,
+        borderRadius: '50%',
+        background: `radial-gradient(circle,${e.core} 0%,${e.outer} 50%,transparent 100%)`,
+        boxShadow: `0 0 ${e.size * 4.5}px ${e.core},0 0 ${e.size * 9}px ${e.outer},0 0 ${e.size * 16}px rgba(190,0,0,0.28)`,
+        willChange: 'transform, opacity',
+      }}
+    />
   )
 })
 
@@ -283,26 +444,7 @@ const VolcanicScene = memo(function VolcanicScene() {
       {/* Ambient red wash */}
       <div style={{ position: 'absolute', left: '20%', top: '10%', width: '60vw', height: '40vw', borderRadius: '50%', filter: 'blur(120px)', background: 'radial-gradient(ellipse,rgba(130,0,0,0.10) 0%,transparent 70%)', animation: 'ss-float-slow 40s -8s ease-in-out infinite alternate' }} />
       {/* Embers */}
-      {embers.map(e => (
-        <div
-          key={e.id}
-          style={{
-            position: 'absolute',
-            left: e.left,
-            bottom: e.bottom,
-            width: `${e.size}px`,
-            height: `${e.size}px`,
-            borderRadius: '50%',
-            background: `radial-gradient(circle,${e.core} 0%,${e.outer} 50%,transparent 100%)`,
-            boxShadow: `0 0 ${e.size * 4.5}px ${e.core},0 0 ${e.size * 9}px ${e.outer},0 0 ${e.size * 16}px rgba(190,0,0,0.28)`,
-            willChange: 'transform, opacity',
-            animation: `ss-ember-rise ${e.dur}s ${e.delay}s ease-out infinite`,
-            '--drift': `${e.drift}px`,
-            '--rise': `${e.rise}vh`,
-            '--max-opacity': e.opacity,
-          }}
-        />
-      ))}
+      {embers.map(e => <Ember key={e.id} e={e} />)}
     </>
   )
 })
@@ -413,7 +555,6 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
   const { theme: contextTheme } = useTheme()
   const theme = themeProp || contextTheme
   const [reducedMotion, setReducedMotion] = useState(() => getSettings().reducedMotion)
-  const prevThemeRef = useRef(theme)
 
   useEffect(() => {
     const handleSettingsChange = () => {
@@ -422,11 +563,6 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
     window.addEventListener('swiftshare:settings-changed', handleSettingsChange)
     return () => window.removeEventListener('swiftshare:settings-changed', handleSettingsChange)
   }, [])
-
-  // Track previous theme to prevent flash on theme switch
-  useEffect(() => {
-    prevThemeRef.current = theme
-  }, [theme])
 
   if (reducedMotion) return null
 
