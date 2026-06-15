@@ -97,6 +97,10 @@ export default function DownloadPage() {
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
   const mountedRef = useRef(true)
+
+  const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
+  const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED'
+  const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
   const metaRef = useRef(initialCachedTransfer)
   const transferStatusRef = useRef(initialCachedTransfer?.status || 'ACTIVE')
   const downloadedAnyRef = useRef(false)
@@ -781,9 +785,6 @@ export default function DownloadPage() {
     ))
   }, [meta?.files, canDownload, needsPassword, passwordVerified, setContextMenu])
 
-  const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
-  const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED'
-  const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
   const isInitialLoading = requestState === REQUEST_STATE.LOADING && !meta
   const isRetrying = requestState === REQUEST_STATE.RETRYING
 
