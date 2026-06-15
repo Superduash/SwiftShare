@@ -3,22 +3,13 @@ name: Frontend CI
 on:
   push:
     branches: [main, master, develop]
-    paths:
-      - 'Frontend/**'
-      - '.github/workflows/ci-frontend.yml'
   pull_request:
     branches: [main, master]
-    paths:
-      - 'Frontend/**'
-      - '.github/workflows/ci-frontend.yml'
 
 jobs:
   build:
     name: Build & Audit
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Frontend
 
     steps:
       - name: Checkout code
@@ -27,9 +18,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: 'Frontend/.nvmrc'
+          node-version-file: '.nvmrc'
           cache: 'npm'
-          cache-dependency-path: 'Frontend/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Install dependencies
         run: npm ci
