@@ -1062,7 +1062,7 @@ export default function SenderPage() {
 
               {/* Transfer Summary */}
               {!cancelled && meta && (
-                <TransferSummaryCard meta={meta} url={shareLink} onCopy={copyLink} />
+                <TransferSummaryCard meta={meta} url={shareLink} onCopy={handleCopyLink} />
               )}
 
               {/* Password box - only show for non-text shares */}
@@ -1204,10 +1204,10 @@ export default function SenderPage() {
                     </div>
                     <button
                       className="btn-primary shrink-0 gap-1.5 px-4"
-                      onClick={copyLink}
-                      style={copiedLink ? { background: 'var(--success)', borderColor: 'var(--success)' } : undefined}
+                      onClick={handleCopyLink}
+                      style={copyLinkState === 'copied' ? { background: 'var(--success)', borderColor: 'var(--success)' } : undefined}
                     >
-                      {copiedLink ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
+                      {copyLinkState === 'copied' ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
                     </button>
                   </div>
                 </div>

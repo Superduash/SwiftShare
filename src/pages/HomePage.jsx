@@ -929,7 +929,7 @@ export default function HomePage() {
                     exit={{ opacity: 0 }}
                   >
                     {uploadPhase === 'finalizing' ? (
-                      <FinalizingIndicator label="Finalizing Transfer\u2026" />
+                      <FinalizingIndicator label="Finalizing Transfer..." />
                     ) : (
                       <ProgressBar
                         percent={uploadPercent}
