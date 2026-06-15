@@ -1,146 +1,113 @@
-# SwiftShare
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=230&color=0:0d1117,50:0f3460,100:00d4ff&text=SwiftShare&fontSize=58&fontColor=ffffff&animation=fadeIn&fontAlignY=40&desc=Cross-Platform%20Temporary%20File%20Sharing&descAlignY=62&descColor=c9d1d9&descSize=18"/>
+</p>
 
-### ⚡ Share files in seconds. No accounts. No friction.
+<div align="center">
 
-SwiftShare is a modern temporary file sharing platform that lets you transfer files, text snippets, and media between devices using a simple 6-character code or QR scan.
+### ⚡ Instant Transfers • 🔒 Privacy First • 📱 QR Sharing • 🔥 Burn After Download
 
-Designed as a browser-native alternative to traditional file sharing tools, SwiftShare focuses on speed, simplicity, and privacy. Upload files, share the code, and download from any device — no sign-ups, no installations, and no unnecessary complexity.
+A modern file sharing platform that allows anyone to securely transfer files, text, and media between devices using nothing more than a browser, a transfer code, or a QR scan.
 
----
+<br>
 
-## ✨ Why SwiftShare?
+<img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white"/>
+<img src="https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white"/>
+<img src="https://img.shields.io/badge/Socket.IO-Real_Time-black?style=for-the-badge&logo=socketdotio"/>
+<img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge"/>
 
-Most file sharing platforms suffer from at least one of these problems:
-
-* Account creation before sharing
-* Slow or cluttered user experience
-* Files stored indefinitely
-* Poor mobile experience
-* No real-time feedback
-* Limited security controls
-
-SwiftShare was built to solve all of them.
+</div>
 
 ---
 
-## 🚀 Core Features
+# 🚀 What is SwiftShare?
 
-### 📂 Temporary File Transfers
+SwiftShare is a temporary file transfer platform designed for speed, simplicity, and security.
 
-Share files instantly through:
+Instead of creating accounts, uploading to cloud drives, or installing software, users can instantly share files through:
 
-* Drag & drop uploads
-* File picker selection
-* Clipboard image pasting
-* Multi-file transfers
+- 6-character transfer codes
+- QR code scanning
+- Shareable links
+- Nearby device discovery
 
-Every upload generates:
-
-* A unique 6-character transfer code
-* A shareable link
-* A QR code for mobile devices
+SwiftShare automatically removes files after expiry or download, making transfers fast, lightweight, and privacy-friendly.
 
 ---
 
-### 🔒 Secure Sharing
+# ✨ Features
 
-Protect transfers with:
+### 📦 Transfer Files Instantly
 
-* Optional password protection
-* Burn-after-download mode
-* Automatic expiry
-* Secure transfer validation
-* Download ownership tracking
+- Multi-file uploads
+- Drag & drop support
+- Clipboard image uploads
+- Download entire transfers as ZIP
+- Transfer codes generated instantly
 
-Files disappear automatically after expiry or successful burn-mode downloads.
+### 🔒 Security Controls
 
----
+- Password-protected transfers
+- Burn-after-download mode
+- Automatic expiration
+- Secure transfer validation
+- Activity tracking
 
 ### ⚡ Real-Time Experience
 
-Powered by WebSockets for live updates:
+- Live upload progress
+- Download notifications
+- Activity logs
+- Instant transfer updates
+- WebSocket-powered synchronization
 
-* Upload progress
-* Download notifications
-* Transfer activity
-* Live transfer status
-* Device discovery updates
+### 📱 Cross-Platform
 
-No refreshes required.
+Works on:
 
----
+- Windows
+- Linux
+- macOS
+- Android
+- iPhone
+- Tablets
 
-### 📱 QR Join & Cross-Device Sharing
+No installation required.
 
-Move files seamlessly between:
+### 🌐 Nearby Discovery
 
-* Windows
-* Linux
-* macOS
-* Android
-* iPhone
-* Tablets
-
-Simply scan the QR code or enter the transfer code.
-
----
-
-### 🌐 Nearby Device Discovery
-
-SwiftShare can automatically detect active transfers from devices connected to the same local network.
+Discover active transfers from devices connected to the same local network.
 
 Perfect for:
 
-* College labs
-* Classrooms
-* Offices
-* Shared Wi-Fi environments
+- College labs
+- Classrooms
+- Offices
+- Shared Wi-Fi environments
 
----
-
-### 📝 Text Sharing
-
-Share:
-
-* Notes
-* Logs
-* Source code
-* URLs
-* Commands
-
-without creating files first.
-
----
-
-### 👀 File Preview Support
+### 👀 Rich File Previews
 
 Preview before downloading:
 
-* Images
-* Videos
-* Audio
-* PDFs
-* Documents
-* Text files
-* Source code
+- Images
+- Videos
+- Audio
+- PDFs
+- Text files
+- Source code
+- Documents
+
+### 🎨 Premium UI
+
+- Multiple themes
+- Smooth animations
+- Mobile-first design
+- Responsive layouts
+- Progressive Web App support
 
 ---
 
-### 🎨 Beautiful Interface
-
-Built with a modern UI featuring:
-
-* Multiple themes
-* Responsive layouts
-* Smooth animations
-* Mobile-first design
-* PWA support
-
----
-
-## 🏗 Architecture
-
-SwiftShare uses a decoupled full-stack architecture.
+# 🏗 Architecture
 
 ```text
 Frontend
@@ -154,59 +121,78 @@ Node.js • Express • MongoDB • Cloudflare R2
         ↓
 
 Infrastructure
-Render • Vercel • Redis • WebSockets
+Render • Vercel • Redis
 ```
 
 ---
 
-## 🛠 Tech Stack
+# 🛠 Tech Stack
 
-### Frontend
-
-* React 18
-* Vite 8
-* Tailwind CSS
-* Framer Motion
-* React Query
-* Socket.IO Client
-
-### Backend
-
-* Node.js 22
-* Express 5
-* MongoDB
-* Cloudflare R2
-* Socket.IO
-* Redis
+| Technology | Purpose |
+|------------|----------|
+| React 18 | Frontend Framework |
+| Vite 8 | Build Tool |
+| Tailwind CSS | Styling |
+| Framer Motion | Animations |
+| Socket.IO | Real-Time Communication |
+| Node.js 22 | Backend Runtime |
+| Express 5 | API Server |
+| MongoDB | Metadata Storage |
+| Cloudflare R2 | File Storage |
+| Redis | Rate Limiting |
 
 ---
 
-## 📦 Repository Structure
+# 🔥 Core Highlights
+
+✅ No Accounts Required
+
+✅ Temporary Transfers
+
+✅ QR Code Sharing
+
+✅ Password Protection
+
+✅ Burn-After-Download
+
+✅ Nearby Device Discovery
+
+✅ Real-Time Updates
+
+✅ Text Snippet Sharing
+
+✅ Multi-File Uploads
+
+✅ Mobile Friendly
+
+---
+
+# 📂 Repository Structure
 
 ```text
 SwiftShare/
 │
 ├── Frontend (This Repository)
 │
-└── Backend Repository
+└── SwiftShare-Backend
 ```
 
 ### Backend Repository
 
-👉 https://github.com/Superduash/SwiftShare-Backend
+➡️ https://github.com/Superduash/SwiftShare-Backend
 
 The backend contains:
 
-* API routes
-* File storage logic
-* Transfer lifecycle management
-* Real-time infrastructure
-* Security systems
-* Cleanup services
+- Upload infrastructure
+- Transfer lifecycle management
+- Storage services
+- Security systems
+- Real-time communication
+- Cleanup services
 
 ---
 
-## 🚀 Running Locally
+# 🚀 Local Development
 
 ```bash
 git clone https://github.com/Superduash/SwiftShare.git
@@ -218,43 +204,17 @@ npm run dev
 
 ---
 
-## 🎯 Project Goals
+# 🌟 Project Vision
 
-SwiftShare aims to become the fastest way to move files between devices without requiring:
+SwiftShare was built around one simple idea:
 
-* Accounts
-* Apps
-* Cloud drives
-* Permanent storage
+> Sharing files between devices should take seconds, not accounts.
 
-Just upload, share, download, and move on.
+The goal is to create the fastest browser-based transfer experience possible while remaining open-source, privacy-conscious, and simple enough for anyone to use.
 
 ---
 
-## 🌟 Highlights
-
-* Temporary transfers
-* QR-based sharing
-* Real-time updates
-* Nearby discovery
-* Burn-after-download
-* Password protection
-* Multi-file support
-* Text sharing
-* Mobile friendly
-* Open source
-
----
-
-## 🔗 Related Repository
-
-**SwiftShare Backend**
-
-https://github.com/Superduash/SwiftShare-Backend
-
----
-
-## 📜 License
+# 📜 License
 
 MIT License
 
@@ -264,8 +224,14 @@ Free to use, modify, and distribute.
 
 <div align="center">
 
-Built with ❤️ by **Ashwin A (Superduash)**
+⭐ If you like the project, consider starring the repository.
 
-**Simple, yet too effective.**
+Built with ❤️ by Superduash
+
+Simple, yet too effective.
 
 </div>
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=120&section=footer&color=0:00d4ff,50:0f3460,100:0d1117"/>
+</p>
