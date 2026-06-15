@@ -409,43 +409,14 @@ export default function SenderPage() {
 
     connectRoom()
     
+    // Server sends authoritative ticks every 5s - sync local timer to match
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
-    // Local countdown timer — stops completely when tab hidden, restarts on return
-    let localTimerId = null
-    
-    const startLocalTimer = () => {
-      if (localTimerId) return // already running
-      localTimerId = setInterval(() => {
-        setSecondsRemaining(prev => Math.max(0, prev - 1))
-      }, 1000)
-    }
-    
-    const stopLocalTimer = () => {
-      if (localTimerId) {
-        clearInterval(localTimerId)
-        localTimerId = null
-      }
-    }
-    
-    // Start timer initially
-    startLocalTimer()
-    
-    // Handle visibility: stop timer when hidden, recalc and restart when visible
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        stopLocalTimer()
-      } else {
-        // Recalculate from expiresAt to correct any drift
-        const currentMeta = metaRef.current
-        if (currentMeta?.expiresAt) {
-          const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
-          setSecondsRemaining(seconds)
-        }
-        startLocalTimer()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
+    // Local 1s timer for smooth UI - server ticks correct any drift
+    const timerRef = { current: null }
+    timerRef.current = setInterval(() => {
+      setSecondsRemaining(prev => Math.max(0, prev - 1))
+    }, 1000)
     
     const onExpired = () => {
       if (!mountedRef.current) return
@@ -549,8 +520,7 @@ export default function SenderPage() {
     window.addEventListener('swiftshare:socket-reconnected', onSocketReconnected)
 
     return () => {
-      stopLocalTimer()
-      document.removeEventListener('visibilitychange', onVisibilityChange)
+      if (timerRef.current) clearInterval(timerRef.current)
       socket.off('connect', connectRoom)
       socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)
