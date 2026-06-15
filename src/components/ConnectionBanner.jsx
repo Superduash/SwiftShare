@@ -107,17 +107,17 @@ function ConnectionBanner() {
       return
     }
 
-    if (status === 'syncing') {
-      // Grace window: don't flash the banner for short transient syncing.
-      // If syncing persists past the grace, show the banner.
+    if (status === 'syncing' || status === 'waking') {
+      // Grace window: don't flash the banner for short transient syncing or fast wake-ups.
+      // If the state persists past the grace, show the banner.
       syncingTimerRef.current = setTimeout(() => {
-        setDisplayStatus('syncing')
+        setDisplayStatus(status)
         syncingTimerRef.current = null
       }, SYNCING_GRACE_MS)
       return
     }
 
-    // waking / reconnecting / offline — show immediately, no grace.
+    // reconnecting / offline — show immediately, no grace.
     setDisplayStatus(status)
   }, [status])
 
