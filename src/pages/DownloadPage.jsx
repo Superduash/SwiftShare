@@ -196,12 +196,14 @@ export default function DownloadPage() {
     metaRef.current = merged
     setMeta(merged)
 
-    const directSeconds = Number(merged.secondsRemaining)
-    if (Number.isFinite(directSeconds) && directSeconds >= 0) {
-      setSecondsRemaining(directSeconds)
-    } else if (merged.expiresAt) {
-      const inferred = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
-      setSecondsRemaining(inferred)
+    // Only update expiresAt, not secondsRemaining - let timer calculate it
+    if (merged.expiresAt) {
+      // Timer will calculate from expiresAt - don't touch secondsRemaining here
+    } else {
+      const directSeconds = Number(merged.secondsRemaining)
+      if (Number.isFinite(directSeconds) && directSeconds >= 0) {
+        setSecondsRemaining(directSeconds)
+      }
     }
 
     const sessionDuration = merged.expiresAt && merged.createdAt
@@ -428,32 +430,24 @@ export default function DownloadPage() {
       } catch {}
 
       const cached = getCachedTransfer(normalizedCode)
-      if (cached?.expiresAt) {
-        const seconds = Math.max(0, Math.ceil((new Date(cached.expiresAt).getTime() - Date.now()) / 1000))
-        setSecondsRemaining(seconds)
-      }
+      // expiresAt already loaded - timer will calculate from it
     }
 
     connectRoom()
     
-    const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
-    
-    // Client-side countdown from expiresAt - no server overhead
+    // Single source of truth: calculate from expiresAt every second
     const timerRef = { current: null }
     timerRef.current = setInterval(() => {
       const currentMeta = metaRef.current
       if (currentMeta?.expiresAt) {
         const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
         setSecondsRemaining(seconds)
-      } else {
-        setSecondsRemaining(prev => Math.max(0, prev - 1))
       }
     }, 1000)
     
     const onExpired = () => {
       setTransferStatus('EXPIRED')
-      setSecondsRemaining(0)
-      patchCachedTransfer({ status: 'EXPIRED', secondsRemaining: 0 })
+      patchCachedTransfer({ status: 'EXPIRED' })
     }
     // RAF-coalesce socket-driven download progress. Backend now throttles emits
     // to ~5/sec, but on a fast LAN we can still get bursty updates that would
@@ -525,7 +519,6 @@ export default function DownloadPage() {
     window.addEventListener('swiftshare:socket-reconnected', onSocketReconnected)
 
     socket.on('connect', connectRoom)
-    socket.on('countdown-tick', onTick)
     socket.on('transfer-expired', onExpired)
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
@@ -537,7 +530,6 @@ export default function DownloadPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
       socket.off('connect', connectRoom)
-      socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)

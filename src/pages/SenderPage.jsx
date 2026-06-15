@@ -214,12 +214,13 @@ export default function SenderPage() {
       setCancelled(true)
     }
 
+    // Only update expiresAt, not secondsRemaining - let timer calculate it
     const directSeconds = Number(merged.secondsRemaining)
-    if (Number.isFinite(directSeconds) && directSeconds >= 0) {
+    if (merged.expiresAt) {
+      // Timer will calculate from expiresAt - don't touch secondsRemaining here
+    } else if (Number.isFinite(directSeconds) && directSeconds >= 0) {
+      // Only if no expiresAt, use direct seconds as fallback
       setSecondsRemaining(directSeconds)
-    } else if (merged.expiresAt) {
-      const inferred = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
-      setSecondsRemaining(inferred)
     }
 
     const sessionDuration = merged.expiresAt && merged.createdAt
@@ -409,21 +410,15 @@ export default function SenderPage() {
 
     connectRoom()
     
-    // Server only sends ticks on changes (extend, etc) - client calculates locally
-    const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
-    
-    // Client-side countdown from expiresAt - no server overhead
+    // Single source of truth: calculate from expiresAt every second
     const timerRef = { current: null }
     timerRef.current = setInterval(() => {
       const currentMeta = metaRef.current
       if (currentMeta?.expiresAt) {
         const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
         setSecondsRemaining(seconds)
-      } else {
-        setSecondsRemaining(prev => Math.max(0, prev - 1))
       }
     }, 1000)
-    
     const onExpired = () => {
       if (!mountedRef.current) return
       updateTransferStatus(normalizedCode, 'EXPIRED')
@@ -486,11 +481,10 @@ export default function SenderPage() {
     }
     const onExtended = ({ expiresAt }) => {
       if (expiresAt) {
+        // Update expiresAt - timer will auto-calculate secondsRemaining
         const newSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
-        setSecondsRemaining(newSeconds)
-        // Derive totalSeconds from actual remaining time, not hardcoded value
         setTotalSeconds(newSeconds)
-        patchCachedTransfer({ expiresAt, secondsRemaining: newSeconds })
+        patchCachedTransfer({ expiresAt })
       }
       requestActivityRefresh()
     }
@@ -499,7 +493,6 @@ export default function SenderPage() {
     }
 
     socket.on('connect', connectRoom)
-    socket.on('countdown-tick', onTick)
     socket.on('transfer-expired', onExpired)
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
@@ -528,7 +521,6 @@ export default function SenderPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
       socket.off('connect', connectRoom)
-      socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
