@@ -24,6 +24,7 @@ import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
 import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
+import { copyToClipboard, shareOrCopy } from '../utils/clipboard'
 import ErrorState from '../components/ErrorState'
 import StatusBanner from '../components/StatusBanner'
 import SharedTextDisplay from '../components/SharedTextDisplay'
@@ -704,7 +705,7 @@ export default function DownloadPage() {
     return [
       { icon: Eye, label: 'Preview', action: () => handlePreview(contextMenu.index) },
       { icon: Download, label: 'Download this file', action: () => handleDownloadSingle(contextMenu.index) },
-      { icon: Copy, label: 'Copy filename', action: () => navigator.clipboard.writeText(file.name) },
+      { icon: Copy, label: 'Copy filename', action: () => copyToClipboard(file.name) },
     ]
   }
 
@@ -1160,12 +1161,10 @@ export default function DownloadPage() {
                         className="btn-ghost text-sm gap-2 w-full mb-6"
                         onClick={async () => {
                           const url = `${window.location.origin}/download/${normalizedCode}`
-                          if (navigator.share) {
-                            try { await navigator.share({ title: 'SwiftShare file', url }) } catch {}
-                          } else {
-                            await navigator.clipboard.writeText(url)
-                            toast.success('Link copied')
-                          }
+                          try {
+                            const result = await shareOrCopy({ title: 'SwiftShare file', url })
+                            if (result === 'copied') toast.success('Link copied to clipboard')
+                          } catch {}
                         }}
                       >
                         <Share2 size={14} /> Forward to someone else

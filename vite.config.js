@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { visualizer } from 'rollup-plugin-visualizer'
 import { readFileSync } from 'fs'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
@@ -14,7 +15,16 @@ export default defineConfig(({ mode }) => {
   console.log('[Vite] Mode:', mode)
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      visualizer({
+        open: false, // Don't auto-open in browser (we'll review the file)
+        filename: 'dist/stats.html',
+        gzipSize: true,
+        brotliSize: true,
+        template: 'treemap', // Treemap visualization for chunk sizes
+      }),
+    ],
     define: {
       'import.meta.env.PACKAGE_VERSION': JSON.stringify(pkg.version),
     },

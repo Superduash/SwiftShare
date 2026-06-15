@@ -61,9 +61,16 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
           className="w-full flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer"
           style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
           onClick={() => {
-            navigator.clipboard.writeText(url)
-            toast.success('Link copied')
-            if (onCopy) onCopy()
+            import('../utils/clipboard').then(({ copyToClipboard }) => {
+              copyToClipboard(url).then(success => {
+                if (success) {
+                  setCopied(true)
+                  toast.success('Link copied')
+                  if (onCopy) onCopy()
+                  setTimeout(() => setCopied(false), 2000)
+                }
+              })
+            })
           }}
         >
           <Link size={16} style={{ color: 'var(--accent)' }} />

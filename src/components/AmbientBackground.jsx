@@ -1,4 +1,4 @@
-import { useMemo, memo, useState, useEffect, useRef, useCallback } from 'react'
+import { useMemo, memo, useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings } from '../utils/storage'
 
@@ -7,10 +7,8 @@ function makeRand(seed) {
   return () => { s = Math.imul(s, 1664525) + 1013904223 >>> 0; return s / 0xffffffff }
 }
 
-// Adaptive particle density
+// Particles always render at 100% density unless user explicitly disables via settings
 function getParticleDensity() {
-  const isHighRefresh = window.screen?.availWidth > 1920 || window.devicePixelRatio > 2
-  if (isHighRefresh) return 1.2
   return 1.0
 }
 
@@ -375,8 +373,8 @@ const Ember = memo(function Ember({ e }) {
     if (!el) return
     const anim = el.animate([
       { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 0 },
-      { opacity: e.opacity, offset: 0.12 },
-      { opacity: e.opacity * 0.6, offset: 0.75 },
+      { transform: `translate3d(${e.drift * 0.12}px, ${e.rise * 0.12}vh, 0) scale(0.9)`, opacity: e.opacity, offset: 0.12 },
+      { transform: `translate3d(${e.drift * 0.75}px, ${e.rise * 0.75}vh, 0) scale(0.4)`, opacity: e.opacity * 0.6, offset: 0.75 },
       { transform: `translate3d(${e.drift}px, ${e.rise}vh, 0) scale(0.15)`, opacity: 0 },
     ], {
       duration: e.dur * 1000,
@@ -550,22 +548,15 @@ const SCENES = {
 export default memo(function AmbientBackground({ theme: themeProp }) {
   const { theme: contextTheme } = useTheme()
   const theme = themeProp || contextTheme
-  const [reducedMotion, setReducedMotion] = useState(() => {
-    return getSettings().reducedMotion
-  })
+  const [reducedMotion, setReducedMotion] = useState(() => getSettings().reducedMotion)
 
   useEffect(() => {
     const handleSettingsChange = () => {
       setReducedMotion(getSettings().reducedMotion)
     }
-    const handlePerformanceDowngrade = () => {
-      setReducedMotion(true)
-    }
     window.addEventListener('swiftshare:settings-changed', handleSettingsChange)
-    window.addEventListener('swiftshare:performance-downgraded', handlePerformanceDowngrade)
     return () => {
       window.removeEventListener('swiftshare:settings-changed', handleSettingsChange)
-      window.removeEventListener('swiftshare:performance-downgraded', handlePerformanceDowngrade)
     }
   }, [])
 
@@ -582,7 +573,7 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
         inset: 0,
         pointerEvents: 'none',
         overflow: 'hidden',
-        zIndex: 0,
+        zIndex: -1,
       }}
     >
       <Scene />

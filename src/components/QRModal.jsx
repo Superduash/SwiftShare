@@ -1,11 +1,11 @@
-import React, { useEffect, useCallback, memo } from 'react'
+import { useEffect, useCallback, useRef, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Maximize2, Download } from 'lucide-react'
 import { QRCode } from 'react-qr-code'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 
 function QRModal({ open, onClose, value, code }) {
-  const modalRef = React.useRef(null)
+  const modalRef = useRef(null)
   useFocusTrap(modalRef, open)
 
   useEffect(() => {

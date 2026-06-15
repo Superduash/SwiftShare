@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect } from 'react'
+import { Component, useState, Suspense, lazy, useEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
   useLocation, useNavigate, useParams,
@@ -17,22 +17,34 @@ import LoadingScreen from './components/LoadingScreen'
 import ConnectionBanner from './components/ConnectionBanner'
 import Navbar from './components/Navbar'
 import ShortcutsOverlay from './components/ShortcutsOverlay'
-
-const AmbientBackground = lazy(() => import('./components/AmbientBackground').catch(() => ({ default: () => null })))
+import AmbientBackground from './components/AmbientBackground'
 // ── Error boundary for lazy routes ───────────
-class RouteErrorBoundary extends React.Component {
+class RouteErrorBoundary extends Component {
   constructor(props) {
     super(props)
-    this.state = { hasError: false, error: null }
+    this.state = { hasError: false, error: null, isChunkError: false }
   }
   static getDerivedStateFromError(error) {
-    return { hasError: true, error }
+    // ChunkLoadError happens when a new deploy removes old chunk hashes
+    const isChunkError = /chunk|loading chunk|failed to fetch dynamically imported/i.test(
+      String(error?.message || error?.name || '')
+    )
+    return { hasError: true, error, isChunkError }
   }
   componentDidCatch(error, info) {
     console.error('[SwiftShare] Route failed to load:', error, info)
   }
   render() {
     if (this.state.hasError) {
+      if (this.state.isChunkError) {
+        return (
+          <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px', padding: '20px', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text)', fontWeight: 600, fontSize: '1.1rem' }}>⚡ Update Available</p>
+            <p style={{ color: 'var(--text-3)', fontSize: '13px' }}>SwiftShare has been updated. Please reload to get the latest version.</p>
+            <button style={{ padding: '10px 24px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }} onClick={() => window.location.reload()}>Reload Now</button>
+          </div>
+        )
+      }
       return (
         <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px' }}>
           <p style={{ color: 'var(--text)', fontWeight: 600 }}>Something went wrong loading this page.</p>
@@ -45,23 +57,16 @@ class RouteErrorBoundary extends React.Component {
   }
 }
 
+
 // Eager — critical path
 import HomePage from './pages/HomePage'
 import JoinPage from './pages/JoinPage'
 import ExpiredPage from './pages/ExpiredPage'
 import NotFoundPage from './pages/NotFoundPage'
 
-// Utility to enforce a minimum load time so the loading spinner actually paints on ultra-fast networks
-function lazyWithMinLoadTime(factory, minLoadTimeMs = 350) {
-  return lazy(() => Promise.all([
-    factory(),
-    new Promise(resolve => setTimeout(resolve, minLoadTimeMs))
-  ]).then(([moduleExports]) => moduleExports))
-}
-
 // Lazy — heavier pages
-const SenderPage = lazyWithMinLoadTime(() => import('./pages/SenderPage'))
-const DownloadPage = lazyWithMinLoadTime(() => import('./pages/DownloadPage'))
+const SenderPage = lazy(() => import('./pages/SenderPage'))
+const DownloadPage = lazy(() => import('./pages/DownloadPage'))
 
 // ── Scroll to top ────────────────────────────
 function ScrollToTop() {
@@ -72,34 +77,24 @@ function ScrollToTop() {
 
 // ── Page transition wrapper ──────────────────
 const pageVariants = {
-  initial: { opacity: 0 },
-  animate: { 
-    opacity: 1, 
-    transition: { 
-      duration: 0.2, 
-      ease: [0.4, 0, 0.2, 1] 
-    } 
+  initial: { opacity: 0, y: 6 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] }
   },
-  exit: { 
-    opacity: 0, 
-    transition: { 
-      duration: 0.15, 
-      ease: [0.4, 0, 1, 1] 
-    } 
+  exit: {
+    opacity: 0,
+    y: -4,
+    transition: { duration: 0.1, ease: [0.4, 0, 1, 1] }
   },
 }
 
-// Track whether this is the very first page mount
-let isFirstMount = true
-
 function PageWrapper({ children }) {
-  const skipInitial = isFirstMount
-  if (isFirstMount) isFirstMount = false
-
   return (
     <motion.div
       variants={pageVariants}
-      initial={skipInitial ? false : 'initial'}
+      initial="initial"
       animate="animate"
       exit="exit"
       style={{
@@ -125,10 +120,10 @@ function AnimatedRoutes() {
   return (
     <>
       <ScrollToTop />
-      <AnimatePresence mode="sync">
-        <RouteErrorBoundary>
-          <Suspense fallback={<LoadingScreen message="Loading..." />}>
-            <Routes location={location} key={location.pathname}>
+      <RouteErrorBoundary>
+        <Suspense fallback={<LoadingScreen message="Loading..." />}>
+          <AnimatePresence mode="wait">
+            <Routes key={location.pathname} location={location}>
               <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
               <Route path="/sender/:code" element={<PageWrapper><SenderPage /></PageWrapper>} />
               <Route path="/join" element={<PageWrapper><JoinPage /></PageWrapper>} />
@@ -137,9 +132,9 @@ function AnimatedRoutes() {
               <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
               <Route path="*" element={<PageWrapper><NotFoundPage /></PageWrapper>} />
             </Routes>
-          </Suspense>
-        </RouteErrorBoundary>
-      </AnimatePresence>
+          </AnimatePresence>
+        </Suspense>
+      </RouteErrorBoundary>
     </>
   )
 }
@@ -196,7 +191,7 @@ function NearbyOfferListener() {
 
 // ── Root ─────────────────────────────────────
 export default function App() {
-  const [reducedMotion, setReducedMotion] = React.useState(() => {
+  const [reducedMotion, setReducedMotion] = useState(() => {
     const settings = getSettings()
     // Strictly respect user setting; don't auto-disable particles unless they explicitly want it
     return Boolean(settings.reducedMotion)
@@ -258,9 +253,7 @@ export default function App() {
         <ConnectionHealthProvider>
           <TransferProvider>
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <Suspense fallback={null}>
-                <AmbientBackground />
-              </Suspense>
+              {/* <AmbientBackground /> */}
               <ConnectionBanner />
               <NearbyOfferListener />
               <Navbar />

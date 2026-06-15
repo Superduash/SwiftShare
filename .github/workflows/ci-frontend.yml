@@ -1,0 +1,53 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'Frontend/**'
+      - '.github/workflows/ci-frontend.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'Frontend/**'
+      - '.github/workflows/ci-frontend.yml'
+
+jobs:
+  build:
+    name: Build & Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'Frontend/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production)
+        run: npm run build
+        env:
+          NODE_ENV: production
+          CI: true
+          # Stub out env vars so build doesn't fail on missing secrets
+          VITE_API_URL: https://placeholder.example.com
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high || true
+
+      - name: Check bundle size
+        run: |
+          if [ -d dist ]; then
+            echo "Bundle sizes:"
+            du -sh dist/assets/*.js 2>/dev/null | sort -rh | head -20 || true
+          fi

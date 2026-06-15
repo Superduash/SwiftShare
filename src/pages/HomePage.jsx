@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
+import { Component, useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
@@ -19,9 +19,11 @@ import Navbar from '../components/Navbar'
 import FileCard from '../components/FileCard'
 import ExpirySelector from '../components/ExpirySelector'
 import ProgressBar from '../components/ProgressBar'
+import FinalizingIndicator from '../components/FinalizingIndicator'
 import RecentTransfers from '../components/RecentTransfers'
 import NearbyDevices from '../components/NearbyDevices'
 import ContextMenu from '../components/ContextMenu'
+import { copyToClipboard } from '../utils/clipboard'
 
 const ShareTextModal = lazy(() => import('../components/ShareTextModal').catch(() => ({ default: () => null })))
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
@@ -36,7 +38,7 @@ const FEATURES = [
   { icon: Zap, title: 'Live Updates', desc: 'Real-time progress' },
 ]
 
-class LocalErrorBoundary extends React.Component {
+class LocalErrorBoundary extends Component {
   constructor(props) {
     super(props)
     this.state = { hasError: false }
@@ -310,7 +312,7 @@ export default function HomePage() {
     const file = files[contextMenu.index]
     if (!file) return []
     return [
-      { icon: Clipboard, label: 'Copy filename', action: () => navigator.clipboard.writeText(file.name) },
+      { icon: Clipboard, label: 'Copy filename', action: () => copyToClipboard(file.name) },
       { divider: true },
       { icon: X, label: 'Remove file', action: () => removeFile(contextMenu.index), danger: true },
     ]
@@ -926,20 +928,22 @@ export default function HomePage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                   >
-                    <ProgressBar
-                      percent={uploadPhase === 'finalizing' ? 100 : uploadPercent}
-                      speed={uploadPhase === 'uploading' ? uploadSpeed : 0}
-                      eta={uploadPhase === 'uploading' ? uploadETA : 0}
-                      label={
-                        uploadPhase === 'retrying'
-                          ? 'Connection hiccup, retrying...'
-                          : uploadPhase === 'finalizing'
-                            ? 'Finalizing on server...'
-                            : 'Uploading...'
-                      }
-                      indeterminate={uploadPhase === 'finalizing' || uploadPhase === 'retrying'}
-                      showSpeed={uploadPhase === 'uploading'}
-                    />
+                    {uploadPhase === 'finalizing' ? (
+                      <FinalizingIndicator label="Finalizing Transfer\u2026" />
+                    ) : (
+                      <ProgressBar
+                        percent={uploadPercent}
+                        speed={uploadPhase === 'uploading' ? uploadSpeed : 0}
+                        eta={uploadPhase === 'uploading' ? uploadETA : 0}
+                        label={
+                          uploadPhase === 'retrying'
+                            ? 'Connection hiccup, retrying…'
+                            : 'Uploading…'
+                        }
+                        indeterminate={uploadPhase === 'retrying'}
+                        showSpeed={uploadPhase === 'uploading'}
+                      />
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>

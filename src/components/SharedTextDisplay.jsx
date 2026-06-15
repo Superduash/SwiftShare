@@ -37,13 +37,17 @@ function SharedTextDisplay({
       toast.error('Unlock to copy text')
       return
     }
-
     try {
-      await navigator.clipboard.writeText(textContent)
-      setCopied(true)
-      toast.success('Text copied!')
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
+      const { copyToClipboard } = await import('../utils/clipboard')
+      const success = await copyToClipboard(textContent)
+      if (success) {
+        setCopied(true)
+        toast.success('Text copied to clipboard')
+        setTimeout(() => setCopied(false), 2000)
+      } else {
+        throw new Error('Fallback failed')
+      }
+    } catch (err) {
       toast.error('Failed to copy text')
     }
   }, [isUnlocked, textContent])

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
@@ -41,7 +41,7 @@ export default function SettingsPanel({ open, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  const modalRef = React.useRef(null)
+  const modalRef = useRef(null)
   useFocusTrap(modalRef, open)
 
   const [confirmClear, setConfirmClear] = useState(false)

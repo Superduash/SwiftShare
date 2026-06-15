@@ -1,9 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 
+const formatSpeed = (bytesPerSecond) => {
+  if (bytesPerSecond < 1024) return `${Math.round(bytesPerSecond)} B/s`;
+  const kb = bytesPerSecond / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB/s`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${mb.toFixed(1)} MB/s`;
+  return `${(mb / 1024).toFixed(2)} GB/s`;
+};
+
 export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = 'Uploading...', showSpeed = true, indeterminate = false }) {
-  const speedMB = (speed / (1024 * 1024)).toFixed(1);
-  const clampedPercent = Math.max(0, Math.min(100, percent));
+  const [clampedPercent, setClampedPercent] = useState(0);
+  const lastPercent = useRef(0);
+
+  useEffect(() => {
+    const newPercent = Math.max(0, Math.min(100, percent));
+    if (newPercent >= lastPercent.current) {
+      setClampedPercent(newPercent);
+      lastPercent.current = newPercent;
+    }
+  }, [percent]);
   
   const formatETA = (seconds) => {
     if (!seconds || seconds <= 0 || !Number.isFinite(seconds)) return '';
@@ -15,10 +32,7 @@ export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = '
   };
   
   const etaText = formatETA(eta);
-  
-  // Convert percentage to 0.0 - 1.0 scale for GPU transforms
   const scaleX = clampedPercent / 100;
-  
   const [liveText, setLiveText] = useState('');
   const announced = useRef(new Set());
 
@@ -34,7 +48,7 @@ export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = '
   }, [clampedPercent, label, indeterminate]);
 
   return (
-    <div className="w-full">
+    <div className="w-full" role="progressbar" aria-valuenow={indeterminate ? undefined : Math.round(clampedPercent)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
       <span className="sr-only" aria-live="polite" aria-atomic="true">{liveText}</span>
       <div className="flex justify-between items-end mb-2">
         <span className="text-sm font-medium tracking-wide" style={{ color: 'var(--text)' }}>
@@ -53,19 +67,17 @@ export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = '
               className="text-xs ml-2 tabular-nums inline-flex items-center gap-1.5" 
               style={{ color: 'var(--text-3)' }}
             >
-              <span>{speedMB} MB/s</span>
+              <span>{formatSpeed(speed)}</span>
               {etaText && <span>· {etaText}</span>}
             </motion.span>
           )}
         </div>
       </div>
       
-      {/* Container with overflow-hidden to cleanly clip the scaling bar */}
       <div 
         className="h-2 w-full rounded-full relative overflow-hidden"
         style={{ background: 'var(--border)', transform: 'translateZ(0)' }}
       >
-        {/* Main Progress Fill - GPU Accelerated */}
         {indeterminate ? (
           <motion.div
             className="absolute top-0 bottom-0 rounded-full"
@@ -101,7 +113,6 @@ export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = '
           />
         )}
         
-        {/* Continuous Active Shimmer Effect */}
         <motion.div
           className="absolute top-0 bottom-0 left-0 origin-left pointer-events-none mix-blend-overlay"
           style={{

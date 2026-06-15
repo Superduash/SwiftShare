@@ -23,6 +23,7 @@ import {
   saveTransfer,
   updateTransferStatus,
 } from '../utils/storage'
+import { copyToClipboard, shareOrCopy, canWebShare } from '../utils/clipboard'
 
 import { savePasswordSession, getPasswordSession, clearPasswordSession } from '../utils/passwordSession'
 import Navbar from '../components/Navbar'
@@ -85,7 +86,7 @@ export default function SenderPage() {
   })
   const [extended, setExtended] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
-  const [copiedLink, setCopiedLink] = useState(false)
+  const [copyLinkState, setCopyLinkState] = useState('idle')
   const [qrModal, setQrModal] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(null)
   const [loading, setLoading] = useState(!initialCachedTransfer)
@@ -168,7 +169,6 @@ export default function SenderPage() {
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
-  const canUseWebShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   // Title
   useEffect(() => {
@@ -412,7 +412,6 @@ export default function SenderPage() {
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
     // Local timer to update countdown every second (interpolate between server ticks).
-    // Plain `let` — NOT useRef. Hooks cannot be called inside a useEffect body (React error #321).
     let localTimerId = null
     const startLocalTimer = () => {
       if (localTimerId) clearInterval(localTimerId)
@@ -561,49 +560,34 @@ export default function SenderPage() {
   }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh])
 
   // Copy helpers
-  const copyCode = useCallback(() => {
-    navigator.clipboard.writeText(normalizedCode).then(() => {
-      setCopiedCode(true)
-      toast.success('Code copied')
-      setTimeout(() => setCopiedCode(false), 2000)
+  const handleCopyCode = useCallback(() => {
+    copyToClipboard(normalizedCode).then((success) => {
+      if (success) {
+        setCopiedCode(true)
+        toast.success('Code copied to clipboard')
+        setTimeout(() => setCopiedCode(false), 2000)
+      } else {
+        toast.error('Failed to copy code')
+      }
     })
   }, [normalizedCode])
 
-  const copyLink = useCallback(async () => {
-    const setCopied = () => {
-      setCopiedLink(true)
-      toast.success('Link copied')
-      setTimeout(() => setCopiedLink(false), 2000)
+  const handleCopyLink = useCallback(async () => {
+    setCopyLinkState('copying')
+    try {
+      const success = await copyToClipboard(shareLink)
+      if (success) {
+        setCopyLinkState('copied')
+        toast.success('Share link copied')
+        setTimeout(() => setCopyLinkState('idle'), 2000)
+      } else {
+        throw new Error('Fallback failed')
+      }
+    } catch {
+      setCopyLinkState('error')
+      toast.error('Failed to copy link')
+      setTimeout(() => setCopyLinkState('idle'), 2000)
     }
-
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareLink)
-        setCopied()
-        return true
-      }
-    } catch {}
-
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = shareLink
-      ta.setAttribute('readonly', '')
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      ta.style.pointerEvents = 'none'
-      document.body.appendChild(ta)
-      ta.select()
-      ta.setSelectionRange(0, ta.value.length)
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      if (ok) {
-        setCopied()
-        return true
-      }
-    } catch {}
-
-    toast.error('Could not copy link on this browser')
-    return false
   }, [shareLink])
 
   // Keyboard shortcuts
@@ -612,16 +596,16 @@ export default function SenderPage() {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !window.getSelection()?.toString()) {
         e.preventDefault()
-        copyCode()
+        handleCopyCode()
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
         e.preventDefault()
-        copyLink()
+        handleCopyLink()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [copyCode, copyLink])
+  }, [handleCopyCode, handleCopyLink])
 
   // Extend
   async function handleExtend() {
@@ -723,16 +707,6 @@ export default function SenderPage() {
     downloadSingleFile(normalizedCode, index, password)
   }
 
-  const senderMenuItems = () => {
-    if (contextMenu.index === null) return []
-    const file = meta?.files?.[contextMenu.index]
-    if (!file) return []
-    return [
-      { icon: Eye, label: 'Preview', action: () => handlePreview(contextMenu.index) },
-      { icon: Copy, label: 'Copy filename', action: () => navigator.clipboard.writeText(file.name) },
-    ]
-  }
-
   // Check if this is a text share
   const isTextShare = meta?.files?.length === 1 && meta?.files?.[0]?.name?.endsWith('.txt')
 
@@ -781,44 +755,6 @@ export default function SenderPage() {
     }
   }
 
-  // Share helpers
-  async function handleWebShare() {
-    const fileCount = Array.isArray(meta?.files) ? meta.files.length : 0
-    const primaryFileName = String(meta?.files?.[0]?.name || '').trim()
-    const fileLabel = fileCount > 1 ? `${fileCount} files` : (primaryFileName || 'a file')
-    const minutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
-    const { title: shareTitle, text: shareText } = buildShareMessage(fileLabel, shareLink, minutesLeft)
-
-    const shareData = {
-      title: shareTitle,
-      text: shareText,
-      url: shareLink,
-    }
-
-    if (canUseWebShare) {
-      try {
-        const canSharePayload = typeof navigator.canShare === 'function' ? navigator.canShare(shareData) : true
-        if (canSharePayload) {
-          await navigator.share(shareData)
-          return
-        }
-      } catch (err) {
-        if (err?.name === 'AbortError') return
-      }
-    }
-
-    const copied = await copyLink()
-    if (copied) return
-
-    const mailto = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareText)}`
-    try {
-      window.location.href = mailto
-      toast.success('Opened share app')
-    } catch {
-      toast.error('Share is not supported on this browser')
-    }
-  }
-
   const handleNativeShare = useCallback(async () => {
     const fileLabel = meta?.files?.length > 1
       ? `${meta.files.length} files`
@@ -827,7 +763,8 @@ export default function SenderPage() {
     const { title, text } = buildShareMessage(fileLabel, shareLink, minutesLeft)
 
     try {
-      await navigator.share({ title, text, url: shareLink })
+      const result = await shareOrCopy({ title, text, url: shareLink })
+      if (result === 'copied') toast.success('Link copied to clipboard instead')
     } catch (err) {
       if (err.name !== 'AbortError') {
         toast.error('Sharing failed. Copy the link instead.')

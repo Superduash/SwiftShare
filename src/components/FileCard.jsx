@@ -1,4 +1,4 @@
-import React, { memo } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { motion } from 'framer-motion'
 import {
   FileText, Image, Video, FileArchive, File, FileSpreadsheet,
@@ -46,7 +46,7 @@ function FileCardBase({
   const { icon: Icon, color } = ICON_MAP[cat] || ICON_MAP.file
 
   // Long press detection for mobile context menus
-  const timerRef = React.useRef(null)
+  const timerRef = useRef(null)
   
   const handleTouchStart = (e) => {
     if (!onContextMenu) return
@@ -60,11 +60,11 @@ function FileCardBase({
     if (timerRef.current) clearTimeout(timerRef.current)
   }
 
-  const [editing, setEditing] = React.useState(false)
-  const [draftName, setDraftName] = React.useState(file?.name || '')
-  const inputRef = React.useRef(null)
+  const [editing, setEditing] = useState(false)
+  const [draftName, setDraftName] = useState(file?.name || '')
+  const inputRef = useRef(null)
 
-  React.useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
+  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
 
   const commitRename = () => {
     const trimmed = draftName.trim()
@@ -76,14 +76,21 @@ function FileCardBase({
     setEditing(false)
   }
 
-  const [copiedName, setCopiedName] = React.useState(false)
-  const handleCopyName = React.useCallback((e) => {
+  const [copiedName, setCopiedName] = useState(false)
+  const handleCopyFileName = (e) => {
     e.stopPropagation()
-    navigator.clipboard.writeText(file?.name || '').then(() => {
-      setCopiedName(true)
-      setTimeout(() => setCopiedName(false), 2000)
+    import('../utils/clipboard').then(({ copyToClipboard }) => {
+      copyToClipboard(file?.name || '').then(success => {
+        if (success) {
+          setCopiedName(true)
+          toast.success('Filename copied')
+          setTimeout(() => setCopiedName(false), 2000)
+        } else {
+          toast.error('Failed to copy')
+        }
+      })
     })
-  }, [file?.name])
+  }
 
   return (
     <motion.div
@@ -144,7 +151,7 @@ function FileCardBase({
       <div className="flex items-center gap-1 shrink-0">
         <button
           className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={handleCopyName}
+          onClick={handleCopyFileName}
           aria-label="Copy filename"
           title="Copy filename"
         >

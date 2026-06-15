@@ -367,13 +367,19 @@ export function clearTransfers() {
 const DEFAULT_SETTINGS = {
   defaultExpiry: 10, // Changed from 60 to 10 minutes for new users
   defaultBurn: false,
-  reducedMotion: false,
+  reducedMotion: false, // ALWAYS FALSE BY DEFAULT - particles work everywhere
   soundEnabled: true,
   autoDownload: false,
   notificationsEnabled: false,
 }
 export function getSettings() {
-  return { ...DEFAULT_SETTINGS, ...safeGet(KEYS.SETTINGS, {}) }
+  const stored = safeGet(KEYS.SETTINGS, {})
+  // Force reducedMotion to false if not explicitly set to true
+  const settings = { ...DEFAULT_SETTINGS, ...stored }
+  if (stored.reducedMotion !== true) {
+    settings.reducedMotion = false
+  }
+  return settings
 }
 export function saveSettings(patch) {
   const next = { ...getSettings(), ...patch }
@@ -381,6 +387,17 @@ export function saveSettings(patch) {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('swiftshare:settings-changed', { detail: next }))
   }
+}
+
+// One-time migration: reset reducedMotion to false if it was accidentally set to true
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    const stored = safeGet(KEYS.SETTINGS, {})
+    if (stored.reducedMotion === true && !stored._userSetReducedMotion) {
+      // This was likely set automatically, not by user - reset it
+      saveSettings({ reducedMotion: false })
+    }
+  }, 100)
 }
 
 // ── Theme ──────────────────────────────────
