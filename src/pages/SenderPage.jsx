@@ -412,10 +412,12 @@ export default function SenderPage() {
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
     // Local timer to update countdown every second (interpolate between server ticks).
+    // Paused while tab is hidden to prevent drift; recalculated from expiresAt on return.
     let localTimerId = null
     const startLocalTimer = () => {
       if (localTimerId) clearInterval(localTimerId)
       localTimerId = setInterval(() => {
+        if (document.hidden) return // skip ticks while hidden — avoids drift
         setSecondsRemaining(prev => Math.max(0, prev - 1))
       }, 1000)
     }
@@ -581,12 +583,12 @@ export default function SenderPage() {
         toast.success('Share link copied')
         setTimeout(() => setCopyLinkState('idle'), 2000)
       } else {
-        throw new Error('Fallback failed')
+        // Silently reset — clipboard is unavailable, no toast spam
+        setCopyLinkState('idle')
       }
     } catch {
-      setCopyLinkState('error')
-      toast.error('Failed to copy link')
-      setTimeout(() => setCopyLinkState('idle'), 2000)
+      // Silently reset — browser blocked clipboard access
+      setCopyLinkState('idle')
     }
   }, [shareLink])
 

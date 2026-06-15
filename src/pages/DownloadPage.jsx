@@ -440,10 +440,12 @@ export default function DownloadPage() {
     
     // Local timer to update countdown every second (interpolate between server ticks).
     // Plain `let` — NOT useRef. Hooks cannot be called inside a useEffect body (React error #321).
+    // Skips ticks while tab is hidden to prevent drift; recalculated from expiresAt on return.
     let localTimerId = null
     const startLocalTimer = () => {
       if (localTimerId) clearInterval(localTimerId)
       localTimerId = setInterval(() => {
+        if (document.hidden) return // skip ticks while hidden — avoids drift
         setSecondsRemaining(prev => Math.max(0, prev - 1))
       }, 1000)
     }

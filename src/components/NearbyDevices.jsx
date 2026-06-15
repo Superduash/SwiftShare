@@ -11,17 +11,31 @@ function normalizeCode(code) {
 }
 
 function dedupeDevices(list, selfSocketId) {
-  const seen = new Set()
+  const seenCodes = new Set()
+  const seenSockets = new Set()
   return (Array.isArray(list) ? list : [])
     .filter(Boolean)
     .filter((device) => {
+      // Filter out our own socket
       const candidateSocketId = String(device.socketId || '').trim()
-      if (!candidateSocketId) return true
       if (selfSocketId && candidateSocketId === selfSocketId) return false
-      const key = candidateSocketId || normalizeCode(device.code)
-      if (!key || seen.has(key)) return false
-      seen.add(key)
-      return true
+
+      // Primary dedup: by transfer code (unique identifier)
+      const code = normalizeCode(device.code)
+      if (code) {
+        if (seenCodes.has(code)) return false
+        seenCodes.add(code)
+        return true
+      }
+
+      // Fallback dedup: by socketId (for entries without a code)
+      if (candidateSocketId) {
+        if (seenSockets.has(candidateSocketId)) return false
+        seenSockets.add(candidateSocketId)
+        return true
+      }
+
+      return false
     })
 }
 

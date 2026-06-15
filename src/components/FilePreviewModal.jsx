@@ -231,25 +231,10 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const canPlayVideo = type !== 'video' || canBrowserPlay(file, 'video')
   const canPlayAudio = type !== 'audio' || canBrowserPlay(file, 'audio')
 
-  // Detect if media URL is cross-origin (Vercel frontend → Railway backend)
-  const isCrossOrigin = typeof window !== 'undefined' && mediaSrc && (() => {
-    try {
-      const mediaUrl = new URL(mediaSrc, window.location.href)
-      return mediaUrl.origin !== window.location.origin
-    } catch {
-      return false
-    }
-  })()
-
-  // Auto-open cross-origin media in new tab (browsers block cross-origin media in <video>/<audio>)
-  useEffect(() => {
-    if (open && (type === 'video' || type === 'audio') && isCrossOrigin && src) {
-      console.log('[SwiftShare Preview] Cross-origin media detected - opening in new tab:', src)
-      toast('Opening in new tab for best playback', { icon: '▶️' })
-      openInNewTab()
-      onClose()
-    }
-  }, [open, type, isCrossOrigin, src])
+  // NOTE: We intentionally do NOT auto-open cross-origin media in a new tab.
+  // The browser will attempt playback; if it fails, the media error UI provides
+  // retry / new-tab / download options. Auto-opening caused all deployed video
+  // previews to open in a new tab (Vercel → Railway is always cross-origin).
 
   if (!open || !file) return null
 
@@ -428,8 +413,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
               )
             )}
 
-            {/* VIDEO - Auto-open in new tab for cross-origin */}
-            {type === 'video' && !isCrossOrigin && (
+            {/* VIDEO */}
+            {type === 'video' && (
               <div className="flex flex-col items-center justify-center gap-2">
                 {mediaError ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center w-full">
@@ -487,8 +472,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
               </div>
             )}
 
-            {/* AUDIO - Auto-open in new tab for cross-origin */}
-            {type === 'audio' && !isCrossOrigin && (
+            {/* AUDIO */}
+            {type === 'audio' && (
               <div className="flex flex-col items-center justify-center gap-3 py-4">
                 {mediaError ? (
                   <div className="flex flex-col items-center justify-center py-6 text-center w-full">
