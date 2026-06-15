@@ -438,10 +438,16 @@ export default function DownloadPage() {
     
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
-    // Local 1s timer for smooth UI - server ticks correct any drift
+    // Client-side countdown from expiresAt - no server overhead
     const timerRef = { current: null }
     timerRef.current = setInterval(() => {
-      setSecondsRemaining(prev => Math.max(0, prev - 1))
+      const currentMeta = metaRef.current
+      if (currentMeta?.expiresAt) {
+        const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
+        setSecondsRemaining(seconds)
+      } else {
+        setSecondsRemaining(prev => Math.max(0, prev - 1))
+      }
     }, 1000)
     
     const onExpired = () => {
