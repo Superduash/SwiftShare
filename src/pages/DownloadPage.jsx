@@ -100,7 +100,7 @@ export default function DownloadPage() {
 
   const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
   const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED'
-  const canDownload = !isUnavailable && !downloaded && (!needsPassword || passwordVerified)
+  const canDownload = !isUnavailable && (!meta?.burnAfterDownload || !downloaded) && (!needsPassword || passwordVerified)
   const metaRef = useRef(initialCachedTransfer)
   const transferStatusRef = useRef(initialCachedTransfer?.status || 'ACTIVE')
   const downloadedAnyRef = useRef(false)
