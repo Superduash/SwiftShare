@@ -550,7 +550,7 @@ export default function HomePage() {
   const hasFiles = files.length > 0
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen">
       <main className="app-main-offset">
         <div className="page-shell-wide py-8 lg:py-12">
 

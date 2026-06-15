@@ -908,7 +908,7 @@ export default function SenderPage() {
 
   if (loading && !meta) {
     return (
-      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <div className="min-h-screen">
         <main className="app-main-offset max-w-2xl mx-auto px-4 lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start pt-safe-nav">
           <div className="lg:col-span-3 space-y-4">
             <div className="shimmer-block h-6 w-1/3 rounded-xl" />
@@ -927,7 +927,7 @@ export default function SenderPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <div className="min-h-screen">
         <div className="app-main-offset">
           <ErrorState
             code={error}
@@ -942,7 +942,7 @@ export default function SenderPage() {
   // Handle expired/deleted transfers
   if (!meta || meta.status === 'EXPIRED' || cancelled) {
     return (
-      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <div className="min-h-screen">
         <div className="app-main-offset max-w-2xl mx-auto px-4">
           <motion.div
             className="surface-card p-8 text-center"
@@ -995,7 +995,7 @@ export default function SenderPage() {
   }, [meta?.files, cancelled, meta?.passwordProtected, passwordVerified, setContextMenu])
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen">
       <Suspense fallback={null}>
         <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={normalizedCode} />
       </Suspense>

@@ -253,7 +253,7 @@ export default function App() {
         <ConnectionHealthProvider>
           <TransferProvider>
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              {/* <AmbientBackground /> */}
+              <AmbientBackground />
               <ConnectionBanner />
               <NearbyOfferListener />
               <Navbar />

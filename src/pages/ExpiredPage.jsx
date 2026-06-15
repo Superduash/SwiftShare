@@ -74,7 +74,7 @@ export default function ExpiredPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen">
       <main className="app-main-offset">
         <div className="page-shell-narrow py-20 text-center">
           <motion.div

@@ -212,7 +212,7 @@ export default function JoinPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen">
       <main className="app-main-offset">
         <div className="page-shell-narrow py-12 sm:py-20">
           <motion.div

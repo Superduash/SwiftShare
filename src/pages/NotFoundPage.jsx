@@ -9,7 +9,7 @@ export default function NotFoundPage() {
   useEffect(() => { document.title = 'Page not found \u00b7 SwiftShare' }, [])
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen">
       <main className="app-main-offset">
         <div className="page-shell-narrow py-20 text-center">
           <motion.div
