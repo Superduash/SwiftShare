@@ -707,6 +707,17 @@ export default function SenderPage() {
     downloadSingleFile(normalizedCode, index, password)
   }
 
+  // Add this function — it was called but never defined
+  const senderMenuItems = () => {
+    if (contextMenu.index === null) return []
+    const file = meta?.files?.[contextMenu.index]
+    if (!file) return []
+    return [
+      { icon: Eye,      label: 'Preview',       action: () => handlePreview(contextMenu.index) },
+      { icon: Copy,     label: 'Copy filename', action: () => copyToClipboard(file.name) },
+    ]
+  }
+
   // Check if this is a text share
   const isTextShare = meta?.files?.length === 1 && meta?.files?.[0]?.name?.endsWith('.txt')
 
