@@ -438,18 +438,41 @@ export default function DownloadPage() {
     
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
-    // Local timer to update countdown every second (interpolate between server ticks).
-    // Plain `let` — NOT useRef. Hooks cannot be called inside a useEffect body (React error #321).
-    // Skips ticks while tab is hidden to prevent drift; recalculated from expiresAt on return.
+    // Local countdown timer — stops completely when tab hidden, restarts on return
     let localTimerId = null
+    
     const startLocalTimer = () => {
-      if (localTimerId) clearInterval(localTimerId)
+      if (localTimerId) return // already running
       localTimerId = setInterval(() => {
-        if (document.hidden) return // skip ticks while hidden — avoids drift
         setSecondsRemaining(prev => Math.max(0, prev - 1))
       }, 1000)
     }
+    
+    const stopLocalTimer = () => {
+      if (localTimerId) {
+        clearInterval(localTimerId)
+        localTimerId = null
+      }
+    }
+    
+    // Start timer initially
     startLocalTimer()
+    
+    // Handle visibility: stop timer when hidden, recalc and restart when visible
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopLocalTimer()
+      } else {
+        // Recalculate from expiresAt to correct any drift
+        const currentMeta = metaRef.current
+        if (currentMeta?.expiresAt) {
+          const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
+          setSecondsRemaining(seconds)
+        }
+        startLocalTimer()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
     
     const onExpired = () => {
       setTransferStatus('EXPIRED')
@@ -525,17 +548,6 @@ export default function DownloadPage() {
     }
     window.addEventListener('swiftshare:socket-reconnected', onSocketReconnected)
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const currentMeta = metaRef.current;
-        if (currentMeta?.expiresAt) {
-          const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
-          setSecondsRemaining(seconds)
-        }
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-
     socket.on('connect', connectRoom)
     socket.on('countdown-tick', onTick)
     socket.on('transfer-expired', onExpired)
@@ -547,10 +559,8 @@ export default function DownloadPage() {
     socket.on('transfer-receipt', onReceipt)
 
     return () => {
-      if (localTimerId) {
-        clearInterval(localTimerId)
-        localTimerId = null
-      }
+      stopLocalTimer()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       socket.off('connect', connectRoom)
       socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)

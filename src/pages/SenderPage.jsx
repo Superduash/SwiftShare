@@ -411,17 +411,41 @@ export default function SenderPage() {
     
     const onTick = ({ secondsRemaining: s }) => setSecondsRemaining(Math.max(0, s))
     
-    // Local timer to update countdown every second (interpolate between server ticks).
-    // Paused while tab is hidden to prevent drift; recalculated from expiresAt on return.
+    // Local countdown timer — stops completely when tab hidden, restarts on return
     let localTimerId = null
+    
     const startLocalTimer = () => {
-      if (localTimerId) clearInterval(localTimerId)
+      if (localTimerId) return // already running
       localTimerId = setInterval(() => {
-        if (document.hidden) return // skip ticks while hidden — avoids drift
         setSecondsRemaining(prev => Math.max(0, prev - 1))
       }, 1000)
     }
+    
+    const stopLocalTimer = () => {
+      if (localTimerId) {
+        clearInterval(localTimerId)
+        localTimerId = null
+      }
+    }
+    
+    // Start timer initially
     startLocalTimer()
+    
+    // Handle visibility: stop timer when hidden, recalc and restart when visible
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopLocalTimer()
+      } else {
+        // Recalculate from expiresAt to correct any drift
+        const currentMeta = metaRef.current
+        if (currentMeta?.expiresAt) {
+          const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
+          setSecondsRemaining(seconds)
+        }
+        startLocalTimer()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
     
     const onExpired = () => {
       if (!mountedRef.current) return
@@ -524,23 +548,9 @@ export default function SenderPage() {
     }
     window.addEventListener('swiftshare:socket-reconnected', onSocketReconnected)
 
-    // Handle timer drift when tab is backgrounded on mobile
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const currentMeta = metaRef.current;
-        if (currentMeta?.expiresAt) {
-          const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
-          setSecondsRemaining(seconds)
-        }
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-
     return () => {
-      if (localTimerId) {
-        clearInterval(localTimerId)
-        localTimerId = null
-      }
+      stopLocalTimer()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       socket.off('connect', connectRoom)
       socket.off('countdown-tick', onTick)
       socket.off('transfer-expired', onExpired)
