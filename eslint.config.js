@@ -1,0 +1,1 @@
+import js from '@eslint/js'; import reactPlugin from 'eslint-plugin-react'; export default [js.configs.recommended, { plugins: { react: reactPlugin }, languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } }, rules: { 'no-undef': 'error', 'no-unused-vars': 'off' } }];  
