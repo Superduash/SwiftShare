@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
  * Respects all CSS theme variables: --accent, --progress-fill, --bg, --text.
  * Accessible via aria-live="polite" for screen readers.
  */
-export default function FinalizingIndicator({ label = 'Finalizing Transfer…' }) {
+export default function FinalizingIndicator({ label = 'Finalizing Transfer...' }) {
   return (
     <div
       className="w-full"
@@ -39,7 +39,7 @@ export default function FinalizingIndicator({ label = 'Finalizing Transfer…' }
           animate={{ opacity: [0, 1, 0] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
         >
-          Processing…
+          Processing...
         </motion.span>
       </div>
 

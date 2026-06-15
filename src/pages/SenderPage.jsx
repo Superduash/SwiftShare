@@ -707,8 +707,8 @@ export default function SenderPage() {
     downloadSingleFile(normalizedCode, index, password)
   }
 
-  // Add this function — it was called but never defined
-  const senderMenuItems = () => {
+  // Context menu items for files
+  function senderMenuItems() {
     if (contextMenu.index === null) return []
     const file = meta?.files?.[contextMenu.index]
     if (!file) return []
@@ -1255,7 +1255,7 @@ export default function SenderPage() {
                         initial={{ y: 6 }}
                         animate={{ y: 0 }}
                         transition={{ delay: 0.1 + i * 0.04, type: 'spring', damping: 15 }}
-                        onClick={copyCode}
+                        onClick={handleCopyCode}
                         title="Click to copy code"
                       >
                         {ch}
@@ -1265,13 +1265,13 @@ export default function SenderPage() {
 
                   {/* Copy buttons */}
                   <div className="flex gap-2">
-                    <button className="btn-secondary flex-1 text-xs" onClick={copyCode}>
+                    <button className="btn-secondary flex-1 text-xs" onClick={handleCopyCode}>
                       {copiedCode ? <Check size={14} /> : <Copy size={14} />}
                       {copiedCode ? 'Copied!' : 'Copy code'}
                     </button>
-                    <button className="btn-secondary flex-1 text-xs" onClick={handleWebShare}>
-                      {copiedLink ? <Check size={14} /> : <Share2 size={14} />}
-                      {copiedLink ? 'Link copied' : 'Share'}
+                    <button className="btn-secondary flex-1 text-xs" onClick={handleNativeShare}>
+                      {copyLinkState === 'copied' ? <Check size={14} /> : <Share2 size={14} />}
+                      {copyLinkState === 'copied' ? 'Link copied' : 'Share'}
                     </button>
                   </div>
                 </motion.div>
@@ -1282,7 +1282,7 @@ export default function SenderPage() {
                     <Share2 size={12} className="inline mr-1" /> Share via
                   </h3>
                   
-                  {canUseWebShare ? (
+                  {canWebShare({ url: shareLink }) ? (
                     <button className="btn-primary w-full gap-2" onClick={handleNativeShare}>
                       <Share2 size={16} /> Share via Apps
                     </button>

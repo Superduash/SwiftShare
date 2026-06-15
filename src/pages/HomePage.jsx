@@ -600,7 +600,7 @@ export default function HomePage() {
                     </div>
                     <pre className="text-xs p-2 rounded-xl max-h-24 overflow-auto whitespace-pre-wrap font-mono"
                          style={{ background: 'var(--bg-sunken)', color: 'var(--text-3)' }}>
-                      {pastedText.slice(0, 300)}{pastedText.length > 300 ? '…' : ''}
+                      {pastedText.slice(0, 300)}{pastedText.length > 300 ? '...' : ''}
                     </pre>
                     <div className="flex gap-2">
                       <button className="btn-primary flex-1 text-sm" onClick={() => handleShareText({ content: pastedText, title: 'Text Snippet' })}>
@@ -937,8 +937,8 @@ export default function HomePage() {
                         eta={uploadPhase === 'uploading' ? uploadETA : 0}
                         label={
                           uploadPhase === 'retrying'
-                            ? 'Connection hiccup, retrying…'
-                            : 'Uploading…'
+                            ? 'Connection hiccup, retrying...'
+                            : 'Uploading...'
                         }
                         indeterminate={uploadPhase === 'retrying'}
                         showSpeed={uploadPhase === 'uploading'}

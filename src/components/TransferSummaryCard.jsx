@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Clock, Shield, Link, Copy, Eye, Download, CheckCircle2 } from 'lucide-react'
 import { formatBytes } from '../utils/format'
@@ -6,6 +6,8 @@ import toast from 'react-hot-toast'
 
 export default function TransferSummaryCard({ meta, url, onCopy }) {
   if (!meta) return null
+
+  const [copied, setCopied] = useState(false)
 
   const fileCount = Array.isArray(meta.files) ? meta.files.length : 0
   const isTextShare = fileCount === 1 && meta.files[0]?.name?.endsWith('.txt')
@@ -77,7 +79,11 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
           <div className="flex-1 truncate text-sm font-medium" style={{ color: 'var(--text)' }}>
             {url.replace(/^https?:\/\//, '')}
           </div>
-          <Copy size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-3)' }} />
+          {copied ? (
+            <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
+          ) : (
+            <Copy size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-3)' }} />
+          )}
         </div>
       </div>
     </motion.div>
