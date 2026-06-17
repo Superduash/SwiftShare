@@ -317,8 +317,11 @@ const MistCloud = memo(function MistCloud({ m }) {
 })
 
 /* ── FOREST: Full-screen fireflies ── */
+/* ── FOREST: Full-screen fireflies ── */
 const ForestScene = memo(function ForestScene() {
   const density = getParticleDensity()
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+  
   const fireflies = useMemo(() => {
     const r = makeRand(66)
     const count = Math.floor(32 * density)
@@ -359,7 +362,10 @@ const ForestScene = memo(function ForestScene() {
   return (
     <>
       {mist.map(m => <MistCloud key={m.id} m={m} />)}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%', filter: 'blur(60px)', background: 'linear-gradient(180deg,rgba(0,216,124,0.09) 0%,transparent 100%)', animation: 'ss-float-slow 32s ease-in-out infinite alternate' }} />
+      {/* Hide animated glow on mobile to prevent shifting */}
+      {!isMobile && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%', filter: 'blur(60px)', background: 'linear-gradient(180deg,rgba(0,216,124,0.09) 0%,transparent 100%)', animation: 'ss-float-slow 32s ease-in-out infinite alternate' }} />
+      )}
       {fireflies.map(f => <Firefly key={f.id} f={f} />)}
     </>
   )
@@ -405,6 +411,8 @@ const Ember = memo(function Ember({ e }) {
 /* ── VOLCANIC: Magma with rising embers ── */
 const VolcanicScene = memo(function VolcanicScene() {
   const density = getParticleDensity()
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+  
   const embers = useMemo(() => {
     const r = makeRand(77)
     const count = Math.floor(38 * density)
@@ -427,16 +435,21 @@ const VolcanicScene = memo(function VolcanicScene() {
   }, [density])
   return (
     <>
-      {/* Primary magma pool */}
-      <div style={{ position: 'absolute', left: '-8%', bottom: '-20%', right: '-8%', height: '60%', filter: 'blur(80px)', background: 'radial-gradient(ellipse 90% 65% at 50% 100%,rgba(210,15,0,0.40) 0%,rgba(190,0,0,0.24) 35%,rgba(130,0,0,0.12) 55%,transparent 72%)', animation: 'ss-lava-pulse 7s ease-in-out infinite alternate' }} />
-      {/* Secondary magma */}
-      <div style={{ position: 'absolute', left: '-5%', bottom: '-12%', width: '55vw', height: '35vw', borderRadius: '50%', filter: 'blur(70px)', background: 'radial-gradient(ellipse,rgba(230,25,0,0.32) 0%,rgba(190,0,0,0.17) 50%,transparent 72%)', animation: 'ss-lava-pulse 11s -3s ease-in-out infinite alternate' }} />
-      {/* Tertiary magma */}
-      <div style={{ position: 'absolute', right: '-5%', bottom: '-8%', width: '45vw', height: '28vw', borderRadius: '50%', filter: 'blur(65px)', background: 'radial-gradient(ellipse,rgba(210,0,0,0.28) 0%,rgba(170,15,0,0.14) 55%,transparent 72%)', animation: 'ss-lava-pulse 9s -6s ease-in-out infinite alternate-reverse' }} />
-      {/* Center molten core */}
-      <div style={{ position: 'absolute', left: '30%', bottom: '-6%', width: '40vw', height: '20vw', borderRadius: '50%', filter: 'blur(55px)', background: 'radial-gradient(ellipse,rgba(255,45,0,0.22) 0%,rgba(210,15,0,0.12) 55%,transparent 72%)', animation: 'ss-lava-pulse 14s -7s ease-in-out infinite alternate' }} />
-      {/* Ambient red wash */}
-      <div style={{ position: 'absolute', left: '20%', top: '10%', width: '60vw', height: '40vw', borderRadius: '50%', filter: 'blur(120px)', background: 'radial-gradient(ellipse,rgba(130,0,0,0.10) 0%,transparent 70%)', animation: 'ss-float-slow 40s -8s ease-in-out infinite alternate' }} />
+      {/* Hide all animated glows on mobile to prevent shifting - keep embers only */}
+      {!isMobile && (
+        <>
+          {/* Primary magma pool */}
+          <div style={{ position: 'absolute', left: '-8%', bottom: '-20%', right: '-8%', height: '60%', filter: 'blur(80px)', background: 'radial-gradient(ellipse 90% 65% at 50% 100%,rgba(210,15,0,0.40) 0%,rgba(190,0,0,0.24) 35%,rgba(130,0,0,0.12) 55%,transparent 72%)', animation: 'ss-lava-pulse 7s ease-in-out infinite alternate' }} />
+          {/* Secondary magma */}
+          <div style={{ position: 'absolute', left: '-5%', bottom: '-12%', width: '55vw', height: '35vw', borderRadius: '50%', filter: 'blur(70px)', background: 'radial-gradient(ellipse,rgba(230,25,0,0.32) 0%,rgba(190,0,0,0.17) 50%,transparent 72%)', animation: 'ss-lava-pulse 11s -3s ease-in-out infinite alternate' }} />
+          {/* Tertiary magma */}
+          <div style={{ position: 'absolute', right: '-5%', bottom: '-8%', width: '45vw', height: '28vw', borderRadius: '50%', filter: 'blur(65px)', background: 'radial-gradient(ellipse,rgba(210,0,0,0.28) 0%,rgba(170,15,0,0.14) 55%,transparent 72%)', animation: 'ss-lava-pulse 9s -6s ease-in-out infinite alternate-reverse' }} />
+          {/* Center molten core */}
+          <div style={{ position: 'absolute', left: '30%', bottom: '-6%', width: '40vw', height: '20vw', borderRadius: '50%', filter: 'blur(55px)', background: 'radial-gradient(ellipse,rgba(255,45,0,0.22) 0%,rgba(210,15,0,0.12) 55%,transparent 72%)', animation: 'ss-lava-pulse 14s -7s ease-in-out infinite alternate' }} />
+          {/* Ambient red wash */}
+          <div style={{ position: 'absolute', left: '20%', top: '10%', width: '60vw', height: '40vw', borderRadius: '50%', filter: 'blur(120px)', background: 'radial-gradient(ellipse,rgba(130,0,0,0.10) 0%,transparent 70%)', animation: 'ss-float-slow 40s -8s ease-in-out infinite alternate' }} />
+        </>
+      )}
       {/* Embers */}
       {embers.map(e => <Ember key={e.id} e={e} />)}
     </>
