@@ -322,15 +322,16 @@ export default function HomePage() {
   }
 
   async function handleShareText(textData) {
-    if (!isConnected) {
-      toast.error('Server is waking up. Please wait a moment and try again.')
-      throw new Error('Not connected')
-    }
+    // Remove socket dependency - API calls work independently
+    // if (!isConnected) {
+    //   toast.error('Server is waking up. Please wait a moment and try again.')
+    //   throw new Error('Not connected')
+    // }
 
     try {
       const response = await shareText({
         ...textData,
-        socketId,
+        socketId: socketId || undefined,
       })
 
       const transferCode = response?.code
@@ -421,7 +422,8 @@ export default function HomePage() {
 
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
-    if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
+    // Remove socket dependency - XHR upload works independently
+    // if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
 
     uploadAbortRef.current?.abort()
     uploadAbortRef.current = new AbortController()
@@ -538,7 +540,7 @@ export default function HomePage() {
     } catch (err) {
       if (!shouldSuppressUploadError(err)) {
         const msg = getUploadErrorMessage(err)
-        toast.error(msg)
+        // Show error in persistent banner only (no toast) - avoids duplicate error display
         setUploadError(msg)
       }
     } finally {

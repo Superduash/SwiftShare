@@ -353,6 +353,13 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
       reject(err)
     })
 
+    xhr.addEventListener('timeout', () => {
+      clearWatchdog()
+      const err = new Error('Upload timeout')
+      err.code = 'ECONNABORTED'
+      reject(err)
+    })
+
     if (signal) {
       if (signal.aborted) {
         try { xhr.abort() } catch {}
@@ -365,6 +372,8 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
 
     xhr.open('POST', url, true)
     xhr.withCredentials = false
+    // Set XHR timeout to 10 minutes for large files on slow networks
+    xhr.timeout = 600000
     armWatchdog()
     xhr.send(formData)
   })

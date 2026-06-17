@@ -574,6 +574,9 @@ export default memo(function AmbientBackground({ theme: themeProp }) {
         pointerEvents: 'none',
         overflow: 'hidden',
         zIndex: -1,
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
       }}
     >
       <Scene />
