@@ -361,7 +361,8 @@ const ForestScene = memo(function ForestScene() {
   }, [])
   return (
     <>
-      {mist.map(m => <MistCloud key={m.id} m={m} />)}
+      {/* Hide animated mist clouds on mobile to prevent shifting */}
+      {!isMobile && mist.map(m => <MistCloud key={m.id} m={m} />)}
       {/* Hide animated glow on mobile to prevent shifting */}
       {!isMobile && (
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '35%', filter: 'blur(60px)', background: 'linear-gradient(180deg,rgba(0,216,124,0.09) 0%,transparent 100%)', animation: 'ss-float-slow 32s ease-in-out infinite alternate' }} />

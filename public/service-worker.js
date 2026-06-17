@@ -24,9 +24,13 @@ const API_CACHE_PATTERNS = [
   /^\/api\/health/,
 ];
 
-// Large file download paths — always bypass cache
+// Large file upload/download paths — always bypass cache
+// Upload bypass is critical: file uploads can take >3s to establish connection
+// on mobile networks, but networkFirstAPI aborts after 3s, causing instant failure
+// on Android. XHR upload must reach backend directly without Service Worker interception.
 const BYPASS_CACHE_PATTERNS = [
-  /^\/api\/download\//,
+  /^\/api\/upload/,      // File uploads (multipart/form-data) - no caching, no timeout
+  /^\/api\/download\//,  // Large file downloads - no caching
 ];
 
 // ── Install ──────────────────────────────────────────────────────────────────

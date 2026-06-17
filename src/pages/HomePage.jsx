@@ -421,6 +421,12 @@ export default function HomePage() {
 
 
   async function handleUpload() {
+    console.log('[handleUpload] START')
+    console.log('[handleUpload] files.length:', files.length)
+    console.log('[handleUpload] isConnected:', isConnected)
+    console.log('[handleUpload] socketId:', socketId)
+    console.log('[handleUpload] navigator.onLine:', navigator.onLine)
+    
     if (!files.length) return toast.error('Select at least one file')
     // Remove socket dependency - XHR upload works independently
     // if (!isConnected) return toast.error('Server is waking up. Please wait a moment and try again.')
@@ -442,6 +448,7 @@ export default function HomePage() {
 
     let uploadSucceeded = false
     try {
+      console.log('[handleUpload] Building FormData')
       const formData = new FormData()
       files.forEach(f => formData.append('files', f))
       formData.append('expiryMinutes', expiry)
@@ -451,6 +458,16 @@ export default function HomePage() {
         formData.append('password', password)
       }
       if (socketId) formData.append('socketId', socketId)
+      
+      console.log('[handleUpload] FormData built, calling uploadFiles')
+      console.log('[handleUpload] FormData summary:', {
+        fileCount: files.length,
+        totalSize: files.reduce((s, f) => s + f.size, 0),
+        expiry,
+        burn,
+        passwordProtected,
+        hasSocketId: !!socketId
+      })
 
       const flushProgress = () => {
         rafIdRef.current = 0
@@ -481,6 +498,7 @@ export default function HomePage() {
         signal: uploadAbortRef.current.signal,
         onProgress: (info) => {
           if (info?.retrying) {
+            console.log('[handleUpload] onProgress: retrying', info)
             // Drop any pending flushes; retry phase is its own indeterminate UI.
             pendingProgressRef.current = { percent: 0, speed: 0, phase: 'retrying' }
             scheduleFlush()
@@ -525,25 +543,36 @@ export default function HomePage() {
         },
       })
 
+      console.log('[handleUpload] uploadFiles completed successfully')
+      console.log('[handleUpload] response:', response)
+
       // Strict success validation: never navigate without a valid transfer code.
       const transferCode = typeof response?.code === 'string' ? response.code.trim() : ''
       if (!transferCode) {
+        console.error('[handleUpload] Invalid response - no transfer code')
         throw new Error('Upload response was incomplete. Please try again.')
       }
 
       // Upload completed successfully
+      console.log('[handleUpload] Setting upload phase to finalizing')
       setUploadPhase('finalizing')
       setUploadPercent(100)
 
       uploadSucceeded = true
       handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
+      console.error('[handleUpload] Upload failed:', err)
+      console.error('[handleUpload] Error stack:', err?.stack)
       if (!shouldSuppressUploadError(err)) {
         const msg = getUploadErrorMessage(err)
         // Show error in persistent banner only (no toast) - avoids duplicate error display
+        console.error('[handleUpload] Setting upload error:', msg)
         setUploadError(msg)
+      } else {
+        console.log('[handleUpload] Error suppressed (upload already handled)')
       }
     } finally {
+      console.log('[handleUpload] Finally block - uploadSucceeded:', uploadSucceeded)
       // Always release spinner on failure; successful path is handled by handleUploadSuccess/navigation.
       if (!uploadSucceeded) {
         setUploading(false)

@@ -286,8 +286,15 @@ const RETRY_LIMIT = 3
 
 function attemptUpload(formData, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
+    console.log('[UPLOAD] attemptUpload START')
+    console.log('[UPLOAD] baseURL:', baseURL)
+    console.log('[UPLOAD] navigator.onLine:', navigator.onLine)
+    console.log('[UPLOAD] formData files:', formData.getAll('files').map(f => ({ name: f.name, size: f.size, type: f.type })))
+    
     const xhr = new XMLHttpRequest()
     const url = `${baseURL}/api/upload`
+    console.log('[UPLOAD] target URL:', url)
+    
     let lastLoaded = 0
     let watchdog = null
 
@@ -307,6 +314,7 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
     }
 
     xhr.upload.addEventListener('progress', (e) => {
+      console.log('[XHR UPLOAD] progress event:', { loaded: e.loaded, total: e.total, lengthComputable: e.lengthComputable })
       if (!e.lengthComputable) return
       if (e.loaded !== lastLoaded) {
         lastLoaded = e.loaded
@@ -317,13 +325,24 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
       }
     })
 
+    xhr.upload.addEventListener('loadstart', () => {
+      console.log('[XHR UPLOAD] loadstart event')
+    })
+
     xhr.upload.addEventListener('loadend', () => {
+      console.log('[XHR UPLOAD] loadend event')
       // Bytes have left the client. The server still needs to finalize (last R2 multipart
       // parts + DB write). Keep the watchdog armed against a hung response.
       armWatchdog()
     })
 
+    xhr.addEventListener('readystatechange', () => {
+      console.log('[XHR] readyState:', xhr.readyState, 'status:', xhr.status, 'statusText:', xhr.statusText)
+    })
+
     xhr.addEventListener('load', () => {
+      console.log('[XHR] load event - status:', xhr.status)
+      console.log('[XHR] responseText:', xhr.responseText?.substring(0, 200))
       clearWatchdog()
       const status = xhr.status
       let parsed = null
@@ -340,6 +359,8 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
     })
 
     xhr.addEventListener('error', () => {
+      console.error('[XHR] error event')
+      console.error('[XHR] status:', xhr.status, 'readyState:', xhr.readyState)
       clearWatchdog()
       const err = new Error('Network error during upload')
       err.code = 'ERR_NETWORK'
@@ -347,6 +368,7 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
     })
 
     xhr.addEventListener('abort', () => {
+      console.warn('[XHR] abort event')
       clearWatchdog()
       const err = new Error('Upload aborted')
       err.code = 'ERR_CANCELED'
@@ -354,6 +376,7 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
     })
 
     xhr.addEventListener('timeout', () => {
+      console.error('[XHR] timeout event - timeout was:', xhr.timeout, 'ms')
       clearWatchdog()
       const err = new Error('Upload timeout')
       err.code = 'ECONNABORTED'
@@ -362,20 +385,26 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
 
     if (signal) {
       if (signal.aborted) {
+        console.warn('[UPLOAD] signal already aborted before xhr.send')
         try { xhr.abort() } catch {}
       } else {
         signal.addEventListener('abort', () => {
+          console.warn('[UPLOAD] AbortSignal triggered, aborting XHR')
           try { xhr.abort() } catch {}
         }, { once: true })
       }
     }
 
+    console.log('[XHR] opening connection to:', url)
     xhr.open('POST', url, true)
     xhr.withCredentials = false
     // Set XHR timeout to 10 minutes for large files on slow networks
     xhr.timeout = 600000
+    console.log('[XHR] xhr.timeout set to:', xhr.timeout, 'ms')
+    console.log('[XHR] calling xhr.send with FormData')
     armWatchdog()
     xhr.send(formData)
+    console.log('[XHR] xhr.send called - request in flight')
   })
 }
 
@@ -389,6 +418,12 @@ function isTransientUploadError(err) {
 }
 
 export async function uploadFiles(formData, opts = {}) {
+  console.log('[uploadFiles] START')
+  console.log('[uploadFiles] FormData entries:', Array.from(formData.entries()).map(([k, v]) => {
+    if (v instanceof File) return [k, `File(${v.name}, ${v.size} bytes)`]
+    return [k, v]
+  }))
+  
   if (formData?.get && !formData.get('senderSocketId') && formData.get('socketId')) {
     formData.append('senderSocketId', formData.get('socketId'))
   }
@@ -398,9 +433,12 @@ export async function uploadFiles(formData, opts = {}) {
   let lastErr = null
 
   while (attempt <= RETRY_LIMIT) {
+    console.log(`[uploadFiles] Attempt ${attempt + 1}/${RETRY_LIMIT + 1}`)
     try {
       return await attemptUpload(formData, { onProgress, signal })
     } catch (err) {
+      console.error(`[uploadFiles] Attempt ${attempt + 1} failed:`, err)
+      console.error('[uploadFiles] Error details:', { code: err?.code, message: err?.message, response: err?.response })
       lastErr = err
       // User-initiated abort: don't retry.
       if (String(err?.code || '').toUpperCase() === 'ERR_CANCELED' && signal?.aborted) {
