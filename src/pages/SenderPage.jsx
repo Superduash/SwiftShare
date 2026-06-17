@@ -530,7 +530,6 @@ export default function SenderPage() {
       socket.off('transfer-extended', onExtended)
       socket.off('activity-updated', onActivityUpdated)
       window.removeEventListener('swiftshare:socket-reconnected', onSocketReconnected)
-      document.removeEventListener('visibilitychange', onVisibilityChange)
       if (downProgRaf) {
         cancelAnimationFrame(downProgRaf)
         downProgRaf = 0

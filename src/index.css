@@ -45,6 +45,10 @@ button, a, input, select, textarea, [role="button"], [tabindex] {
   --page-max-narrow: 34rem;
   --app-vh: 1vh;
   --app-header-offset: calc(var(--safe-top) + var(--navbar-height) + var(--connection-banner-height));
+  
+  /* Mobile-specific spacing to prevent squishing */
+  --mobile-section-gap: 24px;
+  --mobile-card-padding: 16px;
 }
 
 html.connection-banner-visible {
@@ -70,6 +74,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   scrollbar-gutter: stable;
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 html {
@@ -77,6 +83,8 @@ html {
   height: -webkit-fill-available;
   scrollbar-gutter: stable;
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 
@@ -86,6 +94,9 @@ html {
   min-height: 100dvh;
   min-height: -webkit-fill-available;
   isolation: isolate;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 
@@ -665,6 +676,30 @@ body.reduce-motion *::after {
     -webkit-touch-callout: default;
     user-select: text;
   }
+  
+  /* Critical: Prevent layout collapse on mobile */
+  .container, .max-w-6xl, .max-w-5xl, .max-w-4xl {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 16px;
+    padding-right: 16px;
+    box-sizing: border-box;
+  }
+  
+  /* Ensure proper flexbox behavior on mobile */
+  .flex {
+    flex-wrap: wrap;
+  }
+  
+  /* Grid adjustments for mobile */
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Prevent negative margins from squishing layout */
+  * {
+    min-width: 0;
+  }
 }
 
 /* Phone-specific optimizations */
@@ -672,10 +707,18 @@ body.reduce-motion *::after {
   body {
     /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
+    width: 100%;
+  }
+  
+  #root {
+    width: 100%;
+    overflow-x: hidden;
   }
 
   .surface-card {
     border-radius: 14px;
+    /* Ensure proper spacing on mobile */
+    margin-bottom: 16px;
   }
 
   /* Optimize spacing for small screens */
@@ -699,8 +742,8 @@ body.reduce-motion *::after {
   .page-shell-wide,
   .page-shell-medium,
   .page-shell-narrow {
-    padding-left: max(14px, env(safe-area-inset-left));
-    padding-right: max(14px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
   }
 
   .connection-banner-sub {
@@ -711,6 +754,64 @@ body.reduce-motion *::after {
   [role="dialog"] {
     max-height: 90vh;
     border-radius: 20px 20px 0 0;
+  }
+  
+  /* Fix mobile layout spacing - critical for preventing squishing */
+  .space-y-4 > * + * {
+    margin-top: 1rem !important;
+  }
+  
+  .space-y-6 > * + * {
+    margin-top: 1.5rem !important;
+  }
+  
+  .space-y-8 > * + * {
+    margin-top: 2rem !important;
+  }
+  
+  /* Ensure minimum padding in containers */
+  .p-4 {
+    padding: 1rem !important;
+  }
+  
+  .p-6 {
+    padding: 1.5rem !important;
+  }
+  
+  .py-8 {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+  
+  .py-12 {
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+  }
+  
+  /* Fix grid gaps on mobile */
+  .gap-4 {
+    gap: 1rem !important;
+  }
+  
+  .gap-6 {
+    gap: 1.5rem !important;
+  }
+  
+  /* Ensure sections don't overlap */
+  section, .section {
+    margin-bottom: 24px !important;
+  }
+  
+  /* File upload area spacing */
+  .file-list {
+    margin-top: 16px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  /* Settings and controls spacing */
+  .controls-section {
+    margin-top: 20px !important;
+    margin-bottom: 20px !important;
   }
 }
 

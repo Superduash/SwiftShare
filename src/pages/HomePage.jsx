@@ -378,9 +378,12 @@ export default function HomePage() {
 
     if (!err?.response) {
       if (errorCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
-        return 'Upload is taking longer than expected. Please wait a moment and retry.'
+        return 'Upload is taking longer than expected. Check your connection and retry.'
       }
-      return 'Upload connection was interrupted. Please retry once.'
+      if (errorCode === 'ERR_STALLED') {
+        return 'Upload stalled. Please check your network connection and try again.'
+      }
+      return 'Connection interrupted. Please check your network and retry.'
     }
 
     if (status === 429) {

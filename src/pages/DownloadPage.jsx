@@ -538,7 +538,6 @@ export default function DownloadPage() {
       socket.off('transfer-claimed', onClaimed)
       socket.off('transfer-receipt', onReceipt)
       window.removeEventListener('swiftshare:socket-reconnected', onSocketReconnected)
-      document.removeEventListener('visibilitychange', onVisibilityChange)
       if (downProgRaf) {
         cancelAnimationFrame(downProgRaf)
         downProgRaf = 0

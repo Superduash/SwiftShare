@@ -183,9 +183,9 @@ API.interceptors.response.use(
     const isRetryable = isRealNetworkError || isServerError
     const isIdempotent = (config.method || 'get').toLowerCase() === 'get'
 
-    // During cold start, be more patient — retry up to 4 times with longer delays
-    const maxRetries = _backendEverReached ? 2 : 4
-    const baseDelay = _backendEverReached ? 1500 : 3000
+    // During cold start, be more patient — retry up to 5 times with longer delays for mobile
+    const maxRetries = _backendEverReached ? 2 : 5
+    const baseDelay = _backendEverReached ? 1500 : 4000
 
     if (isRetryable && isIdempotent && config.__retryCount < maxRetries) {
       config.__retryCount += 1
@@ -267,8 +267,8 @@ export function markBackendReachable() {
 //    retry, so re-sending the same FormData is safe.
 //  • No fixed wall-clock timeout; the watchdog handles dead connections, and Node's
 //    socket idle timeout protects the backend.
-const STALL_TIMEOUT_MS = 45_000
-const RETRY_LIMIT = 2
+const STALL_TIMEOUT_MS = 60_000 // Increased from 45s to 60s for mobile networks
+const RETRY_LIMIT = 3 // Increased from 2 to 3 for better mobile reliability
 
 function attemptUpload(formData, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
@@ -280,7 +280,7 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
     const armWatchdog = () => {
       if (watchdog) clearTimeout(watchdog)
       watchdog = setTimeout(() => {
-        const err = new Error('Upload stalled (no progress for 45s)')
+        const err = new Error('Upload stalled (no progress for 60s)')
         err.code = 'ERR_STALLED'
         try { xhr.abort() } catch {}
         reject(err)
@@ -386,7 +386,8 @@ export async function uploadFiles(formData, opts = {}) {
         throw err
       }
       attempt += 1
-      const delay = 1000 * Math.pow(2, attempt - 1) // 1s, 2s
+      // More patient retry delays for mobile: 2s, 4s, 6s
+      const delay = 2000 * attempt
       if (typeof onProgress === 'function') {
         onProgress({ retrying: true, attempt, delay })
       }
