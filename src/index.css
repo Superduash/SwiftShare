@@ -686,14 +686,15 @@ body.reduce-motion *::after {
     box-sizing: border-box;
   }
   
-  /* Ensure proper flexbox behavior on mobile */
-  .flex {
-    flex-wrap: wrap;
+  /* Preserve intentional multi-column grids — only collapse grids that have
+     no explicit column count set (i.e. bare .grid with no grid-cols-N) */
+  .grid:not([class*="grid-cols-"]) {
+    grid-template-columns: 1fr;
   }
   
-  /* Grid adjustments for mobile */
-  .grid {
-    grid-template-columns: 1fr !important;
+  /* Never wrap items inside a flex row that declares explicit gap (deliberate layout) */
+  .flex.gap-1, .flex.gap-2, .flex.gap-3, .flex.gap-4 {
+    flex-wrap: nowrap;
   }
   
   /* Prevent negative margins from squishing layout */
@@ -737,6 +738,8 @@ body.reduce-motion *::after {
   .drop-zone {
     border-radius: 16px;
     min-height: 200px;
+    box-sizing: border-box;
+    width: 100%;
   }
 
   .page-shell-wide,
@@ -1083,11 +1086,11 @@ h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {
 
 /* 7. Prevent layout shifts on mobile */
 @media (max-width: 768px) {
-  /* Strict containment for cards */
+  /* Containment for cards — layout+style+paint only, NOT size containment */
+  /* content-visibility:auto skips off-screen rendering; remove to prevent blank cards */
   .surface-card,
   .surface-card-flat {
-    contain: strict;
-    content-visibility: auto;
+    contain: layout style paint;
   }
   
   /* Reserve space for lazy-loaded content */

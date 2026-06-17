@@ -267,8 +267,22 @@ export function markBackendReachable() {
 //    retry, so re-sending the same FormData is safe.
 //  • No fixed wall-clock timeout; the watchdog handles dead connections, and Node's
 //    socket idle timeout protects the backend.
-const STALL_TIMEOUT_MS = 60_000 // Increased from 45s to 60s for mobile networks
-const RETRY_LIMIT = 3 // Increased from 2 to 3 for better mobile reliability
+
+// Adaptive stall timeout: slow mobile networks need more patience
+function getStallTimeoutMs() {
+  try {
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+    if (!conn) return 60_000
+    if (conn.effectiveType === 'slow-2g') return 150_000
+    if (conn.effectiveType === '2g') return 120_000
+    if (conn.effectiveType === '3g') return 90_000
+    return 60_000
+  } catch {
+    return 60_000
+  }
+}
+
+const RETRY_LIMIT = 3
 
 function attemptUpload(formData, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
@@ -279,12 +293,13 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
 
     const armWatchdog = () => {
       if (watchdog) clearTimeout(watchdog)
+      const stallMs = getStallTimeoutMs()
       watchdog = setTimeout(() => {
-        const err = new Error('Upload stalled (no progress for 60s)')
+        const err = new Error(`Upload stalled (no progress for ${Math.round(stallMs / 1000)}s)`)
         err.code = 'ERR_STALLED'
         try { xhr.abort() } catch {}
         reject(err)
-      }, STALL_TIMEOUT_MS)
+      }, stallMs)
     }
 
     const clearWatchdog = () => {
@@ -391,6 +406,18 @@ export async function uploadFiles(formData, opts = {}) {
       if (typeof onProgress === 'function') {
         onProgress({ retrying: true, attempt, delay })
       }
+      
+      // If the device is offline, wait for it to come back before burning the delay
+      if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+        await new Promise((resolve) => {
+          if (navigator.onLine) return resolve()
+          const onOnline = () => { window.removeEventListener('online', onOnline); resolve() }
+          window.addEventListener('online', onOnline, { once: true })
+          // Never wait more than 30s for connectivity
+          setTimeout(resolve, 30_000)
+        })
+      }
+      
       await new Promise((r) => setTimeout(r, delay))
     }
   }

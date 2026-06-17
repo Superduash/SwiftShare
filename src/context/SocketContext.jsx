@@ -120,12 +120,12 @@ export function SocketProvider({ children }) {
       // This is the Socket.IO recommended production order — polling works
       // through every proxy/CDN/firewall, and the upgrade to WebSocket is
       // attempted transparently once the HTTP channel is established.
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'],
       upgrade: true,
       withCredentials: false,
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 15000,
+      reconnectionDelayMax: 8000,
       randomizationFactor: 0.3,
       timeout: 20000,
       pingTimeout: 60000,

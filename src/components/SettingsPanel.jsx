@@ -111,7 +111,7 @@ export default function SettingsPanel({ open, onClose }) {
               ease: [0.25, 0.1, 0.25, 1],
             }}
           >
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {/* Header */}
               <div className="flex items-center justify-between mb-8">
                 <h2 className="font-display font-bold text-xl" style={{ color: 'var(--text)' }}>Settings</h2>
@@ -134,7 +134,7 @@ export default function SettingsPanel({ open, onClose }) {
                     return (
                       <button
                         key={opt.value}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                        className="flex flex-col items-center gap-2 p-2 sm:p-3 rounded-xl transition-all min-w-0"
                         style={{
                           background: isActive ? 'var(--accent-soft)' : 'transparent',
                           border: `2px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
@@ -142,9 +142,9 @@ export default function SettingsPanel({ open, onClose }) {
                         onClick={() => setTheme(opt.value)}
                         aria-label={`Switch to ${opt.label} theme`}
                       >
-                        <div className="relative w-12 h-12 flex items-center justify-center">
+                        <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
                           <div
-                            className="w-12 h-12 rounded-full transition-all"
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all"
                             style={{
                               background: opt.color,
                               boxShadow: isActive

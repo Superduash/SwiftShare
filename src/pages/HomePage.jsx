@@ -118,6 +118,7 @@ export default function HomePage() {
   const [passwordProtected, setPasswordProtected] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
   const [shareTextModalOpen, setShareTextModalOpen] = useState(false)
   const [pastedText, setPastedText] = useState('')
   const [showPasteConfirm, setShowPasteConfirm] = useState(false)
@@ -264,6 +265,7 @@ export default function HomePage() {
       return
     }
     setFiles(combined)
+    setUploadError(null)
   }, [files])
 
   const { getRootProps, getInputProps, isDragActive, open: openFileDialog } = useDropzone({
@@ -274,6 +276,7 @@ export default function HomePage() {
 
   function removeFile(idx) {
     setFiles(prev => prev.filter((_, i) => i !== idx))
+    setUploadError(null)
   }
 
   function handleRename(idx, newName) {
@@ -427,6 +430,7 @@ export default function HomePage() {
     setUploadPercent(0)
     setUploadSpeed(0)
     setUploadPhase('uploading')
+    setUploadError(null)
     uploadStartRef.current = Date.now()
     speedSampleRef.current = { at: Date.now(), loaded: 0, ema: 0 }
     uploadHandledRef.current = false
@@ -533,7 +537,9 @@ export default function HomePage() {
       handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
       if (!shouldSuppressUploadError(err)) {
-        toast.error(getUploadErrorMessage(err))
+        const msg = getUploadErrorMessage(err)
+        toast.error(msg)
+        setUploadError(msg)
       }
     } finally {
       // Always release spinner on failure; successful path is handled by handleUploadSuccess/navigation.
@@ -917,6 +923,45 @@ export default function HomePage() {
                       </motion.div>
                       Share {files.length} file{files.length !== 1 ? 's' : ''}
                     </motion.button>
+
+                    {/* Persistent upload error — stays until user retries or changes files */}
+                    <AnimatePresence>
+                      {uploadError && (
+                        <motion.div
+                          className="flex items-start gap-3 p-3 rounded-xl"
+                          style={{
+                            background: 'var(--danger-soft)',
+                            border: '1px solid var(--danger)',
+                          }}
+                          initial={{ opacity: 0, y: -6, height: 0 }}
+                          animate={{ opacity: 1, y: 0, height: 'auto' }}
+                          exit={{ opacity: 0, y: -6, height: 0 }}
+                          transition={{ duration: 0.18 }}
+                        >
+                          <AlertTriangle
+                            size={16}
+                            style={{ color: 'var(--danger)', flexShrink: 0, marginTop: 2 }}
+                          />
+                          <p className="flex-1 text-sm leading-snug" style={{ color: 'var(--danger)' }}>
+                            {uploadError}
+                          </p>
+                          <button
+                            type="button"
+                            className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                            style={{
+                              background: 'var(--danger)',
+                              color: '#fff',
+                            }}
+                            onClick={() => {
+                              setUploadError(null)
+                              handleUpload()
+                            }}
+                          >
+                            Retry
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
 
                   </motion.div>
                 )}
