@@ -1,6 +1,7 @@
 import { useMemo, memo, useState, useEffect, useRef } from 'react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings } from '../utils/storage'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 function makeRand(seed) {
   let s = seed >>> 0
@@ -69,6 +70,7 @@ const Petal = memo(function Petal({ p }) {
 /* ── SAKURA — Falling petals ── */
 const SakuraScene = memo(function SakuraScene() {
   const density = getParticleDensity()
+  const isMobile = useIsMobile()
   const petals = useMemo(() => {
     const r = makeRand(42)
     const count = Math.floor(20 * density)
@@ -86,8 +88,12 @@ const SakuraScene = memo(function SakuraScene() {
   }, [density])
   return (
     <>
-      <div style={{ position: 'absolute', right: '-10%', top: '-10%', width: '55vw', height: '45vw', borderRadius: '50%', filter: 'blur(90px)', background: 'radial-gradient(ellipse,rgba(236,72,153,0.12) 0%,rgba(244,114,182,0.06) 50%,transparent 70%)', animation: 'ss-float-slow 30s -5s ease-in-out infinite alternate' }} />
-      <div style={{ position: 'absolute', left: '-5%', bottom: '10%', width: '40vw', height: '32vw', borderRadius: '50%', filter: 'blur(70px)', background: 'radial-gradient(ellipse,rgba(192,132,252,0.10) 0%,transparent 70%)', animation: 'ss-float-slow 26s -12s ease-in-out infinite alternate-reverse' }} />
+      {!isMobile && (
+        <>
+          <div style={{ position: 'absolute', right: '-10%', top: '-10%', width: '55vw', height: '45vw', borderRadius: '50%', filter: 'blur(90px)', background: 'radial-gradient(ellipse,rgba(236,72,153,0.12) 0%,rgba(244,114,182,0.06) 50%,transparent 70%)', animation: 'ss-float-slow 30s -5s ease-in-out infinite alternate' }} />
+          <div style={{ position: 'absolute', left: '-5%', bottom: '10%', width: '40vw', height: '32vw', borderRadius: '50%', filter: 'blur(70px)', background: 'radial-gradient(ellipse,rgba(192,132,252,0.10) 0%,transparent 70%)', animation: 'ss-float-slow 26s -12s ease-in-out infinite alternate-reverse' }} />
+        </>
+      )}
       {petals.map(p => <Petal key={p.id} p={p} />)}
     </>
   )
@@ -132,6 +138,7 @@ const Star = memo(function Star({ s }) {
 /* ── MIDNIGHT: Deep space with twinkling stars ── */
 const MidnightScene = memo(function MidnightScene() {
   const density = getParticleDensity()
+  const isMobile = useIsMobile()
   const stars = useMemo(() => {
     const r = makeRand(7)
     const count = Math.floor(80 * density)
@@ -150,8 +157,12 @@ const MidnightScene = memo(function MidnightScene() {
     <>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 40% at 20% 30%,rgba(15,30,80,0.22) 0%,transparent 60%)' }} />
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 50% 35% at 80% 70%,rgba(8,15,50,0.20) 0%,transparent 55%)' }} />
-      <div style={{ position: 'absolute', left: '60%', top: '15%', width: '20vw', height: '8vw', borderRadius: '50%', filter: 'blur(40px)', background: 'radial-gradient(ellipse,rgba(40,80,180,0.14) 0%,rgba(20,40,100,0.06) 50%,transparent 70%)', transform: 'rotate(-25deg)', animation: 'ss-float-slow 50s -20s ease-in-out infinite alternate' }} />
-      <div style={{ position: 'absolute', left: '10%', bottom: '-15%', width: '70vw', height: '30vw', borderRadius: '50%', filter: 'blur(100px)', background: 'radial-gradient(ellipse,rgba(15,40,100,0.18) 0%,transparent 70%)', animation: 'ss-float-slow 46s -10s ease-in-out infinite alternate' }} />
+      {!isMobile && (
+        <>
+          <div style={{ position: 'absolute', left: '60%', top: '15%', width: '20vw', height: '8vw', borderRadius: '50%', filter: 'blur(40px)', background: 'radial-gradient(ellipse,rgba(40,80,180,0.14) 0%,rgba(20,40,100,0.06) 50%,transparent 70%)', transform: 'rotate(-25deg)', animation: 'ss-float-slow 50s -20s ease-in-out infinite alternate' }} />
+          <div style={{ position: 'absolute', left: '10%', bottom: '-15%', width: '70vw', height: '30vw', borderRadius: '50%', filter: 'blur(100px)', background: 'radial-gradient(ellipse,rgba(15,40,100,0.18) 0%,transparent 70%)', animation: 'ss-float-slow 46s -10s ease-in-out infinite alternate' }} />
+        </>
+      )}
       {stars.map(s => <Star key={s.id} s={s} />)}
     </>
   )
@@ -197,6 +208,7 @@ const LavenderPetal = memo(function LavenderPetal({ p }) {
 /* ── LAVENDER — Falling violet petals ── */
 const LavenderScene = memo(function LavenderScene() {
   const density = getParticleDensity()
+  const isMobile = useIsMobile()
   const petals = useMemo(() => {
     const r = makeRand(33)
     const count = Math.floor(20 * density)
@@ -214,8 +226,12 @@ const LavenderScene = memo(function LavenderScene() {
   }, [density])
   return (
     <>
-      <div style={{ position: 'absolute', right: '-8%', top: '-8%', width: '55vw', height: '45vw', borderRadius: '50%', filter: 'blur(90px)', background: 'radial-gradient(ellipse,rgba(139,92,246,0.14) 0%,rgba(167,139,250,0.07) 50%,transparent 70%)', animation: 'ss-float-slow 32s -5s ease-in-out infinite alternate' }} />
-      <div style={{ position: 'absolute', left: '-5%', bottom: '15%', width: '42vw', height: '34vw', borderRadius: '50%', filter: 'blur(80px)', background: 'radial-gradient(ellipse,rgba(167,139,250,0.12) 0%,transparent 70%)', animation: 'ss-float-slow 28s -14s ease-in-out infinite alternate-reverse' }} />
+      {!isMobile && (
+        <>
+          <div style={{ position: 'absolute', right: '-8%', top: '-8%', width: '55vw', height: '45vw', borderRadius: '50%', filter: 'blur(90px)', background: 'radial-gradient(ellipse,rgba(139,92,246,0.14) 0%,rgba(167,139,250,0.07) 50%,transparent 70%)', animation: 'ss-float-slow 32s -5s ease-in-out infinite alternate' }} />
+          <div style={{ position: 'absolute', left: '-5%', bottom: '15%', width: '42vw', height: '34vw', borderRadius: '50%', filter: 'blur(80px)', background: 'radial-gradient(ellipse,rgba(167,139,250,0.12) 0%,transparent 70%)', animation: 'ss-float-slow 28s -14s ease-in-out infinite alternate-reverse' }} />
+        </>
+      )}
       {petals.map(p => <LavenderPetal key={p.id} p={p} />)}
     </>
   )
@@ -317,10 +333,9 @@ const MistCloud = memo(function MistCloud({ m }) {
 })
 
 /* ── FOREST: Full-screen fireflies ── */
-/* ── FOREST: Full-screen fireflies ── */
 const ForestScene = memo(function ForestScene() {
   const density = getParticleDensity()
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+  const isMobile = useIsMobile()
   
   const fireflies = useMemo(() => {
     const r = makeRand(66)
@@ -412,7 +427,7 @@ const Ember = memo(function Ember({ e }) {
 /* ── VOLCANIC: Magma with rising embers ── */
 const VolcanicScene = memo(function VolcanicScene() {
   const density = getParticleDensity()
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+  const isMobile = useIsMobile()
   
   const embers = useMemo(() => {
     const r = makeRand(77)
