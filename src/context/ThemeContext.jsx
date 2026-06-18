@@ -14,11 +14,13 @@ export function ThemeProvider({ children }) {
     if (saved === 'system') saved = null // handle legacy config
     if (VALID_THEMES.includes(saved)) return saved
     
-    // Default fallback based on system
+    // Default based on system theme: sunrise (light) or sunset (dark)
+    // Fallback to sunset (dark) if system theme detection fails
     if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'sunset' : 'sunrise'
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      return prefersDark ? 'sunset' : 'sunrise'
     }
-    return 'sunrise'
+    return 'sunset' // Fallback to dark theme
   })
 
   const setTheme = useCallback((newTheme) => {
