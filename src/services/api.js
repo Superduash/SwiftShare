@@ -272,17 +272,17 @@ export function markBackendReachable() {
 function getStallTimeoutMs() {
   try {
     const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection
-    if (!conn) return 60_000
-    if (conn.effectiveType === 'slow-2g') return 150_000
-    if (conn.effectiveType === '2g') return 120_000
-    if (conn.effectiveType === '3g') return 90_000
-    return 60_000
+    if (!conn) return 90_000
+    if (conn.effectiveType === 'slow-2g') return 180_000
+    if (conn.effectiveType === '2g') return 150_000
+    if (conn.effectiveType === '3g') return 120_000
+    return 90_000  // WiFi/4G: 90s — mobile WiFi can hiccup for 60-80s during handoff
   } catch {
-    return 60_000
+    return 90_000
   }
 }
 
-const RETRY_LIMIT = 3
+const RETRY_LIMIT = 5
 
 function attemptUpload(formData, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
@@ -422,8 +422,8 @@ export async function uploadFiles(formData, opts = {}) {
           if (navigator.onLine) return resolve()
           const onOnline = () => { window.removeEventListener('online', onOnline); resolve() }
           window.addEventListener('online', onOnline, { once: true })
-          // Never wait more than 30s for connectivity
-          setTimeout(resolve, 30_000)
+          // Wait up to 90s for connectivity to return
+          setTimeout(resolve, 90_000)
         })
       }
       

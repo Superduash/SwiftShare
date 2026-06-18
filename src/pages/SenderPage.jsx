@@ -47,13 +47,11 @@ const QRModal = lazy(() =>
   import('../components/QRModal').catch(() => ({ default: () => null }))
 )
 
-function buildShareMessage(fileLabel, shareLink, minutesLeft) {
-  const expiryNote = minutesLeft <= 1 ? 'less than a minute' : `${minutesLeft} min`
+function buildShareMessage(fileLabel, shareLink) {
   const title = `${fileLabel} — ready to download on SwiftShare`
   const text =
     `I'm sharing ${fileLabel} with you on SwiftShare — no account needed.\n\n` +
-    `Tap to download instantly:\n${shareLink}\n\n` +
-    `Link expires in ${expiryNote}, so open it soon!`
+    `Tap to download instantly:\n${shareLink}`
   return { title, text }
 }
 
@@ -297,12 +295,8 @@ export default function SenderPage() {
 
         if (!mountedRef.current) return
         
-        // Check for expired/not found BEFORE setting any state
-        if (data.status === 'EXPIRED') {
-          updateTransferStatus(normalizedCode, 'EXPIRED')
-          navigate('/expired?reason=expired', { replace: true })
-          return
-        }
+        // Check for expired/cancelled/deleted status but don't immediately redirect for EXPIRED
+        // Keep the page accessible but disable actions
         if (data.status === 'CANCELLED') {
           updateTransferStatus(normalizedCode, 'CANCELLED')
           navigate('/expired?reason=cancelled', { replace: true })
@@ -330,16 +324,6 @@ export default function SenderPage() {
         // Only redirect for definitive backend responses (not network/timeout errors)
         if (errCode === 'TRANSFER_NOT_FOUND') {
           navigate('/expired?reason=notfound', { replace: true })
-          return
-        }
-        if (errCode === 'TRANSFER_EXPIRED') {
-          updateTransferStatus(normalizedCode, 'EXPIRED')
-          navigate('/expired?reason=expired', { replace: true })
-          return
-        }
-        if (errCode === 'ALREADY_DOWNLOADED') {
-          updateTransferStatus(normalizedCode, 'DELETED')
-          navigate('/expired?reason=burned', { replace: true })
           return
         }
         // For network errors / timeouts, show a retry-able error instead of redirecting
@@ -617,15 +601,28 @@ export default function SenderPage() {
     setDeleting(true)
     try {
       await deleteTransfer(normalizedCode)
-      toast.success('Transfer cancelled permanently')
+      toast.success('Transfer cancelled successfully')
       terminalNavigatedRef.current = true
       setCancelled(true)
       patchCachedTransfer({ status: 'CANCELLED' })
       updateTransferStatus(normalizedCode, 'CANCELLED')
       setConfirmDelete(false)
       navigate('/expired?reason=cancelled', { replace: true })
-    } catch {
-      toast.error('Failed to cancel')
+    } catch (err) {
+      // Handle specific error cases gracefully
+      const errCode = err?.response?.data?.error?.code
+      if (errCode === 'TRANSFER_NOT_FOUND') {
+        toast('Transfer no longer exists', { icon: 'ℹ️' })
+        navigate('/expired?reason=notfound', { replace: true })
+      } else if (errCode === 'TRANSFER_EXPIRED') {
+        toast('Transfer already expired', { icon: 'ℹ️' })
+        updateTransferStatus(normalizedCode, 'EXPIRED')
+      } else if (errCode === 'ALREADY_DOWNLOADED' || errCode === 'TRANSFER_DELETED') {
+        toast('Transfer already removed', { icon: 'ℹ️' })
+        navigate('/expired?reason=burned', { replace: true })
+      } else {
+        toast.error('Unable to cancel transfer. Please try again.')
+      }
     } finally {
       setDeleting(false)
     }
@@ -749,8 +746,7 @@ export default function SenderPage() {
     const fileLabel = meta?.files?.length > 1
       ? `${meta.files.length} files`
       : (meta?.files?.[0]?.name || 'file')
-    const minutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
-    const { title, text } = buildShareMessage(fileLabel, shareLink, minutesLeft)
+    const { title, text } = buildShareMessage(fileLabel, shareLink)
 
     try {
       const result = await shareOrCopy({ title, text, url: shareLink })
@@ -760,7 +756,7 @@ export default function SenderPage() {
         toast.error('Sharing failed. Copy the link instead.')
       }
     }
-  }, [meta, shareLink, secondsRemaining])
+  }, [meta, shareLink])
 
   function handleDownloadQR() {
     const svg = document.querySelector('#sender-qr-code')
@@ -862,11 +858,6 @@ export default function SenderPage() {
     try {
       const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
       if (!mountedRef.current) return
-      if (data.status === 'EXPIRED') {
-        updateTransferStatus(normalizedCode, 'EXPIRED')
-        navigate('/expired?reason=expired', { replace: true })
-        return
-      }
       if (data.status === 'CANCELLED') {
         updateTransferStatus(normalizedCode, 'CANCELLED')
         navigate('/expired?reason=cancelled', { replace: true })
@@ -882,14 +873,6 @@ export default function SenderPage() {
       if (!mountedRef.current) return
       const errCode = err?.response?.data?.error?.code
       if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-      else if (errCode === 'TRANSFER_EXPIRED') {
-        updateTransferStatus(normalizedCode, 'EXPIRED')
-        navigate('/expired?reason=expired', { replace: true })
-      }
-      else if (errCode === 'ALREADY_DOWNLOADED') {
-        updateTransferStatus(normalizedCode, 'DELETED')
-        navigate('/expired?reason=burned', { replace: true })
-      }
       else setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
     } finally {
       if (mountedRef.current) setLoading(false)
@@ -929,8 +912,8 @@ export default function SenderPage() {
     )
   }
 
-  // Handle expired/deleted transfers
-  if (!meta || meta.status === 'EXPIRED' || cancelled) {
+  // Handle cancelled/deleted transfers - show error page only for these
+  if (!meta || cancelled) {
     return (
       <div className="min-h-screen">
         <div className="app-main-offset max-w-2xl mx-auto px-4">
@@ -940,16 +923,16 @@ export default function SenderPage() {
             animate={{ y: 0 }}
             transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
-            <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--warning-soft)' }}>
-              <Clock size={32} style={{ color: 'var(--warning)' }} />
+            <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--danger-soft)' }}>
+              {cancelled ? <XCircle size={32} style={{ color: 'var(--danger)' }} /> : <Clock size={32} style={{ color: 'var(--warning)' }} />}
             </div>
             <h1 className="font-display font-bold text-2xl mb-2" style={{ color: 'var(--text)' }}>
-              {cancelled ? 'Transfer Cancelled' : 'Transfer Expired'}
+              Transfer {cancelled ? 'Cancelled' : 'Unavailable'}
             </h1>
             <p className="text-sm mb-6" style={{ color: 'var(--text-3)' }}>
               {cancelled 
-                ? 'This transfer has been permanently deleted.'
-                : 'This transfer has expired and is no longer available.'}
+                ? 'This transfer has been permanently deleted by the sender.'
+                : 'This transfer is no longer available.'}
             </p>
             <button className="btn-primary" onClick={() => navigate('/')}>
               Create New Transfer
@@ -960,12 +943,14 @@ export default function SenderPage() {
     )
   }
 
+  // Determine if transfer is expired
+  const isExpired = meta?.status === 'EXPIRED'
+
   const _shareFileCount = Array.isArray(meta?.files) ? meta.files.length : 0
   const _shareFileLabel = _shareFileCount > 1
     ? `${_shareFileCount} files`
     : (String(meta?.files?.[0]?.name || '').trim() || 'a file')
-  const _shareMinutesLeft = Math.max(1, Math.ceil((Number(secondsRemaining) || 0) / 60))
-  const { title: _shareTitle, text: _shareText } = buildShareMessage(_shareFileLabel, shareLink, _shareMinutesLeft)
+  const { title: _shareTitle, text: _shareText } = buildShareMessage(_shareFileLabel, shareLink)
 
   const memoizedFileList = useMemo(() => {
     return (meta?.files || []).map((f, i) => (
@@ -973,16 +958,16 @@ export default function SenderPage() {
         key={i}
         file={f}
         index={i}
-        showDownload={!cancelled && (!meta?.passwordProtected || passwordVerified)}
-        onPreview={(!meta?.passwordProtected || passwordVerified) ? () => handlePreview(i) : undefined}
-        onDownloadSingle={(!meta?.passwordProtected || passwordVerified) ? () => handleDownloadSingle(i) : undefined}
+        showDownload={!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)}
+        onPreview={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handlePreview(i) : undefined}
+        onDownloadSingle={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handleDownloadSingle(i) : undefined}
         onContextMenu={(e, idx, pos) => {
           e.preventDefault()
           setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
         }}
       />
     ))
-  }, [meta?.files, cancelled, meta?.passwordProtected, passwordVerified, setContextMenu])
+  }, [meta?.files, isExpired, cancelled, meta?.passwordProtected, passwordVerified, setContextMenu])
 
   return (
     <div className="min-h-screen">
@@ -1009,8 +994,18 @@ export default function SenderPage() {
 
             {/* ═══ LEFT: scrolling content ═══ */}
             <div className="lg:col-span-3 space-y-5">
-              {/* Cancelled banner - inline, not fixed */}
+              {/* Status banners */}
               <AnimatePresence>
+                {isExpired && (
+                  <StatusBanner
+                    key="expired"
+                    tone="danger"
+                    icon={Clock}
+                    title="This transfer has expired and is no longer available for download"
+                    description="The files are pending permanent deletion from cloud storage."
+                    className="mb-4"
+                  />
+                )}
                 {cancelled && (
                   <StatusBanner
                     key="cancelled"
@@ -1029,8 +1024,8 @@ export default function SenderPage() {
                     className="mb-4"
                   />
                 )}
-                {/* Expiry warning banners */}
-                {!cancelled && secondsRemaining > 0 && secondsRemaining <= 60 && (
+                {/* Expiry warning banners - only show if not already expired */}
+                {!isExpired && !cancelled && secondsRemaining > 0 && secondsRemaining <= 60 && (
                   <StatusBanner
                     key="expiring-critical"
                     tone="danger"
@@ -1039,7 +1034,7 @@ export default function SenderPage() {
                     className="mb-4"
                   />
                 )}
-                {!cancelled && secondsRemaining > 60 && secondsRemaining <= 300 && (
+                {!isExpired && !cancelled && secondsRemaining > 60 && secondsRemaining <= 300 && (
                   <StatusBanner
                     key="expiring-soon"
                     tone="warning"
@@ -1050,10 +1045,7 @@ export default function SenderPage() {
                 )}
               </AnimatePresence>
 
-              {/* Transfer Summary */}
-              {!cancelled && meta && (
-                <TransferSummaryCard meta={meta} url={shareLink} onCopy={handleCopyLink} />
-              )}
+              {/* Transfer Summary - removed duplicate share link display */}
 
               {/* Password box - only show for non-text shares */}
               {meta?.passwordProtected && !passwordVerified && !isTextShare && (
@@ -1145,7 +1137,7 @@ export default function SenderPage() {
                 /* Show files as cards */
                 <motion.div initial={{ y: 6 }} animate={{ y: 0 }}>
                   <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
-                    Shared Files ({meta?.files?.length || 0})
+                    {isExpired ? 'Files Expired' : `Shared Files (${meta?.files?.length || 0})`}
                   </h2>
                   <div className="space-y-2">
                     {memoizedFileList}
@@ -1180,10 +1172,20 @@ export default function SenderPage() {
             <div className="lg:col-span-2 mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-20 space-y-5">
                 {/* Share Link */}
-                <div className="surface-card p-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
-                    Share Link
-                  </p>
+                <div className="surface-card p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
+                      Share Link
+                    </p>
+                    {/* Status indicator */}
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" 
+                          style={{ 
+                            background: isExpired ? 'var(--danger-soft)' : 'var(--success-soft)', 
+                            color: isExpired ? 'var(--danger)' : 'var(--success)' 
+                          }}>
+                      {isExpired ? 'Expired' : 'Available'}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
                     <div
                       className="flex-1 px-3 py-2 rounded-xl text-sm font-mono truncate"
@@ -1195,6 +1197,7 @@ export default function SenderPage() {
                     <button
                       className="btn-primary shrink-0 gap-1.5 px-4"
                       onClick={handleCopyLink}
+                      disabled={isExpired}
                       style={copyLinkState === 'copied' ? { background: 'var(--success)', borderColor: 'var(--success)' } : undefined}
                     >
                       {copyLinkState === 'copied' ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
@@ -1242,24 +1245,25 @@ export default function SenderPage() {
                     ))}
                   </div>
 
-                  {/* Copy buttons */}
+                  {/* Copy and Share buttons */}
                   <div className="flex gap-2">
                     <button className="btn-secondary flex-1 text-xs" onClick={handleCopyCode}>
                       {copiedCode ? <Check size={14} /> : <Copy size={14} />}
                       {copiedCode ? 'Copied!' : 'Copy code'}
                     </button>
                     <button className="btn-secondary flex-1 text-xs" onClick={handleNativeShare}>
-                      {copyLinkState === 'copied' ? <Check size={14} /> : <Share2 size={14} />}
-                      {copyLinkState === 'copied' ? 'Link copied' : 'Share'}
+                      <Share2 size={14} />
+                      Share
                     </button>
                   </div>
                 </motion.div>
 
-                {/* Share options */}
-                <div className="surface-card p-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
-                    <Share2 size={12} className="inline mr-1" /> Share via
-                  </h3>
+                {/* Share options - only show if not expired */}
+                {!isExpired && (
+                  <div className="surface-card p-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
+                      <Share2 size={12} className="inline mr-1" /> Share via
+                    </h3>
                   
                   {canWebShare({ url: shareLink }) ? (
                     <button className="btn-primary w-full gap-2" onClick={handleNativeShare}>
@@ -1295,17 +1299,18 @@ export default function SenderPage() {
                     </div>
                   )}
                 </div>
+                )}
 
-                {/* Nearby share prompts */}
-                {!cancelled && (
+                {/* Nearby share prompts - only show if not expired */}
+                {!isExpired && !cancelled && (
                   <NearbyDevices
                     currentTransferCode={normalizedCode}
                     currentFilename={meta?.files?.[0]?.name || 'file'}
                   />
                 )}
 
-                {/* Countdown */}
-                {!cancelled && (
+                {/* Countdown - only show if not expired */}
+                {!isExpired && !cancelled && (
                   <div className="surface-card p-5 text-center">
                     {downloadCount > 0 && (
                       <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium mb-4"
