@@ -7,13 +7,6 @@ import { previewUrl } from '../services/api'
 import { getPreviewType } from '../utils/preview'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 
-function getDocxPreviewUrl(src) {
-  if (!src) return ''
-  const queryStart = src.indexOf('?')
-  if (queryStart === -1) return `${src}/docx-html`
-  return `${src.slice(0, queryStart)}/docx-html${src.slice(queryStart)}`
-}
-
 // React's `muted` JSX prop is unreliable on iOS Safari — set the DOM properties
 // directly via ref so unmuting always sticks.
 function forceAudible(mediaEl) {
@@ -226,7 +219,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const type = file ? getPreviewType(file) : null
   const src = open && file ? previewUrl(code, fileIndex, password) : ''
   const mediaSrc = mediaTry > 0 ? `${src}${src.includes('?') ? '&' : '?'}_previewTry=${mediaTry}` : src
-  const previewSrc = type === 'docx' ? getDocxPreviewUrl(src) : src
+  const previewSrc = src
   const isMobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
   const canPlayVideo = type !== 'video' || canBrowserPlay(file, 'video')
   const canPlayAudio = type !== 'audio' || canBrowserPlay(file, 'audio')
@@ -525,38 +518,6 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                   </>
                 )}
               </div>
-            )}
-
-            {/* DOCX */}
-            {type === 'docx' && (
-              error ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <AlertTriangle size={40} style={{ color: 'var(--warning)' }} className="mb-3" />
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>DOCX preview unavailable</p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Download the file to open it in Word.</p>
-                  {onDownload && (
-                    <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
-                      <Download size={14} /> Download file
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="relative" style={{ height: '55vh' }}>
-                  <iframe
-                    src={previewSrc}
-                    className="w-full h-full rounded-xl"
-                    style={{ border: 'none', display: 'block', background: 'var(--bg-sunken)' }}
-                    title={file.name || 'DOCX Preview'}
-                    onLoad={() => setLoading(false)}
-                    onError={() => { setLoading(false); setError(true) }}
-                  />
-                  {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-xl overflow-hidden">
-                      <div className="shimmer-block w-full h-full rounded-xl" />
-                    </div>
-                  )}
-                </div>
-              )
             )}
 
             {/* CODE / TEXT */}

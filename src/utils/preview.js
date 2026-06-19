@@ -54,7 +54,7 @@ function isPptx(mime, name) {
 }
 
 function isDocx(mime, name) {
-  return mime.includes('wordprocessingml') || name.endsWith('.docx')
+  return false // DOCX preview disabled
 }
 
 function isCodeOrText(mime, name) {

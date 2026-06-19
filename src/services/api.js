@@ -533,11 +533,11 @@ export async function verifyPassword(code, password) {
 }
 
 // ── Actions ─────────────────────────────────
-export async function extendTransfer(code, ownershipToken) {
+export async function extendTransfer(code, ownershipToken, minutes = 10) {
   const config = ownershipToken
     ? { headers: { 'X-Ownership-Token': String(ownershipToken) } }
     : {}
-  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/extend`, {}, config)
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/extend`, { minutes }, config)
   return unwrapResponse(data)
 }
 

@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Clock, Shield, Link, Copy, Eye, Download, CheckCircle2 } from 'lucide-react'
 import { formatBytes } from '../utils/format'
-import toast from 'react-hot-toast'
 
 export default function TransferSummaryCard({ meta, url, onCopy }) {
   if (!meta) return null
@@ -69,7 +68,6 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
               copyToClipboard(url).then(success => {
                 if (success) {
                   setCopied(true)
-                  toast.success('Link copied')
                   if (onCopy) onCopy()
                   setTimeout(() => setCopied(false), 2000)
                 }

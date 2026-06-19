@@ -105,6 +105,8 @@ export default function SenderPage() {
   const [error, setError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmExtend, setConfirmExtend] = useState(false)
+  const [extendMinutes, setExtendMinutes] = useState(10) // Default 10 minutes
+  const [showExtendOptions, setShowExtendOptions] = useState(false)
   const [cancelled, setCancelled] = useState(
     initialCachedTransfer?.status === 'CANCELLED' || initialCachedTransfer?.status === 'DELETED'
   )
@@ -492,10 +494,12 @@ export default function SenderPage() {
       requestActivityRefresh()
       navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
     }
-    const onExtended = ({ expiresAt }) => {
+    const onExtended = ({ expiresAt, serverTime }) => {
       if (expiresAt) {
-        // Update expiresAt - timer will auto-calculate secondsRemaining
-        const newSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
+        // Use server time to calculate accurate seconds remaining
+        const expiryMs = new Date(expiresAt).getTime()
+        const nowMs = serverTime || Date.now() // Prefer server time for sync
+        const newSeconds = Math.max(0, Math.ceil((expiryMs - nowMs) / 1000))
         setTotalSeconds(newSeconds)
         patchCachedTransfer({ expiresAt })
       }
@@ -571,6 +575,14 @@ export default function SenderPage() {
               saveCachedTransfer(normalizedCode, { ...cached, downloadCount: status.downloadCount })
             }
           }
+          
+          // Sync timer using server time if available
+          if (status.expiresAt && status.serverTime) {
+            const expiryMs = new Date(status.expiresAt).getTime()
+            const serverNow = status.serverTime
+            const adjustedSeconds = Math.max(0, Math.ceil((expiryMs - serverNow) / 1000))
+            setSecondsRemaining(adjustedSeconds)
+          }
         }
       } catch {
         // Silent fail - polling is best-effort
@@ -632,18 +644,22 @@ export default function SenderPage() {
   async function handleExtend() {
     if (extending) return
     if (!confirmExtend) {
+      setShowExtendOptions(true)
       setConfirmExtend(true)
-      setTimeout(() => setConfirmExtend(false), 3000)
+      setTimeout(() => {
+        setConfirmExtend(false)
+        setShowExtendOptions(false)
+      }, 5000)
       return
     }
 
     setExtending(true)
+    setShowExtendOptions(false)
     try {
-      await extendTransfer(normalizedCode, ownershipToken)
+      await extendTransfer(normalizedCode, ownershipToken, extendMinutes)
       setExtended(true)
       setConfirmExtend(false)
-      // Don't update state here - let the socket event handle it to avoid double updates
-      toast.success('Extended by 10 minutes')
+      toast.success(`Extended by ${extendMinutes} minutes`)
     } catch {
       toast.error('Failed to extend')
     } finally {
@@ -1349,6 +1365,23 @@ export default function SenderPage() {
                     )}
                     <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={130} />
 
+                    {showExtendOptions && !extended && (
+                      <div className="mt-3 p-2 rounded-xl" style={{ background: 'var(--bg-sunken)' }}>
+                        <p className="text-[10px] font-semibold mb-2" style={{ color: 'var(--text-3)' }}>EXTEND BY:</p>
+                        <div className="flex gap-2">
+                          {[10, 30, 60].map(mins => (
+                            <button
+                              key={mins}
+                              className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${extendMinutes === mins ? 'btn-primary' : 'btn-ghost'}`}
+                              onClick={() => setExtendMinutes(mins)}
+                            >
+                              {mins}m
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-4 flex gap-2">
                       <button
                         className="btn-ghost flex-1 text-xs"
@@ -1359,7 +1392,7 @@ export default function SenderPage() {
                         {confirmExtend ? (
                           <><AlertTriangle size={13} />Confirm extend?</>
                         ) : (
-                          <><Clock size={13} />{extending ? 'Extending...' : (extended ? 'Extended' : '+10 min')}</>
+                          <><Clock size={13} />{extending ? 'Extending...' : (extended ? 'Extended' : 'Extend')}</>
                         )}
                       </button>
                       <button
