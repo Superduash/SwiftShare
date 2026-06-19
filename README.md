@@ -2,168 +2,140 @@
   <img src="https://capsule-render.vercel.app/api?type=waving&height=240&color=0:0f172a,50:7c3aed,100:06b6d4&text=SwiftShare&fontSize=62&fontColor=ffffff&animation=fadeIn&fontAlignY=40&desc=Temporary%20File%20Sharing%20Without%20Accounts&descAlignY=63&descColor=e2e8f0&descSize=18"/>
 </p>
 
-<div align="center">
+<p align="center">
+  <a href="https://swiftsharegg.vercel.app"><img src="https://img.shields.io/badge/Live_Demo-swiftsharegg.vercel.app-7c3aed?style=for-the-badge"/></a>
+  <a href="https://github.com/Superduash/SwiftShare-Backend"><img src="https://img.shields.io/badge/Backend_Repo-SwiftShare--Backend-111827?style=for-the-badge"/></a>
+</p>
 
-### ⚡ Fast Transfers • 🔒 Privacy First • 📱 QR Sharing • 🔥 Burn After Download
+<p align="center">
+  <img src="https://img.shields.io/badge/React_18-61DAFB?style=flat-square&logo=react&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Socket.IO-black?style=flat-square&logo=socketdotio"/>
+  <img src="https://img.shields.io/badge/PWA-7C3AED?style=flat-square"/>
+  <img src="https://img.shields.io/badge/MIT_License-success?style=flat-square"/>
+</p>
 
-A modern open-source platform for transferring files, media, and text between devices using transfer codes, QR scans, and shareable links.
-
-<br>
-
-<img src="https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white"/>
-<img src="https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white"/>
-<img src="https://img.shields.io/badge/Socket.IO-Real_Time-black?style=for-the-badge&logo=socketdotio"/>
-<img src="https://img.shields.io/badge/PWA-Ready-7C3AED?style=for-the-badge"/>
-<img src="https://img.shields.io/badge/Open_Source-MIT-success?style=for-the-badge"/>
-
-<br>
-
-### 🌐 Website
-
-https://swiftsharegg.vercel.app
-
-### ⚙️ Backend Repository
-
-https://github.com/Superduash/SwiftShare-Backend
-
-</div>
+<p align="center">No accounts. No installs. Upload a file on one device, type a code on another, and it's there.</p>
 
 ---
 
-## 🚀 Why SwiftShare?
+## Preview
 
-Most file-sharing platforms require accounts, lengthy setup, or leave files stored indefinitely.
+<p align="center">
+  <img src="./docs/swiftshare-preview.png" width="320" alt="SwiftShare mobile upload screen"/>
+</p>
 
-SwiftShare was built to make sharing files as simple as possible.
+<p align="center"><sub>Live upload progress on mobile — files stream directly to storage, no waiting for a server-side buffer.</sub></p>
 
-Upload a file, receive a transfer code, QR code, or shareable link, and access it instantly from another device. No accounts, no unnecessary steps, and no permanent storage.
-
-Whether you're transferring screenshots between devices, sharing documents with classmates, or sending media to friends, SwiftShare focuses on speed, simplicity, and privacy.
-
----
-
-## ✨ Features
-
-### 📦 Fast File Sharing
-- Transfer codes
-- QR code sharing
-- Shareable links
-- Multi-file uploads
-- ZIP downloads
-- Drag & drop support
-
-### 🔒 Privacy & Security
-- Password-protected transfers
-- Burn-after-download mode
-- Automatic expiry
-- Temporary storage lifecycle
-
-### ⚡ Real-Time Experience
-- Live upload progress
-- Download notifications
-- Instant status updates
-- Real-time synchronization
-
-### 👀 Built-In Previews
-Preview files before downloading:
-- Images
-- Videos
-- Audio
-- PDFs
-- Text files
-- Source code
-
-### 📱 Works Everywhere
-- Windows
-- Linux
-- macOS
-- Android
-- iPhone
-- Tablets
-
-No installation required.
+> Try it yourself → **[swiftsharegg.vercel.app](https://swiftsharegg.vercel.app)**
 
 ---
 
-# How It Works
+## Contents
+
+- [Why](#why)
+- [Features](#features)
+- [Under the hood](#under-the-hood)
+- [How a transfer works](#how-a-transfer-works)
+- [Tech stack](#tech-stack)
+- [Running locally](#running-locally)
+- [Roadmap](#roadmap)
+
+---
+
+## Why
+
+Most "send a file" tools want you to sign up, install something, or trust that your file isn't sitting on a server indefinitely. SwiftShare skips all of that: pick a file, get a 6-character code or QR, hand it to whoever needs it, and the file is gone once it expires or — in burn mode — the moment it's downloaded once.
+
+Built for the boring-but-real use case: getting a screenshot or a PDF from your phone to your laptop without emailing it to yourself.
+
+## Features
+
+**Sharing**
+- Transfer codes, QR codes, and shareable links — pick whichever fits the moment
+- Multi-file uploads with drag & drop, ZIP download on the receiving end
+
+**Privacy**
+- Optional password-protected transfers
+- Burn-after-download — the file is invalidated the moment it's claimed
+- Everything expires automatically; nothing sits around "just in case"
+
+**Live feedback**
+- Upload progress, transfer status, and download notifications pushed over WebSockets in real time — no polling, no refreshing
+
+**Previews**
+- Images, video, audio, PDFs, and source/text files render in-browser before anyone downloads anything
+
+**Everywhere**
+- Installable PWA, works on desktop and mobile without a native app
+
+## Under the hood
+
+A few things that took more than "just call the API":
+
+- **Progress that's actually accurate** — upload progress is driven off raw XHR byte events (not a fake timer), throttled through `requestAnimationFrame` so the UI never drops frames on slower phones.
+- **Network-aware retries** — failed uploads back off and retry automatically, and the client distinguishes a genuinely dead connection from a slow one using the browser's Network Information API rather than guessing off a single timeout.
+- **Stream-safe multi-file uploads** — files are validated (type, size, extension) client-side before they ever leave the device, so you get an error instantly instead of a failed request three seconds in.
+- **PWA without breaking uploads** — the service worker caches the app shell for offline-install, but explicitly bypasses anything that isn't a `GET`, so large file uploads always go straight to the network instead of getting intercepted.
+
+## How a transfer works
 
 ```text
-Upload Files
-      │
-      ▼
-Generate Transfer
-      │
-      ▼
-Receive Code + QR
-      │
-      ▼
-Share With Anyone
-      │
-      ▼
-Download Instantly
-      │
-      ▼
-Automatic Cleanup
+Select files  →  Validate client-side  →  Stream to backend
+                                                 │
+                                                 ▼
+                                     Transfer code + QR generated
+                                                 │
+                                                 ▼
+                                Share code / QR / link with recipient
+                                                 │
+                                                 ▼
+                              Recipient downloads (or transfer self-destructs)
+                                                 │
+                                                 ▼
+                                  Expired / burned transfers are purged
 ```
 
-Transfers automatically expire and are removed from storage after their lifecycle ends.
-
----
-
-# Tech Stack
+## Tech stack
 
 | Layer | Technology |
-|---------|---------|
-| Frontend | React 18 |
-| Build Tool | Vite 8 |
-| Styling | Tailwind CSS |
-| Animations | Framer Motion |
+|---|---|
+| UI | React 18, Tailwind CSS |
+| Build | Vite |
+| Motion | Framer Motion |
 | Routing | React Router |
-| State Management | React Query |
-| Real-Time | Socket.IO |
+| Data / state | React Query, Context API |
+| Real-time | Socket.IO client |
 | Hosting | Vercel |
 
----
-
-# Local Development
+## Running locally
 
 ```bash
 git clone https://github.com/Superduash/SwiftShare.git
-
 cd SwiftShare
-
 npm install
-
 npm run dev
 ```
-
-Environment Variables:
 
 ```env
 VITE_API_URL=http://localhost:3001
 VITE_SOCKET_URL=http://localhost:3001
 ```
 
----
+You'll need the [backend](https://github.com/Superduash/SwiftShare-Backend) running locally too, or pointed at a deployed instance.
 
-## 🚀 Future Plans
+## Roadmap
 
-- [ ] Android App
-- [ ] Desktop App
-- [ ] Peer-to-Peer Transfers
-- [ ] Folder Sharing
-- [ ] Larger Transfer Limits
-- [ ] Self-Hosting Support
+- [ ] Peer-to-peer transfer mode (skip the server entirely for same-network devices)
+- [ ] Folder uploads
+- [ ] Native desktop build
+- [ ] Self-hosting guide
 
 ---
 
-# License
-
-MIT License
-
-Free to use, modify, and distribute.
-
----
+<p align="center">
+  MIT Licensed  ·  Free to use, modify, and distribute. 
+</p>
 
 <div align="center">
 
