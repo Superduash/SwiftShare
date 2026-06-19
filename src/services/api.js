@@ -260,7 +260,7 @@ function getStallTimeoutMs() {
 const RETRY_LIMIT = 5
 const MAX_RETRY_DELAY_MS = 10_000 // Cap retry delay at 10 seconds
 
-function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalSize = 0, fileName = 'file' } = {}) {
+function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalSize = 0, fileName = 'file', uploadStartTime = Date.now() } = {}) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     const url = `${baseURL}/api/upload`
@@ -370,17 +370,45 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
       reject(err)
     })
 
-    xhr.addEventListener('error', () => {
+    xhr.addEventListener('error', (e) => {
       clearWatchdog()
-      console.error('[UPLOAD] XHR_ERROR', { fileName, attemptNumber })
+      console.error('[UPLOAD] XHR_ERROR', { 
+        fileName, 
+        attemptNumber,
+        event: e,
+        readyState: xhr.readyState,
+        status: xhr.status,
+      })
+      
+      // Detect Chrome's ERR_UPLOAD_FILE_CHANGED
+      // This happens when Android file handles become invalid (file touched by Gallery/Photos/MediaStore)
+      const err = new Error('Network error during upload')
+      
+      // Chrome doesn't expose the exact error code in the error event, but we can infer it
+      // from the context: if XHR fails immediately without any bytes sent and status = 0,
+      // it's likely ERR_UPLOAD_FILE_CHANGED on Android
+      if (xhr.readyState === 0 || xhr.status === 0) {
+        // Check if this is a file handle issue by examining timing
+        // If error happens very quickly (< 100ms), likely file access issue
+        const elapsed = Date.now() - uploadStartTime
+        if (elapsed < 100 && attemptNumber === 1) {
+          err.code = 'ERR_UPLOAD_FILE_CHANGED'
+          err.message = 'File became unavailable after selection'
+          console.error('[UPLOAD] FILE_HANDLE_INVALIDATED', { fileName, elapsed })
+        } else {
+          err.code = 'ERR_NETWORK'
+        }
+      } else {
+        err.code = 'ERR_NETWORK'
+      }
+      
       debugLog('Network error during upload', {
         fileName,
         attemptNumber,
         network: getNetworkInfo(),
         online: navigator.onLine,
+        errorCode: err.code,
       })
-      const err = new Error('Network error during upload')
-      err.code = 'ERR_NETWORK'
       reject(err)
     })
 
@@ -426,7 +454,13 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 function isTransientUploadError(err) {
   if (!err) return false
   const code = String(err.code || '').toUpperCase()
+  
+  // NEVER retry file access errors - file is gone/changed, retrying won't help
+  if (code === 'ERR_UPLOAD_FILE_CHANGED') return false
+  
+  // Retry network issues and stalls
   if (code === 'ERR_NETWORK' || code === 'ERR_STALLED') return true
+  
   // 5xx from server: also retryable. 4xx (validation) is not.
   const status = Number(err?.response?.status || 0)
   return status >= 500 && status < 600
@@ -444,6 +478,7 @@ export async function uploadFiles(formData, opts = {}) {
   // Extract metadata for debug logging
   const fileName = formData.get('files')?.name || 'file'
   const totalSize = formData.getAll('files').reduce((sum, f) => sum + (f.size || 0), 0)
+  const uploadStartTime = Date.now()
 
   while (attempt <= RETRY_LIMIT) {
     try {
@@ -453,6 +488,7 @@ export async function uploadFiles(formData, opts = {}) {
         attemptNumber: attempt + 1,
         totalSize,
         fileName,
+        uploadStartTime,
       })
     } catch (err) {
       lastErr = err

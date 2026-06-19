@@ -383,6 +383,16 @@ export default function HomePage() {
     const transportCode = String(err?.code || '').toUpperCase()
     const transportMessage = String(err?.message || '').toLowerCase()
 
+    // === FILE BECAME UNAVAILABLE (Android Chrome file handle invalidation) ===
+    if (transportCode === 'ERR_UPLOAD_FILE_CHANGED') {
+      return 'File became unavailable after selection. Please re-select the file and try again.'
+    }
+
+    // === FILE READ ERRORS (caught during pre-read) ===
+    if (transportMessage.includes('became unavailable')) {
+      return err.message
+    }
+
     if (!err?.response) {
       if (transportCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
         return 'Upload is taking longer than expected. Check your connection and retry.'
@@ -455,7 +465,7 @@ export default function HomePage() {
     try {
       // === LOG: File metadata before upload ===
       files.forEach((file, idx) => {
-        console.log(`[UPLOAD] FILE_${idx}`, {
+        console.log(`[UPLOAD] FILE_${idx}_SELECTED`, {
           name: file.name,
           size: file.size,
           type: file.type,
@@ -463,10 +473,46 @@ export default function HomePage() {
         });
       });
 
+      console.log('[UPLOAD] PRE_READING_FILES');
+
+      // === PRE-READ FILES INTO MEMORY ===
+      // Android Chrome can invalidate file handles if the file is touched by
+      // Gallery, Photos, MediaStore, or file managers between selection and upload.
+      // Pre-reading ensures we have a stable copy in memory.
+      const safeFiles = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        try {
+          console.log(`[UPLOAD] READING_FILE_${i}`, { name: file.name, size: file.size });
+          const buffer = await file.arrayBuffer();
+          const safeFile = new File(
+            [buffer],
+            file.name,
+            {
+              type: file.type,
+              lastModified: file.lastModified
+            }
+          );
+          safeFiles.push(safeFile);
+          console.log(`[UPLOAD] FILE_${i}_READY`, { 
+            name: safeFile.name, 
+            size: safeFile.size,
+            bufferSize: buffer.byteLength 
+          });
+        } catch (readError) {
+          console.error(`[UPLOAD] FILE_${i}_READ_FAILED`, {
+            name: file.name,
+            error: readError.message,
+            errorName: readError.name,
+          });
+          throw new Error(`"${file.name}" became unavailable. Please re-select the file and try again.`);
+        }
+      }
+
       console.log('[UPLOAD] CREATING_FORMDATA');
       
       const formData = new FormData()
-      files.forEach(f => formData.append('files', f))
+      safeFiles.forEach(f => formData.append('files', f))
       formData.append('expiryMinutes', expiry)
       formData.append('burnAfterDownload', burn)
       if (passwordProtected && password.trim()) {
