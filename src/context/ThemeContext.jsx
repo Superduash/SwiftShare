@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { getTheme, saveTheme } from '../utils/storage'
 
 const ThemeContext = createContext({
-  theme: 'sunrise',
+  theme: 'sunset',
   setTheme: () => {}
 })
 
@@ -13,14 +13,7 @@ export function ThemeProvider({ children }) {
     let saved = getTheme()
     if (saved === 'system') saved = null // handle legacy config
     if (VALID_THEMES.includes(saved)) return saved
-    
-    // Default based on system theme: sunrise (light) or sunset (dark)
-    // Fallback to sunset (dark) if system theme detection fails
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      return prefersDark ? 'sunset' : 'sunrise'
-    }
-    return 'sunset' // Fallback to dark theme
+    return 'sunset'
   })
 
   const setTheme = useCallback((newTheme) => {
