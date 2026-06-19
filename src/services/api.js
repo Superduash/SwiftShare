@@ -339,11 +339,13 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('load', () => {
       clearWatchdog()
+      console.log('[UPLOAD] XHR_LOAD', { fileName, attemptNumber, status: xhr.status })
       const status = xhr.status
       let parsed = null
       try { parsed = JSON.parse(xhr.responseText) } catch { parsed = null }
 
       if (status >= 200 && status < 300) {
+        console.log('[UPLOAD] XHR_SUCCESS', { fileName, attemptNumber, status })
         debugLog('Upload completed successfully', {
           fileName,
           attemptNumber,
@@ -354,6 +356,7 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
         return
       }
 
+      console.error('[UPLOAD] XHR_ERROR_STATUS', { fileName, attemptNumber, status })
       debugLog('Upload failed with server error', {
         fileName,
         attemptNumber,
@@ -453,6 +456,18 @@ export async function uploadFiles(formData, opts = {}) {
       })
     } catch (err) {
       lastErr = err
+      
+      // === ROOT CAUSE LOGGING ===
+      console.error('[ROOT_CAUSE] Upload attempt failed', {
+        attempt: attempt + 1,
+        errorMessage: err?.message,
+        errorCode: err?.code,
+        errorName: err?.name,
+        errorStack: err?.stack,
+        hasResponse: !!err?.response,
+        responseStatus: err?.response?.status,
+        isTransient: isTransientUploadError(err),
+      });
       
       // User-initiated abort: don't retry.
       if (String(err?.code || '').toUpperCase() === 'ERR_CANCELED' && signal?.aborted) {
