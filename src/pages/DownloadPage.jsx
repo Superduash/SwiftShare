@@ -687,7 +687,6 @@ export default function DownloadPage() {
     const file = meta?.files?.[contextMenu.index]
     if (!file) return []
     return [
-      { icon: Eye, label: 'Preview', action: () => handlePreview(contextMenu.index) },
       { icon: Download, label: 'Download this file', action: () => handleDownloadSingle(contextMenu.index) },
       { icon: Copy, label: 'Copy filename', action: () => copyToClipboard(file.name) },
     ]
@@ -754,7 +753,7 @@ export default function DownloadPage() {
         file={f}
         index={i}
         showDownload={canDownload && (meta?.files?.length ?? 0) > 1}
-        onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
+        onPreview={undefined}
         onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
         onContextMenu={(e, idx, pos) => {
           if (needsPassword && !passwordVerified) return
