@@ -1126,7 +1126,15 @@ export default function DownloadPage() {
                         <Download size={18} />
                         {meta?.files?.length > 1
                           ? `Download All (${meta.files.length} files · ${formatBytes(meta.totalSize || 0)})`
-                          : `Download ${meta?.files?.[0]?.name || 'File'} (${formatBytes(meta?.files?.[0]?.size || meta?.files?.[0]?.fileSize || meta?.totalSize || 0)})`
+                          : (() => {
+                              const fileName = meta?.files?.[0]?.name || 'File';
+                              const fileSize = formatBytes(meta?.files?.[0]?.size || meta?.files?.[0]?.fileSize || meta?.totalSize || 0);
+                              // Truncate filename if too long (keep first 30 chars + extension)
+                              const truncated = fileName.length > 35 
+                                ? fileName.slice(0, 30) + '...' + (fileName.includes('.') ? fileName.split('.').pop() : '')
+                                : fileName;
+                              return `Download ${truncated} (${fileSize})`;
+                            })()
                         }
                       </button>
                     </div>

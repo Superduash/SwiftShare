@@ -369,6 +369,7 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('error', () => {
       clearWatchdog()
+      console.error('[UPLOAD] XHR_ERROR', { fileName, attemptNumber })
       debugLog('Network error during upload', {
         fileName,
         attemptNumber,
@@ -382,6 +383,7 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('abort', () => {
       clearWatchdog()
+      console.error('[UPLOAD] XHR_ABORT', { fileName, attemptNumber })
       debugLog('Upload aborted', {
         fileName,
         attemptNumber,
@@ -394,6 +396,7 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('timeout', () => {
       clearWatchdog()
+      console.error('[UPLOAD] XHR_TIMEOUT', { fileName, attemptNumber })
       debugLog('Upload timeout', {
         fileName,
         attemptNumber,
@@ -402,6 +405,10 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
       const err = new Error('Upload timeout')
       err.code = 'ECONNABORTED'
       reject(err)
+    })
+
+    xhr.addEventListener('loadstart', () => {
+      console.log('[UPLOAD] XHR_STARTED', { fileName, attemptNumber })
     })
 
     xhr.open('POST', url, true)

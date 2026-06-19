@@ -436,18 +436,6 @@ export default function HomePage() {
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
 
-    // === LOG 1: Upload starting ===
-    console.log('[UPLOAD_DEBUG] Upload starting', {
-      fileCount: files.length,
-      files: files.map(f => ({
-        name: f.name,
-        size: f.size,
-        type: f.type,
-        lastModified: f.lastModified,
-      })),
-      totalSize: totalSize(),
-    });
-
     uploadAbortRef.current?.abort()
     uploadAbortRef.current = new AbortController()
 
@@ -465,6 +453,18 @@ export default function HomePage() {
 
     let uploadSucceeded = false
     try {
+      // === LOG: File metadata before upload ===
+      files.forEach((file, idx) => {
+        console.log(`[UPLOAD] FILE_${idx}`, {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified,
+        });
+      });
+
+      console.log('[UPLOAD] CREATING_FORMDATA');
+      
       const formData = new FormData()
       files.forEach(f => formData.append('files', f))
       formData.append('expiryMinutes', expiry)
@@ -475,13 +475,8 @@ export default function HomePage() {
       }
       if (socketId) formData.append('socketId', socketId)
 
-      // === LOG 2: Sending request ===
-      console.log('[UPLOAD_DEBUG] Sending request', {
-        hasSocketId: !!socketId,
-        expiryMinutes: expiry,
-        burnAfterDownload: burn,
-        passwordProtected,
-      });
+      console.log('[UPLOAD] FORMDATA_READY');
+      console.log('[UPLOAD] SENDING_REQUEST');
 
       const flushProgress = () => {
         rafIdRef.current = 0
@@ -551,13 +546,7 @@ export default function HomePage() {
         },
       })
 
-      // === LOG 3: Response received ===
-      console.log('[UPLOAD_DEBUG] Response received', {
-        success: true,
-        code: response?.code,
-        hasFiles: !!response?.files,
-        fileCount: response?.files?.length,
-      });
+      console.log('[UPLOAD] RESPONSE_RECEIVED');
 
       // Strict success validation: never navigate without a valid transfer code.
       const transferCode = typeof response?.code === 'string' ? response.code.trim() : ''
@@ -572,13 +561,10 @@ export default function HomePage() {
       uploadSucceeded = true
       handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
-      // === LOG 4: Upload error ===
-      console.error('[UPLOAD_DEBUG] Upload error', {
-        error: err?.message,
+      console.error('[UPLOAD] ERROR', {
+        message: err?.message,
         code: err?.code,
         status: err?.response?.status,
-        hasResponse: !!err?.response,
-        errorCode: err?.response?.data?.error?.code,
       });
       
       if (!shouldSuppressUploadError(err)) {
