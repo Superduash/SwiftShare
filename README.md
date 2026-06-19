@@ -22,12 +22,17 @@
 ## Preview
 
 <p align="center">
-  <img src="./docs/swiftshare-preview.png" width="320" alt="SwiftShare mobile upload screen"/>
+  <img src="./docs/banner.png" alt="SwiftShare Banner" width="100%"/>
 </p>
 
-<p align="center"><sub>Live upload progress on mobile — files stream directly to storage, no waiting for a server-side buffer.</sub></p>
+<p align="center">
+  <sub>
+    Share files instantly using transfer codes, links, or QR codes.
+    Installable on desktop and mobile as a Progressive Web App.
+  </sub>
+</p>
 
-> Try it yourself → **[swiftsharegg.vercel.app](https://swiftsharegg.vercel.app)**
+> Try it yourself → <strong><a href="https://swiftsharegg.vercel.app">swiftsharegg.vercel.app</a></strong>
 
 ---
 
