@@ -660,8 +660,17 @@ export default function SenderPage() {
       setExtended(true)
       setConfirmExtend(false)
       toast.success(`Extended by ${extendMinutes} minutes`)
-    } catch {
-      toast.error('Failed to extend')
+    } catch (err) {
+      console.error('Extend failed:', err)
+      const errCode = err?.response?.data?.error?.code
+      const errMsg = err?.response?.data?.error?.message
+      if (errCode === 'TRANSFER_NOT_FOUND') {
+        toast.error('Transfer not found')
+      } else if (errMsg) {
+        toast.error(errMsg)
+      } else {
+        toast.error('Failed to extend')
+      }
     } finally {
       setExtending(false)
     }
