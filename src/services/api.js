@@ -169,6 +169,15 @@ function appendPasswordQuery(url, password) {
   return `${url}${separator}password=${encodeURIComponent(password)}`
 }
 
+function appendClaimantTokenQuery(url, claimantToken) {
+  if (typeof claimantToken !== 'string' || !claimantToken.trim()) {
+    return url
+  }
+
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}claimantToken=${encodeURIComponent(claimantToken)}`
+}
+
 function toDataUrl(base64OrDataUrl, mimeType = 'image/png') {
   if (typeof base64OrDataUrl !== 'string' || !base64OrDataUrl) {
     return ''
@@ -571,23 +580,25 @@ export async function getStats() {
 }
 
 // ── Download ────────────────────────────────
-export function getDownloadUrl(code, password) {
+export function getDownloadUrl(code, password, claimantToken) {
   const url = buildBackendUrl(`/api/download/${normalizeCode(code)}`)
-  return appendPasswordQuery(url, password)
+  const urlWithPw = appendPasswordQuery(url, password)
+  return appendClaimantTokenQuery(urlWithPw, claimantToken)
 }
 
-export function getSingleDownloadUrl(code, index, password) {
+export function getSingleDownloadUrl(code, index, password, claimantToken) {
   const safeIndex = Number(index)
   const url = buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
-  return appendPasswordQuery(url, password)
+  const urlWithPw = appendPasswordQuery(url, password)
+  return appendClaimantTokenQuery(urlWithPw, claimantToken)
 }
 
-export function downloadFile(code, password) {
-  window.location.href = getDownloadUrl(code, password)
+export function downloadFile(code, password, claimantToken) {
+  window.location.href = getDownloadUrl(code, password, claimantToken)
 }
 
-export function downloadSingleFile(code, index, password) {
-  window.location.href = getSingleDownloadUrl(code, index, password)
+export function downloadSingleFile(code, index, password, claimantToken) {
+  window.location.href = getSingleDownloadUrl(code, index, password, claimantToken)
 }
 
 export function previewUrl(code, index, password) {

@@ -13,17 +13,17 @@ function buildPasswordHeaders(password) {
   return { 'x-transfer-password': password }
 }
 
-export async function smartDownload(code, { index, originalName, password } = {}) {
+export async function smartDownload(code, { index, originalName, password, claimantToken } = {}) {
   // For simple full-transfer downloads, use direct navigation (streaming, no memory pressure)
   if (typeof index !== 'number') {
-    downloadFile(code, password)
+    downloadFile(code, password, claimantToken)
     return true
   }
 
   const headers = buildPasswordHeaders(password)
   const url = typeof index === 'number'
-    ? getSingleDownloadUrl(code, index, password)
-    : getDownloadUrl(code, password)
+    ? getSingleDownloadUrl(code, index, password, claimantToken)
+    : getDownloadUrl(code, password, claimantToken)
 
   try {
     const resp = await fetch(url, headers ? { headers } : undefined)
@@ -33,8 +33,8 @@ export async function smartDownload(code, { index, originalName, password } = {}
     const contentLength = Number(resp.headers.get('content-length') || 0)
     if (contentLength > 50 * 1024 * 1024) {
       resp.body?.cancel()
-      if (typeof index === 'number') downloadSingleFile(code, index, password)
-      else downloadFile(code, password)
+      if (typeof index === 'number') downloadSingleFile(code, index, password, claimantToken)
+      else downloadFile(code, password, claimantToken)
       return true
     }
 
@@ -43,8 +43,8 @@ export async function smartDownload(code, { index, originalName, password } = {}
     triggerBlobDownload(blob, filename)
     return true
   } catch {
-    if (typeof index === 'number') downloadSingleFile(code, index, password)
-    else downloadFile(code, password)
+    if (typeof index === 'number') downloadSingleFile(code, index, password, claimantToken)
+    else downloadFile(code, password, claimantToken)
     return true
   }
 }

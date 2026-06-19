@@ -57,6 +57,15 @@ export default function DownloadPage() {
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
 
   const [meta, setMeta] = useState(initialCachedTransfer)
+  const [claimantToken] = useState(() => {
+    const key = `swiftshare_claimant_${normalizedCode}`;
+    let token = sessionStorage.getItem(key);
+    if (!token) {
+      token = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem(key, token);
+    }
+    return token;
+  })
   const [secondsRemaining, setSecondsRemaining] = useState(() => {
     const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
     if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
@@ -420,12 +429,12 @@ export default function DownloadPage() {
       try {
         const ack = await rejoinRoom(normalizedCode)
         if (ack?.ok && Number(ack.secondsRemaining) > 0) {
+          socket.emit('register-claimant', { code: normalizedCode, claimantToken })
           return
         }
       } catch {}
 
-      const cached = getCachedTransfer(normalizedCode)
-      // expiresAt already loaded - timer will calculate from it
+      socket.emit('register-claimant', { code: normalizedCode, claimantToken })
     }
 
     connectRoom()
@@ -500,13 +509,13 @@ export default function DownloadPage() {
         navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
       }
     }
-    const onClaimed = () => {
+    const onClaimed = (data) => {
       setTransferStatus('CLAIMED')
       patchCachedTransfer({ status: 'CLAIMED' })
       updateTransferStatus(normalizedCode, 'CLAIMED')
-      if (!downloadedAnyRef.current && !downloadingRef.current) {
+      if (data?.claimantToken !== claimantToken) {
         terminalNavigatedRef.current = true
-        navigate('/expired?reason=burned', { replace: true })
+        navigate('/expired?reason=claimed', { replace: true })
       }
     }
     const onReceipt = (data) => setReceipt(data)
@@ -592,6 +601,7 @@ export default function DownloadPage() {
       await smartDownload(normalizedCode, {
         originalName: meta?.files?.[0]?.name,
         password: verifiedPasswordRef.current || undefined,
+        claimantToken
       })
 
       downloadSucceeded = true
@@ -676,7 +686,7 @@ export default function DownloadPage() {
 
   function handleDownloadSingle(index) {
     const pw = verifiedPasswordRef.current || undefined
-    downloadSingleFile(normalizedCode, index, pw)
+    downloadSingleFile(normalizedCode, index, pw, claimantToken)
   }
 
   const receiverMenuItems = () => {
