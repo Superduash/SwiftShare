@@ -1,155 +1,290 @@
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=240&color=0:0f172a,50:7c3aed,100:06b6d4&text=SwiftShare&fontSize=62&fontColor=ffffff&animation=fadeIn&fontAlignY=40&desc=Share%20Files%20Instantly%20Across%20Any%20Device&descAlignY=63&descColor=e2e8f0&descSize=18"/>
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=280&color=0:0f172a,40:1e1040,70:4c1d95,100:06b6d4&text=SwiftShare&fontSize=72&fontColor=ffffff&animation=fadeIn&fontAlignY=42&desc=File%20sharing%20that%20gets%20out%20of%20your%20way&descAlignY=62&descColor=c4b5fd&descSize=20&stroke=7c3aed&strokeWidth=2"/>
 </p>
 
 <p align="center">
-  <a href="https://swiftsharegg.vercel.app"><img src="https://img.shields.io/badge/Live_Demo-swiftsharegg.vercel.app-7c3aed?style=for-the-badge"/></a>
-  <a href="https://github.com/Superduash/SwiftShare-Backend"><img src="https://img.shields.io/badge/Backend_Repo-SwiftShare--Backend-111827?style=for-the-badge"/></a>
+  <a href="https://swiftsharegg.vercel.app">
+    <img src="https://img.shields.io/badge/%F0%9F%9A%80%20Live%20App-swiftsharegg.vercel.app-7c3aed?style=for-the-badge&labelColor=0f172a"/>
+  </a>
+  &nbsp;
+  <a href="https://github.com/Superduash/SwiftShare-Backend">
+    <img src="https://img.shields.io/badge/%F0%9F%94%A7%20Backend%20Repo-SwiftShare--Backend-06b6d4?style=for-the-badge&labelColor=0f172a"/>
+  </a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/React_18-61DAFB?style=flat-square&logo=react&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Socket.IO-black?style=flat-square&logo=socketdotio"/>
-  <img src="https://img.shields.io/badge/PWA-7C3AED?style=flat-square"/>
-  <img src="https://img.shields.io/badge/MIT_License-success?style=flat-square"/>
+  <img src="https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Socket.IO-010101?style=flat-square&logo=socketdotio&logoColor=white"/>
+  <img src="https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Cloudflare_R2-F38020?style=flat-square&logo=cloudflare&logoColor=white"/>
+  <img src="https://img.shields.io/badge/PWA-5A0FC8?style=flat-square&logo=pwa&logoColor=white"/>
+  <img src="https://img.shields.io/badge/MIT_License-22c55e?style=flat-square"/>
 </p>
 
-<p align="center">No accounts. No installs. Send files instantly like a message. Works on any device, anywhere.</p>
-  
----
-
-## Preview
+<br/>
 
 <p align="center">
-  <img src="./docs/banner.png" alt="SwiftShare Banner" width="100%"/>
+  <b>No accounts. No installs. No nonsense.</b><br/>
+  Pick a file → get a 6-character code → done.<br/>
+  Your recipient has it in seconds, on any device, anywhere.
 </p>
+
+<br/>
+
+---
+
+<br/>
+
+## What it looks like
 
 <p align="center">
-  <sub>
-    Share files instantly using transfer codes, links, or QR codes.
-    Installable on desktop and mobile as a Progressive Web App.
-  </sub>
+  <img src="./docs/banner.png" alt="SwiftShare UI showcase" width="100%"/>
 </p>
 
-> Try it yourself → <strong><a href="https://swiftsharegg.vercel.app">swiftsharegg.vercel.app</a></strong>
+> **Try it right now →** [swiftsharegg.vercel.app](https://swiftsharegg.vercel.app) — no sign-up, works instantly
+
+<br/>
 
 ---
 
-## Contents
+## The problem it solves
 
-- [Why](#why)
-- [Features](#features)
-- [Under the hood](#under-the-hood)
-- [How a transfer works](#how-a-transfer-works)
-- [Tech stack](#tech-stack)
-- [Running locally](#running-locally)
-- [Roadmap](#roadmap)
+You need to get a file from your phone to your laptop. Or send a PDF to a client who isn't on Slack. Or hand off a folder of screenshots to someone standing next to you.
+
+The existing options make you:
+- Create an account
+- Install an app
+- Pay for storage
+- Trust that your file isn't sitting on a server forever
+
+**SwiftShare does none of that.** It's closer to "airdrop for the web" — ephemeral, instant, and gone when you want it gone.
+
+<br/>
 
 ---
-
-## Why
-
-Most "send a file" tools want you to sign up, install something, or trust that your file isn't sitting on a server indefinitely. SwiftShare skips all of that: pick a file, get a 6-character code or QR, hand it to whoever needs it, and the file is gone once it expires or — in burn mode — the moment it's downloaded once.
-
-Built for the boring-but-real use case: getting a screenshot or a PDF from your phone to your laptop without emailing it to yourself.
 
 ## Features
 
-**Sharing**
-- Transfer codes, QR codes, and shareable links — pick whichever fits the moment
-- Multi-file uploads with drag & drop, ZIP download on the receiving end
+### 🔥 Core transfer experience
 
-**Privacy**
-- Optional password-protected transfers
-- Burn-after-download — the file is invalidated the moment it's claimed
-- Everything expires automatically; nothing sits around "just in case"
+| | |
+|---|---|
+| **6-character codes** | Short enough to read over the phone, unique enough to never collide |
+| **QR codes** | Generated instantly — point your camera and you're on the receive page |
+| **Shareable links** | Full URL for anything with a browser — paste and go |
+| **Multi-file uploads** | Drag and drop up to 10 files, delivered as a single ZIP on the other end |
+| **In-browser previews** | Images, video, audio, PDFs, and source code render before anyone downloads |
 
-**Live feedback**
-- Upload progress, transfer status, and download notifications pushed over WebSockets in real time — no polling, no refreshing
+### 🛡️ Privacy controls
 
-**Previews**
-- Images, video, audio, PDFs, and source/text files render in-browser before anyone downloads anything
+| | |
+|---|---|
+| **Burn after download** | Files self-destruct the instant they're claimed. One recipient, no exceptions |
+| **Password protection** | bcrypt-hashed, brute-force locked. Only people with the password get through |
+| **Auto-expiry** | 10 minutes, 1 hour, or 5 hours. Nothing sits around indefinitely |
+| **Ownership tokens** | Extend or delete your transfer from the same browser only — no login required |
 
-**Everywhere**
-- Installable PWA, works on desktop and mobile without a native app
+### ⚡ Real-time everything
 
-## Under the hood
+| | |
+|---|---|
+| **Live upload progress** | Driven from raw XHR byte events, throttled through `requestAnimationFrame` — no fake spinners |
+| **Instant download alerts** | WebSocket push the moment someone downloads. No polling, no page refresh |
+| **Live transfer stats** | Download count and view count update in the sender page as they happen |
+| **Network-aware retries** | Distinguishes a dead connection from a slow one. Backs off and retries automatically |
 
-A few things that took more than "just call the API":
+### 🌐 Works everywhere
 
-- **Progress that's actually accurate** — upload progress is driven off raw XHR byte events (not a fake timer), throttled through `requestAnimationFrame` so the UI never drops frames on slower phones.
-- **Network-aware retries** — failed uploads back off and retry automatically, and the client distinguishes a genuinely dead connection from a slow one using the browser's Network Information API rather than guessing off a single timeout.
-- **Stream-safe multi-file uploads** — files are validated (type, size, extension) client-side before they ever leave the device, so you get an error instantly instead of a failed request three seconds in.
-- **PWA without breaking uploads** — the service worker caches the app shell for offline-install, but explicitly bypasses anything that isn't a `GET`, so large file uploads always go straight to the network instead of getting intercepted.
+| | |
+|---|---|
+| **Installable PWA** | Add to home screen on iOS and Android. Full offline shell, native feel |
+| **Responsive design** | The same experience on a 6-inch phone as a 4K monitor |
+| **Ambient themes** | Sakura, Lavender, Midnight, Forest, Volcanic — particle effects, glassmorphism, dark/light |
+
+<br/>
+
+---
 
 ## How a transfer works
 
-```text
-Select files  →  Validate client-side  →  Stream to backend
-                                                 │
-                                                 ▼
-                                     Transfer code + QR generated
-                                                 │
-                                                 ▼
-                                Share code / QR / link with recipient
-                                                 │
-                                                 ▼
-                              Recipient downloads (or transfer self-destructs)
-                                                 │
-                                                 ▼
-                                  Expired / burned transfers are purged
 ```
+┌─────────────┐     validate      ┌─────────────┐    stream via      ┌──────────────────┐
+│   Sender    │ ───────────────>  │   Browser   │ ─────────────────> │  Express/Busboy  │
+│ picks files │   (type, size,    │  (client-   │   XHR + FormData   │  (no temp disk   │
+└─────────────┘    extension)     │   side)     │                    │   writes)        │
+                                  └─────────────┘                    └────────┬─────────┘
+                                                                              │
+                                                               pipe directly  │
+                                                                              ▼
+                                                                      ┌─────────────────┐
+                                                                      │  Cloudflare R2  │
+                                                                      │  (object store) │
+                                                                      └────────┬────────┘
+                                                                               │
+                                                                  on complete  │
+                                                                               ▼
+                                                                     ┌──────────────────┐
+                                                                     │   MongoDB Atlas  │
+                                                                     │ (transfer meta,  │
+                                                                     │  expiry, stats)  │
+                                                                     └────────┬─────────┘
+                                                                              │
+                                                              Socket.IO push  │
+                                                                              ▼
+                                                                     ┌──────────────────┐
+┌─────────────┐    enters code    ┌─────────────┐                    │   Sender page    │
+│  Recipient  │ ────────────────> │  Download   | <───────────────── │  (live stats,    │
+│             │   or scans QR     │    page     │      download      │   extend/delete) │
+└─────────────┘                   └─────────────┘      complete      └──────────────────┘
+```
+
+<br/>
+
+---
 
 ## Tech stack
 
-| Layer | Technology |
+### Frontend
+| Technology | Role |
 |---|---|
-| UI | React 18, Tailwind CSS |
-| Build | Vite |
-| Motion | Framer Motion |
-| Routing | React Router |
-| Data / state | React Query, Context API |
-| Real-time | Socket.IO client |
-| Hosting | Vercel |
+| **React 18** | UI — concurrent rendering, Suspense-based lazy loading |
+| **Vite** | Build tooling — sub-second HMR, tree-shaking, PWA plugin |
+| **Framer Motion** | Animations — spring physics, layout transitions, ambient particle effects |
+| **Socket.IO client** | Real-time — upload progress, download notifications, live stats |
+| **Tailwind CSS** | Utility-first styling with custom CSS variable theme system |
+| **react-qr-code** | Client-side QR rendering — no server round-trip |
+
+### Backend
+| Technology | Role |
+|---|---|
+| **Node.js + Express** | HTTP server — streaming uploads, REST API |
+| **Busboy** | Multipart parsing — zero temp-file writes, direct pipe to R2 |
+| **Socket.IO** | WebSocket server — transfer rooms, real-time events |
+| **MongoDB + Mongoose** | Transfer metadata, activity logs, expiry tracking |
+| **Cloudflare R2** | File storage — S3-compatible, no egress fees |
+| **Sentry** | Error tracking and performance monitoring |
+
+### Infrastructure
+| | |
+|---|---|
+| **Frontend** | Vercel (edge-cached static assets, global CDN) |
+| **Backend** | Render (containerised Node.js, always-on with keep-alive pings) |
+| **Database** | MongoDB Atlas M0 (free tier, auto-managed) |
+| **Storage** | Cloudflare R2 (zero egress cost, S3-compatible API) |
+
+<br/>
+
+---
+
+## A few things that weren't obvious to build
+
+**Upload progress that's actually real** — most apps fake this with a timer or use `axios` which gives you total-bytes, not transmitted-bytes. SwiftShare hooks into raw `xhr.upload` progress events and smooths them through an exponential moving average before handing them to `requestAnimationFrame`, so the bar moves at exactly the speed your bytes are moving — even on a 2G connection.
+
+**Burn-after-download without race conditions** — if two people open the download link simultaneously (which happens), naive implementations let both through. SwiftShare uses MongoDB's `findOneAndUpdate` with a `burnClaimed: false` filter as an atomic gate — exactly one request wins, the other gets a 410 immediately.
+
+**PWA that doesn't break uploads** — service workers intercept all fetch requests by default, including multipart file uploads to the backend. Large requests intercepted by a service worker can fail silently or hit memory limits. The SwiftShare service worker explicitly bypasses any non-GET request, so uploads always go straight to the network with no interception.
+
+**Security without accounts** — extending or deleting a transfer requires a UUID `ownershipToken` that's only returned in the upload HTTP response and cached in the sender's browser. It's never in the public metadata API. The backend validates it with `crypto.timingSafeEqual` before executing any destructive action.
+
+<br/>
+
+---
 
 ## Running locally
+
+### Prerequisites
+- Node.js ≥ 18
+- MongoDB (local or Atlas URI)
+- Cloudflare R2 bucket + API keys
+
+### Frontend
 
 ```bash
 git clone https://github.com/Superduash/SwiftShare.git
 cd SwiftShare
 npm install
-npm run dev
 ```
 
 ```env
+# .env.local
 VITE_API_URL=http://localhost:3001
 VITE_SOCKET_URL=http://localhost:3001
+VITE_SHARE_BASE_URL=http://localhost:5173
 ```
 
-You'll need the [backend](https://github.com/Superduash/SwiftShare-Backend) running locally too, or pointed at a deployed instance.
+```bash
+npm run dev   # starts at http://localhost:5173
+```
+
+### Backend
+
+```bash
+git clone https://github.com/Superduash/SwiftShare-Backend.git
+cd SwiftShare-Backend
+npm install
+```
+
+```env
+# .env
+PORT=3001
+MONGODB_URI=mongodb://localhost:27017/swiftshare
+R2_ACCOUNT_ID=your_account_id
+R2_ACCESS_KEY_ID=your_access_key
+R2_SECRET_ACCESS_KEY=your_secret_key
+R2_BUCKET_NAME=swiftshare
+R2_PUBLIC_URL=https://your-bucket.r2.dev
+FRONTEND_URL=http://localhost:5173
+```
+
+```bash
+npm start     # starts at http://localhost:3001
+```
+
+<br/>
+
+---
 
 ## Roadmap
 
-- [ ] Peer-to-peer transfer mode (skip the server entirely for same-network devices)
-- [ ] Folder uploads
-- [ ] Native desktop build
-- [ ] Self-hosting guide
+- [ ] **P2P mode** — WebRTC data channels for same-network transfers that skip the server entirely
+- [ ] **Folder uploads** — preserve directory structure, deliver as nested ZIP
+- [ ] **Native desktop build** — Tauri wrapper for drag-and-drop from the OS file manager
+- [ ] **Recipient notifications** — optional webhook/email ping when someone downloads your transfer
+- [ ] **Self-hosting guide** — Docker Compose stack with Nginx, Minio, and MongoDB
+
+<br/>
+
+---
+
+## Contributing
+
+Issues and PRs are welcome. If you're fixing a bug, open an issue first so we can agree on the approach — especially for anything touching the upload pipeline or burn logic, where subtle ordering matters.
+
+```bash
+# Fork → clone → branch
+git checkout -b fix/your-fix-name
+
+# Make changes, then
+npm run build   # must pass
+npm test        # must pass
+
+# Open a PR against main
+```
+
+<br/>
 
 ---
 
 <p align="center">
-  MIT Licensed  ·  Free to use, modify, and distribute. 
+  <sub>MIT Licensed — free to use, modify, and deploy.</sub><br/>
+  <sub>If SwiftShare saved you five minutes, consider starring the repo.</sub>
 </p>
 
-<div align="center">
-
-⭐ If you found SwiftShare useful, consider starring the repository.
-
-Built with ❤️ by Superduash
-
-</div>
+<p align="center">
+  Built with ❤️ by <a href="https://github.com/Superduash"><b>Superduash</b></a>
+</p>
 
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=110&section=footer&color=0:06b6d4,50:7c3aed,100:0f172a"/>
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=120&section=footer&color=0:06b6d4,50:4c1d95,100:0f172a"/>
 </p>
