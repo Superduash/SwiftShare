@@ -30,75 +30,50 @@ https://github.com/Superduash/SwiftShare-Backend
 
 ---
 
-# What is SwiftShare?
+## 🚀 Why SwiftShare?
 
-SwiftShare is a temporary file transfer platform built around one simple idea:
+Most file-sharing platforms require accounts, lengthy setup, or leave files stored indefinitely.
 
-> Sharing files should take seconds, not accounts.
+SwiftShare was built to make sharing files as simple as possible.
 
-Upload your files, receive a short transfer code, and instantly share them with any device. No registration, no software installation, and no permanent cloud storage.
+Upload a file, receive a transfer code, QR code, or shareable link, and access it instantly from another device. No accounts, no unnecessary steps, and no permanent storage.
 
-Whether you're moving screenshots from your phone to your laptop, sharing documents with classmates, sending media to friends, or quickly transferring files between devices, SwiftShare removes unnecessary friction while keeping transfers secure and temporary.
-
-Simple, yet too effective!
+Whether you're transferring screenshots between devices, sharing documents with classmates, or sending media to friends, SwiftShare focuses on speed, simplicity, and privacy.
 
 ---
 
-# Features
+## ✨ Features
 
-### 📦 Temporary File Transfers
-
-- Multi-file uploads
-- Drag & drop support
+### 📦 Fast File Sharing
 - Transfer codes
 - QR code sharing
 - Shareable links
+- Multi-file uploads
 - ZIP downloads
-- Clipboard image uploads
+- Drag & drop support
 
-### 🔒 Security & Privacy
-
+### 🔒 Privacy & Security
 - Password-protected transfers
 - Burn-after-download mode
 - Automatic expiry
-- Secure download validation
 - Temporary storage lifecycle
 
 ### ⚡ Real-Time Experience
-
 - Live upload progress
 - Download notifications
-- Transfer activity tracking
 - Instant status updates
-- WebSocket-powered synchronization
+- Real-time synchronization
 
-### 👀 Rich File Previews
-
-Preview before downloading:
-
+### 👀 Built-In Previews
+Preview files before downloading:
 - Images
 - Videos
 - Audio
 - PDFs
-- Documents
 - Text files
 - Source code
 
-### 📡 Nearby Discovery
-
-SwiftShare can detect active transfers from devices connected to the same local network.
-
-Perfect for:
-
-- Classrooms
-- College labs
-- Offices
-- Shared Wi-Fi environments
-
-### 📱 Cross Platform
-
-Works on:
-
+### 📱 Works Everywhere
 - Windows
 - Linux
 - macOS
@@ -171,15 +146,14 @@ VITE_SOCKET_URL=http://localhost:3001
 
 ---
 
-# Roadmap
+## 🚀 Future Plans
 
-- [ ] Native Android App
-- [ ] Native iOS App
-- [ ] Desktop Application
-- [ ] Larger Transfer Limits
-- [ ] Transfer History
-- [ ] Multi-Language Support
+- [ ] Android App
+- [ ] Desktop App
 - [ ] Peer-to-Peer Transfers
+- [ ] Folder Sharing
+- [ ] Larger Transfer Limits
+- [ ] Self-Hosting Support
 
 ---
 
