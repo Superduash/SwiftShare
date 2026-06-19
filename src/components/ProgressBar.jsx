@@ -1,14 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-
-const formatSpeed = (bytesPerSecond) => {
-  if (bytesPerSecond < 1024) return `${Math.round(bytesPerSecond)} B/s`;
-  const kb = bytesPerSecond / 1024;
-  if (kb < 1024) return `${kb.toFixed(1)} KB/s`;
-  const mb = kb / 1024;
-  if (mb < 1024) return `${mb.toFixed(1)} MB/s`;
-  return `${(mb / 1024).toFixed(2)} GB/s`;
-};
+import { formatSpeed, formatETA } from '../hooks/useSpeedCalculator'
 
 export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = 'Uploading...', showSpeed = true, indeterminate = false }) {
   const [clampedPercent, setClampedPercent] = useState(0);
@@ -21,15 +13,6 @@ export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = '
       lastPercent.current = newPercent;
     }
   }, [percent]);
-  
-  const formatETA = (seconds) => {
-    if (!seconds || seconds <= 0 || !Number.isFinite(seconds)) return '';
-    const s = Math.round(seconds);
-    if (s < 60) return `${s}s left`;
-    const m = Math.floor(s / 60);
-    const remS = s % 60;
-    return `${m}m ${remS}s left`;
-  };
   
   const etaText = formatETA(eta);
   const scaleX = clampedPercent / 100;

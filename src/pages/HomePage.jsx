@@ -15,6 +15,7 @@ import { uploadFiles, uploadClipboard, shareText } from '../services/api'
 import { getSettings, saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
 import { playUploadSuccess } from '../utils/sound'
+import { useSpeedCalculator } from '../hooks/useSpeedCalculator'
 import Navbar from '../components/Navbar'
 import FileCard from '../components/FileCard'
 import ExpirySelector from '../components/ExpirySelector'
@@ -106,10 +107,8 @@ export default function HomePage() {
   const [uploadETA, setUploadETA] = useState(0)
   const [uploadPhase, setUploadPhase] = useState('uploading') // 'uploading' | 'finalizing' | 'retrying'
   const uploadStartRef = useRef(0)
-  // Speed sampling state. Maintains a rolling-window calculation plus an
-  // exponential moving average so the displayed MB/s is stable instead of
-  // jittering on every progress tick (XHR can fire dozens per second on LAN).
-  const speedSampleRef = useRef({ at: 0, loaded: 0, ema: 0 })
+  // Speed calculation using dedicated hook (EMA smoothing, 250ms sample interval)
+  const speedCalc = useSpeedCalculator(0.35, 250)
   // RAF-coalesced UI updates: progress events fire faster than React can render
   // on low-end mobile. We accumulate the latest values and flush at most once
   // per animation frame (≤16ms) to keep the bar smooth without wasted renders.
@@ -188,9 +187,18 @@ export default function HomePage() {
   useEffect(() => {
     if (!socket) return
     const onComplete = (payload) => handleUploadSuccess(payload)
+    const onDbError = ({ code }) => {
+      if (uploadHandledRef.current) {
+        toast.error('Transfer saved but may be unreachable. Please try again if the link doesn\'t work.', {
+          duration: 6000,
+        })
+      }
+    }
     socket.on('upload-complete', onComplete)
+    socket.on('upload-db-error', onDbError)
     return () => {
       socket.off('upload-complete', onComplete)
+      socket.off('upload-db-error', onDbError)
     }
   }, [socket, handleUploadSuccess])
 
@@ -371,19 +379,30 @@ export default function HomePage() {
     const backendMessage = typeof backendError === 'string'
       ? backendError
       : (backendError?.message || err?.response?.data?.message || '')
-    const errorCode = String(err?.code || '').toUpperCase()
+    const errorCode = backendError?.code || ''
+    const transportCode = String(err?.code || '').toUpperCase()
     const transportMessage = String(err?.message || '').toLowerCase()
 
     if (!err?.response) {
-      if (errorCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
+      if (transportCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
         return 'Upload is taking longer than expected. Check your connection and retry.'
       }
-      if (errorCode === 'ERR_STALLED') {
+      if (transportCode === 'ERR_STALLED') {
         return 'Upload stalled. Please check your network connection and try again.'
       }
       return 'Connection interrupted. Please check your network and retry.'
     }
 
+    // Specific server-side rejections deserve clear messages
+    if (errorCode === 'INVALID_FILE_TYPE' || status === 415) {
+      return 'This file type cannot be shared. Try converting it to JPG, PNG, or PDF first.'
+    }
+    if (errorCode === 'FILE_TOO_LARGE') {
+      return 'File exceeds the 100 MB limit. Please compress or split the file.'
+    }
+    if (errorCode === 'TOO_MANY_FILES') {
+      return 'Too many files. Maximum 10 files per transfer.'
+    }
     if (status === 429) {
       return backendMessage || 'Rate limit active: Please wait a moment before sending more files.'
     }
@@ -426,7 +445,7 @@ export default function HomePage() {
     setUploadPhase('uploading')
     setUploadError(null)
     uploadStartRef.current = Date.now()
-    speedSampleRef.current = { at: Date.now(), loaded: 0, ema: 0 }
+    speedCalc.reset()
     uploadHandledRef.current = false
 
     // Force React to paint the progress bar before starting the heavy upload fetch
@@ -485,31 +504,20 @@ export default function HomePage() {
           // Exact 0-100% network transfer representation
           const visiblePct = Math.min(100, (loaded / total) * 100)
 
-          const now = Date.now()
-          const sample = speedSampleRef.current
-          let smoothedSpeed = sample.ema
-          const dt = (now - sample.at) / 1000
-          if (dt >= 0.25) {
-            const instantSpeed = Math.max(0, (loaded - sample.loaded) / dt)
-            // Alpha 0.5: responsive enough to reflect a stalled radio quickly
-            smoothedSpeed = sample.ema > 0
-              ? Math.round(sample.ema * 0.5 + instantSpeed * 0.5)
-              : Math.round(instantSpeed)
-            speedSampleRef.current = { at: now, loaded, ema: smoothedSpeed }
-          }
+          const smoothedSpeed = speedCalc.update(loaded)
 
           const phase = loaded >= total ? 'finalizing' : 'uploading'
 
-          let etaSeconds = 0
-          if (phase === 'uploading' && smoothedSpeed > 0) {
-            etaSeconds = Math.max(0, (total - loaded) / smoothedSpeed)
-          }
+          const etaSeconds = phase === 'uploading' ? speedCalc.getETA(loaded, total) : 0
 
           // Coalesce: only the latest values matter — older pending values are
           // safely overwritten before the next frame paint.
           pendingProgressRef.current = {
             percent: visiblePct,
-            speed: smoothedSpeed,
+            // Hold the last known speed during finalizing so the bar doesn't show 0
+            speed: phase === 'finalizing'
+              ? (pendingProgressRef.current?.speed ?? smoothedSpeed)
+              : smoothedSpeed,
             eta: etaSeconds,
             phase,
           }

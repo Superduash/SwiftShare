@@ -11,6 +11,7 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
 
   const fileCount = Array.isArray(meta.files) ? meta.files.length : 0
   const isTextShare = fileCount === 1 && meta.files[0]?.name?.endsWith('.txt')
+  const isExpired = meta?.status === 'EXPIRED'
 
   return (
     <motion.div
@@ -22,7 +23,7 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-base font-bold" style={{ color: 'var(--text)' }}>
-            {isTextShare ? 'Text snippet shared' : 'Files ready to download'}
+            {isExpired ? 'Files Expired' : (isTextShare ? 'Text snippet shared' : 'Files ready to download')}
           </h3>
           <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
             {fileCount} {fileCount === 1 ? 'item' : 'items'} · {formatBytes(meta.totalSize || 0)}
@@ -30,9 +31,9 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
         </div>
         <div 
           className="w-10 h-10 rounded-full flex items-center justify-center" 
-          style={{ background: 'var(--success-soft)' }}
+          style={{ background: isExpired ? 'var(--danger-soft)' : 'var(--success-soft)' }}
         >
-          <CheckCircle2 size={20} style={{ color: 'var(--success)' }} />
+          {isExpired ? <Clock size={20} style={{ color: 'var(--danger)' }} /> : <CheckCircle2 size={20} style={{ color: 'var(--success)' }} />}
         </div>
       </div>
 
@@ -42,8 +43,8 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
             <Clock size={12} style={{ color: 'var(--text-4)' }} />
             <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-4)' }}>Status</span>
           </div>
-          <span className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>
-            {!meta.status || meta.status === 'ACTIVE' ? 'Available' : meta.status}
+          <span className="text-xs font-medium" style={{ color: isExpired ? 'var(--danger)' : 'var(--text-2)' }}>
+            {isExpired ? 'Expired' : (!meta.status || meta.status === 'ACTIVE' ? 'Available' : meta.status)}
           </span>
         </div>
         
@@ -60,9 +61,10 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
 
       <div className="relative group">
         <div 
-          className="w-full flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer"
+          className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${isExpired ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
           style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
           onClick={() => {
+            if (isExpired) return
             import('../utils/clipboard').then(({ copyToClipboard }) => {
               copyToClipboard(url).then(success => {
                 if (success) {
@@ -82,7 +84,7 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
           {copied ? (
             <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
           ) : (
-            <Copy size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-3)' }} />
+            !isExpired && <Copy size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-3)' }} />
           )}
         </div>
       </div>

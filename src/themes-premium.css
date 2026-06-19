@@ -7,16 +7,16 @@
   /* Softer, more refined cream background */
   --bg: #FDF9F3; 
   /* Slightly warmer elevated surfaces with strong glassmorphism support */
-  --bg-raised: rgba(255, 255, 255, 0.88);
+  --bg-raised: rgba(255, 255, 255, 0.97);
   --bg-sunken: rgba(240, 235, 225, 0.4);
   --bg-overlay: rgba(253, 249, 243, 0.80);
-  --surface: rgba(255, 255, 255, 0.65);
+  --surface: rgba(255, 255, 255, 0.82);
   --surface-hover: rgba(255, 255, 255, 0.85);
   --surface-active: rgba(255, 255, 255, 0.95);
   
   /* Borders with extreme subtle warmth */
-  --border: rgba(230, 215, 200, 0.45);
-  --border-strong: rgba(230, 215, 200, 0.8);
+  --border: rgba(210, 195, 178, 0.60);
+  --border-strong: rgba(210, 195, 178, 0.90);
   
   /* Typography - richer, deeply desaturated brown/charcoal for modern look */
   --text: #1C1917; /* Slate-like warm black */
@@ -62,9 +62,9 @@
   --drop-zone-active-border: #E05D3A;
   
   /* Nav & Modals */
-  --nav-bg: rgba(253, 249, 243, 0.85);
+  --nav-bg: rgba(253, 249, 243, 0.96);
   --nav-border: transparent;
-  --settings-bg: rgba(255, 255, 255, 0.7);
+  --settings-bg: rgba(255, 255, 255, 0.96);
   
   /* Icons & Gradients */
   --file-icon-bg: rgba(224, 93, 58, 0.08);
@@ -100,15 +100,15 @@
 [data-theme="sunrise"] .bg-surface,
 [data-theme="sunrise"] .bg-settings-bg,
 [data-theme="sunrise"] .bg-drop-zone-bg {
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 
 /* Elegant header for Sunrise */
 [data-theme="sunrise"] .bg-nav-bg {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 1px 0 rgba(210, 195, 178, 0.45), 0 4px 20px rgba(45, 26, 17, 0.06) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
 }
 
 /* Global Share Text Modal Styling for all themes */

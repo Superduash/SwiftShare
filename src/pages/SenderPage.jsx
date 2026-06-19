@@ -38,13 +38,18 @@ import SharedTextDisplay from '../components/SharedTextDisplay'
 import ContextMenu from '../components/ContextMenu'
 import TransferSummaryCard from '../components/TransferSummaryCard'
 import TransferStatsCard from '../components/TransferStatsCard'
-import { requestNotificationPermission, showDownloadNotification } from '../utils/notifications'
 
 const FilePreviewModal = lazy(() =>
-  import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
+  import('../components/FilePreviewModal').catch((err) => {
+    if (import.meta.env.DEV) console.warn('[SenderPage] FilePreviewModal chunk failed to load:', err)
+    return { default: () => null }
+  })
 )
 const QRModal = lazy(() =>
-  import('../components/QRModal').catch(() => ({ default: () => null }))
+  import('../components/QRModal').catch((err) => {
+    if (import.meta.env.DEV) console.warn('[SenderPage] QRModal chunk failed to load:', err)
+    return { default: () => null }
+  })
 )
 
 function buildShareMessage(fileLabel, shareLink) {
@@ -107,7 +112,6 @@ export default function SenderPage() {
   const [textLoading, setTextLoading] = useState(false)
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null })
   const [downloadCount, setDownloadCount] = useState(initialCachedTransfer?.downloadCount || 0)
-  const [notificationState, setNotificationState] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied')
 
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
@@ -126,44 +130,32 @@ export default function SenderPage() {
     }
   }, [])
 
-  // Load password from session on mount
+  // Single unified password-state effect — replaces the three separate password effects
   useEffect(() => {
-    const sessionPassword = getPasswordSession(normalizedCode)
-    if (sessionPassword && meta?.passwordProtected) {
-      verifiedPreviewPasswordRef.current = sessionPassword
-      setPasswordVerified(true)
-    }
-  }, [normalizedCode, meta?.passwordProtected])
+    const isProtected = Boolean(
+      getCachedTransfer(normalizedCode)?.passwordProtected || meta?.passwordProtected
+    )
 
-  useEffect(() => {
-    const protectedTransfer = Boolean(getCachedTransfer(normalizedCode)?.passwordProtected)
-    setPasswordVerified(!protectedTransfer)
+    // Always reset transient state when the code or protection changes
     setPreviewPassword('')
     setShowPreviewPassword(false)
     setPreviewPasswordError('')
     verifiedPreviewPasswordRef.current = ''
-  }, [normalizedCode])
 
-  useEffect(() => {
-    if (!meta?.passwordProtected) {
+    if (!isProtected) {
       setPasswordVerified(true)
-    } else if (!verifiedPreviewPasswordRef.current) {
+      return
+    }
+
+    // Try to restore from session storage (5-minute session)
+    const sessionPassword = getPasswordSession(normalizedCode)
+    if (sessionPassword) {
+      verifiedPreviewPasswordRef.current = sessionPassword
+      setPasswordVerified(true)
+    } else {
       setPasswordVerified(false)
     }
-  }, [meta?.passwordProtected])
-
-  useEffect(() => {
-    if (meta?.files?.length) {
-      const timer = setTimeout(() => {
-        if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-          requestNotificationPermission().then(() => {
-            setNotificationState(Notification.permission)
-          })
-        }
-      }, 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [meta?.files?.length])
+  }, [normalizedCode, meta?.passwordProtected])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
@@ -439,9 +431,6 @@ export default function SenderPage() {
       if (receiptCode && receiptCode !== currentCode) return
       if (receipt?.receiver) {
         toast.success(`Downloaded by ${receipt.receiver}`)
-        showDownloadNotification(receipt.receiver)
-      } else {
-        showDownloadNotification()
       }
       requestActivityRefresh()
     }
@@ -697,6 +686,9 @@ export default function SenderPage() {
   // Check if this is a text share
   const isTextShare = meta?.files?.length === 1 && meta?.files?.[0]?.name?.endsWith('.txt')
 
+  // Determine if transfer is expired (before any hooks that use it)
+  const isExpired = meta?.status === 'EXPIRED'
+
   // Fetch text content when unlocked or not password protected
   useEffect(() => {
     if (!isTextShare || textContent !== null) return
@@ -879,6 +871,24 @@ export default function SenderPage() {
     }
   }, [normalizedCode, navigate, applyTransferSnapshot])
 
+  // memoizedFileList must be before conditional returns (hooks rules)
+  const memoizedFileList = useMemo(() => {
+    return (meta?.files || []).map((f, i) => (
+      <FileCard
+        key={i}
+        file={f}
+        index={i}
+        showDownload={!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)}
+        onPreview={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handlePreview(i) : undefined}
+        onDownloadSingle={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handleDownloadSingle(i) : undefined}
+        onContextMenu={(e, idx, pos) => {
+          e.preventDefault()
+          setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
+        }}
+      />
+    ))
+  }, [meta?.files, isExpired, cancelled, meta?.passwordProtected, passwordVerified])
+
   if (loading && !meta) {
     return (
       <div className="min-h-screen">
@@ -943,31 +953,11 @@ export default function SenderPage() {
     )
   }
 
-  // Determine if transfer is expired
-  const isExpired = meta?.status === 'EXPIRED'
-
   const _shareFileCount = Array.isArray(meta?.files) ? meta.files.length : 0
   const _shareFileLabel = _shareFileCount > 1
     ? `${_shareFileCount} files`
     : (String(meta?.files?.[0]?.name || '').trim() || 'a file')
   const { title: _shareTitle, text: _shareText } = buildShareMessage(_shareFileLabel, shareLink)
-
-  const memoizedFileList = useMemo(() => {
-    return (meta?.files || []).map((f, i) => (
-      <FileCard
-        key={i}
-        file={f}
-        index={i}
-        showDownload={!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)}
-        onPreview={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handlePreview(i) : undefined}
-        onDownloadSingle={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handleDownloadSingle(i) : undefined}
-        onContextMenu={(e, idx, pos) => {
-          e.preventDefault()
-          setContextMenu({ open: true, x: pos.x, y: pos.y, index: idx })
-        }}
-      />
-    ))
-  }, [meta?.files, isExpired, cancelled, meta?.passwordProtected, passwordVerified, setContextMenu])
 
   return (
     <div className="min-h-screen">
@@ -1045,7 +1035,10 @@ export default function SenderPage() {
                 )}
               </AnimatePresence>
 
-              {/* Transfer Summary - removed duplicate share link display */}
+              {/* Transfer Summary */}
+              {!cancelled && !isExpired && meta && (
+                <TransferSummaryCard meta={meta} url={shareLink} onCopy={handleCopyLink} />
+              )}
 
               {/* Password box - only show for non-text shares */}
               {meta?.passwordProtected && !passwordVerified && !isTextShare && (
@@ -1171,40 +1164,6 @@ export default function SenderPage() {
             {/* ═══ RIGHT: sticky share panel ═══ */}
             <div className="lg:col-span-2 mt-8 lg:mt-0">
               <div className="lg:sticky lg:top-20 space-y-5">
-                {/* Share Link */}
-                <div className="surface-card p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
-                      Share Link
-                    </p>
-                    {/* Status indicator */}
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" 
-                          style={{ 
-                            background: isExpired ? 'var(--danger-soft)' : 'var(--success-soft)', 
-                            color: isExpired ? 'var(--danger)' : 'var(--success)' 
-                          }}>
-                      {isExpired ? 'Expired' : 'Available'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="flex-1 px-3 py-2 rounded-xl text-sm font-mono truncate"
-                      style={{ background: 'var(--bg-sunken)', color: 'var(--text-3)', border: '1px solid var(--border)' }}
-                      title={shareLink}
-                    >
-                      {shareLink}
-                    </div>
-                    <button
-                      className="btn-primary shrink-0 gap-1.5 px-4"
-                      onClick={handleCopyLink}
-                      disabled={isExpired}
-                      style={copyLinkState === 'copied' ? { background: 'var(--success)', borderColor: 'var(--success)' } : undefined}
-                    >
-                      {copyLinkState === 'copied' ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
-                    </button>
-                  </div>
-                </div>
-
                 {/* QR Code */}
                 <motion.div
                   className="surface-card p-5 text-center"
@@ -1353,18 +1312,6 @@ export default function SenderPage() {
                       <p className="text-[10px] mt-1" style={{ color: 'var(--text-4)' }}>
                         Can only extend once per transfer
                       </p>
-                    )}
-
-                    {notificationState === 'default' && (
-                      <button 
-                        className="btn-ghost text-[11px] gap-1.5 w-full mt-3" 
-                        onClick={async () => {
-                          await requestNotificationPermission()
-                          setNotificationState(Notification.permission)
-                        }}
-                      >
-                        <Bell size={12} /> Notify me when downloaded
-                      </button>
                     )}
                   </div>
                 )}

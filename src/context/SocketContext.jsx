@@ -1,55 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { io } from 'socket.io-client'
+import { isLoopbackHost, isPrivateNetworkHost, isLocalRuntimeHost, targetsLoopback, normalizeUrl, rewriteLoopbackUrlForLanRuntime } from '../utils/network'
 
 const SocketContext = createContext(null)
-
-function isLoopbackHost(hostname) {
-  return hostname === 'localhost' || hostname === '127.0.0.1'
-}
-
-function isPrivateNetworkHost(hostname) {
-  if (!hostname) return false
-  if (/^10\./.test(hostname)) return true
-  if (/^192\.168\./.test(hostname)) return true
-  const match172 = /^172\.(\d{1,3})\./.exec(hostname)
-  if (match172) {
-    const second = Number(match172[1])
-    return Number.isFinite(second) && second >= 16 && second <= 31
-  }
-  return false
-}
-
-function isLocalRuntimeHost(hostname) {
-  return isLoopbackHost(hostname) || isPrivateNetworkHost(hostname)
-}
-
-function targetsLoopback(urlValue) {
-  if (typeof urlValue !== 'string' || !urlValue.trim()) return false
-  try {
-    const parsed = new URL(urlValue)
-    return isLoopbackHost(parsed.hostname)
-  } catch {
-    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(urlValue.trim())
-  }
-}
-
-function normalizeUrl(urlValue) {
-  return String(urlValue || '').trim().replace(/\/+$/, '')
-}
-
-function rewriteLoopbackUrlForLanRuntime(urlValue) {
-  if (typeof window === 'undefined') return null
-  const runtimeHost = window.location.hostname
-  if (!isLocalRuntimeHost(runtimeHost)) return null
-  if (!targetsLoopback(urlValue)) return null
-  try {
-    const parsed = new URL(urlValue)
-    parsed.hostname = runtimeHost
-    return normalizeUrl(parsed.toString())
-  } catch {
-    return null
-  }
-}
 
 function getSocketUrl() {
   const runtimeHost = typeof window !== 'undefined' ? window.location.hostname : ''
@@ -58,7 +11,7 @@ function getSocketUrl() {
   // Priority 1: In local development, use same-origin (Vite proxy handles routing)
   if (typeof window !== 'undefined' && isLocalRuntimeHost(runtimeHost)) {
     const url = window.location.origin
-    console.log('[SocketContext] Using same-origin for local dev (Vite proxy):', url)
+    if (import.meta.env.DEV) console.log('[SocketContext] Using same-origin for local dev (Vite proxy):', url)
     return url
   }
 
@@ -72,20 +25,20 @@ function getSocketUrl() {
     const candidate = normalizeUrl(envUrl)
     const rewrittenLanUrl = rewriteLoopbackUrlForLanRuntime(candidate)
     if (rewrittenLanUrl) {
-      console.log('[SocketContext] Using LAN-rewritten URL:', rewrittenLanUrl)
+      if (import.meta.env.DEV) console.log('[SocketContext] Using LAN-rewritten URL:', rewrittenLanUrl)
       return rewrittenLanUrl
     }
-    console.log('[SocketContext] Using env URL:', candidate)
+    if (import.meta.env.DEV) console.log('[SocketContext] Using env URL:', candidate)
     return candidate
   }
 
   // Priority 3: Same-origin fallback
   if (typeof window !== 'undefined') {
-    console.log('[SocketContext] Using same-origin fallback:', window.location.origin)
+    if (import.meta.env.DEV) console.log('[SocketContext] Using same-origin fallback:', window.location.origin)
     return window.location.origin
   }
 
-  console.warn('[SocketContext] No valid socket URL found, returning empty string')
+  if (import.meta.env.DEV) console.warn('[SocketContext] No valid socket URL found, returning empty string')
   return ''
 }
 

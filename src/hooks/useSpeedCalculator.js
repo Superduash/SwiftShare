@@ -3,11 +3,11 @@ import { useRef, useCallback } from 'react'
 /**
  * useSpeedCalculator — Exponential Moving Average (EMA) speed tracker.
  *
- * Alpha = 0.5 (balances responsiveness vs smoothness per spec §3.2).
+ * Alpha = 0.35 (balances responsiveness vs smoothness for stable display).
  * Samples at minimum 250ms intervals so rapid XHR callbacks don't thrash.
  * Returns helpers to update speed and format display strings.
  */
-export function useSpeedCalculator(alpha = 0.5, minIntervalMs = 250) {
+export function useSpeedCalculator(alpha = 0.35, minIntervalMs = 250) {
   const stateRef = useRef({
     lastTimestamp: 0,
     lastLoaded: 0,
@@ -63,18 +63,20 @@ export function useSpeedCalculator(alpha = 0.5, minIntervalMs = 250) {
 
 /**
  * Format bytes/sec as a human-readable speed string.
- * Always 1 decimal place. Switches unit at powers of 1000.
+ * Always 1 decimal place. Switches unit at powers of 1024.
  */
 export function formatSpeed(bytesPerSecond) {
-  if (!bytesPerSecond || !Number.isFinite(bytesPerSecond) || bytesPerSecond < 0)
-    return ''
-  if (bytesPerSecond < 1_000_000) {
-    return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`
-  } else if (bytesPerSecond < 1_000_000_000) {
-    return `${(bytesPerSecond / 1_048_576).toFixed(1)} MB/s`
-  } else {
-    return `${(bytesPerSecond / 1_073_741_824).toFixed(1)} GB/s`
+  if (!bytesPerSecond || !Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return ''
+  if (bytesPerSecond < 1_024) {
+    return `${Math.round(bytesPerSecond)} B/s`
   }
+  if (bytesPerSecond < 1_048_576) {           // < 1 MiB/s
+    return `${(bytesPerSecond / 1_024).toFixed(1)} KB/s`
+  }
+  if (bytesPerSecond < 1_073_741_824) {        // < 1 GiB/s
+    return `${(bytesPerSecond / 1_048_576).toFixed(1)} MB/s`
+  }
+  return `${(bytesPerSecond / 1_073_741_824).toFixed(2)} GB/s`
 }
 
 /**

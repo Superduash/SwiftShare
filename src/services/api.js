@@ -1,60 +1,6 @@
 import axios from 'axios'
 import { getBackendErrorMessage } from '../utils/errorMessages'
-
-function isLoopbackHost(hostname) {
-  return hostname === 'localhost' || hostname === '127.0.0.1'
-}
-
-function isPrivateNetworkHost(hostname) {
-  if (!hostname) return false
-  if (/^10\./.test(hostname)) return true
-  if (/^192\.168\./.test(hostname)) return true
-
-  const match172 = /^172\.(\d{1,3})\./.exec(hostname)
-  if (match172) {
-    const second = Number(match172[1])
-    return Number.isFinite(second) && second >= 16 && second <= 31
-  }
-
-  return false
-}
-
-function isLocalRuntimeHost(hostname) {
-  return isLoopbackHost(hostname) || isPrivateNetworkHost(hostname)
-}
-
-function targetsLoopback(urlValue) {
-  if (typeof urlValue !== 'string' || !urlValue.trim()) {
-    return false
-  }
-
-  try {
-    const parsed = new URL(urlValue)
-    return isLoopbackHost(parsed.hostname)
-  } catch {
-    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(urlValue.trim())
-  }
-}
-
-function normalizeUrl(urlValue) {
-  return String(urlValue || '').trim().replace(/\/+$/, '')
-}
-
-function rewriteLoopbackUrlForLanRuntime(urlValue) {
-  if (typeof window === 'undefined') return null
-
-  const runtimeHost = window.location.hostname
-  if (!isLocalRuntimeHost(runtimeHost)) return null
-  if (!targetsLoopback(urlValue)) return null
-
-  try {
-    const parsed = new URL(urlValue)
-    parsed.hostname = runtimeHost
-    return normalizeUrl(parsed.toString())
-  } catch {
-    return null
-  }
-}
+import { isLoopbackHost, isPrivateNetworkHost, isLocalRuntimeHost, targetsLoopback, normalizeUrl, rewriteLoopbackUrlForLanRuntime } from '../utils/network'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ENVIRONMENT-AWARE API URL RESOLUTION (PRODUCTION SAFE)
