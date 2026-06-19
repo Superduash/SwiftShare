@@ -10,21 +10,24 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   
   const backendTarget = (env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')
+  const isAnalyze = process.env.ANALYZE === 'true'
   
   console.log('[Vite] Backend target:', backendTarget)
   console.log('[Vite] Mode:', mode)
+  if (isAnalyze) console.log('[Vite] Bundle analysis enabled')
 
   return {
     plugins: [
       react(),
-      visualizer({
+      // Only run visualizer when ANALYZE=true is set (e.g., ANALYZE=true npm run build)
+      isAnalyze && visualizer({
         open: false, // Don't auto-open in browser (we'll review the file)
         filename: 'dist/stats.html',
         gzipSize: true,
         brotliSize: true,
         template: 'treemap', // Treemap visualization for chunk sizes
       }),
-    ],
+    ].filter(Boolean),
     define: {
       'import.meta.env.PACKAGE_VERSION': JSON.stringify(pkg.version),
     },
