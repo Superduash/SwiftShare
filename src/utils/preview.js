@@ -57,6 +57,11 @@ function isDocx(mime, name) {
   return false // DOCX preview disabled
 }
 
+function isDocOrDocx(mime, name) {
+  return mime.includes('wordprocessingml') || mime.includes('msword')
+    || name.endsWith('.doc') || name.endsWith('.docx')
+}
+
 function isCodeOrText(mime, name) {
   return mime.startsWith('text/')
     || mime.includes('json')
@@ -71,6 +76,7 @@ export function getPreviewType(file) {
   const name = normalizeName(file)
 
   if (isPptx(mime, name)) return 'unsupported'
+  if (isDocOrDocx(mime, name)) return 'unsupported'
   if (isImage(mime, name)) return 'image'
   if (isPdf(mime, name)) return 'pdf'
   if (isVideo(mime, name)) return 'video'
