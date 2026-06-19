@@ -16,6 +16,7 @@ import { getSettings, saveTransfer } from '../utils/storage'
 import { formatBytes } from '../utils/format'
 import { playUploadSuccess } from '../utils/sound'
 import { useSpeedCalculator } from '../hooks/useSpeedCalculator'
+import { uploadDebug, describeFile } from '../utils/uploadDebug'
 import Navbar from '../components/Navbar'
 import FileCard from '../components/FileCard'
 import ExpirySelector from '../components/ExpirySelector'
@@ -106,7 +107,6 @@ export default function HomePage() {
   const [uploadSpeed, setUploadSpeed] = useState(0)
   const [uploadETA, setUploadETA] = useState(0)
   const [uploadPhase, setUploadPhase] = useState('uploading') // 'uploading' | 'finalizing' | 'retrying'
-  const [uploadRetryInfo, setUploadRetryInfo] = useState(null) // { attempt: number, max: number }
   const uploadStartRef = useRef(0)
   // Speed calculation using dedicated hook (EMA smoothing, 250ms sample interval)
   const speedCalc = useSpeedCalculator(0.35, 250)
@@ -255,12 +255,27 @@ export default function HomePage() {
   // Validation
   function validateFile(file) {
     const ext = '.' + (file.name || '').split('.').pop().toLowerCase()
-    if (BLOCKED_EXTS.has(ext)) return `${file.name}: blocked file type`
-    if (file.size > MAX_SIZE) return `${file.name}: exceeds 100 MB limit`
+    if (BLOCKED_EXTS.has(ext)) {
+      uploadDebug('File validation failed - blocked extension', describeFile(file))
+      return `${file.name}: blocked file type`
+    }
+    if (file.size > MAX_SIZE) {
+      uploadDebug('File validation failed - exceeds size limit', {
+        ...describeFile(file),
+        maxSize: MAX_SIZE,
+        maxSizeReadable: formatBytes(MAX_SIZE),
+      })
+      return `${file.name}: exceeds 100 MB limit`
+    }
+    uploadDebug('File validation passed', describeFile(file))
     return null
   }
 
   const onDrop = useCallback((accepted) => {
+    uploadDebug('Files selected via drop', {
+      selectedCount: accepted.length,
+      files: accepted.map(describeFile),
+    })
     const combined = [...files, ...accepted].slice(0, MAX_FILES)
     const errors = combined.map(validateFile).filter(Boolean)
     if (errors.length) {
@@ -384,30 +399,71 @@ export default function HomePage() {
     const transportCode = String(err?.code || '').toUpperCase()
     const transportMessage = String(err?.message || '').toLowerCase()
 
-    if (!err?.response) {
-      if (transportCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
-        return 'Upload is taking longer than expected. Check your connection and retry.'
-      }
-      if (transportCode === 'ERR_STALLED') {
-        return 'Upload stalled. Please check your network connection and try again.'
-      }
-      return 'Connection interrupted. Please check your network and retry.'
+    // === FILE READABILITY ERRORS ===
+    if (transportCode === 'ERR_FILE_UNREADABLE') {
+      return err?.message || 'One or more files could not be read. Please reselect them.'
     }
 
-    // Specific server-side rejections deserve clear messages
+    // === TRANSPORT/NETWORK ERRORS (no server response) ===
+    if (!err?.response) {
+      // Timeout
+      if (transportCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
+        return 'Upload timeout. Check your connection and try again.'
+      }
+      
+      // Stall (no progress for extended time)
+      if (transportCode === 'ERR_STALLED') {
+        return 'Upload stalled. Check your network connection and try again.'
+      }
+      
+      // Network error
+      if (transportCode === 'ERR_NETWORK') {
+        // Check diagnostic flag - did request ever leave browser?
+        if (err?.requestLeftBrowser === false) {
+          return 'Upload failed to start. One or more files may be inaccessible. Please reselect your files and try again.'
+        }
+        if (err?.xhrSendExecuted === false) {
+          return 'Upload could not be initiated. Please try again.'
+        }
+        return 'Network error. Check your connection and try again.'
+      }
+      
+      // Generic connection error
+      return 'Connection error. Check your network and try again.'
+    }
+
+    // === SERVER ERRORS (have response) ===
+    
+    // Validation errors
     if (errorCode === 'INVALID_FILE_TYPE' || status === 415) {
-      return 'This file type cannot be shared. Try converting it to JPG, PNG, or PDF first.'
+      return backendMessage || 'Invalid file type. Try converting to JPG, PNG, or PDF.'
     }
     if (errorCode === 'FILE_TOO_LARGE') {
-      return 'File exceeds the 100 MB limit. Please compress or split the file.'
+      return backendMessage || 'File exceeds 100 MB limit. Please compress or split the file.'
     }
     if (errorCode === 'TOO_MANY_FILES') {
-      return 'Too many files. Maximum 10 files per transfer.'
+      return backendMessage || 'Too many files. Maximum 10 files per transfer.'
     }
+    if (errorCode === 'NO_FILE_UPLOADED') {
+      return backendMessage || 'No files were uploaded. Please try again.'
+    }
+    
+    // Rate limiting
     if (status === 429) {
-      return backendMessage || 'Rate limit active: Please wait a moment before sending more files.'
+      return backendMessage || 'Rate limit reached. Please wait a moment.'
+    }
+    
+    // Server errors
+    if (status >= 500) {
+      return backendMessage || 'Server error. Please try again.'
+    }
+    
+    // Bad request
+    if (status >= 400 && status < 500) {
+      return backendMessage || 'Upload rejected. Please check your files and try again.'
     }
 
+    // Generic error
     return backendMessage || 'Upload failed. Please try again.'
   }
 
@@ -436,6 +492,14 @@ export default function HomePage() {
 
   async function handleUpload() {
     if (!files.length) return toast.error('Select at least one file')
+
+    uploadDebug('handleUpload invoked', {
+      fileCount: files.length,
+      files: files.map(describeFile),
+      expiry,
+      burn,
+      passwordProtected,
+    })
 
     uploadAbortRef.current?.abort()
     uploadAbortRef.current = new AbortController()
@@ -471,7 +535,6 @@ export default function HomePage() {
         pendingProgressRef.current = null
         setUploadPercent((prev) => {
           // Never let the bar go backward — clamp to max of previous value.
-          // This prevents rubber-banding when a retry resets XHR bytesLoaded.
           const clamped = Math.max(prev, next.percent)
           return Math.abs(prev - clamped) >= 0.5 ? clamped : prev
         })
@@ -483,12 +546,6 @@ export default function HomePage() {
         }
         if (next.phase) {
           setUploadPhase((prev) => (prev === next.phase ? prev : next.phase))
-          // Store retry info when entering retry phase
-          if (next.phase === 'retrying') {
-            setUploadRetryInfo({ attempt: next.retryAttempt, max: next.retryMaxAttempts })
-          } else {
-            setUploadRetryInfo(null)
-          }
         }
       }
 
@@ -500,18 +557,6 @@ export default function HomePage() {
       const response = await uploadFiles(formData, {
         signal: uploadAbortRef.current.signal,
         onProgress: (info) => {
-          if (info?.retrying) {
-            // Drop any pending flushes; retry phase is its own indeterminate UI.
-            pendingProgressRef.current = { 
-              percent: 0, 
-              speed: 0, 
-              phase: 'retrying',
-              retryAttempt: info.attempt || 1,
-              retryMaxAttempts: info.maxAttempts || 5,
-            }
-            scheduleFlush()
-            return
-          }
           const total = Number(info?.total) || 0
           const loaded = Number(info?.loaded) || 0
           if (!total) return
@@ -535,8 +580,6 @@ export default function HomePage() {
               : smoothedSpeed,
             eta: etaSeconds,
             phase,
-            retryAttempt: undefined,
-            retryMaxAttempts: undefined,
           }
           scheduleFlush()
         },
@@ -553,11 +596,20 @@ export default function HomePage() {
       setUploadPercent(100)
 
       uploadSucceeded = true
+      uploadDebug('Upload succeeded, calling handleUploadSuccess', { transferCode, fileCount: files.length })
       handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
+      uploadDebug('Upload failed in handleUpload', {
+        errorCode: err?.code || 'unknown',
+        errorMessage: err?.message || String(err),
+        errorStack: err?.stack,
+        suppressed: shouldSuppressUploadError(err),
+      })
+      
       if (!shouldSuppressUploadError(err)) {
         const msg = getUploadErrorMessage(err)
         setUploadError(msg)
+        toast.error(msg, { duration: 6000 })
       }
     } finally {
       // Always release spinner on failure; successful path is handled by handleUploadSuccess/navigation.
@@ -568,7 +620,7 @@ export default function HomePage() {
     }
   }
 
-  // Cleanup on unmount: abort upload, cancel RAF, clear retry info
+  // Cleanup on unmount: abort upload, cancel RAF
   useEffect(() => {
     return () => {
       if (uploadAbortRef.current) {
@@ -597,7 +649,6 @@ export default function HomePage() {
     setUploadSpeed(0)
     setUploadETA(0)
     setUploadPhase('uploading')
-    setUploadRetryInfo(null)
     setUploadError(null)
     uploadHandledRef.current = false
     speedCalc.reset()
@@ -1039,7 +1090,6 @@ export default function HomePage() {
                         indeterminate={uploadPhase === 'retrying'}
                         showSpeed={uploadPhase === 'uploading'}
                         onCancel={handleCancelUpload}
-                        retryInfo={uploadRetryInfo}
                       />
                     )}
                   </motion.div>

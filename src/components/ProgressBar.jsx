@@ -11,7 +11,6 @@ export default function ProgressBar({
   showSpeed = true, 
   indeterminate = false,
   onCancel = null,
-  retryInfo = null, // { attempt: number, max: number }
 }) {
   const [clampedPercent, setClampedPercent] = useState(0);
   const lastPercent = useRef(0);
@@ -44,16 +43,9 @@ export default function ProgressBar({
     <div className="w-full" role="progressbar" aria-valuenow={indeterminate ? undefined : Math.round(clampedPercent)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
       <span className="sr-only" aria-live="polite" aria-atomic="true">{liveText}</span>
       <div className="flex justify-between items-end mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium tracking-wide" style={{ color: 'var(--text)' }}>
-            {label}
-          </span>
-          {retryInfo && (
-            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
-              Retry {retryInfo.attempt}/{retryInfo.max}
-            </span>
-          )}
-        </div>
+        <span className="text-sm font-medium tracking-wide" style={{ color: 'var(--text)' }}>
+          {label}
+        </span>
         <div className="flex items-center gap-2">
           <div className="text-right">
             {!indeterminate && (

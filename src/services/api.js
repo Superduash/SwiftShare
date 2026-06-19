@@ -215,32 +215,21 @@ export function markBackendReachable() {
 //    socket idle timeout protects the backend.
 
 // ════════════════════════════════════════════════════════════════════════════
-// UPLOAD DEBUG LOGGING (centralized for easy removal)
-// Set to true to enable detailed upload debugging, false to disable completely
+// UPLOAD DEBUG LOGGING
+// Import centralized debugging utilities from utils/uploadDebug.js
 // ════════════════════════════════════════════════════════════════════════════
-const DEBUG_UPLOAD = false
-
-function debugLog(...args) {
-  if (!DEBUG_UPLOAD) return
-  console.log('[UPLOAD_DEBUG]', ...args)
-}
-
-function getDeviceInfo() {
-  if (typeof navigator === 'undefined') return 'unknown'
-  const ua = navigator.userAgent || ''
-  const mobile = /mobile|android|ios|iphone|ipad/i.test(ua)
-  return `${mobile ? 'Mobile' : 'Desktop'} | ${ua.slice(0, 100)}`
-}
-
-function getNetworkInfo() {
-  try {
-    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection
-    if (!conn) return 'unknown'
-    return `${conn.effectiveType || 'unknown'} | ${conn.downlink || '?'}Mbps | ${conn.rtt || '?'}ms RTT`
-  } catch {
-    return 'unavailable'
-  }
-}
+import {
+  DEBUG_UPLOAD,
+  AUTO_RETRY_ENABLED,
+  uploadDebug,
+  uploadDebugSection,
+  uploadDebugQuestion,
+  makeUploadId,
+  getDeviceInfo,
+  getNetworkInfo,
+  describeFile,
+  verifyFileReadable,
+} from '../utils/uploadDebug'
 // ════════════════════════════════════════════════════════════════════════════
 
 // Adaptive stall timeout: slow mobile networks need more patience
@@ -257,39 +246,36 @@ function getStallTimeoutMs() {
   }
 }
 
-const RETRY_LIMIT = 5
-const MAX_RETRY_DELAY_MS = 10_000 // Cap retry delay at 10 seconds
-
-function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalSize = 0, fileName = 'file' } = {}) {
+function attemptUpload(formData, { onProgress, signal, uploadId, totalSize = 0, fileDescriptions = [] } = {}) {
   return new Promise((resolve, reject) => {
+    uploadDebugSection(`XHR UPLOAD ATTEMPT: ${uploadId}`)
+    
     const xhr = new XMLHttpRequest()
     const url = `${baseURL}/api/upload`
     let lastLoaded = 0
     let watchdog = null
     let aborted = false
+    let requestLeftBrowser = false
+    let xhrOpenExecuted = false
+    let xhrSendExecuted = false
 
-    // Debug: Upload start
-    if (attemptNumber === 1) {
-      debugLog('Upload started', {
-        fileName,
-        fileSize: `${(totalSize / 1024 / 1024).toFixed(2)} MB`,
-        device: getDeviceInfo(),
-        network: getNetworkInfo(),
-      })
-    } else {
-      debugLog(`Retry attempt ${attemptNumber}/${RETRY_LIMIT}`, {
-        fileName,
-        network: getNetworkInfo(),
-      })
-    }
+    uploadDebug('Creating XHR object', {
+      uploadId,
+      url,
+      totalSize,
+      files: fileDescriptions,
+      device: getDeviceInfo(),
+      network: getNetworkInfo(),
+    })
 
     const armWatchdog = () => {
       if (watchdog) clearTimeout(watchdog)
       const stallMs = getStallTimeoutMs()
       watchdog = setTimeout(() => {
-        debugLog('Upload stalled - no progress', {
-          fileName,
-          lastLoaded: `${(lastLoaded / 1024 / 1024).toFixed(2)} MB`,
+        uploadDebug('Upload stalled - no progress', {
+          uploadId,
+          lastLoaded,
+          lastLoadedReadable: `${(lastLoaded / 1024 / 1024).toFixed(2)} MB`,
           timeoutMs: stallMs,
           network: getNetworkInfo(),
         })
@@ -307,24 +293,46 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
     // Handle user-initiated abort via signal
     if (signal) {
       if (signal.aborted) {
-        debugLog('Upload aborted before start', { fileName, attemptNumber })
+        uploadDebug('Upload aborted before start (signal already aborted)', { uploadId })
         try { xhr.abort() } catch {}
         return
       }
       signal.addEventListener('abort', () => {
         if (aborted) return
         aborted = true
-        debugLog('Upload abort requested', { fileName, attemptNumber, loadedSoFar: `${(lastLoaded / 1024 / 1024).toFixed(2)} MB` })
+        uploadDebug('Upload abort requested by user (via signal)', { 
+          uploadId,
+          loadedSoFar: lastLoaded,
+          loadedReadable: `${(lastLoaded / 1024 / 1024).toFixed(2)} MB` 
+        })
         clearWatchdog()
         try { xhr.abort() } catch {}
       }, { once: true })
     }
 
+    // === XHR UPLOAD EVENT HANDLERS ===
+    
+    xhr.upload.addEventListener('loadstart', () => {
+      requestLeftBrowser = true
+      uploadDebugQuestion('Did request leave browser (upload.loadstart)?', true, { uploadId })
+    })
+
     xhr.upload.addEventListener('progress', (e) => {
-      if (!e.lengthComputable) return
+      if (!e.lengthComputable) {
+        uploadDebug('Upload progress (not computable)', { uploadId })
+        return
+      }
       if (e.loaded !== lastLoaded) {
         lastLoaded = e.loaded
         armWatchdog()
+        
+        const percent = ((e.loaded / e.total) * 100).toFixed(2)
+        uploadDebug('Upload progress', {
+          uploadId,
+          loaded: e.loaded,
+          total: e.total,
+          percent: `${percent}%`,
+        })
       }
       if (typeof onProgress === 'function') {
         onProgress({ loaded: e.loaded, total: e.total })
@@ -332,10 +340,14 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
     })
 
     xhr.upload.addEventListener('loadend', () => {
-      // Bytes have left the client. The server still needs to finalize (last R2 multipart
-      // parts + DB write). Keep the watchdog armed against a hung response.
+      uploadDebug('Upload loadend (bytes sent, awaiting server response)', { 
+        uploadId, 
+        totalBytes: lastLoaded,
+      })
       armWatchdog()
     })
+
+    // === XHR RESPONSE EVENT HANDLERS ===
 
     xhr.addEventListener('load', () => {
       clearWatchdog()
@@ -343,10 +355,16 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
       let parsed = null
       try { parsed = JSON.parse(xhr.responseText) } catch { parsed = null }
 
+      uploadDebug('XHR load event', {
+        uploadId,
+        status,
+        responseLength: xhr.responseText?.length || 0,
+        parsed: parsed ? 'yes' : 'no',
+      })
+
       if (status >= 200 && status < 300) {
-        debugLog('Upload completed successfully', {
-          fileName,
-          attemptNumber,
+        uploadDebugQuestion('Did upload complete successfully?', true, {
+          uploadId,
           status,
           responseCode: parsed?.code || parsed?.data?.code || 'unknown',
         })
@@ -354,12 +372,12 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
         return
       }
 
-      debugLog('Upload failed with server error', {
-        fileName,
-        attemptNumber,
+      uploadDebugQuestion('Did upload complete successfully?', false, {
+        uploadId,
         status,
-        error: parsed?.error?.message || 'unknown',
+        errorMessage: parsed?.error?.message || 'unknown',
         errorCode: parsed?.error?.code || 'unknown',
+        fullResponse: parsed,
       })
 
       const err = new Error(parsed?.error?.message || `Upload failed (${status})`)
@@ -369,23 +387,36 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('error', () => {
       clearWatchdog()
-      debugLog('Network error during upload', {
-        fileName,
-        attemptNumber,
+      
+      uploadDebugSection(`XHR ERROR EVENT: ${uploadId}`)
+      
+      // CRITICAL DIAGNOSTIC: Check if request ever left the browser
+      uploadDebugQuestion('Did request leave browser (upload.loadstart)?', requestLeftBrowser, { uploadId })
+      
+      uploadDebug('XHR error event fired', {
+        uploadId,
+        requestLeftBrowser,
+        xhrOpenExecuted,
+        xhrSendExecuted,
+        bytesLoadedBeforeFailure: lastLoaded,
         network: getNetworkInfo(),
         online: navigator.onLine,
       })
+      
       const err = new Error('Network error during upload')
       err.code = 'ERR_NETWORK'
+      err.requestLeftBrowser = requestLeftBrowser
+      err.xhrOpenExecuted = xhrOpenExecuted
+      err.xhrSendExecuted = xhrSendExecuted
       reject(err)
     })
 
     xhr.addEventListener('abort', () => {
       clearWatchdog()
-      debugLog('Upload aborted', {
-        fileName,
-        attemptNumber,
+      uploadDebug('XHR abort event fired', {
+        uploadId,
         byUser: aborted,
+        bytesLoaded: lastLoaded,
       })
       const err = new Error('Upload aborted')
       err.code = 'ERR_CANCELED'
@@ -394,32 +425,60 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('timeout', () => {
       clearWatchdog()
-      debugLog('Upload timeout', {
-        fileName,
-        attemptNumber,
+      uploadDebug('XHR timeout event fired', {
+        uploadId,
         timeoutMs: xhr.timeout,
+        bytesLoaded: lastLoaded,
       })
       const err = new Error('Upload timeout')
       err.code = 'ECONNABORTED'
       reject(err)
     })
 
-    xhr.open('POST', url, true)
-    xhr.withCredentials = false
-    // Set XHR timeout to 10 minutes for large files on slow networks
-    xhr.timeout = 600000
-    armWatchdog()
-    xhr.send(formData)
-  })
-}
+    // === XHR INITIALIZATION AND SEND ===
 
-function isTransientUploadError(err) {
-  if (!err) return false
-  const code = String(err.code || '').toUpperCase()
-  if (code === 'ERR_NETWORK' || code === 'ERR_STALLED') return true
-  // 5xx from server: also retryable. 4xx (validation) is not.
-  const status = Number(err?.response?.status || 0)
-  return status >= 500 && status < 600
+    try {
+      uploadDebug('Executing xhr.open()', { uploadId, method: 'POST', url })
+      xhr.open('POST', url, true)
+      xhrOpenExecuted = true
+      uploadDebugQuestion('Did xhr.open() execute?', true, { uploadId })
+    } catch (error) {
+      uploadDebugQuestion('Did xhr.open() execute?', false, { 
+        uploadId,
+        errorName: error?.name,
+        errorMessage: error?.message,
+      })
+      reject(error)
+      return
+    }
+
+    // Set custom header for correlation with backend logs
+    xhr.setRequestHeader('X-Client-Upload-Id', uploadId)
+    xhr.withCredentials = false
+    xhr.timeout = 600000 // 10 minutes
+    
+    armWatchdog()
+    
+    try {
+      uploadDebug('Executing xhr.send()', { 
+        uploadId, 
+        timeout: xhr.timeout,
+        formDataPresent: !!formData,
+      })
+      xhr.send(formData)
+      xhrSendExecuted = true
+      uploadDebugQuestion('Did xhr.send() execute?', true, { uploadId })
+    } catch (error) {
+      uploadDebugQuestion('Did xhr.send() execute?', false, { 
+        uploadId,
+        errorName: error?.name,
+        errorMessage: error?.message,
+        errorStack: error?.stack,
+      })
+      reject(error)
+      return
+    }
+  })
 }
 
 export async function uploadFiles(formData, opts = {}) {
@@ -428,90 +487,151 @@ export async function uploadFiles(formData, opts = {}) {
   }
 
   const { onProgress, signal } = opts
+  
+  // Generate correlation ID for frontend-backend log matching
+  const uploadId = makeUploadId()
+  if (formData?.append) formData.append('clientUploadId', uploadId)
+
+  // Extract file metadata for debugging
+  const allFiles = formData.getAll('files')
+  const fileDescriptions = allFiles.map(describeFile)
+  const totalSize = allFiles.reduce((sum, f) => sum + (f.size || 0), 0)
+
+  uploadDebugSection(`UPLOAD START: ${uploadId}`)
+  
+  uploadDebug('Upload initiated', {
+    uploadId,
+    fileCount: allFiles.length,
+    files: fileDescriptions,
+    totalSize,
+    totalSizeReadable: `${(totalSize / 1024 / 1024).toFixed(2)} MB`,
+    device: getDeviceInfo(),
+    network: getNetworkInfo(),
+    autoRetryEnabled: AUTO_RETRY_ENABLED,
+  })
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PRE-FLIGHT FILE READABILITY CHECK
+  // This verifies each file can be read before attempting upload
+  // ══════════════════════════════════════════════════════════════════════════
+  for (let i = 0; i < allFiles.length; i++) {
+    const file = allFiles[i]
+    
+    uploadDebugSection(`FILE READABILITY CHECK ${i + 1}/${allFiles.length}`)
+    
+    const probe = await verifyFileReadable(file)
+    if (!probe.readable) {
+      const err = new Error(
+        `"${file.name}" cannot be read from your device. ` +
+        `It may have been moved, deleted, or access permission was revoked. ` +
+        `Please remove it and reselect the file.`
+      )
+      err.code = 'ERR_FILE_UNREADABLE'
+      err.fileName = file.name
+      err.details = probe
+      
+      uploadDebugSection(`UPLOAD ABORTED: ${uploadId}`)
+      uploadDebug('Upload aborted due to unreadable file', { 
+        uploadId, 
+        fileName: file.name,
+        reason: probe.reason,
+        error: probe.error,
+      })
+      throw err
+    }
+  }
+
+  uploadDebugQuestion('Did all files pass readability check?', true, { uploadId, fileCount: allFiles.length })
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // UPLOAD ATTEMPT WITH CONDITIONAL RETRY
+  // - AUTO_RETRY_ENABLED = false: Single attempt, surface real error
+  // - AUTO_RETRY_ENABLED = true: Retry transient network/server errors only
+  // ══════════════════════════════════════════════════════════════════════════
+  const MAX_RETRIES = AUTO_RETRY_ENABLED ? 3 : 0
   let attempt = 0
-  let lastErr = null
+  let lastError = null
 
-  // Extract metadata for debug logging
-  const fileName = formData.get('files')?.name || 'file'
-  const totalSize = formData.getAll('files').reduce((sum, f) => sum + (f.size || 0), 0)
-
-  while (attempt <= RETRY_LIMIT) {
+  while (attempt <= MAX_RETRIES) {
     try {
-      return await attemptUpload(formData, { 
+      if (attempt > 0) {
+        uploadDebugSection(`RETRY ATTEMPT ${attempt}/${MAX_RETRIES}: ${uploadId}`)
+      }
+      
+      const result = await attemptUpload(formData, { 
         onProgress, 
         signal,
-        attemptNumber: attempt + 1,
+        uploadId,
         totalSize,
-        fileName,
+        fileDescriptions,
       })
-    } catch (err) {
-      lastErr = err
       
-      // User-initiated abort: don't retry.
-      if (String(err?.code || '').toUpperCase() === 'ERR_CANCELED' && signal?.aborted) {
-        debugLog('Upload canceled by user - not retrying', { fileName, attempt: attempt + 1 })
+      uploadDebugSection(`UPLOAD SUCCESS: ${uploadId}`)
+      uploadDebug('Upload completed successfully', {
+        uploadId,
+        code: result?.code,
+        attempts: attempt + 1,
+      })
+      
+      return result
+      
+    } catch (err) {
+      lastError = err
+      
+      // User canceled: never retry
+      if (err?.code === 'ERR_CANCELED' && signal?.aborted) {
+        uploadDebugSection(`UPLOAD CANCELED: ${uploadId}`)
+        uploadDebug('Upload canceled by user', { uploadId, attempt: attempt + 1 })
         throw err
       }
       
       // Check if error is retryable
-      if (!isTransientUploadError(err) || attempt >= RETRY_LIMIT) {
-        debugLog('Upload failed - not retryable or max retries reached', {
-          fileName,
+      const isRetryable = AUTO_RETRY_ENABLED && (
+        err?.code === 'ERR_NETWORK' ||
+        err?.code === 'ERR_STALLED' ||
+        (err?.response?.status >= 500 && err?.response?.status < 600)
+      )
+      
+      if (!isRetryable || attempt >= MAX_RETRIES) {
+        uploadDebugSection(`UPLOAD FAILED: ${uploadId}`)
+        uploadDebug('Upload failed - not retryable or max retries reached', {
+          uploadId,
           attempt: attempt + 1,
-          maxRetries: RETRY_LIMIT,
+          maxRetries: MAX_RETRIES,
           errorCode: err?.code || 'unknown',
-          isRetryable: isTransientUploadError(err),
+          errorMessage: err?.message || 'unknown',
+          errorStack: err?.stack,
+          requestLeftBrowser: err?.requestLeftBrowser,
+          xhrOpenExecuted: err?.xhrOpenExecuted,
+          xhrSendExecuted: err?.xhrSendExecuted,
+          responseStatus: err?.response?.status,
+          responseData: err?.response?.data,
+          isRetryable,
+          autoRetryEnabled: AUTO_RETRY_ENABLED,
         })
         throw err
       }
       
-      attempt += 1
+      attempt++
+      const delay = 2000 * attempt
       
-      // Cap retry delay at MAX_RETRY_DELAY_MS to prevent excessive waiting
-      const uncappedDelay = 2000 * attempt
-      const delay = Math.min(uncappedDelay, MAX_RETRY_DELAY_MS)
-      
-      debugLog('Retry scheduled', {
-        fileName,
+      uploadDebug('Retry scheduled', {
+        uploadId,
         attempt,
-        totalAttempts: RETRY_LIMIT,
+        maxRetries: MAX_RETRIES,
         delayMs: delay,
         reason: err?.code || err?.message || 'unknown',
       })
       
       if (typeof onProgress === 'function') {
-        onProgress({ retrying: true, attempt, maxAttempts: RETRY_LIMIT, delay })
+        onProgress({ retrying: true, attempt, maxAttempts: MAX_RETRIES, delay })
       }
       
-      // If the device is offline, wait for it to come back before burning the delay
-      if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
-        debugLog('Device offline - waiting for connectivity', { fileName })
-        
-        await new Promise((resolve) => {
-          if (navigator.onLine) return resolve()
-          
-          const onOnline = () => { 
-            debugLog('Device back online', { fileName })
-            window.removeEventListener('online', onOnline)
-            resolve() 
-          }
-          
-          window.addEventListener('online', onOnline, { once: true })
-          
-          // Wait up to 90s for connectivity to return, then proceed anyway
-          setTimeout(() => {
-            debugLog('Connectivity wait timeout - proceeding with retry', { fileName })
-            resolve()
-          }, 90_000)
-        })
-      }
-      
-      await new Promise((r) => setTimeout(r, delay))
+      await new Promise(r => setTimeout(r, delay))
     }
   }
 
-  debugLog('Upload exhausted all retries', { fileName, attempts: RETRY_LIMIT + 1 })
-  throw lastErr
+  throw lastError
 }
 
 export async function uploadClipboard(imageBase64, burnAfterDownload, senderSocketId, options = {}) {
