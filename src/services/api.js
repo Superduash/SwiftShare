@@ -214,6 +214,35 @@ export function markBackendReachable() {
 //  • No fixed wall-clock timeout; the watchdog handles dead connections, and Node's
 //    socket idle timeout protects the backend.
 
+// ════════════════════════════════════════════════════════════════════════════
+// UPLOAD DEBUG LOGGING (centralized for easy removal)
+// Set to true to enable detailed upload debugging, false to disable completely
+// ════════════════════════════════════════════════════════════════════════════
+const DEBUG_UPLOAD = false
+
+function debugLog(...args) {
+  if (!DEBUG_UPLOAD) return
+  console.log('[UPLOAD_DEBUG]', ...args)
+}
+
+function getDeviceInfo() {
+  if (typeof navigator === 'undefined') return 'unknown'
+  const ua = navigator.userAgent || ''
+  const mobile = /mobile|android|ios|iphone|ipad/i.test(ua)
+  return `${mobile ? 'Mobile' : 'Desktop'} | ${ua.slice(0, 100)}`
+}
+
+function getNetworkInfo() {
+  try {
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection
+    if (!conn) return 'unknown'
+    return `${conn.effectiveType || 'unknown'} | ${conn.downlink || '?'}Mbps | ${conn.rtt || '?'}ms RTT`
+  } catch {
+    return 'unavailable'
+  }
+}
+// ════════════════════════════════════════════════════════════════════════════
+
 // Adaptive stall timeout: slow mobile networks need more patience
 function getStallTimeoutMs() {
   try {
@@ -229,18 +258,41 @@ function getStallTimeoutMs() {
 }
 
 const RETRY_LIMIT = 5
+const MAX_RETRY_DELAY_MS = 10_000 // Cap retry delay at 10 seconds
 
-function attemptUpload(formData, { onProgress, signal } = {}) {
+function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalSize = 0, fileName = 'file' } = {}) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     const url = `${baseURL}/api/upload`
     let lastLoaded = 0
     let watchdog = null
+    let aborted = false
+
+    // Debug: Upload start
+    if (attemptNumber === 1) {
+      debugLog('Upload started', {
+        fileName,
+        fileSize: `${(totalSize / 1024 / 1024).toFixed(2)} MB`,
+        device: getDeviceInfo(),
+        network: getNetworkInfo(),
+      })
+    } else {
+      debugLog(`Retry attempt ${attemptNumber}/${RETRY_LIMIT}`, {
+        fileName,
+        network: getNetworkInfo(),
+      })
+    }
 
     const armWatchdog = () => {
       if (watchdog) clearTimeout(watchdog)
       const stallMs = getStallTimeoutMs()
       watchdog = setTimeout(() => {
+        debugLog('Upload stalled - no progress', {
+          fileName,
+          lastLoaded: `${(lastLoaded / 1024 / 1024).toFixed(2)} MB`,
+          timeoutMs: stallMs,
+          network: getNetworkInfo(),
+        })
         const err = new Error(`Upload stalled (no progress for ${Math.round(stallMs / 1000)}s)`)
         err.code = 'ERR_STALLED'
         try { xhr.abort() } catch {}
@@ -250,6 +302,22 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
 
     const clearWatchdog = () => {
       if (watchdog) { clearTimeout(watchdog); watchdog = null }
+    }
+
+    // Handle user-initiated abort via signal
+    if (signal) {
+      if (signal.aborted) {
+        debugLog('Upload aborted before start', { fileName, attemptNumber })
+        try { xhr.abort() } catch {}
+        return
+      }
+      signal.addEventListener('abort', () => {
+        if (aborted) return
+        aborted = true
+        debugLog('Upload abort requested', { fileName, attemptNumber, loadedSoFar: `${(lastLoaded / 1024 / 1024).toFixed(2)} MB` })
+        clearWatchdog()
+        try { xhr.abort() } catch {}
+      }, { once: true })
     }
 
     xhr.upload.addEventListener('progress', (e) => {
@@ -276,9 +344,23 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
       try { parsed = JSON.parse(xhr.responseText) } catch { parsed = null }
 
       if (status >= 200 && status < 300) {
+        debugLog('Upload completed successfully', {
+          fileName,
+          attemptNumber,
+          status,
+          responseCode: parsed?.code || parsed?.data?.code || 'unknown',
+        })
         resolve(unwrapResponse(parsed))
         return
       }
+
+      debugLog('Upload failed with server error', {
+        fileName,
+        attemptNumber,
+        status,
+        error: parsed?.error?.message || 'unknown',
+        errorCode: parsed?.error?.code || 'unknown',
+      })
 
       const err = new Error(parsed?.error?.message || `Upload failed (${status})`)
       err.response = { status, data: parsed }
@@ -287,6 +369,12 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
 
     xhr.addEventListener('error', () => {
       clearWatchdog()
+      debugLog('Network error during upload', {
+        fileName,
+        attemptNumber,
+        network: getNetworkInfo(),
+        online: navigator.onLine,
+      })
       const err = new Error('Network error during upload')
       err.code = 'ERR_NETWORK'
       reject(err)
@@ -294,6 +382,11 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
 
     xhr.addEventListener('abort', () => {
       clearWatchdog()
+      debugLog('Upload aborted', {
+        fileName,
+        attemptNumber,
+        byUser: aborted,
+      })
       const err = new Error('Upload aborted')
       err.code = 'ERR_CANCELED'
       reject(err)
@@ -301,20 +394,15 @@ function attemptUpload(formData, { onProgress, signal } = {}) {
 
     xhr.addEventListener('timeout', () => {
       clearWatchdog()
+      debugLog('Upload timeout', {
+        fileName,
+        attemptNumber,
+        timeoutMs: xhr.timeout,
+      })
       const err = new Error('Upload timeout')
       err.code = 'ECONNABORTED'
       reject(err)
     })
-
-    if (signal) {
-      if (signal.aborted) {
-        try { xhr.abort() } catch {}
-      } else {
-        signal.addEventListener('abort', () => {
-          try { xhr.abort() } catch {}
-        }, { once: true })
-      }
-    }
 
     xhr.open('POST', url, true)
     xhr.withCredentials = false
@@ -343,33 +431,78 @@ export async function uploadFiles(formData, opts = {}) {
   let attempt = 0
   let lastErr = null
 
+  // Extract metadata for debug logging
+  const fileName = formData.get('files')?.name || 'file'
+  const totalSize = formData.getAll('files').reduce((sum, f) => sum + (f.size || 0), 0)
+
   while (attempt <= RETRY_LIMIT) {
     try {
-      return await attemptUpload(formData, { onProgress, signal })
+      return await attemptUpload(formData, { 
+        onProgress, 
+        signal,
+        attemptNumber: attempt + 1,
+        totalSize,
+        fileName,
+      })
     } catch (err) {
       lastErr = err
+      
       // User-initiated abort: don't retry.
       if (String(err?.code || '').toUpperCase() === 'ERR_CANCELED' && signal?.aborted) {
+        debugLog('Upload canceled by user - not retrying', { fileName, attempt: attempt + 1 })
         throw err
       }
+      
+      // Check if error is retryable
       if (!isTransientUploadError(err) || attempt >= RETRY_LIMIT) {
+        debugLog('Upload failed - not retryable or max retries reached', {
+          fileName,
+          attempt: attempt + 1,
+          maxRetries: RETRY_LIMIT,
+          errorCode: err?.code || 'unknown',
+          isRetryable: isTransientUploadError(err),
+        })
         throw err
       }
+      
       attempt += 1
-      // More patient retry delays for mobile: 2s, 4s, 6s
-      const delay = 2000 * attempt
+      
+      // Cap retry delay at MAX_RETRY_DELAY_MS to prevent excessive waiting
+      const uncappedDelay = 2000 * attempt
+      const delay = Math.min(uncappedDelay, MAX_RETRY_DELAY_MS)
+      
+      debugLog('Retry scheduled', {
+        fileName,
+        attempt,
+        totalAttempts: RETRY_LIMIT,
+        delayMs: delay,
+        reason: err?.code || err?.message || 'unknown',
+      })
+      
       if (typeof onProgress === 'function') {
-        onProgress({ retrying: true, attempt, delay })
+        onProgress({ retrying: true, attempt, maxAttempts: RETRY_LIMIT, delay })
       }
       
       // If the device is offline, wait for it to come back before burning the delay
       if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+        debugLog('Device offline - waiting for connectivity', { fileName })
+        
         await new Promise((resolve) => {
           if (navigator.onLine) return resolve()
-          const onOnline = () => { window.removeEventListener('online', onOnline); resolve() }
+          
+          const onOnline = () => { 
+            debugLog('Device back online', { fileName })
+            window.removeEventListener('online', onOnline)
+            resolve() 
+          }
+          
           window.addEventListener('online', onOnline, { once: true })
-          // Wait up to 90s for connectivity to return
-          setTimeout(resolve, 90_000)
+          
+          // Wait up to 90s for connectivity to return, then proceed anyway
+          setTimeout(() => {
+            debugLog('Connectivity wait timeout - proceeding with retry', { fileName })
+            resolve()
+          }, 90_000)
         })
       }
       
@@ -377,6 +510,7 @@ export async function uploadFiles(formData, opts = {}) {
     }
   }
 
+  debugLog('Upload exhausted all retries', { fileName, attempts: RETRY_LIMIT + 1 })
   throw lastErr
 }
 

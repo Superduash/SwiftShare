@@ -106,6 +106,7 @@ export default function HomePage() {
   const [uploadSpeed, setUploadSpeed] = useState(0)
   const [uploadETA, setUploadETA] = useState(0)
   const [uploadPhase, setUploadPhase] = useState('uploading') // 'uploading' | 'finalizing' | 'retrying'
+  const [uploadRetryInfo, setUploadRetryInfo] = useState(null) // { attempt: number, max: number }
   const uploadStartRef = useRef(0)
   // Speed calculation using dedicated hook (EMA smoothing, 250ms sample interval)
   const speedCalc = useSpeedCalculator(0.35, 250)
@@ -480,7 +481,15 @@ export default function HomePage() {
         if (Number.isFinite(next.eta)) {
           setUploadETA((prev) => (Math.abs(prev - next.eta) >= 1 ? next.eta : prev))
         }
-        if (next.phase) setUploadPhase((prev) => (prev === next.phase ? prev : next.phase))
+        if (next.phase) {
+          setUploadPhase((prev) => (prev === next.phase ? prev : next.phase))
+          // Store retry info when entering retry phase
+          if (next.phase === 'retrying') {
+            setUploadRetryInfo({ attempt: next.retryAttempt, max: next.retryMaxAttempts })
+          } else {
+            setUploadRetryInfo(null)
+          }
+        }
       }
 
       const scheduleFlush = () => {
@@ -493,7 +502,13 @@ export default function HomePage() {
         onProgress: (info) => {
           if (info?.retrying) {
             // Drop any pending flushes; retry phase is its own indeterminate UI.
-            pendingProgressRef.current = { percent: 0, speed: 0, phase: 'retrying' }
+            pendingProgressRef.current = { 
+              percent: 0, 
+              speed: 0, 
+              phase: 'retrying',
+              retryAttempt: info.attempt || 1,
+              retryMaxAttempts: info.maxAttempts || 5,
+            }
             scheduleFlush()
             return
           }
@@ -520,6 +535,8 @@ export default function HomePage() {
               : smoothedSpeed,
             eta: etaSeconds,
             phase,
+            retryAttempt: undefined,
+            retryMaxAttempts: undefined,
           }
           scheduleFlush()
         },
@@ -551,11 +568,41 @@ export default function HomePage() {
     }
   }
 
+  // Cleanup on unmount: abort upload, cancel RAF, clear retry info
   useEffect(() => {
     return () => {
-      uploadAbortRef.current?.abort()
+      if (uploadAbortRef.current) {
+        uploadAbortRef.current.abort()
+        uploadAbortRef.current = null
+      }
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = 0
+      }
     }
   }, [])
+  
+  // Cancel upload handler
+  function handleCancelUpload() {
+    if (uploadAbortRef.current) {
+      uploadAbortRef.current.abort()
+      uploadAbortRef.current = null
+    }
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = 0
+    }
+    setUploading(false)
+    setUploadPercent(0)
+    setUploadSpeed(0)
+    setUploadETA(0)
+    setUploadPhase('uploading')
+    setUploadRetryInfo(null)
+    setUploadError(null)
+    uploadHandledRef.current = false
+    speedCalc.reset()
+    toast.success('Upload canceled')
+  }
 
   const hasFiles = files.length > 0
 
@@ -991,6 +1038,8 @@ export default function HomePage() {
                         }
                         indeterminate={uploadPhase === 'retrying'}
                         showSpeed={uploadPhase === 'uploading'}
+                        onCancel={handleCancelUpload}
+                        retryInfo={uploadRetryInfo}
                       />
                     )}
                   </motion.div>

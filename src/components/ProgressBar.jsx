@@ -1,8 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { formatSpeed, formatETA } from '../hooks/useSpeedCalculator'
 
-export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = 'Uploading...', showSpeed = true, indeterminate = false }) {
+export default function ProgressBar({ 
+  percent = 0, 
+  speed = 0, 
+  eta = 0, 
+  label = 'Uploading...', 
+  showSpeed = true, 
+  indeterminate = false,
+  onCancel = null,
+  retryInfo = null, // { attempt: number, max: number }
+}) {
   const [clampedPercent, setClampedPercent] = useState(0);
   const lastPercent = useRef(0);
 
@@ -34,25 +44,44 @@ export default function ProgressBar({ percent = 0, speed = 0, eta = 0, label = '
     <div className="w-full" role="progressbar" aria-valuenow={indeterminate ? undefined : Math.round(clampedPercent)} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
       <span className="sr-only" aria-live="polite" aria-atomic="true">{liveText}</span>
       <div className="flex justify-between items-end mb-2">
-        <span className="text-sm font-medium tracking-wide" style={{ color: 'var(--text)' }}>
-          {label}
-        </span>
-        <div className="text-right">
-          {!indeterminate && (
-            <motion.span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>
-              {Math.round(clampedPercent)}%
-            </motion.span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium tracking-wide" style={{ color: 'var(--text)' }}>
+            {label}
+          </span>
+          {retryInfo && (
+            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
+              Retry {retryInfo.attempt}/{retryInfo.max}
+            </span>
           )}
-          {showSpeed && speed > 0 && !indeterminate && (
-            <motion.span 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-xs ml-2 tabular-nums inline-flex items-center gap-1.5" 
-              style={{ color: 'var(--text-3)' }}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            {!indeterminate && (
+              <motion.span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+                {Math.round(clampedPercent)}%
+              </motion.span>
+            )}
+            {showSpeed && speed > 0 && !indeterminate && (
+              <motion.span 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-xs ml-2 tabular-nums inline-flex items-center gap-1.5" 
+                style={{ color: 'var(--text-3)' }}
+              >
+                <span>{formatSpeed(speed)}</span>
+                {etaText && <span>· {etaText}</span>}
+              </motion.span>
+            )}
+          </div>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="btn-icon-sm"
+              aria-label="Cancel upload"
+              title="Cancel upload"
             >
-              <span>{formatSpeed(speed)}</span>
-              {etaText && <span>· {etaText}</span>}
-            </motion.span>
+              <X size={16} />
+            </button>
           )}
         </div>
       </div>
