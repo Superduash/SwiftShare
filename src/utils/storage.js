@@ -402,7 +402,7 @@ if (typeof window !== 'undefined') {
 
 // ── Theme ──────────────────────────────────
 export function getTheme() {
-  return safeGet(KEYS.THEME, 'sunrise')
+  return safeGet(KEYS.THEME, 'sunset')
 }
 export function saveTheme(theme) {
   safeSet(KEYS.THEME, theme)

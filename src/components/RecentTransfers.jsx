@@ -42,13 +42,21 @@ const TransferItem = memo(({ transfer, index, onRemove, onClick }) => {
   const s = STATUS_STYLES[transfer.status] || STATUS_STYLES.unknown
   
   return (
-    <motion.button
-      className="w-full surface-card-flat p-3 flex items-center gap-3 text-left group"
+    <motion.div
+      role="button"
+      tabIndex={0}
+      className="w-full surface-card-flat p-3 flex items-center gap-3 text-left group cursor-pointer"
       initial={{ x: -6 }}
       animate={{ x: 0 }}
       exit={{ opacity: 0, x: 8 }}
       transition={{ delay: index * 0.04 }}
       onClick={() => onClick(transfer)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick(transfer)
+        }
+      }}
     >
       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--file-icon-bg)' }}>
         <FileText size={16} style={{ color: 'var(--file-icon-color)' }} />
@@ -75,7 +83,7 @@ const TransferItem = memo(({ transfer, index, onRemove, onClick }) => {
         </button>
         <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-4)' }} />
       </div>
-    </motion.button>
+    </motion.div>
   )
 })
 
