@@ -213,35 +213,9 @@ export function markBackendReachable() {
 //    retry, so re-sending the same FormData is safe.
 //  • No fixed wall-clock timeout; the watchdog handles dead connections, and Node's
 //    socket idle timeout protects the backend.
-
-// ════════════════════════════════════════════════════════════════════════════
-// UPLOAD DEBUG LOGGING (centralized for easy removal)
-// Set to true to enable detailed upload debugging, false to disable completely
-// ════════════════════════════════════════════════════════════════════════════
-const DEBUG_UPLOAD = false
-
-function debugLog(...args) {
-  if (!DEBUG_UPLOAD) return
-  console.log('[UPLOAD_DEBUG]', ...args)
-}
-
-function getDeviceInfo() {
-  if (typeof navigator === 'undefined') return 'unknown'
-  const ua = navigator.userAgent || ''
-  const mobile = /mobile|android|ios|iphone|ipad/i.test(ua)
-  return `${mobile ? 'Mobile' : 'Desktop'} | ${ua.slice(0, 100)}`
-}
-
-function getNetworkInfo() {
-  try {
-    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection
-    if (!conn) return 'unknown'
-    return `${conn.effectiveType || 'unknown'} | ${conn.downlink || '?'}Mbps | ${conn.rtt || '?'}ms RTT`
-  } catch {
-    return 'unavailable'
-  }
-}
-// ════════════════════════════════════════════════════════════════════════════
+//  • File pre-read: On Android, files can become invalid due to MediaStore/Gallery
+//    modifications between selection and upload. We pre-read into memory to avoid
+//    Chrome's ERR_UPLOAD_FILE_CHANGED error.
 
 // Adaptive stall timeout: slow mobile networks need more patience
 function getStallTimeoutMs() {
@@ -268,31 +242,10 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
     let watchdog = null
     let aborted = false
 
-    // Debug: Upload start
-    if (attemptNumber === 1) {
-      debugLog('Upload started', {
-        fileName,
-        fileSize: `${(totalSize / 1024 / 1024).toFixed(2)} MB`,
-        device: getDeviceInfo(),
-        network: getNetworkInfo(),
-      })
-    } else {
-      debugLog(`Retry attempt ${attemptNumber}/${RETRY_LIMIT}`, {
-        fileName,
-        network: getNetworkInfo(),
-      })
-    }
-
     const armWatchdog = () => {
       if (watchdog) clearTimeout(watchdog)
       const stallMs = getStallTimeoutMs()
       watchdog = setTimeout(() => {
-        debugLog('Upload stalled - no progress', {
-          fileName,
-          lastLoaded: `${(lastLoaded / 1024 / 1024).toFixed(2)} MB`,
-          timeoutMs: stallMs,
-          network: getNetworkInfo(),
-        })
         const err = new Error(`Upload stalled (no progress for ${Math.round(stallMs / 1000)}s)`)
         err.code = 'ERR_STALLED'
         try { xhr.abort() } catch {}
@@ -307,14 +260,12 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
     // Handle user-initiated abort via signal
     if (signal) {
       if (signal.aborted) {
-        debugLog('Upload aborted before start', { fileName, attemptNumber })
         try { xhr.abort() } catch {}
         return
       }
       signal.addEventListener('abort', () => {
         if (aborted) return
         aborted = true
-        debugLog('Upload abort requested', { fileName, attemptNumber, loadedSoFar: `${(lastLoaded / 1024 / 1024).toFixed(2)} MB` })
         clearWatchdog()
         try { xhr.abort() } catch {}
       }, { once: true })
@@ -339,31 +290,14 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('load', () => {
       clearWatchdog()
-      console.log('[UPLOAD] XHR_LOAD', { fileName, attemptNumber, status: xhr.status })
       const status = xhr.status
       let parsed = null
       try { parsed = JSON.parse(xhr.responseText) } catch { parsed = null }
 
       if (status >= 200 && status < 300) {
-        console.log('[UPLOAD] XHR_SUCCESS', { fileName, attemptNumber, status })
-        debugLog('Upload completed successfully', {
-          fileName,
-          attemptNumber,
-          status,
-          responseCode: parsed?.code || parsed?.data?.code || 'unknown',
-        })
         resolve(unwrapResponse(parsed))
         return
       }
-
-      console.error('[UPLOAD] XHR_ERROR_STATUS', { fileName, attemptNumber, status })
-      debugLog('Upload failed with server error', {
-        fileName,
-        attemptNumber,
-        status,
-        error: parsed?.error?.message || 'unknown',
-        errorCode: parsed?.error?.code || 'unknown',
-      })
 
       const err = new Error(parsed?.error?.message || `Upload failed (${status})`)
       err.response = { status, data: parsed }
@@ -372,21 +306,14 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('error', (e) => {
       clearWatchdog()
-      console.error('[UPLOAD] XHR_ERROR', { 
-        fileName, 
-        attemptNumber,
-        event: e,
-        readyState: xhr.readyState,
-        status: xhr.status,
-      })
       
       // Detect Chrome's ERR_UPLOAD_FILE_CHANGED
       // This happens when Android file handles become invalid (file touched by Gallery/Photos/MediaStore)
       const err = new Error('Network error during upload')
       
-      // Chrome doesn't expose the exact error code in the error event, but we can infer it
+      // Chrome doesn't expose the exact error code, but we can infer ERR_UPLOAD_FILE_CHANGED
       // from the context: if XHR fails immediately without any bytes sent and status = 0,
-      // it's likely ERR_UPLOAD_FILE_CHANGED on Android
+      // it's likely a file handle issue on Android
       if (xhr.readyState === 0 || xhr.status === 0) {
         // Check if this is a file handle issue by examining timing
         // If error happens very quickly (< 100ms), likely file access issue
@@ -394,7 +321,6 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
         if (elapsed < 100 && attemptNumber === 1) {
           err.code = 'ERR_UPLOAD_FILE_CHANGED'
           err.message = 'File became unavailable after selection'
-          console.error('[UPLOAD] FILE_HANDLE_INVALIDATED', { fileName, elapsed })
         } else {
           err.code = 'ERR_NETWORK'
         }
@@ -402,24 +328,11 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
         err.code = 'ERR_NETWORK'
       }
       
-      debugLog('Network error during upload', {
-        fileName,
-        attemptNumber,
-        network: getNetworkInfo(),
-        online: navigator.onLine,
-        errorCode: err.code,
-      })
       reject(err)
     })
 
     xhr.addEventListener('abort', () => {
       clearWatchdog()
-      console.error('[UPLOAD] XHR_ABORT', { fileName, attemptNumber })
-      debugLog('Upload aborted', {
-        fileName,
-        attemptNumber,
-        byUser: aborted,
-      })
       const err = new Error('Upload aborted')
       err.code = 'ERR_CANCELED'
       reject(err)
@@ -427,19 +340,9 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
 
     xhr.addEventListener('timeout', () => {
       clearWatchdog()
-      console.error('[UPLOAD] XHR_TIMEOUT', { fileName, attemptNumber })
-      debugLog('Upload timeout', {
-        fileName,
-        attemptNumber,
-        timeoutMs: xhr.timeout,
-      })
       const err = new Error('Upload timeout')
       err.code = 'ECONNABORTED'
       reject(err)
-    })
-
-    xhr.addEventListener('loadstart', () => {
-      console.log('[UPLOAD] XHR_STARTED', { fileName, attemptNumber })
     })
 
     xhr.open('POST', url, true)
@@ -475,7 +378,7 @@ export async function uploadFiles(formData, opts = {}) {
   let attempt = 0
   let lastErr = null
 
-  // Extract metadata for debug logging
+  // Extract metadata for upload timing
   const fileName = formData.get('files')?.name || 'file'
   const totalSize = formData.getAll('files').reduce((sum, f) => sum + (f.size || 0), 0)
   const uploadStartTime = Date.now()
@@ -493,33 +396,13 @@ export async function uploadFiles(formData, opts = {}) {
     } catch (err) {
       lastErr = err
       
-      // === ROOT CAUSE LOGGING ===
-      console.error('[ROOT_CAUSE] Upload attempt failed', {
-        attempt: attempt + 1,
-        errorMessage: err?.message,
-        errorCode: err?.code,
-        errorName: err?.name,
-        errorStack: err?.stack,
-        hasResponse: !!err?.response,
-        responseStatus: err?.response?.status,
-        isTransient: isTransientUploadError(err),
-      });
-      
       // User-initiated abort: don't retry.
       if (String(err?.code || '').toUpperCase() === 'ERR_CANCELED' && signal?.aborted) {
-        debugLog('Upload canceled by user - not retrying', { fileName, attempt: attempt + 1 })
         throw err
       }
       
       // Check if error is retryable
       if (!isTransientUploadError(err) || attempt >= RETRY_LIMIT) {
-        debugLog('Upload failed - not retryable or max retries reached', {
-          fileName,
-          attempt: attempt + 1,
-          maxRetries: RETRY_LIMIT,
-          errorCode: err?.code || 'unknown',
-          isRetryable: isTransientUploadError(err),
-        })
         throw err
       }
       
@@ -529,27 +412,16 @@ export async function uploadFiles(formData, opts = {}) {
       const uncappedDelay = 2000 * attempt
       const delay = Math.min(uncappedDelay, MAX_RETRY_DELAY_MS)
       
-      debugLog('Retry scheduled', {
-        fileName,
-        attempt,
-        totalAttempts: RETRY_LIMIT,
-        delayMs: delay,
-        reason: err?.code || err?.message || 'unknown',
-      })
-      
       if (typeof onProgress === 'function') {
         onProgress({ retrying: true, attempt, maxAttempts: RETRY_LIMIT, delay })
       }
       
       // If the device is offline, wait for it to come back before burning the delay
       if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
-        debugLog('Device offline - waiting for connectivity', { fileName })
-        
         await new Promise((resolve) => {
           if (navigator.onLine) return resolve()
           
           const onOnline = () => { 
-            debugLog('Device back online', { fileName })
             window.removeEventListener('online', onOnline)
             resolve() 
           }
@@ -557,10 +429,7 @@ export async function uploadFiles(formData, opts = {}) {
           window.addEventListener('online', onOnline, { once: true })
           
           // Wait up to 90s for connectivity to return, then proceed anyway
-          setTimeout(() => {
-            debugLog('Connectivity wait timeout - proceeding with retry', { fileName })
-            resolve()
-          }, 90_000)
+          setTimeout(() => resolve(), 90_000)
         })
       }
       
@@ -568,7 +437,6 @@ export async function uploadFiles(formData, opts = {}) {
     }
   }
 
-  debugLog('Upload exhausted all retries', { fileName, attempts: RETRY_LIMIT + 1 })
   throw lastErr
 }
 

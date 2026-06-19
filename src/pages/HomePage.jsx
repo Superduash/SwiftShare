@@ -463,27 +463,13 @@ export default function HomePage() {
 
     let uploadSucceeded = false
     try {
-      // === LOG: File metadata before upload ===
-      files.forEach((file, idx) => {
-        console.log(`[UPLOAD] FILE_${idx}_SELECTED`, {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          lastModified: file.lastModified,
-        });
-      });
-
-      console.log('[UPLOAD] PRE_READING_FILES');
-
-      // === PRE-READ FILES INTO MEMORY ===
-      // Android Chrome can invalidate file handles if the file is touched by
-      // Gallery, Photos, MediaStore, or file managers between selection and upload.
-      // Pre-reading ensures we have a stable copy in memory.
+      // Pre-read files into memory to avoid ERR_UPLOAD_FILE_CHANGED on Android.
+      // Android's Gallery, Photos, MediaStore can modify files between selection and upload,
+      // invalidating Chrome's file handle. Reading into memory ensures a stable copy.
       const safeFiles = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         try {
-          console.log(`[UPLOAD] READING_FILE_${i}`, { name: file.name, size: file.size });
           const buffer = await file.arrayBuffer();
           const safeFile = new File(
             [buffer],
@@ -494,23 +480,11 @@ export default function HomePage() {
             }
           );
           safeFiles.push(safeFile);
-          console.log(`[UPLOAD] FILE_${i}_READY`, { 
-            name: safeFile.name, 
-            size: safeFile.size,
-            bufferSize: buffer.byteLength 
-          });
         } catch (readError) {
-          console.error(`[UPLOAD] FILE_${i}_READ_FAILED`, {
-            name: file.name,
-            error: readError.message,
-            errorName: readError.name,
-          });
           throw new Error(`"${file.name}" became unavailable. Please re-select the file and try again.`);
         }
       }
 
-      console.log('[UPLOAD] CREATING_FORMDATA');
-      
       const formData = new FormData()
       safeFiles.forEach(f => formData.append('files', f))
       formData.append('expiryMinutes', expiry)
@@ -520,9 +494,6 @@ export default function HomePage() {
         formData.append('password', password)
       }
       if (socketId) formData.append('socketId', socketId)
-
-      console.log('[UPLOAD] FORMDATA_READY');
-      console.log('[UPLOAD] SENDING_REQUEST');
 
       const flushProgress = () => {
         rafIdRef.current = 0
@@ -592,8 +563,6 @@ export default function HomePage() {
         },
       })
 
-      console.log('[UPLOAD] RESPONSE_RECEIVED');
-
       // Strict success validation: never navigate without a valid transfer code.
       const transferCode = typeof response?.code === 'string' ? response.code.trim() : ''
       if (!transferCode) {
@@ -607,12 +576,6 @@ export default function HomePage() {
       uploadSucceeded = true
       handleUploadSuccess({ ...response, code: transferCode })
     } catch (err) {
-      console.error('[UPLOAD] ERROR', {
-        message: err?.message,
-        code: err?.code,
-        status: err?.response?.status,
-      });
-      
       if (!shouldSuppressUploadError(err)) {
         const msg = getUploadErrorMessage(err)
         setUploadError(msg)
