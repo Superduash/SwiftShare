@@ -221,6 +221,7 @@ export function markBackendReachable() {
 import {
   DEBUG_UPLOAD,
   AUTO_RETRY_ENABLED,
+  ENABLE_READABILITY_CHECK,
   uploadDebug,
   uploadDebugSection,
   uploadDebugQuestion,
@@ -511,37 +512,45 @@ export async function uploadFiles(formData, opts = {}) {
   })
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PRE-FLIGHT FILE READABILITY CHECK
-  // This verifies each file can be read before attempting upload
+  // PRE-FLIGHT FILE READABILITY CHECK (OPTIONAL - DISABLED BY DEFAULT)
+  // This verifies each file can be read before attempting upload.
+  // WARNING: Can break uploads if FileReader has issues. Only enable if
+  // you specifically suspect file access/permission problems.
   // ══════════════════════════════════════════════════════════════════════════
-  for (let i = 0; i < allFiles.length; i++) {
-    const file = allFiles[i]
+  if (ENABLE_READABILITY_CHECK) {
+    uploadDebugSection('FILE READABILITY CHECK ENABLED')
     
-    uploadDebugSection(`FILE READABILITY CHECK ${i + 1}/${allFiles.length}`)
-    
-    const probe = await verifyFileReadable(file)
-    if (!probe.readable) {
-      const err = new Error(
-        `"${file.name}" cannot be read from your device. ` +
-        `It may have been moved, deleted, or access permission was revoked. ` +
-        `Please remove it and reselect the file.`
-      )
-      err.code = 'ERR_FILE_UNREADABLE'
-      err.fileName = file.name
-      err.details = probe
+    for (let i = 0; i < allFiles.length; i++) {
+      const file = allFiles[i]
       
-      uploadDebugSection(`UPLOAD ABORTED: ${uploadId}`)
-      uploadDebug('Upload aborted due to unreadable file', { 
-        uploadId, 
-        fileName: file.name,
-        reason: probe.reason,
-        error: probe.error,
-      })
-      throw err
+      uploadDebugSection(`FILE READABILITY CHECK ${i + 1}/${allFiles.length}`)
+      
+      const probe = await verifyFileReadable(file)
+      if (!probe.readable) {
+        const err = new Error(
+          `"${file.name}" cannot be read from your device. ` +
+          `It may have been moved, deleted, or access permission was revoked. ` +
+          `Please remove it and reselect the file.`
+        )
+        err.code = 'ERR_FILE_UNREADABLE'
+        err.fileName = file.name
+        err.details = probe
+        
+        uploadDebugSection(`UPLOAD ABORTED: ${uploadId}`)
+        uploadDebug('Upload aborted due to unreadable file', { 
+          uploadId, 
+          fileName: file.name,
+          reason: probe.reason,
+          error: probe.error,
+        })
+        throw err
+      }
     }
-  }
 
-  uploadDebugQuestion('Did all files pass readability check?', true, { uploadId, fileCount: allFiles.length })
+    uploadDebugQuestion('Did all files pass readability check?', true, { uploadId, fileCount: allFiles.length })
+  } else {
+    uploadDebug('File readability check SKIPPED (ENABLE_READABILITY_CHECK = false)', { uploadId })
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // UPLOAD ATTEMPT WITH CONDITIONAL RETRY
