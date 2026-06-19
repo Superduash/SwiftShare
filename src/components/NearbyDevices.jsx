@@ -64,7 +64,7 @@ const DeviceItem = memo(({ device, index, isSenderMode, onDeviceClick }) => {
         </p>
         <p className="text-xs" style={{ color: 'var(--text-4)' }}>
           {isSenderMode
-            ? (device.socketId ? 'Tap to send share prompt' : 'Direct prompt unavailable')
+            ? 'Available to receive'
             : `${device.fileCount} file${device.fileCount !== 1 ? 's' : ''} · ${formatBytes(device.totalSize)}`}
         </p>
       </div>
@@ -109,26 +109,22 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
         code: normalizedTransferCode,
         filename: currentFilename || 'shared file',
       })
-      toast.success('Share prompt sent!')
+      // Removed toast - share prompt feature is not implemented
     } catch (err) {
-      toast.error('Failed to send share prompt')
+      // Silent fail - share prompt not implemented
     }
   }, [socket, normalizedTransferCode, currentFilename])
 
   const handleDeviceClick = useCallback((dev) => {
     if (isSenderShareMode) {
-      if (dev.socketId) {
-        handleShareToDevice(dev.socketId)
-      } else {
-        toast.error('This device is not ready for direct prompt sharing yet.')
-      }
+      // Share prompt feature disabled - no action
       return
     }
 
     const normalizedCode = normalizeCode(dev.code)
     if (!normalizedCode) return
     navigate(`/download/${normalizedCode}`)
-  }, [isSenderShareMode, handleShareToDevice, navigate])
+  }, [isSenderShareMode, navigate])
 
   // Manual refresh function
   const handleManualRefresh = useCallback(() => {

@@ -79,7 +79,6 @@ export default function DownloadPage() {
   const [downloadPercent, setDownloadPercent] = useState(0)
   const [downloadSpeed, setDownloadSpeed] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
-  const [previewSrc, setPreviewSrc] = useState(null)
   const [needsPassword, setNeedsPassword] = useState(Boolean(initialCachedTransfer?.passwordProtected))
   const [passwordVerified, setPasswordVerified] = useState(false)
   const [password, setPassword] = useState('')
@@ -218,11 +217,7 @@ export default function DownloadPage() {
 
     const firstFile = merged?.files?.[0]
     const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
-    if (firstFile && firstFileType.startsWith('image/') && !merged.passwordProtected) {
-      setPreviewSrc(previewUrl(normalizedCode, 0))
-    } else if (!merged.passwordProtected) {
-      setPreviewSrc(null)
-    }
+    // Removed image preview logic
 
     if (persist) {
       const persisted = saveCachedTransfer(normalizedCode, merged) || merged
@@ -564,9 +559,7 @@ export default function DownloadPage() {
         // Now set preview for images with the verified password
         const firstFile = meta?.files?.[0]
         const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
-        if (firstFile && firstFileType.startsWith('image/')) {
-          setPreviewSrc(previewUrl(normalizedCode, 0, password))
-        }
+        // Removed image preview logic
       }
     } catch (err) {
       const errCode = err?.response?.data?.error?.code
@@ -687,6 +680,7 @@ export default function DownloadPage() {
     const file = meta?.files?.[contextMenu.index]
     if (!file) return []
     return [
+      { icon: Eye, label: 'Preview', action: () => handlePreview(contextMenu.index) },
       { icon: Download, label: 'Download this file', action: () => handleDownloadSingle(contextMenu.index) },
       { icon: Copy, label: 'Copy filename', action: () => copyToClipboard(file.name) },
     ]
@@ -753,7 +747,7 @@ export default function DownloadPage() {
         file={f}
         index={i}
         showDownload={canDownload && (meta?.files?.length ?? 0) > 1}
-        onPreview={undefined}
+        onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
         onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
         onContextMenu={(e, idx, pos) => {
           if (needsPassword && !passwordVerified) return
@@ -950,25 +944,6 @@ export default function DownloadPage() {
                   </span>
                 </div>
               )}
-            </motion.div>
-          )}
-
-          {/* Image preview */}
-          {previewSrc && (
-            <motion.div
-              className="mb-6 rounded-2xl overflow-hidden"
-              style={{ border: '1px solid var(--border)' }}
-              initial={{ scale: 0.97 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.08 }}
-            >
-              <img
-                src={previewSrc}
-                alt="Preview"
-                className="w-full max-h-64 object-contain"
-                style={{ background: 'var(--bg-sunken)' }}
-                loading="eager"
-              />
             </motion.div>
           )}
 
