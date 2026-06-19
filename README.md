@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=240&color=0:0f172a,50:7c3aed,100:06b6d4&text=SwiftShare&fontSize=62&fontColor=ffffff&animation=fadeIn&fontAlignY=40&desc=Temporary%20File%20Sharing%20Without%20Accounts&descAlignY=63&descColor=e2e8f0&descSize=18"/>
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=240&color=0:0f172a,50:7c3aed,100:06b6d4&text=SwiftShare&fontSize=62&fontColor=ffffff&animation=fadeIn&fontAlignY=40&desc=Share%20Files%20Instantly%20Across%20Any%20Device&descAlignY=63&descColor=e2e8f0&descSize=18"/>
 </p>
 
 <p align="center">
@@ -15,8 +15,8 @@
   <img src="https://img.shields.io/badge/MIT_License-success?style=flat-square"/>
 </p>
 
-<p align="center">No accounts. No installs. Upload a file on one device, type a code on another, and it's there.</p>
-
+<p align="center">No accounts. No installs. Send files instantly like a message. Works on any device, anywhere.</p>
+  
 ---
 
 ## Preview
