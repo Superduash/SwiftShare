@@ -1239,12 +1239,7 @@ export default function SenderPage() {
                 </motion.div>
               )}
 
-              {/* Download progress */}
-              {downloadProgress !== null && downloadProgress < 100 && (
-                <motion.div className="surface-card p-4" initial={{ y: 4 }} animate={{ y: 0 }}>
-                  <ProgressBar percent={downloadProgress} label="Someone is downloading..." showSpeed={false} />
-                </motion.div>
-              )}
+
 
               {/* Transfer Stats */}
               {!cancelled && (
@@ -1365,13 +1360,6 @@ export default function SenderPage() {
                 {/* Countdown - only show if not expired */}
                 {!isExpired && !cancelled && (
                   <div className="surface-card p-5 text-center">
-                    {downloadCount > 0 && (
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium mb-4"
-                           style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
-                        <Download size={11} />
-                        Downloaded {downloadCount} time{downloadCount !== 1 ? 's' : ''}
-                      </div>
-                    )}
                     <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={130} />
 
                     {showExtendOptions && !extended && (
