@@ -6,7 +6,9 @@
   <a href="https://swiftsharegg.vercel.app">
     <img src="https://img.shields.io/badge/%F0%9F%9A%80%20Live%20App-swiftsharegg.vercel.app-7c3aed?style=for-the-badge&labelColor=0f172a"/>
   </a>
-  &nbsp;
+</p>
+
+<p align="center">
   <a href="https://github.com/Superduash/SwiftShare-Backend">
     <img src="https://img.shields.io/badge/%F0%9F%94%A7%20Backend%20Repo-SwiftShare--Backend-06b6d4?style=for-the-badge&labelColor=0f172a"/>
   </a>
@@ -38,9 +40,7 @@
 
 ## What it looks like
 
-<p align="center">
-  <img src="./docs/banner.png" alt="SwiftShare UI showcase" width="100%"/>
-</p>
+<img width="900" height="623" alt="swiftshare" src="https://github.com/user-attachments/assets/ad2afa21-51eb-4191-b4a8-d69c160a0f33" /><br>
 
 > **Try it right now →** [swiftsharegg.vercel.app](https://swiftsharegg.vercel.app) — no sign-up, works instantly
 
@@ -109,34 +109,34 @@ The existing options make you:
 ## How a transfer works
 
 ```
-┌─────────────┐     validate      ┌─────────────┐    stream via      ┌──────────────────┐
-│   Sender    │ ───────────────>  │   Browser   │ ─────────────────> │  Express/Busboy  │
-│ picks files │   (type, size,    │  (client-   │   XHR + FormData   │  (no temp disk   │
-└─────────────┘    extension)     │   side)     │                    │   writes)        │
-                                  └─────────────┘                    └────────┬─────────┘
-                                                                              │
-                                                               pipe directly  │
-                                                                              ▼
-                                                                      ┌─────────────────┐
-                                                                      │  Cloudflare R2  │
-                                                                      │  (object store) │
-                                                                      └────────┬────────┘
-                                                                               │
-                                                                  on complete  │
-                                                                               ▼
-                                                                     ┌──────────────────┐
-                                                                     │   MongoDB Atlas  │
-                                                                     │ (transfer meta,  │
-                                                                     │  expiry, stats)  │
-                                                                     └────────┬─────────┘
-                                                                              │
-                                                              Socket.IO push  │
-                                                                              ▼
-                                                                     ┌──────────────────┐
-┌─────────────┐    enters code    ┌─────────────┐                    │   Sender page    │
-│  Recipient  │ ────────────────> │  Download   | <───────────────── │  (live stats,    │
-│             │   or scans QR     │    page     │      download      │   extend/delete) │
-└─────────────┘                   └─────────────┘      complete      └──────────────────┘
+    ┌─────────────┐     validate      ┌─────────────┐    stream via      ┌──────────────────┐
+    │   Sender    │ ───────────────>  │   Browser   │ ─────────────────> │  Express/Busboy  │
+    │ picks files │   (type, size,    │  (client-   │   XHR + FormData   │  (no temp disk   │
+    └─────────────┘    extension)     │   side)     │                    │   writes)        │
+                                      └─────────────┘                    └────────┬─────────┘
+                                                                                  │
+                                                                   pipe directly  │
+                                                                                  ▼
+                                                                          ┌─────────────────┐
+                                                                          │  Cloudflare R2  │
+                                                                          │  (object store) │
+                                                                          └────────┬────────┘
+                                                                                   │
+                                                                      on complete  │
+                                                                                   ▼
+                                                                         ┌──────────────────┐
+                                                                         │   MongoDB Atlas  │
+                                                                         │ (transfer meta,  │
+                                                                         │  expiry, stats)  │
+                                                                         └────────┬─────────┘
+                                                                                  │
+                                                                  Socket.IO push  │
+                                                                                  ▼
+                                                                         ┌──────────────────┐
+    ┌─────────────┐    enters code    ┌─────────────┐                    │   Sender page    │
+    │  Recipient  │ ────────────────> │  Download   | <───────────────── │  (live stats,    │
+    │             │   or scans QR     │    page     │      download      │   extend/delete) │
+    └─────────────┘                   └─────────────┘      complete      └──────────────────┘
 ```
 
 <br/>
