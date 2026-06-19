@@ -36,8 +36,6 @@
 
 ---
 
-<br/>
-
 ## What it looks like
 
 <img width="900" height="623" alt="swiftshare" src="https://github.com/user-attachments/assets/ad2afa21-51eb-4191-b4a8-d69c160a0f33" /><br>
