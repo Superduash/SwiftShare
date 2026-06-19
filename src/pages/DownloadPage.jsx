@@ -504,6 +504,10 @@ export default function DownloadPage() {
       setTransferStatus('CLAIMED')
       patchCachedTransfer({ status: 'CLAIMED' })
       updateTransferStatus(normalizedCode, 'CLAIMED')
+      if (!downloadedAnyRef.current && !downloadingRef.current) {
+        terminalNavigatedRef.current = true
+        navigate('/expired?reason=burned', { replace: true })
+      }
     }
     const onReceipt = (data) => setReceipt(data)
 
