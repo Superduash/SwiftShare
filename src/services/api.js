@@ -533,13 +533,19 @@ export async function verifyPassword(code, password) {
 }
 
 // ── Actions ─────────────────────────────────
-export async function extendTransfer(code) {
-  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/extend`)
+export async function extendTransfer(code, ownershipToken) {
+  const config = ownershipToken
+    ? { headers: { 'X-Ownership-Token': String(ownershipToken) } }
+    : {}
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/extend`, {}, config)
   return unwrapResponse(data)
 }
 
-export async function deleteTransfer(code) {
-  const { data } = await API.delete(`/api/transfer/${normalizeCode(code)}`)
+export async function deleteTransfer(code, ownershipToken) {
+  const config = ownershipToken
+    ? { headers: { 'X-Ownership-Token': String(ownershipToken) } }
+    : {}
+  const { data } = await API.delete(`/api/transfer/${normalizeCode(code)}`, config)
   return unwrapResponse(data)
 }
 

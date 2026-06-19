@@ -13,7 +13,7 @@ import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
 import {
-  getFileMetadata, getTransferActivity,
+  getFileMetadata, getTransferActivity, getTransferStatus,
   extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword, getTextContent
 } from '../services/api'
 import {
@@ -69,8 +69,17 @@ export default function SenderPage() {
   const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
+  
+  // Extract ownership token from navigation state or cached transfer
+  const initialOwnershipToken = 
+    navState?.transfer?.ownershipToken || 
+    navState?.ownershipToken || 
+    initialCachedTransfer?.transfer?.ownershipToken || 
+    initialCachedTransfer?.ownershipToken ||
+    null
 
   const [meta, setMeta] = useState(initialCachedTransfer)
+  const [ownershipToken, setOwnershipToken] = useState(initialOwnershipToken)
   const [activity, setActivity] = useState([])
   const [secondsRemaining, setSecondsRemaining] = useState(() => {
     const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
@@ -120,6 +129,23 @@ export default function SenderPage() {
   const terminalNavigatedRef = useRef(false)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
+  
+  // Redirect non-owners to download page
+  useEffect(() => {
+    if (!meta || loading) return
+    
+    // If we have metadata but no ownership token, user is not the owner
+    const hasOwnership = Boolean(
+      ownershipToken || 
+      meta?.transfer?.ownershipToken || 
+      meta?.ownershipToken
+    )
+    
+    if (!hasOwnership) {
+      // Not the owner - redirect to download page
+      navigate(`/g/${normalizedCode}`, { replace: true })
+    }
+  }, [meta, ownershipToken, loading, normalizedCode, navigate])
 
   useEffect(() => {
     return () => {
@@ -199,6 +225,12 @@ export default function SenderPage() {
 
     metaRef.current = merged
     setMeta(merged)
+    
+    // Update ownership token if present in the incoming data
+    const incomingToken = incoming?.transfer?.ownershipToken || incoming?.ownershipToken
+    if (incomingToken) {
+      setOwnershipToken(incomingToken)
+    }
 
     if (merged.status === 'CANCELLED' || merged.status === 'DELETED') {
       setCancelled(true)
@@ -417,7 +449,15 @@ export default function SenderPage() {
     }
     const onDownComplete = () => {
       setDownloadProgress(100)
-      setDownloadCount(prev => prev + 1)
+      const newCount = (metaRef.current?.downloadCount || 0) + 1
+      setDownloadCount(newCount)
+      
+      // Persist download count to localStorage immediately
+      const cached = getCachedTransfer(normalizedCode)
+      if (cached) {
+        saveCachedTransfer(normalizedCode, { ...cached, downloadCount: newCount })
+      }
+      
       if (metaRef.current?.burnAfterDownload) {
         patchCachedTransfer({ status: 'CLAIMED' })
         updateTransferStatus(normalizedCode, 'CLAIMED')
@@ -511,6 +551,35 @@ export default function SenderPage() {
     }
   }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh])
 
+  // 10-second polling for live stats updates
+  useEffect(() => {
+    if (!normalizedCode || !meta || loading || cancelled) return
+
+    const pollInterval = setInterval(async () => {
+      if (!mountedRef.current) return
+      
+      try {
+        const status = await getTransferStatus(normalizedCode)
+        if (status && mountedRef.current) {
+          // Update download count from polling
+          if (typeof status.downloadCount === 'number') {
+            setDownloadCount(status.downloadCount)
+            
+            // Persist to localStorage
+            const cached = getCachedTransfer(normalizedCode)
+            if (cached) {
+              saveCachedTransfer(normalizedCode, { ...cached, downloadCount: status.downloadCount })
+            }
+          }
+        }
+      } catch {
+        // Silent fail - polling is best-effort
+      }
+    }, 10000) // Poll every 10 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [normalizedCode, meta, loading, cancelled])
+
   // Copy helpers
   const handleCopyCode = useCallback(() => {
     copyToClipboard(normalizedCode).then((success) => {
@@ -570,7 +639,7 @@ export default function SenderPage() {
 
     setExtending(true)
     try {
-      await extendTransfer(normalizedCode)
+      await extendTransfer(normalizedCode, ownershipToken)
       setExtended(true)
       setConfirmExtend(false)
       // Don't update state here - let the socket event handle it to avoid double updates
@@ -589,7 +658,7 @@ export default function SenderPage() {
 
     setDeleting(true)
     try {
-      await deleteTransfer(normalizedCode)
+      await deleteTransfer(normalizedCode, ownershipToken)
       toast.success('Transfer cancelled successfully')
       terminalNavigatedRef.current = true
       setCancelled(true)
@@ -1154,7 +1223,7 @@ export default function SenderPage() {
 
               {/* Transfer Stats */}
               {!cancelled && (
-                <TransferStatsCard downloadCount={downloadCount} viewCount={meta?.viewCount || activity?.filter(a => a.action === 'view').length || 0} />
+                <TransferStatsCard downloadCount={downloadCount} viewCount={meta?.viewCount || activity?.filter(a => a.event === 'viewed').length || 0} />
               )}
 
               {/* Activity */}

@@ -585,7 +585,9 @@ export default function DownloadPage() {
 
   // Download
   async function handleDownload() {
-    if (downloading || downloaded) return
+    if (downloading) return
+    setDownloaded(false)
+    setDownloadPercent(0)
     setDownloading(true)
 
     let downloadSucceeded = false
@@ -1181,6 +1183,8 @@ export default function DownloadPage() {
                   totalSize={meta?.totalSize}
                   burnAfterDownload={meta?.burnAfterDownload}
                   receipt={receipt}
+                  onDownloadSingle={canDownload ? handleDownloadSingle : undefined}
+                  onDownloadAll={!meta?.burnAfterDownload ? handleDownload : undefined}
                 />
               </motion.div>
             )}
