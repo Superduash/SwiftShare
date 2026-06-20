@@ -75,6 +75,14 @@ export default function SenderPage() {
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
   
+  console.log('🔍 SENDER_INITIAL_STATE', {
+    cachedDownloadCount: initialCachedTransfer?.downloadCount,
+    cachedViewCount: initialCachedTransfer?.viewCount,
+    cachedExpiresAt: initialCachedTransfer?.expiresAt,
+    navStateDownloadCount: navState?.downloadCount,
+    navStateExpiresAt: navState?.expiresAt
+  })
+  
   // Extract ownership token from navigation state or cached transfer
   const initialOwnershipToken = 
     navState?.transfer?.ownershipToken || 
@@ -225,8 +233,22 @@ export default function SenderPage() {
     const { persist = true } = options
     if (!incoming) return null
 
+    console.log('🔍 SENDER_APPLY_SNAPSHOT_START', {
+      incomingDownloadCount: incoming?.downloadCount,
+      incomingViewCount: incoming?.viewCount,
+      incomingExpiresAt: incoming?.expiresAt,
+      currentMetaDownloadCount: metaRef.current?.downloadCount,
+      currentMetaExpiresAt: metaRef.current?.expiresAt
+    })
+
     const merged = mergeTransferData(metaRef.current, incoming)
     if (!merged) return null
+
+    console.log('🔍 SENDER_APPLY_SNAPSHOT_MERGED', {
+      mergedDownloadCount: merged?.downloadCount,
+      mergedViewCount: merged?.viewCount,
+      mergedExpiresAt: merged?.expiresAt
+    })
 
     metaRef.current = merged
     setMeta(merged)
@@ -246,6 +268,10 @@ export default function SenderPage() {
     if (merged.expiresAt) {
       const calculated = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
       setSecondsRemaining(calculated)
+      console.log('🔍 SENDER_TIMER_UPDATED', {
+        expiresAt: merged.expiresAt,
+        calculatedSeconds: calculated
+      })
     } else if (Number.isFinite(directSeconds) && directSeconds >= 0) {
       setSecondsRemaining(directSeconds)
     }
@@ -257,6 +283,7 @@ export default function SenderPage() {
 
     if (merged.downloadCount !== undefined) {
       setDownloadCount(merged.downloadCount)
+      console.log('🔍 SENDER_DOWNLOADCOUNT_SET', { downloadCount: merged.downloadCount })
     }
 
     if (persist) {
@@ -316,6 +343,12 @@ export default function SenderPage() {
           requestConfig.headers = { 'X-Ownership-Token': initialOwnershipToken }
         }
         const data = await getFileMetadata(normalizedCode, requestConfig)
+        
+        console.log('🔍 SENDER_API_RESPONSE', {
+          downloadCount: data?.downloadCount,
+          viewCount: data?.viewCount,
+          expiresAt: data?.expiresAt
+        })
         
         // Guarantee Minimum Visible Duration (MVD) to prevent flashing
         const elapsed = Date.now() - startTime
@@ -537,6 +570,8 @@ export default function SenderPage() {
 
       const viewCount = Number(payload.viewCount || 0)
       const downloadCount = Number(payload.downloadCount || 0)
+
+      console.log('🔍 SENDER_SOCKET_STATS_UPDATE', { viewCount, downloadCount })
 
       setDownloadCount(downloadCount)
       
