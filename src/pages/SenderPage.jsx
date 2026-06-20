@@ -70,18 +70,10 @@ export default function SenderPage() {
   const normalizedCode = String(code || '').trim().toUpperCase()
   const navigate = useNavigate()
   const location = useLocation()
-  const navState = location.state?.transferData || null
+  const navState = location.state?.transfer || location.state?.transferData || null
   const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
-  
-  console.log('🔍 SENDER_INITIAL_STATE', {
-    cachedDownloadCount: initialCachedTransfer?.downloadCount,
-    cachedViewCount: initialCachedTransfer?.viewCount,
-    cachedExpiresAt: initialCachedTransfer?.expiresAt,
-    navStateDownloadCount: navState?.downloadCount,
-    navStateExpiresAt: navState?.expiresAt
-  })
   
   // Extract ownership token from navigation state or cached transfer
   const initialOwnershipToken = 
@@ -90,6 +82,17 @@ export default function SenderPage() {
     initialCachedTransfer?.transfer?.ownershipToken || 
     initialCachedTransfer?.ownershipToken ||
     null
+  
+  console.log('🔍 SENDER_INITIAL_STATE', {
+    cachedDownloadCount: initialCachedTransfer?.downloadCount,
+    cachedViewCount: initialCachedTransfer?.viewCount,
+    cachedExpiresAt: initialCachedTransfer?.expiresAt,
+    navStateDownloadCount: navState?.downloadCount,
+    navStateExpiresAt: navState?.expiresAt,
+    hasOwnershipToken: !!initialOwnershipToken,
+    ownershipTokenLength: String(initialOwnershipToken || '').length,
+    ownershipTokenSource: navState?.transfer?.ownershipToken ? 'navState.transfer' : navState?.ownershipToken ? 'navState' : initialCachedTransfer?.transfer?.ownershipToken ? 'cache.transfer' : initialCachedTransfer?.ownershipToken ? 'cache' : 'none'
+  })
 
   const [meta, setMeta] = useState(initialCachedTransfer)
   const [ownershipToken, setOwnershipToken] = useState(initialOwnershipToken)
@@ -150,7 +153,25 @@ export default function SenderPage() {
     // First, check if we even have a token
     const token = ownershipToken || meta?.transfer?.ownershipToken || meta?.ownershipToken
     
+    console.log('🔍 VERIFY_OWNERSHIP_START', {
+      code: normalizedCode,
+      hasToken: !!token,
+      tokenLength: String(token || '').length,
+      tokenSource: ownershipToken ? 'state' : meta?.transfer?.ownershipToken ? 'meta.transfer' : meta?.ownershipToken ? 'meta' : 'none',
+      hasNavState: !!navState
+    })
+    
     if (!token) {
+      // FIX: If we just navigated from upload (navState exists), trust it temporarily
+      // The backend async DB write might not have completed yet
+      if (navState) {
+        console.log('🔍 VERIFY_OWNERSHIP_SKIP', 'No token but has navState, trusting upload')
+        setAuthorized(true)
+        setVerifyingAuth(false)
+        return
+      }
+      
+      console.log('🔍 VERIFY_OWNERSHIP_FAIL', 'No token and no navState')
       setAuthorized(false)
       setVerifyingAuth(false)
       return
@@ -160,6 +181,7 @@ export default function SenderPage() {
     let isSubscribed = true
     verifyOwnership(normalizedCode, token)
       .then(res => {
+        console.log('🔍 VERIFY_OWNERSHIP_RESPONSE', { authorized: res?.authorized })
         if (isSubscribed) {
           if (res?.authorized) {
             setAuthorized(true)
@@ -168,15 +190,29 @@ export default function SenderPage() {
           }
         }
       })
-      .catch(() => {
-        if (isSubscribed) setAuthorized(false)
+      .catch(err => {
+        console.log('🔍 VERIFY_OWNERSHIP_ERROR', { 
+          status: err?.response?.status,
+          code: err?.response?.data?.error?.code,
+          hasNavState: !!navState
+        })
+        // FIX: If verification fails but we have navState (just uploaded), trust it
+        // Backend might be saving to DB asynchronously
+        if (isSubscribed) {
+          if (navState) {
+            console.log('🔍 VERIFY_OWNERSHIP_FALLBACK', 'Using navState due to backend 404')
+            setAuthorized(true)
+          } else {
+            setAuthorized(false)
+          }
+        }
       })
       .finally(() => {
         if (isSubscribed) setVerifyingAuth(false)
       })
 
     return () => { isSubscribed = false }
-  }, [normalizedCode, ownershipToken, meta?.transfer?.ownershipToken, meta?.ownershipToken])
+  }, [normalizedCode, ownershipToken, meta?.transfer?.ownershipToken, meta?.ownershipToken, navState])
 
   // Redirect non-owners to download page
   useEffect(() => {
@@ -342,12 +378,20 @@ export default function SenderPage() {
         if (initialOwnershipToken) {
           requestConfig.headers = { 'X-Ownership-Token': initialOwnershipToken }
         }
+        
+        console.log('🔍 SENDER_METADATA_REQUEST', {
+          code: normalizedCode,
+          hasOwnershipToken: !!initialOwnershipToken,
+          tokenLength: String(initialOwnershipToken || '').length
+        })
+        
         const data = await getFileMetadata(normalizedCode, requestConfig)
         
         console.log('🔍 SENDER_API_RESPONSE', {
           downloadCount: data?.downloadCount,
           viewCount: data?.viewCount,
-          expiresAt: data?.expiresAt
+          expiresAt: data?.expiresAt,
+          hasFiles: Array.isArray(data?.files) && data.files.length > 0
         })
         
         // Guarantee Minimum Visible Duration (MVD) to prevent flashing

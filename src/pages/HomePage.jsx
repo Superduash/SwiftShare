@@ -155,7 +155,8 @@ export default function HomePage() {
     const transferSnapshot = { 
       ...payload, 
       code: normalizedTransferCode,
-      plaintextPassword: passwordProtected && password ? password : null
+      plaintextPassword: passwordProtected && password ? password : null,
+      ownershipToken: payload?.ownershipToken, // FIX: Include in snapshot so it's cached
     }
     saveTransfer({
       code: normalizedTransferCode,
@@ -166,7 +167,7 @@ export default function HomePage() {
       createdAt: transferSnapshot?.createdAt,
       files: transferSnapshot?.files,
       transfer: transferSnapshot,
-      ownershipToken: payload?.ownershipToken, // FIX: Include ownership token in saved transfer
+      ownershipToken: payload?.ownershipToken,
     })
 
     setUploading(false)
