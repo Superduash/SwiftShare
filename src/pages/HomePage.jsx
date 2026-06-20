@@ -172,7 +172,7 @@ export default function HomePage() {
     setUploading(false)
     
     // FIX: Pass ownershipToken directly in navigation state so SenderPage can access it
-    navigate(`/s/${normalizedTransferCode}`, { 
+    navigate(`/sender/${normalizedTransferCode}`, { 
       state: { 
         transfer: transferSnapshot,
         ownershipToken: payload?.ownershipToken // FIX: Include ownership token
