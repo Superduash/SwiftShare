@@ -106,7 +106,7 @@ function CodePreview({ src, onError, onLoad }) {
   )
 }
 
-export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired }) {
+export default function FilePreviewModal({ open, onClose, file, code, fileIndex, onDownload, password, passwordRequired, claimantToken, ownershipToken }) {
   // Note: media (video / audio) DELIBERATELY do not use these states.
   // The native HTML5 player handles its own loading and error UX better than
   // any overlay we could build, and aggressively replacing it with an error
@@ -116,9 +116,11 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   const [mediaError, setMediaError] = useState(false)
   const [mediaErrorDetail, setMediaErrorDetail] = useState('')
   const [mediaTry, setMediaTry] = useState(0)
+  const [imgTry, setImgTry] = useState(0)
   const videoRef = useRef(null)
   const audioRef = useRef(null)
   const mediaErrorTimer = useRef(null)
+  const imgErrorTimer = useRef(null)
 
   useEffect(() => {
     setError(false)
@@ -126,14 +128,20 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     setMediaError(false)
     setMediaErrorDetail('')
     setMediaTry(0)
+    setImgTry(0)
     if (mediaErrorTimer.current) {
       clearTimeout(mediaErrorTimer.current)
       mediaErrorTimer.current = null
+    }
+    if (imgErrorTimer.current) {
+      clearTimeout(imgErrorTimer.current)
+      imgErrorTimer.current = null
     }
   }, [file, open])
 
   useEffect(() => () => {
     if (mediaErrorTimer.current) clearTimeout(mediaErrorTimer.current)
+    if (imgErrorTimer.current) clearTimeout(imgErrorTimer.current)
   }, [])
 
   const modalRef = useRef(null)
@@ -191,6 +199,30 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
     }, 800)
   }
 
+  const handleImageError = () => {
+    if (imgErrorTimer.current) return
+    
+    console.error('[SwiftShare Preview] Image error', {
+      file: file?.name,
+      mime: file?.mimeType || file?.type,
+      src: imageSrc,
+      imgTry
+    })
+
+    // 600ms debounce - if error persists, show UI
+    imgErrorTimer.current = setTimeout(() => {
+      imgErrorTimer.current = null
+      setLoading(false)
+      setError(true)
+    }, 600)
+  }
+
+  const retryImage = () => {
+    setError(false)
+    setLoading(true)
+    setImgTry((prev) => prev + 1)
+  }
+
   const cancelMediaError = () => {
     if (mediaErrorTimer.current) {
       clearTimeout(mediaErrorTimer.current)
@@ -217,8 +249,9 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
   }, [open, file])
 
   const type = file ? getPreviewType(file) : null
-  const src = open && file ? previewUrl(code, fileIndex, password) : ''
+  const src = open && file ? previewUrl(code, fileIndex, password, claimantToken, ownershipToken) : ''
   const mediaSrc = mediaTry > 0 ? `${src}${src.includes('?') ? '&' : '?'}_previewTry=${mediaTry}` : src
+  const imageSrc = imgTry > 0 ? `${src}${src.includes('?') ? '&' : '?'}_imgTry=${imgTry}` : src
   const previewSrc = src
   const isMobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
   const canPlayVideo = type !== 'video' || canBrowserPlay(file, 'video')
@@ -318,12 +351,15 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <AlertTriangle size={40} style={{ color: 'var(--warning)' }} className="mb-3" />
                   <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Image failed to load</p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try downloading the file instead.</p>
-                  {onDownload && (
-                    <button className="btn-primary text-sm mt-4" onClick={() => onDownload(fileIndex)}>
-                      <Download size={14} /> Download file
-                    </button>
-                  )}
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>Try again or download the file instead.</p>
+                  <div className="flex items-center gap-2 mt-4">
+                    <button className="btn-secondary text-sm" onClick={retryImage}>Try again</button>
+                    {onDownload && (
+                      <button className="btn-primary text-sm" onClick={() => onDownload(fileIndex)}>
+                        <Download size={14} /> Download file
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-center min-h-[200px] relative">
@@ -333,7 +369,7 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                     </div>
                   )}
                   <img
-                    src={src}
+                    src={imageSrc}
                     alt={file.name || 'Preview'}
                     className="max-w-full max-h-[55vh] sm:max-h-[65vh] object-contain rounded-xl"
                     style={{
@@ -342,8 +378,8 @@ export default function FilePreviewModal({ open, onClose, file, code, fileIndex,
                       display: 'block',
                     }}
                     loading="eager"
-                    onLoad={() => setLoading(false)}
-                    onError={() => { setLoading(false); setError(true) }}
+                    onLoad={() => { setLoading(false); if (imgErrorTimer.current) { clearTimeout(imgErrorTimer.current); imgErrorTimer.current = null } }}
+                    onError={handleImageError}
                   />
                 </div>
               )

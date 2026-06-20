@@ -569,8 +569,9 @@ export async function deleteTransfer(code, ownershipToken) {
   return unwrapResponse(data)
 }
 
-export async function finalizeBurnTransfer(code) {
-  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/burn-finalize`)
+export async function finalizeBurnTransfer(code, claimantToken) {
+  const config = claimantToken ? { headers: { 'X-Claimant-Token': String(claimantToken) } } : undefined
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/burn-finalize`, undefined, config)
   return unwrapResponse(data)
 }
 
@@ -620,10 +621,15 @@ export function downloadSingleFile(code, fileIndex, password, claimantToken, own
   window.location.href = getSingleDownloadUrl(code, fileIndex, password, claimantToken, ownershipToken)
 }
 
-export function previewUrl(code, index, password) {
+export function previewUrl(code, index, password, claimantToken, ownershipToken) {
   const safeIndex = Number(index)
   let url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
-  return appendPasswordQuery(url, password)
+  url = appendPasswordQuery(url, password)
+  url = appendClaimantTokenQuery(url, claimantToken)
+  if (ownershipToken) {
+    url += (url.includes('?') ? '&' : '?') + `ownershipToken=${encodeURIComponent(ownershipToken)}`
+  }
+  return url
 }
 
 export function reportClientError(error, info) {

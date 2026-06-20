@@ -62,15 +62,11 @@ export default function DownloadPage() {
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
 
   const [meta, setMeta] = useState(initialCachedTransfer)
-  const [claimantToken] = useState(() => {
-    const key = `swiftshare_claimant_${normalizedCode}`;
-    let token = sessionStorage.getItem(key);
-    if (!token) {
-      token = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      sessionStorage.setItem(key, token);
-    }
-    return token;
-  })
+  const [claimantToken] = useState(() =>
+    (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+  )
   const [secondsRemaining, setSecondsRemaining] = useState(() => {
     if (initialCachedTransfer?.expiresAt) {
       return Math.max(0, Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - Date.now()) / 1000))
@@ -151,7 +147,7 @@ export default function DownloadPage() {
 
     burnFinalizeRequestedRef.current = true
     try {
-      await finalizeBurnTransfer(normalizedCode)
+      await finalizeBurnTransfer(normalizedCode, claimantToken)
       updateTransferStatus(normalizedCode, 'DELETED')
     } catch {
       // Cleanup service will finalize stale claimed sessions if this request fails during tab close.
@@ -274,9 +270,11 @@ export default function DownloadPage() {
 
     try {
       const requestConfig = { timeout: 45000, noRetry: true }
-      if (verifiedPasswordRef.current) {
-        requestConfig.headers = { 'X-Transfer-Password': verifiedPasswordRef.current }
-      }
+      const headers = {}
+      if (verifiedPasswordRef.current) headers['X-Transfer-Password'] = verifiedPasswordRef.current
+      if (claimantToken) headers['X-Claimant-Token'] = claimantToken
+      if (Object.keys(headers).length) requestConfig.headers = headers
+      console.log('[Burn] metadata fetch sending claimant token:', claimantToken)
       const outcome = await getFileMetadataOutcome(normalizedCode, requestConfig)
 
       // Guarantee Minimum Visible Duration (MVD) to prevent flashing
@@ -849,6 +847,7 @@ export default function DownloadPage() {
           onDownload={canDownload ? handleDownloadSingle : undefined}
           password={verifiedPasswordRef.current || undefined}
           passwordRequired={needsPassword && !passwordVerified}
+          claimantToken={claimantToken}
         />
       </Suspense>
 

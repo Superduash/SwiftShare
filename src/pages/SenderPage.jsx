@@ -1067,7 +1067,7 @@ export default function SenderPage() {
         file={f}
         index={i}
         showDownload={!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)}
-        onPreview={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handlePreview(i) : undefined}
+        onPreview={(!isExpired && !cancelled) ? () => handlePreview(i) : undefined}
         onDownloadSingle={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handleDownloadSingle(i) : undefined}
         onContextMenu={(e, idx, pos) => {
           e.preventDefault()
