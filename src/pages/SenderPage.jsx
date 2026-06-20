@@ -298,15 +298,12 @@ export default function SenderPage() {
       }
     }
 
-    const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
-    if (hasUsableCache) {
-      return
-    }
-
-    // Otherwise fetch from API
+    // Always fetch fresh stats/metadata from the backend on load
     async function load() {
       if (!normalizedCode || !mountedRef.current) return
-      setLoading(true)
+      if (!seed) {
+        setLoading(true)
+      }
       setError(null)
       
       // Force React to paint the loading state before firing the request
@@ -314,7 +311,11 @@ export default function SenderPage() {
       const startTime = Date.now()
 
       try {
-        const data = await getFileMetadata(normalizedCode, { timeout: 45000, noRetry: true })
+        const requestConfig = { timeout: 45000, noRetry: true }
+        if (initialOwnershipToken) {
+          requestConfig.headers = { 'X-Ownership-Token': initialOwnershipToken }
+        }
+        const data = await getFileMetadata(normalizedCode, requestConfig)
         
         // Guarantee Minimum Visible Duration (MVD) to prevent flashing
         const elapsed = Date.now() - startTime
@@ -355,15 +356,17 @@ export default function SenderPage() {
           navigate('/expired?reason=notfound', { replace: true })
           return
         }
-        // For network errors / timeouts, show a retry-able error instead of redirecting
-        setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
+        // For network errors / timeouts, show a retry-able error instead of redirecting if no seed
+        if (!seed) {
+          setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
+        }
       } finally {
         if (mountedRef.current) setLoading(false)
       }
     }
 
     load()
-  }, [normalizedCode, navState, navigate, applyTransferSnapshot])
+  }, [normalizedCode, navState, navigate, applyTransferSnapshot, initialOwnershipToken])
 
   // Safety net: stop showing skeleton if request hangs too long.
   useEffect(() => {
@@ -508,6 +511,29 @@ export default function SenderPage() {
       }
       requestActivityRefresh()
     }
+    const onStatsUpdated = (payload) => {
+      const currentCode = normalizedCode
+      const incomingCode = String(payload?.code || '').trim().toUpperCase()
+      if (incomingCode && incomingCode !== currentCode) return
+
+      const viewCount = Number(payload.viewCount || 0)
+      const downloadCount = Number(payload.downloadCount || 0)
+
+      setDownloadCount(downloadCount)
+      
+      setMeta(prev => {
+        if (!prev) return prev
+        const updated = {
+          ...prev,
+          viewCount,
+          downloadCount
+        }
+        metaRef.current = updated
+        saveCachedTransfer(normalizedCode, updated)
+        return updated
+      })
+    }
+
     const onActivityUpdated = () => {
       requestActivityRefresh()
     }
@@ -521,12 +547,19 @@ export default function SenderPage() {
     socket.on('transfer-deleted', onDeleted)
     socket.on('transfer-extended', onExtended)
     socket.on('activity-updated', onActivityUpdated)
+    socket.on('stats-updated', onStatsUpdated)
 
     // On socket reconnect: silently re-fetch transfer state to reconcile
     // any events missed while offline (download, extend, cancel, etc.)
     const onSocketReconnected = () => {
       if (!mountedRef.current || !normalizedCode) return
-      void getFileMetadata(normalizedCode, { timeout: 10000, noRetry: true })
+      const currentTransfer = metaRef.current
+      const token = currentTransfer?.transfer?.ownershipToken || currentTransfer?.ownershipToken
+      const requestConfig = { timeout: 10000, noRetry: true }
+      if (token) {
+        requestConfig.headers = { 'X-Ownership-Token': token }
+      }
+      void getFileMetadata(normalizedCode, requestConfig)
         .then((data) => {
           if (!mountedRef.current || !data) return
           // Only apply non-terminal states — don't overwrite a cancelled/expired UI
@@ -549,6 +582,7 @@ export default function SenderPage() {
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-extended', onExtended)
       socket.off('activity-updated', onActivityUpdated)
+      socket.off('stats-updated', onStatsUpdated)
       window.removeEventListener('swiftshare:socket-reconnected', onSocketReconnected)
       if (downProgRaf) {
         cancelAnimationFrame(downProgRaf)
@@ -568,15 +602,23 @@ export default function SenderPage() {
       try {
         const status = await getTransferStatus(normalizedCode)
         if (status && mountedRef.current) {
-          // Update download count from polling
-          if (typeof status.downloadCount === 'number') {
-            setDownloadCount(status.downloadCount)
+          // Update download and view counts from polling
+          if (typeof status.downloadCount === 'number' || typeof status.viewCount === 'number') {
+            const dl = typeof status.downloadCount === 'number' ? status.downloadCount : (metaRef.current?.downloadCount || 0);
+            const vc = typeof status.viewCount === 'number' ? status.viewCount : (metaRef.current?.viewCount || 0);
             
-            // Persist to localStorage
-            const cached = getCachedTransfer(normalizedCode)
-            if (cached) {
-              saveCachedTransfer(normalizedCode, { ...cached, downloadCount: status.downloadCount })
-            }
+            setDownloadCount(dl)
+            setMeta(prev => {
+              if (!prev) return prev
+              const updated = {
+                ...prev,
+                downloadCount: dl,
+                viewCount: vc
+              }
+              metaRef.current = updated
+              saveCachedTransfer(normalizedCode, updated)
+              return updated
+            })
           }
           
           // Sync timer using server time if available
@@ -871,7 +913,11 @@ export default function SenderPage() {
     setError(null)
     setLoading(true)
     try {
-      const data = await getFileMetadata(normalizedCode, { timeout: 12000, noRetry: true })
+      const requestConfig = { timeout: 12000, noRetry: true }
+      if (ownershipToken) {
+        requestConfig.headers = { 'X-Ownership-Token': ownershipToken }
+      }
+      const data = await getFileMetadata(normalizedCode, requestConfig)
       if (!mountedRef.current) return
       if (data.status === 'CANCELLED') {
         updateTransferStatus(normalizedCode, 'CANCELLED')
@@ -892,7 +938,7 @@ export default function SenderPage() {
     } finally {
       if (mountedRef.current) setLoading(false)
     }
-  }, [normalizedCode, navigate, applyTransferSnapshot])
+  }, [normalizedCode, navigate, applyTransferSnapshot, ownershipToken])
 
   // memoizedFileList must be before conditional returns (hooks rules)
   const memoizedFileList = useMemo(() => {
