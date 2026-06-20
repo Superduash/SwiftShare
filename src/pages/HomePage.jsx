@@ -166,12 +166,17 @@ export default function HomePage() {
       createdAt: transferSnapshot?.createdAt,
       files: transferSnapshot?.files,
       transfer: transferSnapshot,
+      ownershipToken: payload?.ownershipToken, // FIX: Include ownership token in saved transfer
     })
 
     setUploading(false)
     
-    navigate(`/sender/${normalizedTransferCode}`, { 
-      state: { transferData: transferSnapshot },
+    // FIX: Pass ownershipToken directly in navigation state so SenderPage can access it
+    navigate(`/s/${normalizedTransferCode}`, { 
+      state: { 
+        transfer: transferSnapshot,
+        ownershipToken: payload?.ownershipToken // FIX: Include ownership token
+      },
       replace: false
     })
     
@@ -179,7 +184,7 @@ export default function HomePage() {
     if (currentSettings.soundEnabled) {
       playUploadSuccess()
     }
-  }, [files, navigate])
+  }, [files, navigate, password, passwordProtected])
 
   // Title
   useEffect(() => { document.title = 'SwiftShare — Files sent, not stored' }, [])

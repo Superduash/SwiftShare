@@ -500,14 +500,33 @@ export default function SenderPage() {
       requestActivityRefresh()
       navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
     }
-    const onExtended = ({ expiresAt, serverTime }) => {
+    const onExtended = ({ expiresAt, extensionMinutes, serverTime }) => {
       if (expiresAt) {
         // Use server time to calculate accurate seconds remaining
         const expiryMs = new Date(expiresAt).getTime()
         const nowMs = serverTime || Date.now() // Prefer server time for sync
         const newSeconds = Math.max(0, Math.ceil((expiryMs - nowMs) / 1000))
+        
+        // Update both totalSeconds AND secondsRemaining immediately
         setTotalSeconds(newSeconds)
-        patchCachedTransfer({ expiresAt })
+        setSecondsRemaining(newSeconds)
+        
+        // Update meta state with new expiresAt
+        setMeta(prev => {
+          if (!prev) return prev
+          const updated = {
+            ...prev,
+            expiresAt,
+            secondsRemaining: newSeconds
+          }
+          metaRef.current = updated
+          saveCachedTransfer(normalizedCode, updated)
+          return updated
+        })
+        
+        patchCachedTransfer({ expiresAt, secondsRemaining: newSeconds })
+        
+        toast.success(`Timer extended by ${extensionMinutes || 10} minutes`)
       }
       requestActivityRefresh()
     }
@@ -694,7 +713,34 @@ export default function SenderPage() {
     setExtending(true)
     setShowExtendOptions(false)
     try {
-      await extendTransfer(normalizedCode, ownershipToken, extendMinutes)
+      const result = await extendTransfer(normalizedCode, ownershipToken, extendMinutes)
+      
+      // FIX: Immediately update local state with the new expiresAt from API response
+      if (result?.expiresAt) {
+        const newExpiryMs = new Date(result.expiresAt).getTime()
+        const nowMs = Date.now()
+        const newSeconds = Math.max(0, Math.ceil((newExpiryMs - nowMs) / 1000))
+        
+        // Update all timer-related state immediately
+        setSecondsRemaining(newSeconds)
+        setTotalSeconds(newSeconds)
+        
+        // Update meta and metaRef with new expiresAt
+        setMeta(prev => {
+          if (!prev) return prev
+          const updated = {
+            ...prev,
+            expiresAt: result.expiresAt,
+            secondsRemaining: newSeconds
+          }
+          metaRef.current = updated
+          saveCachedTransfer(normalizedCode, updated)
+          return updated
+        })
+        
+        patchCachedTransfer({ expiresAt: result.expiresAt, secondsRemaining: newSeconds })
+      }
+      
       setExtended(true)
       setConfirmExtend(false)
       toast.success(`Extended by ${extendMinutes} minutes`)
