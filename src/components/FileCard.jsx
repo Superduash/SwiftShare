@@ -37,6 +37,11 @@ function getFileCategory(file) {
   return 'file'
 }
 
+const itemVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 28 } }
+}
+
 function FileCardBase({
   file, index = 0, onPreview, onDownloadSingle, onRemove, onRename,
   showDownload = false, showRemove = false, disableDownload = false,
@@ -95,10 +100,12 @@ function FileCardBase({
   return (
     <motion.div
       className="surface-card-flat p-3 flex items-center justify-between gap-3 group"
-      initial={{ y: 5 }}
-      animate={{ y: 0 }}
-      transition={{ delay: index * 0.04 }}
-      whileHover={{ scale: 1.005 }}
+      variants={itemVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.985, y: 0 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
       onContextMenu={onContextMenu ? (e) => onContextMenu(e, index, { x: e.clientX, y: e.clientY }) : undefined}
       onTouchStart={handleTouchStart}
       onTouchMove={cancelTouch}

@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
  * Respects all CSS theme variables: --accent, --progress-fill, --bg, --text.
  * Accessible via aria-live="polite" for screen readers.
  */
-export default function FinalizingIndicator({ label = 'Finalizing Transfer...' }) {
+export default function FinalizingIndicator({ label = 'Saving to cloud...', shimmerActive = true }) {
   return (
     <div
       className="w-full"
@@ -54,9 +54,9 @@ export default function FinalizingIndicator({ label = 'Finalizing Transfer...' }
       >
         {/* Indeterminate sweep bar — uses transform only, never width/left */}
         <motion.div
-          className="absolute top-0 bottom-0 rounded-full"
+          className={`absolute top-0 bottom-0 rounded-full ${shimmerActive ? 'shimmer-active' : ''}`}
           style={{
-            background: 'var(--progress-fill, var(--accent))',
+            ...(!shimmerActive && { background: 'var(--progress-fill, var(--accent))' }),
             width: '40%',
             willChange: 'transform',
             backfaceVisibility: 'hidden',

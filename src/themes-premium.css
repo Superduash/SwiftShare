@@ -86,10 +86,11 @@
   --gradient-hero: linear-gradient(135deg, #C44C2B 0%, #E05D3A 50%, #E87A5D 100%);
   
   /* Premium Shadows (Linear/Vercel style but warm) */
-  --shadow-card: 0 1px 3px rgba(45, 26, 17, 0.04), 0 4px 14px rgba(45, 26, 17, 0.03);
-  --shadow-elevated: 0 4px 12px rgba(45, 26, 17, 0.06), 0 12px 32px rgba(45, 26, 17, 0.05), 0 2px 4px rgba(45, 26, 17, 0.02);
+  --shadow-card:     0 1px 3px rgba(45, 26, 17, 0.05), 0 4px 14px rgba(45, 26, 17, 0.04), 0 1px 1px rgba(45, 26, 17, 0.06);
+  --shadow-elevated: 0 2px 6px rgba(45, 26, 17, 0.07), 0 8px 28px rgba(45, 26, 17, 0.06), 0 1px 2px rgba(45, 26, 17, 0.08);
+  --shadow-ambient:  0 24px 60px rgba(45, 26, 17, 0.05);
   --glow-accent: 0 0 24px rgba(224, 93, 58, 0.15), 0 0 54px rgba(224, 93, 58, 0.08);
-  --inset-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+  --inset-shadow: inset 0 -1px 0 0 rgba(45, 26, 17, 0.06);
   
   /* Logo */
   --logo-gradient: linear-gradient(135deg, #C44C2B 0%, #E05D3A 50%, #E87A5D 100%);
@@ -117,7 +118,7 @@
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
   border-radius: 16px !important;
-  box-shadow: var(--shadow-elevated) !important;
+  box-shadow: var(--shadow-elevated), var(--shadow-ambient, none), var(--inset-shadow, none) !important;
   border: 1px solid var(--border) !important;
 }
 
@@ -209,10 +210,11 @@
   --progress-glow: rgba(255,107,26,0.50);
   --skeleton: linear-gradient(90deg, #2A160A 25%, #402410 50%, #2A160A 75%);
   --gradient-hero: linear-gradient(135deg, #CC4400 0%, #FF6B1A 55%, #FFAA40 100%);
-  --shadow-card: 0 4px 12px rgba(0,0,0,0.60), 0 12px 32px rgba(0,0,0,0.80), 0 2px 4px rgba(0,0,0,0.40);
-  --shadow-elevated: 0 8px 24px rgba(255,107,26,0.12), 0 24px 64px rgba(0,0,0,0.90), 0 4px 8px rgba(0,0,0,0.60);
+  --shadow-card:     0 1px 2px rgba(10, 4, 2, 0.58), 0 4px 14px rgba(10, 4, 2, 0.48);
+  --shadow-elevated: 0 2px 4px rgba(10, 4, 2, 0.58), 0 8px 28px rgba(10, 4, 2, 0.72), 0 20px 56px rgba(10, 4, 2, 0.52), 0 4px 10px rgba(255, 107, 26, 0.09);
+  --shadow-ambient:  0 32px 80px rgba(10, 4, 2, 0.38);
   --glow-accent: 0 0 20px rgba(255,107,26,0.40), 0 0 60px rgba(255,107,26,0.18);
-  --inset-shadow: inset 0 1px 0 0 rgba(255,255,255,0.05);
+  --inset-shadow: inset 0 1px 0 0 rgba(255,255,255,0.07);
   /* Logo gradient var */
   --logo-gradient: linear-gradient(135deg, #EFB818 0%, #E87A14 50%, #D94418 100%);
   --logo-icon: #FFFFFF;
@@ -278,10 +280,11 @@
   --progress-glow: rgba(250,250,250,0.15);
   --skeleton: linear-gradient(90deg, #27272A 25%, #3F3F46 50%, #27272A 75%);
   --gradient-hero: linear-gradient(135deg, #FFFFFF 0%, #A1A1AA 50%, #3F3F46 100%);
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.60), 0 6px 20px rgba(0,0,0,0.50);
-  --shadow-elevated: 0 4px 16px rgba(0,0,0,0.70), 0 20px 50px rgba(0,0,0,0.60);
+  --shadow-card:     0 1px 2px rgba(5, 5, 7, 0.55), 0 4px 16px rgba(5, 5, 7, 0.45);
+  --shadow-elevated: 0 2px 6px rgba(5, 5, 7, 0.60), 0 10px 30px rgba(5, 5, 7, 0.65), 0 20px 50px rgba(5, 5, 7, 0.55);
+  --shadow-ambient:  0 32px 80px rgba(5, 5, 7, 0.40);
   --glow-accent: 0 0 20px rgba(250,250,250,0.08), 0 0 40px rgba(250,250,250,0.04);
-  --inset-shadow: inset 0 1px 0 0 rgba(255,255,255,0.04);
+  --inset-shadow: inset 0 1px 0 0 rgba(255,255,255,0.07);
   --logo-gradient: linear-gradient(135deg, #E5E7EB 0%, #9CA3AF 50%, #4B5563 100%);
 }
 
@@ -345,10 +348,11 @@
   --progress-glow: rgba(24,24,27,0.10);
   --skeleton: linear-gradient(90deg, #E4E4E7 25%, #D4D4D8 50%, #E4E4E7 75%);
   --gradient-hero: linear-gradient(135deg, #09090B 0%, #3F3F46 60%, #71717A 100%);
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
-  --shadow-elevated: 0 4px 12px rgba(0,0,0,0.07), 0 16px 40px rgba(0,0,0,0.05);
+  --shadow-card:     0 1px 2px rgba(63, 63, 70, 0.05), 0 4px 16px rgba(63, 63, 70, 0.04);
+  --shadow-elevated: 0 2px 6px rgba(63, 63, 70, 0.07), 0 12px 36px rgba(63, 63, 70, 0.06), 0 1px 2px rgba(63, 63, 70, 0.08);
+  --shadow-ambient:  0 24px 60px rgba(63, 63, 70, 0.04);
   --glow-accent: 0 0 16px rgba(24,24,27,0.06), 0 0 32px rgba(24,24,27,0.03);
-  --inset-shadow: inset 0 1px 0 0 rgba(255,255,255,0.6);
+  --inset-shadow: inset 0 -1px 0 0 rgba(0,0,0,0.04);
   --logo-gradient: linear-gradient(135deg, #111827 0%, #4B5563 50%, #9CA3AF 100%);
 }
 

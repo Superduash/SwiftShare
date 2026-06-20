@@ -1,6 +1,6 @@
 import React, { memo } from 'react'
 import { motion } from 'framer-motion'
-import { History, Upload, Download, Eye, Trash2, Clock, Smartphone, Ban, Flame, ArrowUpRight } from 'lucide-react'
+import { History, Upload, Download, Eye, Trash2, Clock, Smartphone, Ban, Flame, ArrowUpRight, Radio } from 'lucide-react'
 import { timeAgo } from '../utils/format'
 
 const EVENT_ICONS = {
@@ -67,8 +67,17 @@ function ActivityLog({ activity = [], isLoading = false }) {
           <History size={14} style={{ color: 'var(--text-3)' }} />
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Activity</h3>
         </div>
-        <div className="surface-card-flat px-3 py-4 text-center">
-          <p className="text-xs" style={{ color: 'var(--text-4)' }}>No activity yet — you'll see views and downloads here.</p>
+        <div className="surface-card-flat px-3 py-5 text-center">
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center mx-auto mb-2"
+            style={{ background: 'var(--accent-soft)' }}
+          >
+            <Radio size={13} style={{ color: 'var(--accent)' }} />
+          </div>
+          <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--text-2)' }}>Waiting for activity</p>
+          <p className="text-[11px]" style={{ color: 'var(--text-4)' }}>
+            Views and downloads appear here in real time
+          </p>
         </div>
       </div>
     )

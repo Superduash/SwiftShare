@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, memo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle } from 'lucide-react'
+import { Clock, ArrowRight, Trash2, FileText, X, AlertTriangle, ArrowUpFromLine } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   getRecentTransfers,
@@ -226,7 +226,37 @@ function RecentTransfers() {
     }
   }, [navigate])
 
-  if (!transfers.length) return null
+  if (!transfers.length) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.4 }}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Clock size={14} style={{ color: 'var(--text-4)' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-4)' }}>Recent</h3>
+        </div>
+        <div
+          className="surface-card-flat p-5 text-center"
+          style={{ borderStyle: 'dashed' }}
+        >
+          <div
+            className="w-8 h-8 rounded-xl flex items-center justify-center mx-auto mb-2.5"
+            style={{ background: 'var(--accent-soft)' }}
+          >
+            <ArrowUpFromLine size={15} style={{ color: 'var(--accent)' }} />
+          </div>
+          <p className="text-sm font-medium mb-0.5" style={{ color: 'var(--text-2)' }}>
+            Your transfers appear here
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+            Drop a file above to get started
+          </p>
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div

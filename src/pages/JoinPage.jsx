@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, useAnimate } from 'framer-motion'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import Spinner from '../components/Spinner'
 
@@ -27,6 +27,18 @@ export default function JoinPage() {
     prefill.split('').forEach((c, i) => { arr[i] = c })
     return arr
   })
+
+  const [scope, animate] = useAnimate()
+  const codeString = chars.join('')
+
+  useEffect(() => {
+    if (codeString.length === 6) {
+      animate(scope.current, 
+        { scale: [1, 1.04, 1] },
+        { duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }
+      )
+    }
+  }, [codeString, animate, scope])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const inputRefs = useRef([])
@@ -231,6 +243,7 @@ export default function JoinPage() {
 
           {/* OTP Input */}
           <motion.div
+            ref={scope}
             id="code-input-row"
             className="flex justify-center gap-2 sm:gap-3 mb-6"
             initial={{ y: 10 }}

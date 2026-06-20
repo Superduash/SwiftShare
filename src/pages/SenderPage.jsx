@@ -60,6 +60,11 @@ function buildShareMessage(fileLabel, shareLink) {
   return { title, text }
 }
 
+const listVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04, delayChildren: 0.1 } }
+}
+
 export default function SenderPage() {
   const { code } = useParams()
   const normalizedCode = String(code || '').trim().toUpperCase()
@@ -1101,9 +1106,9 @@ export default function SenderPage() {
                   <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
                     {isExpired ? 'Files Expired' : `Shared Files (${meta?.files?.length || 0})`}
                   </h2>
-                  <div className="space-y-2">
+                  <motion.div variants={listVariants} initial="hidden" animate="visible" className="space-y-2">
                     {memoizedFileList}
-                  </div>
+                  </motion.div>
                   <ContextMenu
                     open={contextMenu.open}
                     x={contextMenu.x}

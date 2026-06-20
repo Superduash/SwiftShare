@@ -343,13 +343,19 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
             />
           </button>
         </div>
-        <div className="surface-card-flat p-4 text-center">
-          <p className="text-xs mb-1" style={{ color: 'var(--text-4)' }}>
-            No devices found on the same network
-          </p>
-          <p className="text-[10px]" style={{ color: 'var(--text-5)' }}>
-            Requires both devices on the same WiFi. VPNs and hotspots may prevent discovery.
-          </p>
+        <div className="surface-card-flat p-4">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{ background: 'var(--accent-soft)' }}
+            >
+              <Wifi size={15} style={{ color: 'var(--accent)' }} />
+            </div>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-2)' }}>No devices on this network</p>
+            <p className="text-[11px] leading-relaxed max-w-[200px]" style={{ color: 'var(--text-4)' }}>
+              Both devices must be on the same WiFi.<br/>VPNs and mobile hotspots prevent discovery.
+            </p>
+          </div>
         </div>
       </motion.div>
     )

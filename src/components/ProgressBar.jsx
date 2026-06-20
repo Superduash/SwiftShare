@@ -10,6 +10,7 @@ export default function ProgressBar({
   label = 'Uploading...', 
   showSpeed = true, 
   indeterminate = false,
+  shimmerActive = false,
   onCancel = null,
 }) {
   const [clampedPercent, setClampedPercent] = useState(0);
@@ -84,9 +85,9 @@ export default function ProgressBar({
       >
         {indeterminate ? (
           <motion.div
-            className="absolute top-0 bottom-0 rounded-full"
+            className={`absolute top-0 bottom-0 rounded-full ${shimmerActive ? 'shimmer-active' : ''}`}
             style={{ 
-              background: 'var(--progress-fill, var(--accent))',
+              ...(!shimmerActive && { background: 'var(--progress-fill, var(--accent))' }),
               width: '40%',
               willChange: 'transform'
             }}

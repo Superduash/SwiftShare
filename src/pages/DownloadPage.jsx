@@ -43,6 +43,11 @@ const REQUEST_STATE = {
   FAILED: 'failed',
 }
 
+const listVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04, delayChildren: 0.1 } }
+}
+
 const RETRY_DELAY_MS = 3000
 const MAX_AUTO_RETRIES = 5
 
@@ -990,9 +995,9 @@ export default function DownloadPage() {
             /* Show files as cards */
             <motion.div
               className="space-y-2 mb-6"
-              initial={{ y: 6 }}
-              animate={{ y: 0 }}
-              transition={{ delay: 0.1 }}
+              variants={listVariants}
+              initial="hidden"
+              animate="visible"
             >
               {memoizedFileList}
               <ContextMenu

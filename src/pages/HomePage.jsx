@@ -715,7 +715,7 @@ export default function HomePage() {
               >
                 <div
                   {...getRootProps()}
-                  className={`drop-zone relative ${isDragActive ? 'active' : ''} ${hasFiles ? 'p-5' : 'p-8 sm:p-12'}`}
+                  className={`drop-zone relative ${files.length === 0 && !isDragActive && !uploading ? 'drop-zone-idle' : ''} ${isDragActive ? 'active' : ''} ${hasFiles ? 'p-5' : 'p-8 sm:p-12'}`}
                   style={{ minHeight: hasFiles ? 'auto' : '260px' }}
                 >
                   <input {...getInputProps()} />
@@ -1061,7 +1061,7 @@ export default function HomePage() {
                     exit={{ opacity: 0 }}
                   >
                     {uploadPhase === 'finalizing' ? (
-                      <FinalizingIndicator label="Finalizing Transfer..." />
+                      <FinalizingIndicator label="Saving to cloud..." shimmerActive={true} />
                     ) : (
                       <ProgressBar
                         percent={uploadPercent}
@@ -1073,6 +1073,7 @@ export default function HomePage() {
                             : 'Uploading...'
                         }
                         indeterminate={uploadPhase === 'retrying'}
+                        shimmerActive={uploadPhase === 'retrying'}
                         showSpeed={uploadPhase === 'uploading'}
                         onCancel={handleCancelUpload}
                       />
