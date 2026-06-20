@@ -490,14 +490,8 @@ export default function SenderPage() {
     }
     const onDownComplete = () => {
       setDownloadProgress(100)
-      const newCount = (metaRef.current?.downloadCount || 0) + 1
-      setDownloadCount(newCount)
-      
-      // Persist download count to localStorage immediately
-      const cached = getCachedTransfer(normalizedCode)
-      if (cached) {
-        saveCachedTransfer(normalizedCode, { ...cached, downloadCount: newCount })
-      }
+      // FIX: Don't increment locally - backend sends correct count via stats-updated socket event
+      // This prevents showing downloadCount + 1 temporarily due to race condition
       
       if (metaRef.current?.burnAfterDownload) {
         patchCachedTransfer({ status: 'CLAIMED' })
@@ -559,7 +553,7 @@ export default function SenderPage() {
         
         patchCachedTransfer({ expiresAt, secondsRemaining: newSeconds })
         
-        toast.success(`Timer extended by ${extensionMinutes || 10} minutes`)
+        // FIX: Toast removed - handleExtend already shows toast on API success
       }
       requestActivityRefresh()
     }
