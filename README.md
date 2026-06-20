@@ -36,8 +36,6 @@
 
 ---
 
-## What it looks like
-
 <img width="830" height="574" alt="swiftshare" src="https://github.com/user-attachments/assets/ad2afa21-51eb-4191-b4a8-d69c160a0f33" /><br>
 
 > **Try it right now →** [swiftsharegg.vercel.app](https://swiftsharegg.vercel.app) — no sign-up, works instantly
