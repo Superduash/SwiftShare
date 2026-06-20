@@ -112,7 +112,7 @@ export default function DownloadPage() {
   const mountedRef = useRef(true)
 
   const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
-  const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED'
+  const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED' || terminalStatus === 'CONSUMED'
   const canDownload = !isUnavailable && (!meta?.burnAfterDownload || !downloaded) && (!needsPassword || passwordVerified)
   const metaRef = useRef(initialCachedTransfer)
   const transferStatusRef = useRef(initialCachedTransfer?.status || 'ACTIVE')
@@ -290,6 +290,29 @@ export default function DownloadPage() {
       if (outcome.ok) {
         const data = outcome.data
         const status = String(data?.status || '').toUpperCase()
+        
+        // FIX: Handle CLAIMED state - burn transfer claimed by another device
+        if (status === 'CLAIMED') {
+          updateTransferStatus(normalizedCode, 'CLAIMED')
+          // Show a dedicated page instead of trying to download
+          navigate('/expired?reason=claimed', { replace: true })
+          return
+        }
+        
+        // FIX: Handle CONSUMED state - burn transfer already downloaded
+        if (status === 'CONSUMED') {
+          updateTransferStatus(normalizedCode, 'CONSUMED')
+          // For the owner who downloaded it, show success state
+          if (data?.burnAfterDownload) {
+            setDownloaded(true)
+            setTransferStatus('CONSUMED')
+            applyTransferSnapshot(data, { persist: true })
+            return
+          }
+          navigate('/expired?reason=burned', { replace: true })
+          return
+        }
+        
         if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
           updateTransferStatus(normalizedCode, status)
           const reason = status === 'DELETED' ? 'burned' : status.toLowerCase()

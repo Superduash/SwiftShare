@@ -23,6 +23,14 @@ const STATES = {
     tip: 'Ask the sender for a new link \u2014 burn-mode files can only be downloaded once.',
     emoji: '\uD83D\uDD25',
   },
+  claimed: {
+    icon: Flame,
+    color: 'var(--warning)',
+    title: 'Already claimed',
+    desc: 'Someone else is already downloading this burn transfer.',
+    tip: 'Ask the sender for a new link \u2014 this one can only be used by one device at a time.',
+    emoji: '\uD83D\uDD12',
+  },
   notfound: {
     icon: FileQuestion,
     color: 'var(--text-3)',
