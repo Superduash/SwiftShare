@@ -72,11 +72,11 @@ export default function DownloadPage() {
     return token;
   })
   const [secondsRemaining, setSecondsRemaining] = useState(() => {
-    const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
-    if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
     if (initialCachedTransfer?.expiresAt) {
       return Math.max(0, Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - Date.now()) / 1000))
     }
+    const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
+    if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
     return 0
   })
   const [totalSeconds, setTotalSeconds] = useState(() => {
@@ -209,9 +209,10 @@ export default function DownloadPage() {
     metaRef.current = merged
     setMeta(merged)
 
-    // Only update expiresAt, not secondsRemaining - let timer calculate it
+    // Always calculate/recalculate secondsRemaining from expiresAt if available
     if (merged.expiresAt) {
-      // Timer will calculate from expiresAt - don't touch secondsRemaining here
+      const calculated = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
+      setSecondsRemaining(calculated)
     } else {
       const directSeconds = Number(merged.secondsRemaining)
       if (Number.isFinite(directSeconds) && directSeconds >= 0) {

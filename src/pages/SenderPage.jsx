@@ -87,11 +87,11 @@ export default function SenderPage() {
   const [ownershipToken, setOwnershipToken] = useState(initialOwnershipToken)
   const [activity, setActivity] = useState([])
   const [secondsRemaining, setSecondsRemaining] = useState(() => {
-    const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
-    if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
     if (initialCachedTransfer?.expiresAt) {
       return Math.max(0, Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - Date.now()) / 1000))
     }
+    const cachedSeconds = Number(initialCachedTransfer?.secondsRemaining)
+    if (Number.isFinite(cachedSeconds) && cachedSeconds >= 0) return cachedSeconds
     return 0
   })
   const [totalSeconds, setTotalSeconds] = useState(() => {
@@ -241,12 +241,12 @@ export default function SenderPage() {
       setCancelled(true)
     }
 
-    // Only update expiresAt, not secondsRemaining - let timer calculate it
+    // Always calculate/recalculate secondsRemaining from expiresAt if available
     const directSeconds = Number(merged.secondsRemaining)
     if (merged.expiresAt) {
-      // Timer will calculate from expiresAt - don't touch secondsRemaining here
+      const calculated = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
+      setSecondsRemaining(calculated)
     } else if (Number.isFinite(directSeconds) && directSeconds >= 0) {
-      // Only if no expiresAt, use direct seconds as fallback
       setSecondsRemaining(directSeconds)
     }
 
