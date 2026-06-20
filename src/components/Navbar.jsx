@@ -37,6 +37,7 @@ function Navbar() {
     sunset: { target: 'sunrise', icon: Sun, title: 'Switch to Sunrise', color: 'var(--accent)' },
     light: { target: 'dark', icon: Moon, title: 'Switch to Dark', color: 'var(--text-3)' },
     dark: { target: 'light', icon: Sun, title: 'Switch to Light', color: 'var(--accent)' },
+    midnight: { target: 'light', icon: Sun, title: 'Switch to Light', color: 'var(--accent)' },
     sakura: { target: 'lavender', icon: Moon, title: 'Switch to Lavender', color: 'var(--text-3)' },
     lavender: { target: 'sakura', icon: Sun, title: 'Switch to Sakura', color: 'var(--accent)' },
     forest: { target: 'volcanic', icon: Flame, title: 'Switch to Volcanic', color: 'var(--text-3)' },

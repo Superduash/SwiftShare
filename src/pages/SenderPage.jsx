@@ -13,8 +13,8 @@ import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
 import {
-  getFileMetadata, getTransferActivity, getTransferStatus,
-  extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword, getTextContent
+  extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword, getTextContent,
+  verifyOwnership
 } from '../services/api'
 import {
   getCachedTransfer,
@@ -98,7 +98,6 @@ export default function SenderPage() {
   })
   const [extended, setExtended] = useState(false)
   const [copiedCode, setCopiedCode] = useState(false)
-  const [copyLinkState, setCopyLinkState] = useState('idle')
   const [qrModal, setQrModal] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(null)
   const [loading, setLoading] = useState(!initialCachedTransfer)
@@ -112,11 +111,8 @@ export default function SenderPage() {
   )
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
-  const [passwordVerified, setPasswordVerified] = useState(!Boolean(initialCachedTransfer?.passwordProtected))
-  const [previewPassword, setPreviewPassword] = useState('')
-  const [showPreviewPassword, setShowPreviewPassword] = useState(false)
-  const [previewPasswordError, setPreviewPasswordError] = useState('')
-  const [previewUnlocking, setPreviewUnlocking] = useState(false)
+  const passwordVerified = true
+  // Sender does not need to verify passwords locally because ownershipToken grants bypass
   const [extending, setExtending] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [textContent, setTextContent] = useState(null)
@@ -126,28 +122,55 @@ export default function SenderPage() {
 
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
-  const verifiedPreviewPasswordRef = useRef('')
   const activityRefreshTimerRef = useRef(null)
   const terminalNavigatedRef = useRef(false)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
   
+  const [authorized, setAuthorized] = useState(false)
+  const [verifyingAuth, setVerifyingAuth] = useState(true)
+
+  // Verify ownership before allowing access to the page
+  useEffect(() => {
+    if (!normalizedCode) return
+    
+    // First, check if we even have a token
+    const token = ownershipToken || meta?.transfer?.ownershipToken || meta?.ownershipToken
+    
+    if (!token) {
+      setAuthorized(false)
+      setVerifyingAuth(false)
+      return
+    }
+
+    // Verify token with backend
+    let isSubscribed = true
+    verifyOwnership(normalizedCode, token)
+      .then(res => {
+        if (isSubscribed) {
+          if (res?.authorized) {
+            setAuthorized(true)
+          } else {
+            setAuthorized(false)
+          }
+        }
+      })
+      .catch(() => {
+        if (isSubscribed) setAuthorized(false)
+      })
+      .finally(() => {
+        if (isSubscribed) setVerifyingAuth(false)
+      })
+
+    return () => { isSubscribed = false }
+  }, [normalizedCode, ownershipToken, meta?.transfer?.ownershipToken, meta?.ownershipToken])
+
   // Redirect non-owners to download page
   useEffect(() => {
-    if (!meta || loading) return
-    
-    // If we have metadata but no ownership token, user is not the owner
-    const hasOwnership = Boolean(
-      ownershipToken || 
-      meta?.transfer?.ownershipToken || 
-      meta?.ownershipToken
-    )
-    
-    if (!hasOwnership) {
-      // Not the owner - redirect to download page
+    if (!verifyingAuth && !authorized) {
       navigate(`/g/${normalizedCode}`, { replace: true })
     }
-  }, [meta, ownershipToken, loading, normalizedCode, navigate])
+  }, [verifyingAuth, authorized, normalizedCode, navigate])
 
   useEffect(() => {
     return () => {
@@ -158,32 +181,7 @@ export default function SenderPage() {
     }
   }, [])
 
-  // Single unified password-state effect — replaces the three separate password effects
-  useEffect(() => {
-    const isProtected = Boolean(
-      getCachedTransfer(normalizedCode)?.passwordProtected || meta?.passwordProtected
-    )
 
-    // Always reset transient state when the code or protection changes
-    setPreviewPassword('')
-    setShowPreviewPassword(false)
-    setPreviewPasswordError('')
-    verifiedPreviewPasswordRef.current = ''
-
-    if (!isProtected) {
-      setPasswordVerified(true)
-      return
-    }
-
-    // Try to restore from session storage (5-minute session)
-    const sessionPassword = getPasswordSession(normalizedCode)
-    if (sessionPassword) {
-      verifiedPreviewPasswordRef.current = sessionPassword
-      setPasswordVerified(true)
-    } else {
-      setPasswordVerified(false)
-    }
-  }, [normalizedCode, meta?.passwordProtected])
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
@@ -606,20 +604,13 @@ export default function SenderPage() {
   }, [normalizedCode])
 
   const handleCopyLink = useCallback(async () => {
-    setCopyLinkState('copying')
     try {
       const success = await copyToClipboard(shareLink)
       if (success) {
-        setCopyLinkState('copied')
         toast.success('Share link copied')
-        setTimeout(() => setCopyLinkState('idle'), 2000)
-      } else {
-        // Silently reset — clipboard is unavailable, no toast spam
-        setCopyLinkState('idle')
       }
     } catch {
-      // Silently reset — browser blocked clipboard access
-      setCopyLinkState('idle')
+      // Silently ignore
     }
   }, [shareLink])
 
@@ -711,48 +702,8 @@ export default function SenderPage() {
     }
   }
 
-  async function handlePreviewUnlock(e) {
-    e?.preventDefault()
-    if (!meta?.passwordProtected || previewUnlocking || !previewPassword.trim()) return
-
-    setPreviewUnlocking(true)
-    setPreviewPasswordError('')
-
-    try {
-      const result = await verifyPassword(normalizedCode, previewPassword)
-      if (result?.verified) {
-        verifiedPreviewPasswordRef.current = previewPassword
-        setPasswordVerified(true)
-        setPreviewPassword('')
-        // Save password session for 5 minutes
-        savePasswordSession(normalizedCode, previewPassword)
-        toast.success('Preview unlocked')
-        return
-      }
-
-      setPreviewPasswordError('Verification failed. Please try again.')
-    } catch (err) {
-      const errCode = err?.response?.data?.error?.code
-      if (errCode === 'INVALID_PASSWORD') {
-        setPreviewPasswordError('Wrong password. Please try again.')
-        toast.error('Wrong password')
-      } else if (err?.response?.status === 429) {
-        setPreviewPasswordError('Too many attempts. This transfer is locked.')
-      } else {
-        setPreviewPasswordError('Verification failed. Please try again.')
-      }
-    } finally {
-      setPreviewUnlocking(false)
-    }
-  }
-
   // Per-file operations
   function handlePreview(index) {
-    if (meta?.passwordProtected && !passwordVerified) {
-      toast.error('Unlock preview first')
-      return
-    }
-
     const file = meta?.files?.[index]
     if (file) {
       setPreviewFile(file)
@@ -761,9 +712,7 @@ export default function SenderPage() {
   }
 
   function handleDownloadSingle(index) {
-    const protectedTransfer = Boolean(meta?.passwordProtected)
-    const password = protectedTransfer ? (verifiedPreviewPasswordRef.current || undefined) : undefined
-    downloadSingleFile(normalizedCode, index, password)
+    downloadSingleFile(normalizedCode, index, undefined, undefined, ownershipToken)
   }
 
   // Context menu items for files
@@ -783,16 +732,14 @@ export default function SenderPage() {
   // Determine if transfer is expired (before any hooks that use it)
   const isExpired = meta?.status === 'EXPIRED'
 
-  // Fetch text content when unlocked or not password protected
+  // Fetch text content
   useEffect(() => {
     if (!isTextShare || textContent !== null) return
-    if (meta?.passwordProtected && !passwordVerified) return
 
     async function fetchText() {
       setTextLoading(true)
       try {
-        const password = meta?.passwordProtected ? verifiedPreviewPasswordRef.current : undefined
-        const result = await getTextContent(normalizedCode, password)
+        const result = await getTextContent(normalizedCode, undefined, ownershipToken)
         setTextContent(result.content)
       } catch (err) {
         console.error('Failed to fetch text content:', err)
@@ -803,30 +750,7 @@ export default function SenderPage() {
     }
 
     fetchText()
-  }, [isTextShare, passwordVerified, normalizedCode, meta?.passwordProtected, textContent])
-
-  async function handleTextUnlock(password) {
-    try {
-      const result = await verifyPassword(normalizedCode, password)
-      if (result?.verified) {
-        verifiedPreviewPasswordRef.current = password
-        setPasswordVerified(true)
-        // Save password session for 5 minutes
-        savePasswordSession(normalizedCode, password)
-        toast.success('Text unlocked')
-      }
-    } catch (err) {
-      const errCode = err?.response?.data?.error?.code
-      if (errCode === 'INVALID_PASSWORD') {
-        toast.error('Wrong password')
-      } else if (err?.response?.status === 429) {
-        toast.error('Too many attempts')
-      } else {
-        toast.error('Failed to unlock')
-      }
-      throw err
-    }
-  }
+  }, [isTextShare, normalizedCode, textContent, ownershipToken])
 
   const handleNativeShare = useCallback(async () => {
     const fileLabel = meta?.files?.length > 1
@@ -1016,6 +940,17 @@ export default function SenderPage() {
     )
   }
 
+  if (verifyingAuth) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ background: 'var(--bg)' }}>
+        <Spinner size={32} />
+        <p className="mt-4 text-sm font-medium" style={{ color: 'var(--text-2)' }}>Verifying authorization...</p>
+      </div>
+    )
+  }
+
+  if (!authorized) return null
+
   // Handle cancelled/deleted transfers - show error page only for these
   if (!meta || cancelled) {
     return (
@@ -1067,8 +1002,9 @@ export default function SenderPage() {
           code={normalizedCode}
           fileIndex={previewIndex}
           onDownload={handleDownloadSingle}
-          password={verifiedPreviewPasswordRef.current || undefined}
-          passwordRequired={Boolean(meta?.passwordProtected) && !passwordVerified}
+          password={undefined}
+          ownershipToken={ownershipToken}
+          passwordRequired={false}
         />
       </Suspense>
 
@@ -1134,68 +1070,7 @@ export default function SenderPage() {
                 <TransferSummaryCard meta={meta} url={shareLink} onCopy={handleCopyLink} />
               )}
 
-              {/* Password box - only show for non-text shares */}
-              {meta?.passwordProtected && !passwordVerified && !isTextShare && (
-                <motion.div
-                  className="surface-card p-4"
-                  initial={{ y: 6 }}
-                  animate={{ y: 0 }}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <Lock size={16} style={{ color: 'var(--accent)' }} />
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                      Password required to preview files
-                    </p>
-                  </div>
-                  <form onSubmit={handlePreviewUnlock}>
-                    <div className="relative mb-3">
-                      <input
-                        type={showPreviewPassword ? 'text' : 'password'}
-                        value={previewPassword}
-                        onChange={(e) => {
-                          setPreviewPassword(e.target.value)
-                          setPreviewPasswordError('')
-                        }}
-                        placeholder="Enter transfer password"
-                        maxLength={64}
-                        autoFocus
-                        aria-label="Transfer password"
-                        aria-describedby={previewPasswordError ? "preview-password-error" : undefined}
-                        className="w-full px-3 py-2.5 pr-10 rounded-xl text-sm outline-none transition-all"
-                        style={{
-                          background: 'var(--bg-sunken)',
-                          border: `1.5px solid ${previewPasswordError ? 'var(--danger)' : 'var(--border)'}`,
-                          color: 'var(--text)',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
-                        onClick={() => setShowPreviewPassword(!showPreviewPassword)}
-                        tabIndex={-1}
-                      >
-                        {showPreviewPassword
-                          ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
-                          : <Eye size={16} style={{ color: 'var(--text-4)' }} />
-                        }
-                      </button>
-                    </div>
-                    {previewPasswordError && (
-                      <p id="preview-password-error" role="alert" className="text-xs mb-3" style={{ color: 'var(--danger)' }}>
-                        {previewPasswordError}
-                      </p>
-                    )}
-                    <button
-                      type="submit"
-                      className="btn-primary text-sm"
-                      disabled={!previewPassword.trim() || previewUnlocking}
-                    >
-                      {previewUnlocking ? <Spinner size={15} /> : <Lock size={15} />}
-                      {previewUnlocking ? 'Verifying...' : 'Unlock preview'}
-                    </button>
-                  </form>
-                </motion.div>
-              )}
+
 
               {/* Text Share Display or Files */}
               {isTextShare ? (
@@ -1296,7 +1171,7 @@ export default function SenderPage() {
                   {/* Copy and Share buttons */}
                   <div className="flex gap-2">
                     <button className="btn-secondary flex-1 text-xs" onClick={handleCopyCode}>
-                      {copiedCode ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedCode ? <Check size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} />}
                       {copiedCode ? 'Copied!' : 'Copy code'}
                     </button>
                     <button className="btn-secondary flex-1 text-xs" onClick={handleNativeShare}>
@@ -1393,10 +1268,9 @@ export default function SenderPage() {
                         )}
                       </button>
                       <button
-                        className="btn-ghost flex-1 text-xs hover:!text-red-500"
+                        className={confirmDelete ? 'btn-danger flex-1 text-xs' : 'btn-ghost flex-1 text-xs'}
                         onClick={handleDelete}
                         disabled={deleting}
-                        style={confirmDelete ? { borderColor: 'var(--danger)', color: 'var(--danger)' } : undefined}
                       >
                         <Trash2 size={13} />
                         {deleting ? 'Cancelling...' : (confirmDelete ? 'Delete forever?' : 'Cancel')}

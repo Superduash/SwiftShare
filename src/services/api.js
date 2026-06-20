@@ -489,8 +489,11 @@ export async function shareText({ content, title, expiryMinutes, burnAfterDownlo
   return unwrapResponse(data)
 }
 
-export async function getTextContent(code, password = undefined) {
-  const config = password ? { headers: { 'X-Transfer-Password': password } } : undefined
+export async function getTextContent(code, password = undefined, ownershipToken = undefined) {
+  const headers = {}
+  if (password) headers['X-Transfer-Password'] = password
+  if (ownershipToken) headers['X-Ownership-Token'] = ownershipToken
+  const config = Object.keys(headers).length > 0 ? { headers } : undefined
   const { data } = await API.get(`/api/file/${normalizeCode(code)}/text`, config)
   return unwrapResponse(data)
 }
@@ -542,6 +545,14 @@ export async function verifyPassword(code, password) {
 }
 
 // ── Actions ─────────────────────────────────
+export async function verifyOwnership(code, ownershipToken) {
+  const config = ownershipToken
+    ? { headers: { 'X-Ownership-Token': String(ownershipToken) } }
+    : {}
+  const { data } = await API.get(`/api/transfer/${normalizeCode(code)}/verify-ownership`, config)
+  return unwrapResponse(data)
+}
+
 export async function extendTransfer(code, ownershipToken, minutes = 10) {
   const config = ownershipToken
     ? { headers: { 'X-Ownership-Token': String(ownershipToken) } }
@@ -580,29 +591,63 @@ export async function getStats() {
 }
 
 // ── Download ────────────────────────────────
-export function getDownloadUrl(code, password, claimantToken) {
-  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}`)
-  const urlWithPw = appendPasswordQuery(url, password)
-  return appendClaimantTokenQuery(urlWithPw, claimantToken)
+export function getDownloadUrl(code, password, claimantToken, ownershipToken) {
+  let url = buildBackendUrl(`/api/download/${normalizeCode(code)}`)
+  url = appendPasswordQuery(url, password)
+  url = appendClaimantTokenQuery(url, claimantToken)
+  if (ownershipToken) {
+    url += (url.includes('?') ? '&' : '?') + `ownershipToken=${encodeURIComponent(ownershipToken)}`
+  }
+  return url
 }
 
-export function getSingleDownloadUrl(code, index, password, claimantToken) {
+export function getSingleDownloadUrl(code, index, password, claimantToken, ownershipToken) {
   const safeIndex = Number(index)
-  const url = buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
-  const urlWithPw = appendPasswordQuery(url, password)
-  return appendClaimantTokenQuery(urlWithPw, claimantToken)
+  let url = buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
+  url = appendPasswordQuery(url, password)
+  url = appendClaimantTokenQuery(url, claimantToken)
+  if (ownershipToken) {
+    url += (url.includes('?') ? '&' : '?') + `ownershipToken=${encodeURIComponent(ownershipToken)}`
+  }
+  return url
 }
 
-export function downloadFile(code, password, claimantToken) {
-  window.location.href = getDownloadUrl(code, password, claimantToken)
+export function downloadFile(code, password, claimantToken, ownershipToken) {
+  window.location.href = getDownloadUrl(code, password, claimantToken, ownershipToken)
 }
 
-export function downloadSingleFile(code, index, password, claimantToken) {
-  window.location.href = getSingleDownloadUrl(code, index, password, claimantToken)
+export function downloadSingleFile(code, fileIndex, password, claimantToken, ownershipToken) {
+  window.location.href = getSingleDownloadUrl(code, fileIndex, password, claimantToken, ownershipToken)
 }
 
 export function previewUrl(code, index, password) {
   const safeIndex = Number(index)
   let url = buildBackendUrl(`/api/download/${normalizeCode(code)}/preview/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
   return appendPasswordQuery(url, password)
+}
+
+export function reportClientError(error, info) {
+  const payload = {
+    message: error?.message || String(error),
+    stack: error?.stack || null,
+    componentStack: info?.componentStack || null,
+    url: typeof window !== 'undefined' ? window.location.href : '',
+  }
+  
+  const url = `${baseURL}/api/client-error`
+  if (typeof fetch === 'function') {
+    try {
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(() => {})
+      return
+    } catch (e) {
+      // fallback to axios post
+    }
+  }
+  
+  API.post('/api/client-error', payload).catch(() => {})
 }

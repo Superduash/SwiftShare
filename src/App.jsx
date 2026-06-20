@@ -11,6 +11,7 @@ import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
 import { ConnectionHealthProvider } from './context/ConnectionHealthContext'
 import { getSettings } from './utils/storage'
+import { reportClientError } from './services/api'
 
 
 import LoadingScreen from './components/LoadingScreen'
@@ -33,6 +34,11 @@ class RouteErrorBoundary extends Component {
   }
   componentDidCatch(error, info) {
     console.error('[SwiftShare] Route failed to load:', error, info)
+    try {
+      reportClientError(error, info)
+    } catch (e) {
+      // ignore
+    }
   }
   render() {
     if (this.state.hasError) {

@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Clock, Shield, Link, Copy, Eye, Download, CheckCircle2 } from 'lucide-react'
+import { Clock, Shield, Link, Copy, Eye, EyeOff, Download, CheckCircle2, Check } from 'lucide-react'
 import { formatBytes } from '../utils/format'
 
 export default function TransferSummaryCard({ meta, url, onCopy }) {
   if (!meta) return null
 
   const [copied, setCopied] = useState(false)
+  const [copiedPw, setCopiedPw] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const fileCount = Array.isArray(meta.files) ? meta.files.length : 0
   const isTextShare = fileCount === 1 && meta.files[0]?.name?.endsWith('.txt')
@@ -58,6 +60,42 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
         </div>
       </div>
 
+      {meta.passwordProtected && meta.plaintextPassword && (
+        <div className="mb-5 p-3 rounded-xl border border-dashed flex items-center justify-between" style={{ borderColor: 'var(--border)', background: 'var(--bg-sunken)' }}>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-4)' }}>Transfer Password</div>
+            <div className="text-sm font-mono" style={{ color: 'var(--text)' }}>
+              {showPassword ? meta.plaintextPassword : '••••••••'}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowPassword(!showPassword)}
+              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={16} style={{ color: 'var(--text-3)' }} /> : <Eye size={16} style={{ color: 'var(--text-3)' }} />}
+            </button>
+            <button
+              onClick={() => {
+                import('../utils/clipboard').then(({ copyToClipboard }) => {
+                  copyToClipboard(meta.plaintextPassword).then(success => {
+                    if (success) {
+                      setCopiedPw(true)
+                      setTimeout(() => setCopiedPw(false), 2000)
+                    }
+                  })
+                })
+              }}
+              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              title="Copy password"
+            >
+              {copiedPw ? <Check size={16} style={{ color: 'var(--success)' }} /> : <Copy size={16} style={{ color: 'var(--text-3)' }} />}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="relative group">
         <div 
           className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${isExpired ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
@@ -80,7 +118,7 @@ export default function TransferSummaryCard({ meta, url, onCopy }) {
             {url.replace(/^https?:\/\//, '')}
           </div>
           {copied ? (
-            <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
+            <Check size={16} style={{ color: 'var(--success)' }} />
           ) : (
             !isExpired && <Copy size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-3)' }} />
           )}

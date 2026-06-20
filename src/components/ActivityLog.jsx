@@ -60,7 +60,19 @@ function ActivityLog({ activity = [], isLoading = false }) {
     )
   }
 
-  if (!activity.length) return null
+  if (!activity.length) {
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <History size={14} style={{ color: 'var(--text-3)' }} />
+          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Activity</h3>
+        </div>
+        <div className="surface-card-flat px-3 py-4 text-center">
+          <p className="text-xs" style={{ color: 'var(--text-4)' }}>No activity yet — you'll see views and downloads here.</p>
+        </div>
+      </div>
+    )
+  }
 
   const EVENT_ORDER = {
     uploaded: 1,

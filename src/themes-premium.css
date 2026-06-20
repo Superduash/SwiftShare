@@ -97,11 +97,11 @@
 }
 
 /* Glassmorphism blur filters & specific interactive hover effects */
-[data-theme="sunrise"] .bg-surface,
-[data-theme="sunrise"] .bg-settings-bg,
-[data-theme="sunrise"] .bg-drop-zone-bg {
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+[data-theme="sunrise"] .surface-card,
+[data-theme="sunrise"] .surface-card-flat,
+[data-theme="sunrise"] .drop-zone {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 /* Elegant header for Sunrise */

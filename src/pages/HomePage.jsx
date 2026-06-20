@@ -152,7 +152,11 @@ export default function HomePage() {
     
     const fname = files[0]?.name || 'file'
     const normalizedTransferCode = String(transferCode).trim().toUpperCase()
-    const transferSnapshot = { ...payload, code: normalizedTransferCode }
+    const transferSnapshot = { 
+      ...payload, 
+      code: normalizedTransferCode,
+      plaintextPassword: passwordProtected && password ? password : null
+    }
     saveTransfer({
       code: normalizedTransferCode,
       filename: fname,
@@ -239,7 +243,11 @@ export default function HomePage() {
         const errors = combined.map(validateFile).filter(Boolean)
         
         if (errors.length) {
-          errors.forEach(e => toast.error(e))
+          if (errors.length === 1) {
+            toast.error(errors[0])
+          } else {
+            toast.error(`${errors[0]} (+${errors.length - 1} more)`)
+          }
           return
         }
         
@@ -263,7 +271,11 @@ export default function HomePage() {
     const combined = [...files, ...accepted].slice(0, MAX_FILES)
     const errors = combined.map(validateFile).filter(Boolean)
     if (errors.length) {
-      errors.forEach(e => toast.error(e))
+      if (errors.length === 1) {
+        toast.error(errors[0])
+      } else {
+        toast.error(`${errors[0]} (+${errors.length - 1} more)`)
+      }
       return
     }
     // Check total size across all files
@@ -342,7 +354,11 @@ export default function HomePage() {
       }
 
       const normalizedCode = String(transferCode).trim().toUpperCase()
-      const transferSnapshot = { ...response, code: normalizedCode }
+      const transferSnapshot = { 
+        ...response, 
+        code: normalizedCode,
+        plaintextPassword: passwordProtected && password ? password : null
+      }
       
       saveTransfer({
         code: normalizedCode,
@@ -621,7 +637,7 @@ export default function HomePage() {
     setUploadError(null)
     uploadHandledRef.current = false
     speedCalc.reset()
-    toast.success('Upload canceled')
+    toast.success('Upload cancelled')
   }
 
   const hasFiles = files.length > 0
