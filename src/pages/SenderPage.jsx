@@ -383,7 +383,9 @@ export default function SenderPage() {
         if (!mountedRef.current) return
         const errCode = err?.response?.data?.error?.code
         if (errCode === 'ALREADY_DOWNLOADED') {
-          setBurnClaimed(true)
+          setBurnRemoved(true)
+          patchCachedTransfer({ status: 'DELETED' })
+          updateTransferStatus(normalizedCode, 'DELETED')
           setLoading(false)
           return
         }
@@ -525,13 +527,12 @@ export default function SenderPage() {
       requestActivityRefresh()
     }
     const onCancelled = () => {
-      if (!mountedRef.current || terminalNavigatedRef.current) return
-      terminalNavigatedRef.current = true
+      if (!mountedRef.current) return
+      toast('Transfer Cancelled')
       setCancelled(true)
       patchCachedTransfer({ status: 'CANCELLED' })
       updateTransferStatus(normalizedCode, 'CANCELLED')
       requestActivityRefresh()
-      navigate('/expired?reason=cancelled', { replace: true })
     }
     const onDeleted = ({ reason } = {}) => {
       if (!mountedRef.current) return
@@ -544,13 +545,11 @@ export default function SenderPage() {
         updateTransferStatus(normalizedCode, 'DELETED')
         requestActivityRefresh()
       } else {
-        if (terminalNavigatedRef.current) return
-        terminalNavigatedRef.current = true
+        toast('Transfer Removed')
         setCancelled(true)
         patchCachedTransfer({ status: 'DELETED' })
         updateTransferStatus(normalizedCode, 'DELETED')
         requestActivityRefresh()
-        navigate('/expired?reason=deleted', { replace: true })
       }
     }
     const onExtended = ({ expiresAt, extensionMinutes, serverTime }) => {
@@ -1138,11 +1137,11 @@ export default function SenderPage() {
               {cancelled ? <XCircle size={32} style={{ color: 'var(--danger)' }} /> : <Clock size={32} style={{ color: 'var(--warning)' }} />}
             </div>
             <h1 className="font-display font-bold text-2xl mb-2" style={{ color: 'var(--text)' }}>
-              Transfer {cancelled ? 'Cancelled' : 'Unavailable'}
+              {cancelled ? 'Transfer Deleted' : 'Transfer Unavailable'}
             </h1>
             <p className="text-sm mb-6" style={{ color: 'var(--text-3)' }}>
               {cancelled 
-                ? 'This transfer has been permanently deleted by the sender.'
+                ? 'This transfer was removed by the sender.'
                 : 'This transfer is no longer available.'}
             </p>
             <button className="btn-primary" onClick={() => navigate('/')}>
@@ -1213,7 +1212,7 @@ export default function SenderPage() {
                     tone="warning"
                     icon={Flame}
                     title="Transfer Claimed"
-                    description="A recipient has claimed this burn transfer."
+                    description="A recipient has claimed this transfer."
                     tip="The transfer will be removed when the active recipient leaves."
                     className="mb-4"
                   />

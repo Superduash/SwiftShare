@@ -12,42 +12,36 @@ const STATES = {
     color: 'var(--warning)',
     title: 'Transfer Expired',
     desc: 'This transfer is no longer available.',
-    tip: 'The expiration time has been reached.',
   },
   burned: {
     icon: Flame,
     color: 'var(--danger)',
     title: 'Transfer Unavailable',
     desc: 'This burn transfer has already been claimed.',
-    tip: 'The files are no longer available.',
   },
   claimed: {
     icon: Flame,
     color: 'var(--danger)',
     title: 'Transfer Unavailable',
     desc: 'This burn transfer has already been claimed.',
-    tip: 'The files are no longer available.',
   },
   notfound: {
     icon: FileQuestion,
     color: 'var(--text-3)',
     title: 'Transfer Not Found',
     desc: 'No active transfer matches this code.',
-    tip: 'Check the code and try again.',
   },
   cancelled: {
     icon: FileQuestion,
     color: 'var(--danger)',
     title: 'Transfer Deleted',
     desc: 'This transfer was removed by the sender.',
-    tip: 'The files are no longer available.',
   },
   deleted: {
     icon: FileQuestion,
     color: 'var(--danger)',
     title: 'Transfer Deleted',
     desc: 'This transfer was removed by the sender.',
-    tip: 'The files are no longer available.',
   },
 }
 

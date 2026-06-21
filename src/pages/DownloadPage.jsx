@@ -447,20 +447,31 @@ export default function DownloadPage() {
     }
   }, [clearRetryTimer])
 
+  const [transferAlreadyOpen, setTransferAlreadyOpen] = useState(false)
+  const isBurnClaimedRef = useRef(sessionStorage.getItem(`swiftshare:claimed:${normalizedCode}`) === 'true')
+
   useEffect(() => {
-    const finalizeOnPageExit = () => {
-      void finalizeBurnSessionIfNeeded()
+    if (!normalizedCode || !meta?.burnAfterDownload) return
+    
+    const channel = new BroadcastChannel(`swiftshare:burn:${normalizedCode}`)
+    
+    channel.onmessage = (e) => {
+      if (e.data === 'ping') {
+        if (isBurnClaimedRef.current) channel.postMessage('pong')
+      } else if (e.data === 'pong') {
+        setTransferAlreadyOpen(true)
+      } else if (e.data === 'claimed') {
+        isBurnClaimedRef.current = true
+        channel.postMessage('ping')
+      }
     }
 
-    window.addEventListener('pagehide', finalizeOnPageExit)
-    window.addEventListener('beforeunload', finalizeOnPageExit)
-
-    return () => {
-      window.removeEventListener('pagehide', finalizeOnPageExit)
-      window.removeEventListener('beforeunload', finalizeOnPageExit)
-      void finalizeBurnSessionIfNeeded()
+    if (isBurnClaimedRef.current) {
+      channel.postMessage('ping')
     }
-  }, [finalizeBurnSessionIfNeeded])
+
+    return () => channel.close()
+  }, [normalizedCode, meta?.burnAfterDownload])
 
   // Socket
   useEffect(() => {
@@ -545,7 +556,7 @@ export default function DownloadPage() {
       const isActiveClaimant = downloadedAnyRef.current || downloadingRef.current || isDownloadingFileRef.current
       // Only show error if user hasn't downloaded and isn't currently downloading
       if (reason === 'burn' && !isActiveClaimant) {
-        toast.error('Transfer Claimed Already')
+        toast.error('This burn transfer has already been claimed.')
       }
       if (!isActiveClaimant) {
         terminalNavigatedRef.current = true
@@ -618,10 +629,11 @@ export default function DownloadPage() {
     } catch (err) {
       const errCode = err?.response?.data?.error?.code
       if (errCode === 'INVALID_PASSWORD') {
-        setPasswordError('Wrong password. Please try again.')
-        toast.error('Wrong password')
+        setPasswordError('The password entered is incorrect.')
+        toast.error('The password entered is incorrect.')
       } else if (err?.response?.status === 429) {
-        setPasswordError('Too many attempts. This transfer is locked.')
+        setPasswordError('Please wait before trying again.')
+        toast.error('Please wait before trying again.')
       } else {
         setPasswordError('Verification failed. Please try again.')
       }
@@ -645,6 +657,14 @@ export default function DownloadPage() {
 
     let downloadSucceeded = false
     try {
+      if (meta?.burnAfterDownload) {
+        isBurnClaimedRef.current = true
+        sessionStorage.setItem(`swiftshare:claimed:${normalizedCode}`, 'true')
+        const channel = new BroadcastChannel(`swiftshare:burn:${normalizedCode}`)
+        channel.postMessage('claimed')
+        channel.close()
+      }
+
       await smartDownload(normalizedCode, {
         originalName: meta?.files?.[0]?.name,
         password: verifiedPasswordRef.current || undefined,
@@ -738,6 +758,14 @@ export default function DownloadPage() {
     }, 15000)
 
     const pw = verifiedPasswordRef.current || undefined
+    if (meta?.burnAfterDownload) {
+      isBurnClaimedRef.current = true
+      sessionStorage.setItem(`swiftshare:claimed:${normalizedCode}`, 'true')
+      const channel = new BroadcastChannel(`swiftshare:burn:${normalizedCode}`)
+      channel.postMessage('claimed')
+      channel.close()
+    }
+    
     downloadSingleFile(normalizedCode, index, pw, claimantToken)
   }, [normalizedCode, claimantToken, clearDownloadGate])
 
@@ -790,11 +818,11 @@ export default function DownloadPage() {
     } catch (err) {
       const errCode = err?.response?.data?.error?.code
       if (errCode === 'INVALID_PASSWORD') {
-        toast.error('Wrong password')
+        toast.error('The password entered is incorrect.')
       } else if (err?.response?.status === 429) {
-        toast.error('Too many attempts')
+        toast.error('Please wait before trying again.')
       } else {
-        toast.error('Failed to unlock')
+        toast.error('Verification failed. Please try again.')
       }
       throw err
     }
@@ -857,6 +885,20 @@ export default function DownloadPage() {
 
   if (isUnavailable) {
     return <Navigate to={`/expired?reason=${terminalStatus.toLowerCase()}`} replace />
+  }
+
+  if (transferAlreadyOpen) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="surface-card p-8 text-center max-w-sm w-full">
+          <Flame size={32} className="mx-auto mb-4" style={{ color: 'var(--warning)' }} />
+          <h2 className="text-xl font-bold font-display mb-2" style={{ color: 'var(--text)' }}>Transfer Already Open</h2>
+          <p className="text-sm" style={{ color: 'var(--text-3)' }}>
+            This burn transfer is currently open in another tab. Please return to the original window to download the files.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
