@@ -245,7 +245,6 @@ export default function DownloadPage() {
 
     const firstFile = merged?.files?.[0]
     const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
-    // Removed image preview logic
 
     if (persist) {
       const persisted = saveCachedTransfer(normalizedCode, merged) || merged
@@ -542,11 +541,13 @@ export default function DownloadPage() {
       setTransferStatus('DELETED')
       patchCachedTransfer({ status: 'DELETED' })
       updateTransferStatus(normalizedCode, 'DELETED')
+
+      const isActiveClaimant = downloadedAnyRef.current || downloadingRef.current || isDownloadingFileRef.current
       // Only show error if user hasn't downloaded and isn't currently downloading
-      if (reason === 'burn' && !downloadedAnyRef.current && !downloadingRef.current) {
+      if (reason === 'burn' && !isActiveClaimant) {
         toast.error('Transfer Claimed Already')
       }
-      if (!downloadedAnyRef.current && !downloadingRef.current) {
+      if (!isActiveClaimant) {
         terminalNavigatedRef.current = true
         navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
       }
@@ -613,10 +614,6 @@ export default function DownloadPage() {
         verifiedPasswordRef.current = password
         // Save password session for 5 minutes
         savePasswordSession(normalizedCode, password)
-        // Now set preview for images with the verified password
-        const firstFile = meta?.files?.[0]
-        const firstFileType = String(firstFile?.mimeType || firstFile?.type || '').toLowerCase()
-        // Removed image preview logic
       }
     } catch (err) {
       const errCode = err?.response?.data?.error?.code
@@ -968,7 +965,7 @@ export default function DownloadPage() {
             transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <h1 className="font-display font-extrabold text-2xl sm:text-3xl mb-1" style={{ color: 'var(--text)' }}>
-              {downloaded ? '✅ Download Complete' : isUnavailable ? 'Transfer Unavailable' : 'Ready to download'}
+              {downloaded ? 'Download Complete' : isUnavailable ? 'Transfer Unavailable' : 'Ready to download'}
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-3)' }}>
               {downloaded 
@@ -1075,7 +1072,7 @@ export default function DownloadPage() {
             <StatusBanner
               tone="warning"
               icon={Flame}
-              title="🔥 Burn Mode Enabled"
+              title="Burn Mode Enabled"
               description="This transfer will be permanently removed after it is claimed."
               className="mb-4"
             />
@@ -1092,7 +1089,7 @@ export default function DownloadPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <Lock size={18} style={{ color: 'var(--accent)' }} />
                   <p className="text-sm font-semibold font-display" style={{ color: 'var(--text)' }}>
-                    🔒 Password Required
+                    Password Required
                   </p>
                 </div>
                 <p className="text-xs mb-3" style={{ color: 'var(--text-3)' }}>

@@ -110,10 +110,12 @@ export default function SenderPage() {
   const [extendMinutes, setExtendMinutes] = useState(10) // Default 10 minutes
   const [showExtendOptions, setShowExtendOptions] = useState(false)
   const [cancelled, setCancelled] = useState(
-    initialCachedTransfer?.status === 'CANCELLED' || initialCachedTransfer?.status === 'DELETED'
+    (initialCachedTransfer?.status === 'CANCELLED' || initialCachedTransfer?.status === 'DELETED')
+    && !initialCachedTransfer?.burnAfterDownload
   )
-  const [burnClaimed, setBurnClaimed] = useState(
-    initialCachedTransfer?.status === 'CLAIMED' && initialCachedTransfer?.isDeleted
+  // burnRemoved: set true when the claimant left and the transfer was finalized
+  const [burnRemoved, setBurnRemoved] = useState(
+    Boolean(initialCachedTransfer?.burnAfterDownload && initialCachedTransfer?.isDeleted)
   )
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
@@ -255,7 +257,11 @@ export default function SenderPage() {
       setOwnershipToken(incomingToken)
     }
 
-    if (merged.status === 'CANCELLED' || merged.status === 'DELETED') {
+    // Only flag as cancelled for non-burn deletions so the full-page cancelled card shows.
+    // Burn-deleted transfers stay on SenderPage with an inline banner instead.
+    if (merged.status === 'CANCELLED') {
+      setCancelled(true)
+    } else if (merged.status === 'DELETED' && !merged.burnAfterDownload) {
       setCancelled(true)
     }
 
@@ -344,19 +350,21 @@ export default function SenderPage() {
 
         if (!mountedRef.current) return
         
-        // Check for expired/cancelled/deleted status but don't immediately redirect for EXPIRED
-        // Keep the page accessible but disable actions
+        // CANCELLED: sender manually deleted before any claim.
         if (data.status === 'CANCELLED') {
           updateTransferStatus(normalizedCode, 'CANCELLED')
-          navigate('/expired?reason=cancelled', { replace: true })
+          setCancelled(true)
           return
         }
+        // DELETED: could be burn-finalized or regular deletion.
         if (data.status === 'DELETED') {
           updateTransferStatus(normalizedCode, 'DELETED')
           if (data.burnAfterDownload || meta?.burnAfterDownload) {
-            setBurnClaimed(true)
+            // Burn transfer was finalized — stay on page, show inline banner.
+            setBurnRemoved(true)
+            applyTransferSnapshot(data, { persist: true })
           } else {
-            navigate('/expired?reason=deleted', { replace: true })
+            setCancelled(true)
           }
           return
         }
@@ -471,8 +479,15 @@ export default function SenderPage() {
     }, 1000)
     const onExpired = () => {
       if (!mountedRef.current) return
+      // Keep sender on page; the isExpired computed value will update the UI.
       updateTransferStatus(normalizedCode, 'EXPIRED')
-      navigate('/expired?reason=expired', { replace: true })
+      setMeta(prev => {
+        if (!prev) return prev
+        const updated = { ...prev, status: 'EXPIRED' }
+        metaRef.current = updated
+        saveCachedTransfer(normalizedCode, updated)
+        return updated
+      })
     }
     // Coalesce percent updates.
     let downProgRaf = 0
@@ -521,7 +536,10 @@ export default function SenderPage() {
     const onDeleted = ({ reason } = {}) => {
       if (!mountedRef.current) return
       if (reason === 'burn') {
-        setBurnClaimed(true)
+        // Claimant left; transfer was permanently removed.
+        // Stay on SenderPage and show an inline "Transfer Removed" banner.
+        toast('Transfer Removed')
+        setBurnRemoved(true)
         patchCachedTransfer({ status: 'DELETED' })
         updateTransferStatus(normalizedCode, 'DELETED')
         requestActivityRefresh()
@@ -594,18 +612,15 @@ export default function SenderPage() {
 
     const onClaimed = () => {
       if (!mountedRef.current) return
-      toast("🔥 Transfer Claimed")
+      toast('Transfer Claimed')
+      // Update meta status so the claimed banner renders immediately.
       setMeta(prev => {
         if (!prev) return prev
-        const updated = {
-          ...prev,
-          status: 'CLAIMED'
-        }
+        const updated = { ...prev, status: 'CLAIMED' }
         metaRef.current = updated
         saveCachedTransfer(normalizedCode, updated)
         return updated
       })
-      patchCachedTransfer({ status: 'CLAIMED' })
       updateTransferStatus(normalizedCode, 'CLAIMED')
       requestActivityRefresh()
     }
@@ -1106,41 +1121,7 @@ export default function SenderPage() {
 
   if (!authorized) return null
 
-  if (burnClaimed) {
-    return (
-      <div className="min-h-screen">
-        <div className="app-main-offset max-w-2xl mx-auto px-4 py-12">
-          <motion.div
-            className="surface-card p-8 text-center"
-            initial={{ y: 14 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-          >
-            <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--danger-soft)' }}>
-              <Flame size={24} style={{ color: 'var(--danger)' }} />
-            </div>
-            <h1 className="font-display font-bold text-2xl mb-2" style={{ color: 'var(--text)' }}>
-              🔥 Transfer Claimed
-            </h1>
-            <p className="text-sm mb-2 max-w-xs mx-auto font-medium" style={{ color: 'var(--text-2)' }}>
-              A recipient has claimed this burn transfer.
-            </p>
-            <p className="text-xs mb-6 max-w-xs mx-auto" style={{ color: 'var(--text-4)' }}>
-              This transfer is no longer available.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button className="btn-primary" onClick={() => navigate('/')}>
-                Continue now
-              </button>
-              <button className="btn-secondary" onClick={() => navigate('/')}>
-                Share New Files
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    )
-  }
+  // burnRemoved full-page card removed; inline banners handle this state instead.
 
   // Handle cancelled/deleted transfers - show error page only for these
   if (!meta || cancelled) {
@@ -1226,13 +1207,24 @@ export default function SenderPage() {
                     className="mb-4"
                   />
                 )}
-                {meta?.status === 'CLAIMED' && (
+                {meta?.status === 'CLAIMED' && !burnRemoved && (
                   <StatusBanner
                     key="claimed"
                     tone="warning"
                     icon={Flame}
-                    title="Burn transfer claimed"
-                    description="Waiting for claimant to leave..."
+                    title="Transfer Claimed"
+                    description="A recipient has claimed this burn transfer."
+                    tip="The transfer will be removed when the active recipient leaves."
+                    className="mb-4"
+                  />
+                )}
+                {burnRemoved && (
+                  <StatusBanner
+                    key="burn-removed"
+                    tone="danger"
+                    icon={Flame}
+                    title="Transfer Removed"
+                    description="This burn transfer has been permanently removed."
                     className="mb-4"
                   />
                 )}
@@ -1482,7 +1474,7 @@ export default function SenderPage() {
                 )}
 
                 {/* Burn badge */}
-                {meta?.burnAfterDownload && (
+                {meta?.burnAfterDownload && !burnRemoved && meta?.status !== 'CLAIMED' && (
                   <StatusBanner
                     tone="danger"
                     icon={Flame}

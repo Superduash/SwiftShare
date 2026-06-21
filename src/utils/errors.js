@@ -34,7 +34,7 @@ const ERROR_MAP = {
   },
   TRANSFER_NOT_FOUND: {
     title: 'Transfer Not Found',
-    description: 'No active transfer matches this code.',
+    description: 'No active transfer matches this code. Check the code and try again.',
     icon: FileX,
     color: 'var(--text-3)',
     action: 'Go home',

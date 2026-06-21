@@ -40,14 +40,14 @@ const STATES = {
     color: 'var(--danger)',
     title: 'Transfer Deleted',
     desc: 'This transfer was removed by the sender.',
-    tip: '',
+    tip: 'The files are no longer available.',
   },
   deleted: {
     icon: FileQuestion,
     color: 'var(--danger)',
     title: 'Transfer Deleted',
     desc: 'This transfer was removed by the sender.',
-    tip: '',
+    tip: 'The files are no longer available.',
   },
 }
 
