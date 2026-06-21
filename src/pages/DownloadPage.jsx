@@ -13,6 +13,7 @@ import {
   getSettings,
   getCachedTransfer,
   saveCachedTransfer,
+  removeCachedTransfer,
   mergeTransferData,
 } from '../utils/storage'
 
@@ -88,7 +89,15 @@ export default function DownloadPage() {
     }
     return 600
   })
-  const [requestState, setRequestState] = useState(initialCachedTransfer ? REQUEST_STATE.SUCCESS : REQUEST_STATE.IDLE)
+  const [requestState, setRequestState] = useState(() => {
+    if (initialCachedTransfer) {
+      if (initialCachedTransfer.burnAfterDownload) {
+        return REQUEST_STATE.LOADING
+      }
+      return REQUEST_STATE.SUCCESS
+    }
+    return REQUEST_STATE.IDLE
+  })
   const [requestError, setRequestError] = useState(null)
   const [retryAttempt, setRetryAttempt] = useState(0)
   const [downloading, setDownloading] = useState(false)
@@ -330,6 +339,7 @@ export default function DownloadPage() {
         
         // CLAIMED: burn transfer has an active claimant — never render content
         if (status === 'CLAIMED') {
+          removeCachedTransfer(normalizedCode)
           setBurnClaimed(true)
           return
         }
@@ -344,12 +354,14 @@ export default function DownloadPage() {
             applyTransferSnapshot(data, { persist: true })
             return
           }
+          removeCachedTransfer(normalizedCode)
           navigate('/expired?reason=burned', { replace: true })
           return
         }
         
         if (status === 'EXPIRED' || status === 'CANCELLED' || status === 'DELETED') {
           updateTransferStatus(normalizedCode, status)
+          removeCachedTransfer(normalizedCode)
           const reason = status === 'DELETED' ? 'burned' : status.toLowerCase()
           navigate(`/expired?reason=${reason}`, { replace: true })
           return
@@ -371,20 +383,24 @@ export default function DownloadPage() {
         const errCode = outcome.errorCode || 'SERVER_ERROR'
         if (errCode === 'TRANSFER_EXPIRED') {
           updateTransferStatus(normalizedCode, 'EXPIRED')
+          removeCachedTransfer(normalizedCode)
           navigate('/expired?reason=expired', { replace: true })
           return
         }
         if (errCode === 'BURN_TRANSFER_CLAIMED') {
           // Backend denied access — competing user. Show wall, never set meta.
+          removeCachedTransfer(normalizedCode)
           setBurnClaimed(true)
           return
         }
         if (errCode === 'ALREADY_DOWNLOADED') {
           updateTransferStatus(normalizedCode, 'DELETED')
+          removeCachedTransfer(normalizedCode)
           navigate('/expired?reason=burned', { replace: true })
           return
         }
         if (errCode === 'TRANSFER_NOT_FOUND') {
+          removeCachedTransfer(normalizedCode)
           navigate('/expired?reason=notfound', { replace: true })
           return
         }
@@ -429,15 +445,17 @@ export default function DownloadPage() {
 
     if (seed) {
       setRequestError(null)
-      setRequestState(REQUEST_STATE.SUCCESS)
-      applyTransferSnapshot(seed, { persist: true })
-      if (seed?.text?.content) {
+      if (!seed.burnAfterDownload) {
+        setRequestState(REQUEST_STATE.SUCCESS)
+      }
+      applyTransferSnapshot(seed, { persist: !seed.burnAfterDownload })
+      if (seed?.text?.content && !seed.burnAfterDownload) {
         setTextContent(seed.text.content)
         setTextLoading(false)
       }
     }
 
-    const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0)
+    const hasUsableCache = Boolean(seed && Array.isArray(seed.files) && seed.files.length > 0 && !seed.burnAfterDownload)
 
     if (hasUsableCache) {
       return
@@ -509,12 +527,20 @@ export default function DownloadPage() {
       try {
         const ack = await rejoinRoom(normalizedCode)
         if (ack?.ok && Number(ack.secondsRemaining) > 0) {
-          socket.emit('register-claimant', { code: normalizedCode, claimantToken })
+          socket.emit('register-claimant', { code: normalizedCode, claimantToken }, (res) => {
+            if (res && !res.ok && res.error === 'already_claimed') {
+              setBurnClaimed(true)
+            }
+          })
           return
         }
       } catch {}
 
-      socket.emit('register-claimant', { code: normalizedCode, claimantToken })
+      socket.emit('register-claimant', { code: normalizedCode, claimantToken }, (res) => {
+        if (res && !res.ok && res.error === 'already_claimed') {
+          setBurnClaimed(true)
+        }
+      })
     }
 
     connectRoom()
@@ -867,7 +893,7 @@ export default function DownloadPage() {
     ))
   }, [meta?.files, canDownload, needsPassword, passwordVerified, setContextMenu])
 
-  const isInitialLoading = requestState === REQUEST_STATE.LOADING && !meta
+  const isInitialLoading = requestState === REQUEST_STATE.LOADING && (!meta || meta.burnAfterDownload)
   const isRetrying = requestState === REQUEST_STATE.RETRYING
 
   // Hard wall: render before loading skeleton so there is zero flicker.
