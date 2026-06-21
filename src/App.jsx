@@ -27,7 +27,7 @@ class RouteErrorBoundary extends Component {
   }
   static getDerivedStateFromError(error) {
     // ChunkLoadError happens when a new deploy removes old chunk hashes
-    const isChunkError = /chunk|loading chunk|failed to fetch dynamically imported/i.test(
+    const isChunkError = /chunk|loading chunk|failed to fetch dynamically imported|error loading dynamically imported|dynamically imported module/i.test(
       String(error?.message || error?.name || '')
     )
     return { hasError: true, error, isChunkError }

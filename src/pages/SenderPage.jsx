@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, Check, Share2, Clock, Trash2,
   MessageCircle, Mail, Maximize2, Send,
-  QrCode, AlertTriangle, Lock, Eye, EyeOff, Loader2,
-  XCircle, Flame, Download, Bell
+  QrCode, AlertTriangle,
+  XCircle, Flame, Download, Eye
 } from 'lucide-react'
 import Spinner from '../components/Spinner'
 import { QRCode } from 'react-qr-code'
@@ -14,7 +14,7 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import {
   extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword, getTextContent,
-  verifyOwnership
+  verifyOwnership, getFileMetadata, getTransferActivity, getTransferStatus
 } from '../services/api'
 import {
   getCachedTransfer,
@@ -25,8 +25,6 @@ import {
 } from '../utils/storage'
 import { copyToClipboard, shareOrCopy, canWebShare } from '../utils/clipboard'
 
-import { savePasswordSession, getPasswordSession, clearPasswordSession } from '../utils/passwordSession'
-import Navbar from '../components/Navbar'
 import StatusBanner from '../components/StatusBanner'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
@@ -82,17 +80,6 @@ export default function SenderPage() {
     initialCachedTransfer?.transfer?.ownershipToken || 
     initialCachedTransfer?.ownershipToken ||
     null
-  
-  console.log('🔍 SENDER_INITIAL_STATE', {
-    cachedDownloadCount: initialCachedTransfer?.downloadCount,
-    cachedViewCount: initialCachedTransfer?.viewCount,
-    cachedExpiresAt: initialCachedTransfer?.expiresAt,
-    navStateDownloadCount: navState?.downloadCount,
-    navStateExpiresAt: navState?.expiresAt,
-    hasOwnershipToken: !!initialOwnershipToken,
-    ownershipTokenLength: String(initialOwnershipToken || '').length,
-    ownershipTokenSource: navState?.transfer?.ownershipToken ? 'navState.transfer' : navState?.ownershipToken ? 'navState' : initialCachedTransfer?.transfer?.ownershipToken ? 'cache.transfer' : initialCachedTransfer?.ownershipToken ? 'cache' : 'none'
-  })
 
   const [meta, setMeta] = useState(initialCachedTransfer)
   const [ownershipToken, setOwnershipToken] = useState(initialOwnershipToken)
@@ -153,25 +140,16 @@ export default function SenderPage() {
     // First, check if we even have a token
     const token = ownershipToken || meta?.transfer?.ownershipToken || meta?.ownershipToken
     
-    console.log('🔍 VERIFY_OWNERSHIP_START', {
-      code: normalizedCode,
-      hasToken: !!token,
-      tokenLength: String(token || '').length,
-      tokenSource: ownershipToken ? 'state' : meta?.transfer?.ownershipToken ? 'meta.transfer' : meta?.ownershipToken ? 'meta' : 'none',
-      hasNavState: !!navState
-    })
-    
+
     if (!token) {
       // FIX: If we just navigated from upload (navState exists), trust it temporarily
       // The backend async DB write might not have completed yet
       if (navState) {
-        console.log('🔍 VERIFY_OWNERSHIP_SKIP', 'No token but has navState, trusting upload')
         setAuthorized(true)
         setVerifyingAuth(false)
         return
       }
       
-      console.log('🔍 VERIFY_OWNERSHIP_FAIL', 'No token and no navState')
       setAuthorized(false)
       setVerifyingAuth(false)
       return
@@ -181,7 +159,6 @@ export default function SenderPage() {
     let isSubscribed = true
     verifyOwnership(normalizedCode, token)
       .then(res => {
-        console.log('🔍 VERIFY_OWNERSHIP_RESPONSE', { authorized: res?.authorized })
         if (isSubscribed) {
           if (res?.authorized) {
             setAuthorized(true)
@@ -191,16 +168,10 @@ export default function SenderPage() {
         }
       })
       .catch(err => {
-        console.log('🔍 VERIFY_OWNERSHIP_ERROR', { 
-          status: err?.response?.status,
-          code: err?.response?.data?.error?.code,
-          hasNavState: !!navState
-        })
         // FIX: If verification fails but we have navState (just uploaded), trust it
         // Backend might be saving to DB asynchronously
         if (isSubscribed) {
           if (navState) {
-            console.log('🔍 VERIFY_OWNERSHIP_FALLBACK', 'Using navState due to backend 404')
             setAuthorized(true)
           } else {
             setAuthorized(false)
@@ -269,22 +240,8 @@ export default function SenderPage() {
     const { persist = true } = options
     if (!incoming) return null
 
-    console.log('🔍 SENDER_APPLY_SNAPSHOT_START', {
-      incomingDownloadCount: incoming?.downloadCount,
-      incomingViewCount: incoming?.viewCount,
-      incomingExpiresAt: incoming?.expiresAt,
-      currentMetaDownloadCount: metaRef.current?.downloadCount,
-      currentMetaExpiresAt: metaRef.current?.expiresAt
-    })
-
     const merged = mergeTransferData(metaRef.current, incoming)
     if (!merged) return null
-
-    console.log('🔍 SENDER_APPLY_SNAPSHOT_MERGED', {
-      mergedDownloadCount: merged?.downloadCount,
-      mergedViewCount: merged?.viewCount,
-      mergedExpiresAt: merged?.expiresAt
-    })
 
     metaRef.current = merged
     setMeta(merged)
@@ -304,10 +261,6 @@ export default function SenderPage() {
     if (merged.expiresAt) {
       const calculated = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
       setSecondsRemaining(calculated)
-      console.log('🔍 SENDER_TIMER_UPDATED', {
-        expiresAt: merged.expiresAt,
-        calculatedSeconds: calculated
-      })
     } else if (Number.isFinite(directSeconds) && directSeconds >= 0) {
       setSecondsRemaining(directSeconds)
     }
@@ -319,7 +272,6 @@ export default function SenderPage() {
 
     if (merged.downloadCount !== undefined) {
       setDownloadCount(merged.downloadCount)
-      console.log('🔍 SENDER_DOWNLOADCOUNT_SET', { downloadCount: merged.downloadCount })
     }
 
     if (persist) {
@@ -379,20 +331,7 @@ export default function SenderPage() {
           requestConfig.headers = { 'X-Ownership-Token': initialOwnershipToken }
         }
         
-        console.log('🔍 SENDER_METADATA_REQUEST', {
-          code: normalizedCode,
-          hasOwnershipToken: !!initialOwnershipToken,
-          tokenLength: String(initialOwnershipToken || '').length
-        })
-        
         const data = await getFileMetadata(normalizedCode, requestConfig)
-        
-        console.log('🔍 SENDER_API_RESPONSE', {
-          downloadCount: data?.downloadCount,
-          viewCount: data?.viewCount,
-          expiresAt: data?.expiresAt,
-          hasFiles: Array.isArray(data?.files) && data.files.length > 0
-        })
         
         // Guarantee Minimum Visible Duration (MVD) to prevent flashing
         const elapsed = Date.now() - startTime
@@ -608,8 +547,6 @@ export default function SenderPage() {
 
       const viewCount = Number(payload.viewCount || 0)
       const downloadCount = Number(payload.downloadCount || 0)
-
-      console.log('🔍 SENDER_SOCKET_STATS_UPDATE', { viewCount, downloadCount })
 
       setDownloadCount(downloadCount)
       
@@ -869,17 +806,17 @@ export default function SenderPage() {
   }
 
   // Per-file operations
-  function handlePreview(index) {
+  const handlePreview = useCallback((index) => {
     const file = meta?.files?.[index]
     if (file) {
       setPreviewFile(file)
       setPreviewIndex(index)
     }
-  }
+  }, [meta?.files])
 
-  function handleDownloadSingle(index) {
+  const handleDownloadSingle = useCallback((index) => {
     downloadSingleFile(normalizedCode, index, undefined, undefined, ownershipToken)
-  }
+  }, [normalizedCode, ownershipToken])
 
   // Context menu items for files
   function senderMenuItems() {
@@ -917,6 +854,10 @@ export default function SenderPage() {
 
     fetchText()
   }, [isTextShare, normalizedCode, textContent, ownershipToken])
+
+  // Sender is pre-authorized via ownershipToken — text is always unlocked.
+  // This callback is required by SharedTextDisplay's API but is never invoked here.
+  const handleTextUnlock = useCallback(() => Promise.resolve(), [])
 
   const handleNativeShare = useCallback(async () => {
     const fileLabel = meta?.files?.length > 1
@@ -1075,7 +1016,7 @@ export default function SenderPage() {
         }}
       />
     ))
-  }, [meta?.files, isExpired, cancelled, meta?.passwordProtected, passwordVerified])
+  }, [meta?.files, isExpired, cancelled, meta?.passwordProtected, passwordVerified, handlePreview, handleDownloadSingle])
 
   if (loading && !meta) {
     return (

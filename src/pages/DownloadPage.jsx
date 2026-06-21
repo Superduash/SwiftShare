@@ -274,7 +274,6 @@ export default function DownloadPage() {
       if (verifiedPasswordRef.current) headers['X-Transfer-Password'] = verifiedPasswordRef.current
       if (claimantToken) headers['X-Claimant-Token'] = claimantToken
       if (Object.keys(headers).length) requestConfig.headers = headers
-      console.log('[Burn] metadata fetch sending claimant token:', claimantToken)
       const outcome = await getFileMetadataOutcome(normalizedCode, requestConfig)
 
       // Guarantee Minimum Visible Duration (MVD) to prevent flashing
@@ -617,7 +616,7 @@ export default function DownloadPage() {
   }
 
   // Download
-  async function handleDownload() {
+  const handleDownload = useCallback(async () => {
     if (downloading) return
     setDownloaded(false)
     setDownloadPercent(0)
@@ -683,7 +682,7 @@ export default function DownloadPage() {
         setDownloadPercent(0)
       }
     }
-  }
+  }, [downloading, meta, normalizedCode, claimantToken])
 
   // Space/Enter shortcut for download
   useEffect(() => {
@@ -711,10 +710,10 @@ export default function DownloadPage() {
     }
   }
 
-  function handleDownloadSingle(index) {
+  const handleDownloadSingle = useCallback((index) => {
     const pw = verifiedPasswordRef.current || undefined
     downloadSingleFile(normalizedCode, index, pw, claimantToken)
-  }
+  }, [normalizedCode, claimantToken])
 
   const receiverMenuItems = () => {
     if (contextMenu.index === null) return []
