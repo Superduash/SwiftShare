@@ -34,6 +34,21 @@ class RouteErrorBoundary extends Component {
   }
   componentDidCatch(error, info) {
     console.error('[SwiftShare] Route failed to load:', error, info)
+    
+    // Auto-reload on chunk load error to recover from new deployments
+    const isChunkError = /chunk|loading chunk|failed to fetch dynamically imported|error loading dynamically imported|dynamically imported module/i.test(
+      String(error?.message || error?.name || '')
+    )
+    if (isChunkError) {
+      const lastReload = sessionStorage.getItem('swiftshare_last_chunk_reload')
+      const now = Date.now()
+      if (!lastReload || now - parseInt(lastReload, 10) > 15000) {
+        sessionStorage.setItem('swiftshare_last_chunk_reload', String(now))
+        window.location.reload()
+        return
+      }
+    }
+
     try {
       reportClientError(error, info)
     } catch (e) {
