@@ -108,6 +108,7 @@ export default function DownloadPage() {
   const [textContent, setTextContent] = useState(null)
   const [textLoading, setTextLoading] = useState(false)
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null })
+  const [burnClaimed, setBurnClaimed] = useState(false)
   
   const verifiedPasswordRef = useRef('')
   const downloadingRef = useRef(false)
@@ -169,7 +170,7 @@ export default function DownloadPage() {
     } catch {
       // Cleanup service will finalize stale claimed sessions if this request fails during tab close.
     }
-  }, [normalizedCode, updateTransferStatus])
+  }, [normalizedCode, updateTransferStatus, claimantToken])
 
   useEffect(() => {
     verifiedPasswordRef.current = ''
@@ -304,11 +305,9 @@ export default function DownloadPage() {
         const data = outcome.data
         const status = String(data?.status || '').toUpperCase()
         
-        // FIX: Handle CLAIMED state - burn transfer claimed by another device
+        // CLAIMED: burn transfer has an active claimant — never render content
         if (status === 'CLAIMED') {
-          updateTransferStatus(normalizedCode, 'CLAIMED')
-          // Show a dedicated page instead of trying to download
-          navigate('/expired?reason=claimed', { replace: true })
+          setBurnClaimed(true)
           return
         }
         
@@ -350,6 +349,11 @@ export default function DownloadPage() {
         if (errCode === 'TRANSFER_EXPIRED') {
           updateTransferStatus(normalizedCode, 'EXPIRED')
           navigate('/expired?reason=expired', { replace: true })
+          return
+        }
+        if (errCode === 'BURN_TRANSFER_CLAIMED') {
+          // Backend denied access — competing user. Show wall, never set meta.
+          setBurnClaimed(true)
           return
         }
         if (errCode === 'ALREADY_DOWNLOADED') {
@@ -564,15 +568,12 @@ export default function DownloadPage() {
       }
     }
     const onClaimed = (data) => {
-      if (data?.claimantToken === claimantToken) {
-        return
-      }
+      // This tab is the active claimant — ignore.
+      if (data?.claimantToken === claimantToken) return
 
-      setTransferStatus('CLAIMED')
-      patchCachedTransfer({ status: 'CLAIMED' })
-      updateTransferStatus(normalizedCode, 'CLAIMED')
-      terminalNavigatedRef.current = true
-      navigate('/expired?reason=claimed', { replace: true })
+      // A competing user is on the page right now when another tab claims.
+      // Show the hard wall without navigating or leaking any content.
+      setBurnClaimed(true)
     }
     const onReceipt = (data) => setReceipt(data)
 
@@ -625,6 +626,10 @@ export default function DownloadPage() {
         verifiedPasswordRef.current = password
         // Save password session for 5 minutes
         savePasswordSession(normalizedCode, password)
+        // Reload metadata if files aren't already populated
+        if (!metaRef.current?.files || metaRef.current.files.length === 0) {
+          void loadMetadata()
+        }
       }
     } catch (err) {
       const errCode = err?.response?.data?.error?.code
@@ -854,6 +859,22 @@ export default function DownloadPage() {
 
   const isInitialLoading = requestState === REQUEST_STATE.LOADING && !meta
   const isRetrying = requestState === REQUEST_STATE.RETRYING
+
+  // Hard wall: render before loading skeleton so there is zero flicker.
+  // burnClaimed is set the instant the backend returns 423 BURN_TRANSFER_CLAIMED.
+  if (burnClaimed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="surface-card p-8 text-center max-w-sm w-full">
+          <Flame size={32} className="mx-auto mb-4" style={{ color: 'var(--danger)' }} />
+          <h2 className="text-xl font-bold font-display mb-2" style={{ color: 'var(--text)' }}>Transfer Unavailable</h2>
+          <p className="text-sm" style={{ color: 'var(--text-3)' }}>
+            This burn transfer has already been claimed by another device.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (isInitialLoading) {
     return (

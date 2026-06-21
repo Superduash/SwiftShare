@@ -131,7 +131,6 @@ export default function SenderPage() {
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
   const activityRefreshTimerRef = useRef(null)
-  const terminalNavigatedRef = useRef(false)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
   
@@ -681,7 +680,7 @@ export default function SenderPage() {
 
   // Poll live stats.
   useEffect(() => {
-    if (!normalizedCode || !meta || loading || cancelled) return
+    if (!normalizedCode || !meta || loading || cancelled || burnRemoved || meta?.status === 'EXPIRED') return
 
     const pollInterval = setInterval(async () => {
       if (!mountedRef.current) return
@@ -708,6 +707,46 @@ export default function SenderPage() {
             })
           }
           
+          // Sync status from polling
+          const incomingStatus = status.status || 'ACTIVE'
+          if (incomingStatus !== metaRef.current?.status) {
+            if (incomingStatus === 'CLAIMED') {
+              setMeta(prev => {
+                if (!prev) return prev
+                const updated = { ...prev, status: 'CLAIMED' }
+                metaRef.current = updated
+                saveCachedTransfer(normalizedCode, updated)
+                return updated
+              })
+              updateTransferStatus(normalizedCode, 'CLAIMED')
+              requestActivityRefresh()
+            } else if (incomingStatus === 'DELETED') {
+              if (metaRef.current?.burnAfterDownload) {
+                setBurnRemoved(true)
+              } else {
+                setCancelled(true)
+              }
+              patchCachedTransfer({ status: 'DELETED' })
+              updateTransferStatus(normalizedCode, 'DELETED')
+              requestActivityRefresh()
+            } else if (incomingStatus === 'CANCELLED') {
+              setCancelled(true)
+              patchCachedTransfer({ status: 'CANCELLED' })
+              updateTransferStatus(normalizedCode, 'CANCELLED')
+              requestActivityRefresh()
+            } else if (incomingStatus === 'EXPIRED') {
+              setMeta(prev => {
+                if (!prev) return prev
+                const updated = { ...prev, status: 'EXPIRED' }
+                metaRef.current = updated
+                saveCachedTransfer(normalizedCode, updated)
+                return updated
+              })
+              updateTransferStatus(normalizedCode, 'EXPIRED')
+              requestActivityRefresh()
+            }
+          }
+          
           // Sync timer using server time if available
           if (status.expiresAt && status.serverTime) {
             const expiryMs = new Date(status.expiresAt).getTime()
@@ -722,7 +761,7 @@ export default function SenderPage() {
     }, 10000) // Poll every 10 seconds
 
     return () => clearInterval(pollInterval)
-  }, [normalizedCode, meta, loading, cancelled])
+  }, [normalizedCode, meta, loading, cancelled, burnRemoved, requestActivityRefresh, patchCachedTransfer])
 
   // Copy helpers
   const handleCopyCode = useCallback(() => {
@@ -837,12 +876,10 @@ export default function SenderPage() {
     try {
       await deleteTransfer(normalizedCode, ownershipToken)
       toast.success('Transfer cancelled successfully')
-      terminalNavigatedRef.current = true
       setCancelled(true)
       patchCachedTransfer({ status: 'CANCELLED' })
       updateTransferStatus(normalizedCode, 'CANCELLED')
       setConfirmDelete(false)
-      navigate('/expired?reason=cancelled', { replace: true })
     } catch (err) {
       // Handle specific error cases gracefully
       const errCode = err?.response?.data?.error?.code
@@ -854,7 +891,9 @@ export default function SenderPage() {
         updateTransferStatus(normalizedCode, 'EXPIRED')
       } else if (errCode === 'ALREADY_DOWNLOADED' || errCode === 'TRANSFER_DELETED') {
         toast('Transfer already removed', { icon: 'ℹ️' })
-        navigate('/expired?reason=burned', { replace: true })
+        setBurnRemoved(true)
+        patchCachedTransfer({ status: 'DELETED' })
+        updateTransferStatus(normalizedCode, 'DELETED')
       } else {
         toast.error('Unable to cancel transfer. Please try again.')
       }
@@ -1039,24 +1078,36 @@ export default function SenderPage() {
       if (!mountedRef.current) return
       if (data.status === 'CANCELLED') {
         updateTransferStatus(normalizedCode, 'CANCELLED')
-        navigate('/expired?reason=cancelled', { replace: true })
+        setCancelled(true)
         return
       }
       if (data.status === 'DELETED') {
         updateTransferStatus(normalizedCode, 'DELETED')
-        navigate('/expired?reason=burned', { replace: true })
+        if (data.burnAfterDownload || metaRef.current?.burnAfterDownload) {
+          setBurnRemoved(true)
+          applyTransferSnapshot(data, { persist: true })
+        } else {
+          setCancelled(true)
+        }
         return
       }
       applyTransferSnapshot(data, { persist: true })
     } catch (err) {
       if (!mountedRef.current) return
       const errCode = err?.response?.data?.error?.code
-      if (errCode === 'TRANSFER_NOT_FOUND') navigate('/expired?reason=notfound', { replace: true })
-      else setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
+      if (errCode === 'ALREADY_DOWNLOADED') {
+        setBurnRemoved(true)
+        patchCachedTransfer({ status: 'DELETED' })
+        updateTransferStatus(normalizedCode, 'DELETED')
+      } else if (errCode === 'TRANSFER_NOT_FOUND') {
+        navigate('/expired?reason=notfound', { replace: true })
+      } else {
+        setError(err?.response ? (errCode || 'SERVER_ERROR') : 'NETWORK_ERROR')
+      }
     } finally {
       if (mountedRef.current) setLoading(false)
     }
-  }, [normalizedCode, navigate, applyTransferSnapshot, ownershipToken])
+  }, [normalizedCode, navigate, applyTransferSnapshot, ownershipToken, patchCachedTransfer])
 
   // memoizedFileList must be before conditional returns (hooks rules)
   const memoizedFileList = useMemo(() => {
@@ -1123,7 +1174,7 @@ export default function SenderPage() {
   // burnRemoved full-page card removed; inline banners handle this state instead.
 
   // Handle cancelled/deleted transfers - show error page only for these
-  if (!meta || cancelled) {
+  if (!meta) {
     return (
       <div className="min-h-screen">
         <div className="app-main-offset max-w-2xl mx-auto px-4">
