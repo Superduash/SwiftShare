@@ -141,7 +141,7 @@ export default function DownloadPage() {
   useEffect(() => { metaRef.current = meta }, [meta])
   useEffect(() => { transferStatusRef.current = transferStatus }, [transferStatus])
 
-  // Load password from session on mount
+  // Load session password.
   useEffect(() => {
     const sessionPassword = getPasswordSession(normalizedCode)
     if (sessionPassword && needsPassword) {
@@ -222,7 +222,7 @@ export default function DownloadPage() {
     metaRef.current = merged
     setMeta(merged)
 
-    // Always calculate/recalculate secondsRemaining from expiresAt if available
+    // Keep expiration timer in sync.
     if (merged.expiresAt) {
       const calculated = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
       setSecondsRemaining(calculated)
@@ -335,7 +335,7 @@ export default function DownloadPage() {
         }
 
         applyTransferSnapshot(data, { persist: true })
-        // If backend inlined text content into metadata, use it immediately
+        // Load text content immediately if inlined.
         if (data?.text?.content) {
           setTextContent(data.text.content)
           setTextLoading(false)
@@ -421,7 +421,7 @@ export default function DownloadPage() {
     void loadMetadata()
   }, [normalizedCode, navState, applyTransferSnapshot, loadMetadata])
 
-  // Auto retry transient failures with a bounded retry budget.
+  // Retry transient connection failures.
   useEffect(() => {
     if (requestState !== REQUEST_STATE.RETRYING) return
 
@@ -467,8 +467,8 @@ export default function DownloadPage() {
   useEffect(() => {
     if (!socket || !normalizedCode) return
 
+    // Silent reconnect handler.
     const connectRoom = async () => {
-      // Use rejoinRoom on reconnect so the server re-syncs the countdown timer.
       try {
         const ack = await rejoinRoom(normalizedCode)
         if (ack?.ok && Number(ack.secondsRemaining) > 0) {
@@ -496,9 +496,7 @@ export default function DownloadPage() {
       setTransferStatus('EXPIRED')
       patchCachedTransfer({ status: 'EXPIRED' })
     }
-    // RAF-coalesce socket-driven download progress. Backend now throttles emits
-    // to ~5/sec, but on a fast LAN we can still get bursty updates that would
-    // queue redundant renders. Coalesce so the bar advances smoothly at 60fps.
+    // Throttle and coalesce progress renders.
     let downProgRaf = 0
     let pendingDownPct = -1
     let pendingDownSpeed = 0
@@ -546,7 +544,7 @@ export default function DownloadPage() {
       updateTransferStatus(normalizedCode, 'DELETED')
       // Only show error if user hasn't downloaded and isn't currently downloading
       if (reason === 'burn' && !downloadedAnyRef.current && !downloadingRef.current) {
-        toast.error('This file was burned after being downloaded by someone else')
+        toast.error('Transfer Claimed Already')
       }
       if (!downloadedAnyRef.current && !downloadingRef.current) {
         terminalNavigatedRef.current = true
@@ -662,9 +660,7 @@ export default function DownloadPage() {
 
       const currentSettings = getSettings()
 
-      // Confetti! Pull the active theme's accent + success + info from CSS vars
-      // so a Forest theme gets emerald confetti, Sakura gets rose, etc., instead
-      // of always firing sunrise-orange.
+      // Trigger theme-colored confetti on success.
       let confettiModule = window._confettiModule
       if (!confettiModule) {
         try {
@@ -972,10 +968,14 @@ export default function DownloadPage() {
             transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <h1 className="font-display font-extrabold text-2xl sm:text-3xl mb-1" style={{ color: 'var(--text)' }}>
-              {downloaded ? 'Download complete!' : isUnavailable ? 'Transfer unavailable' : 'Ready to download'}
+              {downloaded ? '✅ Download Complete' : isUnavailable ? 'Transfer Unavailable' : 'Ready to download'}
             </h1>
             <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-              {meta?.senderDeviceName ? `From ${meta.senderDeviceName}` : `Code: ${normalizedCode}`}
+              {downloaded 
+                ? 'Your files have been downloaded successfully.' 
+                : meta?.senderDeviceName 
+                  ? `From ${meta.senderDeviceName}` 
+                  : `Code: ${normalizedCode}`}
             </p>
           </motion.div>
 
@@ -1075,8 +1075,8 @@ export default function DownloadPage() {
             <StatusBanner
               tone="warning"
               icon={Flame}
-              title="Burn mode is active"
-              description="This transfer stays available for this device until you leave this page."
+              title="🔥 Burn Mode Enabled"
+              description="This transfer will be permanently removed after it is claimed."
               className="mb-4"
             />
           )}
@@ -1089,12 +1089,15 @@ export default function DownloadPage() {
               animate={{ y: 0 }}
             >
               <div className="surface-card p-5">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-1">
                   <Lock size={18} style={{ color: 'var(--accent)' }} />
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                    This transfer is password protected
+                  <p className="text-sm font-semibold font-display" style={{ color: 'var(--text)' }}>
+                    🔒 Password Required
                   </p>
                 </div>
+                <p className="text-xs mb-3" style={{ color: 'var(--text-3)' }}>
+                  Enter the transfer password to continue.
+                </p>
                 <form onSubmit={handlePasswordSubmit}>
                   <div className="relative mb-3">
                     <input
@@ -1179,7 +1182,6 @@ export default function DownloadPage() {
                           : (() => {
                               const fileName = meta?.files?.[0]?.name || 'File';
                               const fileSize = formatBytes(meta?.files?.[0]?.size || meta?.files?.[0]?.fileSize || meta?.totalSize || 0);
-                              // Truncate filename if too long (keep first 30 chars + extension)
                               const truncated = fileName.length > 35 
                                 ? fileName.slice(0, 30) + '...' + (fileName.includes('.') ? fileName.split('.').pop() : '')
                                 : fileName;

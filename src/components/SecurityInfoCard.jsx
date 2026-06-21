@@ -59,7 +59,7 @@ export default function SecurityInfoCard({ burnAfterDownload, passwordProtected 
                 <div className="flex items-start gap-2.5">
                   <Flame size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--danger)' }} />
                   <p className="text-xs" style={{ color: 'var(--danger)' }}>
-                    Burn mode active — file self-destructs immediately after download.
+                    Burn Mode Enabled — This transfer will be permanently removed after it is claimed.
                   </p>
                 </div>
               )}

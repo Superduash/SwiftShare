@@ -81,10 +81,7 @@ export default function HomePage() {
     setBurn(value)
   }, [])
 
-  // Settings live in localStorage and are mutated from SettingsPanel via the
-  // `swiftshare:settings-changed` custom event. Without this listener, opening
-  // settings, changing default expiry, and coming back here would leave the
-  // picker stuck on the value captured at mount time.
+  // Sync settings on mount and change.
   useEffect(() => {
     const onSettingsChanged = (e) => {
       const next = e?.detail || getSettings()
@@ -109,9 +106,7 @@ export default function HomePage() {
   const uploadStartRef = useRef(0)
   // Speed calculation using dedicated hook (EMA smoothing, 250ms sample interval)
   const speedCalc = useSpeedCalculator(0.35, 250)
-  // RAF-coalesced UI updates: progress events fire faster than React can render
-  // on low-end mobile. We accumulate the latest values and flush at most once
-  // per animation frame (≤16ms) to keep the bar smooth without wasted renders.
+  // Accumulate progress values for RAF throttle.
   const pendingProgressRef = useRef(null)
   const rafIdRef = useRef(0)
   const [passwordProtected, setPasswordProtected] = useState(false)
@@ -190,10 +185,7 @@ export default function HomePage() {
   // Title
   useEffect(() => { document.title = 'SwiftShare — Files sent, not stored' }, [])
 
-  // Socket listener: only used as a fallback completion signal if the HTTP response
-  // is delayed (e.g. tab put to sleep mid-finalize). Real progress now comes from the
-  // XHR onUploadProgress in services/api.js — the per-file socket emits here would
-  // overwrite that with a stale value, so we ignore upload-progress.
+  // Fallback socket completion signal.
   useEffect(() => {
     if (!socket) return
     const onComplete = (payload) => handleUploadSuccess(payload)
@@ -485,9 +477,7 @@ export default function HomePage() {
 
     let uploadSucceeded = false
     try {
-      // Pre-read files into memory to avoid ERR_UPLOAD_FILE_CHANGED on Android.
-      // Android's Gallery, Photos, MediaStore can modify files between selection and upload,
-      // invalidating Chrome's file handle. Reading into memory ensures a stable copy.
+      // Pre-read files to avoid Android handle invalidation.
       const safeFiles = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];

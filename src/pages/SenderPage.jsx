@@ -112,6 +112,9 @@ export default function SenderPage() {
   const [cancelled, setCancelled] = useState(
     initialCachedTransfer?.status === 'CANCELLED' || initialCachedTransfer?.status === 'DELETED'
   )
+  const [burnClaimed, setBurnClaimed] = useState(
+    initialCachedTransfer?.status === 'CLAIMED' && initialCachedTransfer?.isDeleted
+  )
   const [previewFile, setPreviewFile] = useState(null)
   const [previewIndex, setPreviewIndex] = useState(0)
   const passwordVerified = true
@@ -256,7 +259,7 @@ export default function SenderPage() {
       setCancelled(true)
     }
 
-    // Always calculate/recalculate secondsRemaining from expiresAt if available
+    // Keep expiration timer in sync.
     const directSeconds = Number(merged.secondsRemaining)
     if (merged.expiresAt) {
       const calculated = Math.max(0, Math.ceil((new Date(merged.expiresAt).getTime() - Date.now()) / 1000))
@@ -313,7 +316,7 @@ export default function SenderPage() {
       }
     }
 
-    // Always fetch fresh stats/metadata from the backend on load
+    // Fetch metadata from backend on mount.
     async function load() {
       if (!normalizedCode || !mountedRef.current) return
       if (!seed) {
@@ -350,7 +353,11 @@ export default function SenderPage() {
         }
         if (data.status === 'DELETED') {
           updateTransferStatus(normalizedCode, 'DELETED')
-          navigate('/expired?reason=burned', { replace: true })
+          if (data.burnAfterDownload || meta?.burnAfterDownload) {
+            setBurnClaimed(true)
+          } else {
+            navigate('/expired?reason=deleted', { replace: true })
+          }
           return
         }
 
@@ -367,6 +374,11 @@ export default function SenderPage() {
 
         if (!mountedRef.current) return
         const errCode = err?.response?.data?.error?.code
+        if (errCode === 'ALREADY_DOWNLOADED') {
+          setBurnClaimed(true)
+          setLoading(false)
+          return
+        }
         // Only trust a NOT_FOUND response when we don't have data from the upload itself.
         // A transfer we just created can transiently 404 on this verification fetch due to
         // a backend read-after-write race — the write may not be visible to this immediate
@@ -390,7 +402,7 @@ export default function SenderPage() {
     load()
   }, [normalizedCode, navState, navigate, applyTransferSnapshot, initialOwnershipToken])
 
-  // Safety net: stop showing skeleton if request hangs too long.
+  // Prevent loader hang.
   useEffect(() => {
     if (!loading) return
     const timer = window.setTimeout(() => {
@@ -404,7 +416,7 @@ export default function SenderPage() {
     return () => window.clearTimeout(timer)
   }, [loading])
 
-  // Fetch activity once per page load; subsequent refreshes are event-driven.
+  // Load activity history.
   const fetchingActivityRef = useRef(false)
   const loadActivity = useCallback(async () => {
     if (!normalizedCode || fetchingActivityRef.current) return
@@ -462,8 +474,7 @@ export default function SenderPage() {
       updateTransferStatus(normalizedCode, 'EXPIRED')
       navigate('/expired?reason=expired', { replace: true })
     }
-    // RAF-coalesce: percent updates can land faster than React renders,
-    // especially on multi-receiver downloads where each percent is broadcast.
+    // Coalesce percent updates.
     let downProgRaf = 0
     let pendingDownPct = -1
     const onDownProg = ({ percent }) => {
@@ -508,19 +519,27 @@ export default function SenderPage() {
       navigate('/expired?reason=cancelled', { replace: true })
     }
     const onDeleted = ({ reason } = {}) => {
-      if (!mountedRef.current || terminalNavigatedRef.current) return
-      terminalNavigatedRef.current = true
-      setCancelled(true)
-      patchCachedTransfer({ status: 'DELETED' })
-      updateTransferStatus(normalizedCode, 'DELETED')
-      requestActivityRefresh()
-      navigate(reason === 'burn' ? '/expired?reason=burned' : '/expired?reason=deleted', { replace: true })
+      if (!mountedRef.current) return
+      if (reason === 'burn') {
+        setBurnClaimed(true)
+        patchCachedTransfer({ status: 'DELETED' })
+        updateTransferStatus(normalizedCode, 'DELETED')
+        requestActivityRefresh()
+      } else {
+        if (terminalNavigatedRef.current) return
+        terminalNavigatedRef.current = true
+        setCancelled(true)
+        patchCachedTransfer({ status: 'DELETED' })
+        updateTransferStatus(normalizedCode, 'DELETED')
+        requestActivityRefresh()
+        navigate('/expired?reason=deleted', { replace: true })
+      }
     }
     const onExtended = ({ expiresAt, extensionMinutes, serverTime }) => {
       if (expiresAt) {
-        // Use server time to calculate accurate seconds remaining
+        // Keep expiration timer in sync.
         const expiryMs = new Date(expiresAt).getTime()
-        const nowMs = serverTime || Date.now() // Prefer server time for sync
+        const nowMs = serverTime || Date.now()
         const newSeconds = Math.max(0, Math.ceil((expiryMs - nowMs) / 1000))
         
         // Update both totalSeconds AND secondsRemaining immediately
@@ -575,7 +594,7 @@ export default function SenderPage() {
 
     const onClaimed = () => {
       if (!mountedRef.current) return
-      toast("🔥 Burn transfer claimed")
+      toast("🔥 Transfer Claimed")
       setMeta(prev => {
         if (!prev) return prev
         const updated = {
@@ -603,8 +622,7 @@ export default function SenderPage() {
     socket.on('stats-updated', onStatsUpdated)
     socket.on('transfer-claimed', onClaimed)
 
-    // On socket reconnect: silently re-fetch transfer state to reconcile
-    // any events missed while offline (download, extend, cancel, etc.)
+    // Reconcile stats on socket reconnection.
     const onSocketReconnected = () => {
       if (!mountedRef.current || !normalizedCode) return
       const currentTransfer = metaRef.current
@@ -647,7 +665,7 @@ export default function SenderPage() {
     }
   }, [socket, normalizedCode, registerSender, rejoinRoom, leaveRoom, navigate, patchCachedTransfer, requestActivityRefresh])
 
-  // 10-second polling for live stats updates
+  // Poll live stats.
   useEffect(() => {
     if (!normalizedCode || !meta || loading || cancelled) return
 
@@ -1087,6 +1105,42 @@ export default function SenderPage() {
   }
 
   if (!authorized) return null
+
+  if (burnClaimed) {
+    return (
+      <div className="min-h-screen">
+        <div className="app-main-offset max-w-2xl mx-auto px-4 py-12">
+          <motion.div
+            className="surface-card p-8 text-center"
+            initial={{ y: 14 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+          >
+            <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--danger-soft)' }}>
+              <Flame size={24} style={{ color: 'var(--danger)' }} />
+            </div>
+            <h1 className="font-display font-bold text-2xl mb-2" style={{ color: 'var(--text)' }}>
+              🔥 Transfer Claimed
+            </h1>
+            <p className="text-sm mb-2 max-w-xs mx-auto font-medium" style={{ color: 'var(--text-2)' }}>
+              A recipient has claimed this burn transfer.
+            </p>
+            <p className="text-xs mb-6 max-w-xs mx-auto" style={{ color: 'var(--text-4)' }}>
+              This transfer is no longer available.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button className="btn-primary" onClick={() => navigate('/')}>
+                Continue now
+              </button>
+              <button className="btn-secondary" onClick={() => navigate('/')}>
+                Share New Files
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
 
   // Handle cancelled/deleted transfers - show error page only for these
   if (!meta || cancelled) {

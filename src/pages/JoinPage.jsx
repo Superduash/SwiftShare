@@ -115,6 +115,10 @@ export default function JoinPage() {
 
       if (outcome?.ok) {
         const data = outcome.data
+        if (data?.status === 'CLAIMED') {
+          navigate('/expired?reason=claimed', { replace: true })
+          return
+        }
         saveTransfer({
           code: normalizedCode,
           filename: data?.files?.[0]?.name || normalizedCode,

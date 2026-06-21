@@ -10,50 +10,44 @@ const STATES = {
   expired: {
     icon: Clock,
     color: 'var(--warning)',
-    title: 'Time\u2019s up',
-    desc: 'This transfer expired and the files were cleaned up automatically.',
-    tip: 'Ask the sender to share again with a longer expiry time.',
-    emoji: '\u23F0',
+    title: 'Transfer Expired',
+    desc: 'This transfer is no longer available.',
+    tip: 'The expiration time has been reached.',
   },
   burned: {
     icon: Flame,
     color: 'var(--danger)',
-    title: 'Already claimed',
-    desc: 'This was a one-time download. The file was removed after someone grabbed it.',
-    tip: 'Ask the sender for a new link \u2014 burn-mode files can only be downloaded once.',
-    emoji: '\uD83D\uDD25',
+    title: 'Transfer Unavailable',
+    desc: 'This burn transfer has already been claimed.',
+    tip: 'The files are no longer available.',
   },
   claimed: {
     icon: Flame,
-    color: 'var(--warning)',
-    title: 'Already claimed',
-    desc: 'Someone else is already downloading this burn transfer.',
-    tip: 'Ask the sender for a new link \u2014 this one can only be used by one device at a time.',
-    emoji: '\uD83D\uDD12',
+    color: 'var(--danger)',
+    title: 'Transfer Unavailable',
+    desc: 'This burn transfer has already been claimed.',
+    tip: 'The files are no longer available.',
   },
   notfound: {
     icon: FileQuestion,
     color: 'var(--text-3)',
-    title: 'Not found',
-    desc: 'That code doesn\u2019t match anything active. It may have expired or been mistyped.',
-    tip: 'Double-check the 6-digit code and try again below.',
-    emoji: '\uD83D\uDD0D',
+    title: 'Transfer Not Found',
+    desc: 'No active transfer matches this code.',
+    tip: 'Check the code and try again.',
   },
   cancelled: {
     icon: FileQuestion,
     color: 'var(--danger)',
-    title: 'Transfer cancelled',
-    desc: 'The sender removed this transfer. The files are no longer available.',
-    tip: 'Contact the sender and ask them to share again.',
-    emoji: '\uD83D\uDEAB',
+    title: 'Transfer Deleted',
+    desc: 'This transfer was removed by the sender.',
+    tip: '',
   },
   deleted: {
     icon: FileQuestion,
     color: 'var(--danger)',
-    title: 'Transfer removed',
-    desc: 'This transfer was removed and is no longer available.',
-    tip: 'The sender may have deleted it manually.',
-    emoji: '\uD83D\uDDD1\uFE0F',
+    title: 'Transfer Deleted',
+    desc: 'This transfer was removed by the sender.',
+    tip: '',
   },
 }
 
@@ -66,7 +60,7 @@ export default function ExpiredPage() {
   const [codeInput, setCodeInput] = useState('')
   const inputRef = useRef(null)
 
-  useEffect(() => { document.title = `${state.title} \u00b7 SwiftShare` }, [state.title])
+  useEffect(() => { document.title = `${state.title.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim()} \u00b7 SwiftShare` }, [state.title])
 
   function handleCodeSubmit(e) {
     e?.preventDefault()
@@ -81,6 +75,8 @@ export default function ExpiredPage() {
     setCodeInput(raw)
   }
 
+  const Icon = state.icon
+
   return (
     <div className="min-h-screen">
       <main className="app-main-offset">
@@ -91,10 +87,10 @@ export default function ExpiredPage() {
             transition={{ type: 'spring', damping: 18 }}
           >
             <div
-              className="w-20 h-20 rounded-3xl mx-auto mb-6 flex items-center justify-center text-3xl"
+              className="w-20 h-20 rounded-3xl mx-auto mb-6 flex items-center justify-center"
               style={{ background: `${state.color}12` }}
             >
-              {state.emoji}
+              <Icon size={32} style={{ color: state.color }} />
             </div>
             <h1 className="font-display font-extrabold text-2xl sm:text-3xl mb-3" style={{ color: 'var(--text)' }}>
               {state.title}
@@ -111,10 +107,10 @@ export default function ExpiredPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
               <button className="btn-primary" onClick={() => navigate('/')}>
                 <Home size={16} />
-                Share a new file
+                Share New Files
               </button>
               <button className="btn-secondary" onClick={() => navigate('/join')}>
-                Enter another code
+                Enter Another Code
                 <ArrowRight size={14} />
               </button>
             </div>
