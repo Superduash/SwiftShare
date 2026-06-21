@@ -23,7 +23,6 @@ import { playDownloadSuccess } from '../utils/sound'
 import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
-import ProgressBar from '../components/ProgressBar'
 import TransferReceipt from '../components/TransferReceipt'
 import { copyToClipboard, shareOrCopy } from '../utils/clipboard'
 import ErrorState from '../components/ErrorState'
@@ -101,8 +100,6 @@ export default function DownloadPage() {
   const [requestError, setRequestError] = useState(null)
   const [retryAttempt, setRetryAttempt] = useState(0)
   const [downloading, setDownloading] = useState(false)
-  const [downloadPercent, setDownloadPercent] = useState(0)
-  const [downloadSpeed, setDownloadSpeed] = useState(0)
   const [downloaded, setDownloaded] = useState(false)
   const [needsPassword, setNeedsPassword] = useState(Boolean(initialCachedTransfer?.passwordProtected))
   const [passwordVerified, setPasswordVerified] = useState(false)
@@ -700,7 +697,6 @@ export default function DownloadPage() {
   const handleDownload = useCallback(async () => {
     if (downloading) return
     setDownloaded(false)
-    setDownloadPercent(0)
     setDownloading(true)
 
     let downloadSucceeded = false
@@ -765,9 +761,6 @@ export default function DownloadPage() {
       toast.error('Download failed. Please try again.')
     } finally {
       setDownloading(false)
-      if (!downloadSucceeded) {
-        setDownloadPercent(0)
-      }
     }
   }, [downloading, meta, normalizedCode, claimantToken])
 
@@ -1253,15 +1246,11 @@ export default function DownloadPage() {
             </div>
           )}
 
-          {/* Download / Progress */}
+          {/* Download */}
           <AnimatePresence mode="wait">
             {!downloaded ? (
               <motion.div key="download" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                {downloading ? (
-                  <div className="surface-card p-5 mb-6">
-                    <ProgressBar percent={downloadPercent} speed={downloadSpeed} label="Downloading..." showSpeed={true} />
-                  </div>
-                ) : isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
+                {isUnavailable ? null : (needsPassword && !passwordVerified) ? null : (
                   <>
                     {/* Security Info Card */}
                     <SecurityInfoCard 
