@@ -573,6 +573,24 @@ export default function SenderPage() {
       requestActivityRefresh()
     }
 
+    const onClaimed = () => {
+      if (!mountedRef.current) return
+      toast("🔥 Burn transfer claimed")
+      setMeta(prev => {
+        if (!prev) return prev
+        const updated = {
+          ...prev,
+          status: 'CLAIMED'
+        }
+        metaRef.current = updated
+        saveCachedTransfer(normalizedCode, updated)
+        return updated
+      })
+      patchCachedTransfer({ status: 'CLAIMED' })
+      updateTransferStatus(normalizedCode, 'CLAIMED')
+      requestActivityRefresh()
+    }
+
     socket.on('connect', connectRoom)
     socket.on('transfer-expired', onExpired)
     socket.on('download-progress', onDownProg)
@@ -583,6 +601,7 @@ export default function SenderPage() {
     socket.on('transfer-extended', onExtended)
     socket.on('activity-updated', onActivityUpdated)
     socket.on('stats-updated', onStatsUpdated)
+    socket.on('transfer-claimed', onClaimed)
 
     // On socket reconnect: silently re-fetch transfer state to reconcile
     // any events missed while offline (download, extend, cancel, etc.)
@@ -618,6 +637,7 @@ export default function SenderPage() {
       socket.off('transfer-extended', onExtended)
       socket.off('activity-updated', onActivityUpdated)
       socket.off('stats-updated', onStatsUpdated)
+      socket.off('transfer-claimed', onClaimed)
       window.removeEventListener('swiftshare:socket-reconnected', onSocketReconnected)
       if (downProgRaf) {
         cancelAnimationFrame(downProgRaf)
@@ -1157,7 +1177,8 @@ export default function SenderPage() {
                     key="claimed"
                     tone="warning"
                     icon={Flame}
-                    title="Burn session claimed — file will self-destruct after download"
+                    title="Burn transfer claimed"
+                    description="Waiting for claimant to leave..."
                     className="mb-4"
                   />
                 )}

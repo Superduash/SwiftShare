@@ -62,11 +62,17 @@ export default function DownloadPage() {
   const initialCachedTransfer = getCachedTransfer(normalizedCode)
 
   const [meta, setMeta] = useState(initialCachedTransfer)
-  const [claimantToken] = useState(() =>
-    (typeof crypto !== 'undefined' && crypto.randomUUID)
-      ? crypto.randomUUID()
-      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-  )
+  const [claimantToken] = useState(() => {
+    const key = `swiftshare:claimant:${normalizedCode}`
+    let token = sessionStorage.getItem(key)
+    if (!token) {
+      token = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+      sessionStorage.setItem(key, token)
+    }
+    return token
+  })
   const [secondsRemaining, setSecondsRemaining] = useState(() => {
     if (initialCachedTransfer?.expiresAt) {
       return Math.max(0, Math.ceil((new Date(initialCachedTransfer.expiresAt).getTime() - Date.now()) / 1000))
@@ -109,7 +115,7 @@ export default function DownloadPage() {
 
   const terminalStatus = String(transferStatus || meta?.status || '').toUpperCase()
   const isUnavailable = terminalStatus === 'CANCELLED' || terminalStatus === 'DELETED' || terminalStatus === 'EXPIRED' || terminalStatus === 'CONSUMED'
-  const canDownload = !isUnavailable && (!meta?.burnAfterDownload || !downloaded) && (!needsPassword || passwordVerified)
+  const canDownload = !isUnavailable && (!needsPassword || passwordVerified)
   const metaRef = useRef(initialCachedTransfer)
   const transferStatusRef = useRef(initialCachedTransfer?.status || 'ACTIVE')
   const downloadedAnyRef = useRef(false)
@@ -118,6 +124,16 @@ export default function DownloadPage() {
   const requestTokenRef = useRef(0)
   const retryTimerRef = useRef(null)
   const terminalNavigatedRef = useRef(false)
+  const isDownloadingFileRef = useRef(false)
+  const downloadGateTimerRef = useRef(null)
+
+  const clearDownloadGate = useCallback(() => {
+    isDownloadingFileRef.current = false
+    if (downloadGateTimerRef.current) {
+      window.clearTimeout(downloadGateTimerRef.current)
+      downloadGateTimerRef.current = null
+    }
+  }, [])
   useEffect(() => {
     document.title = 'Downloading file · SwiftShare'
     return () => { mountedRef.current = false }
@@ -136,6 +152,7 @@ export default function DownloadPage() {
   }, [normalizedCode, needsPassword])
 
   const finalizeBurnSessionIfNeeded = useCallback(async () => {
+    if (isDownloadingFileRef.current) return
     if (burnFinalizeRequestedRef.current) return
 
     const transfer = metaRef.current
@@ -505,6 +522,7 @@ export default function DownloadPage() {
       })
     }
     const onDownComplete = () => {
+      clearDownloadGate()
       if (metaRef.current?.burnAfterDownload) {
         downloadedAnyRef.current = true
       }
@@ -536,13 +554,15 @@ export default function DownloadPage() {
       }
     }
     const onClaimed = (data) => {
+      if (data?.claimantToken === claimantToken) {
+        return
+      }
+
       setTransferStatus('CLAIMED')
       patchCachedTransfer({ status: 'CLAIMED' })
       updateTransferStatus(normalizedCode, 'CLAIMED')
-      if (data?.claimantToken !== claimantToken) {
-        terminalNavigatedRef.current = true
-        navigate('/expired?reason=claimed', { replace: true })
-      }
+      terminalNavigatedRef.current = true
+      navigate('/expired?reason=claimed', { replace: true })
     }
     const onReceipt = (data) => setReceipt(data)
 
@@ -622,6 +642,12 @@ export default function DownloadPage() {
     setDownloadPercent(0)
     setDownloading(true)
 
+    clearDownloadGate()
+    isDownloadingFileRef.current = true
+    downloadGateTimerRef.current = window.setTimeout(() => {
+      clearDownloadGate()
+    }, 15000)
+
     let downloadSucceeded = false
     try {
       await smartDownload(normalizedCode, {
@@ -677,12 +703,13 @@ export default function DownloadPage() {
     } catch {
       toast.error('Download failed. Please try again.')
     } finally {
+      clearDownloadGate()
       setDownloading(false)
       if (!downloadSucceeded) {
         setDownloadPercent(0)
       }
     }
-  }, [downloading, meta, normalizedCode, claimantToken])
+  }, [downloading, meta, normalizedCode, claimantToken, clearDownloadGate])
 
   // Space/Enter shortcut for download
   useEffect(() => {
@@ -711,9 +738,15 @@ export default function DownloadPage() {
   }
 
   const handleDownloadSingle = useCallback((index) => {
+    clearDownloadGate()
+    isDownloadingFileRef.current = true
+    downloadGateTimerRef.current = window.setTimeout(() => {
+      clearDownloadGate()
+    }, 15000)
+
     const pw = verifiedPasswordRef.current || undefined
     downloadSingleFile(normalizedCode, index, pw, claimantToken)
-  }, [normalizedCode, claimantToken])
+  }, [normalizedCode, claimantToken, clearDownloadGate])
 
   const receiverMenuItems = () => {
     if (contextMenu.index === null) return []
@@ -1199,7 +1232,7 @@ export default function DownloadPage() {
                   burnAfterDownload={meta?.burnAfterDownload}
                   receipt={receipt}
                   onDownloadSingle={canDownload ? handleDownloadSingle : undefined}
-                  onDownloadAll={!meta?.burnAfterDownload ? handleDownload : undefined}
+                  onDownloadAll={canDownload ? handleDownload : undefined}
                 />
               </motion.div>
             )}

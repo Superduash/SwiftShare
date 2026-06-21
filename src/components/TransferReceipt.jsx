@@ -77,7 +77,7 @@ function TransferReceipt({ code, files, senderDevice, totalSize, burnAfterDownlo
         >
           <Flame size={14} style={{ color: 'var(--danger)', flexShrink: 0 }} aria-hidden="true" />
           <p className="text-xs font-medium" style={{ color: 'var(--danger)' }}>
-            Burned after download — files permanently deleted
+            Burn session claimed — files will self-destruct when you leave this page
           </p>
         </div>
       )}
