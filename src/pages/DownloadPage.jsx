@@ -125,16 +125,8 @@ export default function DownloadPage() {
   const requestTokenRef = useRef(0)
   const retryTimerRef = useRef(null)
   const terminalNavigatedRef = useRef(false)
-  const isDownloadingFileRef = useRef(false)
-  const downloadGateTimerRef = useRef(null)
+  const isUnloadingRef = useRef(false)
 
-  const clearDownloadGate = useCallback(() => {
-    isDownloadingFileRef.current = false
-    if (downloadGateTimerRef.current) {
-      window.clearTimeout(downloadGateTimerRef.current)
-      downloadGateTimerRef.current = null
-    }
-  }, [])
   useEffect(() => {
     document.title = 'Downloading file · SwiftShare'
     return () => { mountedRef.current = false }
@@ -153,7 +145,6 @@ export default function DownloadPage() {
   }, [normalizedCode, needsPassword])
 
   const finalizeBurnSessionIfNeeded = useCallback(async () => {
-    if (isDownloadingFileRef.current) return
     if (burnFinalizeRequestedRef.current) return
 
     const transfer = metaRef.current
@@ -165,12 +156,44 @@ export default function DownloadPage() {
 
     burnFinalizeRequestedRef.current = true
     try {
-      await finalizeBurnTransfer(normalizedCode, claimantToken)
+      // Use navigator.sendBeacon for more reliable delivery during unmount
+      const url = `${import.meta.env.VITE_API_URL || window.location.origin}/api/transfer/${normalizedCode}/burn-finalize`
+      navigator.sendBeacon(url, new Blob([JSON.stringify({})], { type: 'application/json' }))
+      
+      // Fallback/parallel fetch with keepalive for environments where beacon fails or headers are needed
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Claimant-Token': claimantToken || ''
+        },
+        keepalive: true
+      }).catch(() => {})
+      
       updateTransferStatus(normalizedCode, 'DELETED')
     } catch {
       // Cleanup service will finalize stale claimed sessions if this request fails during tab close.
     }
   }, [normalizedCode, updateTransferStatus, claimantToken])
+
+  // Genuinely ending session detection (React Router navigation vs Refresh)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      isUnloadingRef.current = true
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      
+      // If we are unmounting but NOT unloading the browser document, 
+      // it means the user clicked a link to navigate away (e.g. to Home).
+      // We finalize immediately without waiting 15 seconds.
+      if (!isUnloadingRef.current) {
+        finalizeBurnSessionIfNeeded()
+      }
+    }
+  }, [finalizeBurnSessionIfNeeded])
 
   useEffect(() => {
     verifiedPasswordRef.current = ''
@@ -557,7 +580,7 @@ export default function DownloadPage() {
       patchCachedTransfer({ status: 'DELETED' })
       updateTransferStatus(normalizedCode, 'DELETED')
 
-      const isActiveClaimant = downloadedAnyRef.current || downloadingRef.current || isDownloadingFileRef.current
+      const isActiveClaimant = downloadedAnyRef.current || downloadingRef.current
       // Only show error if user hasn't downloaded and isn't currently downloading
       if (reason === 'burn' && !isActiveClaimant) {
         toast.error('This burn transfer has already been claimed.')
@@ -654,12 +677,6 @@ export default function DownloadPage() {
     setDownloadPercent(0)
     setDownloading(true)
 
-    clearDownloadGate()
-    isDownloadingFileRef.current = true
-    downloadGateTimerRef.current = window.setTimeout(() => {
-      clearDownloadGate()
-    }, 15000)
-
     let downloadSucceeded = false
     try {
       if (meta?.burnAfterDownload) {
@@ -721,13 +738,12 @@ export default function DownloadPage() {
     } catch {
       toast.error('Download failed. Please try again.')
     } finally {
-      clearDownloadGate()
       setDownloading(false)
       if (!downloadSucceeded) {
         setDownloadPercent(0)
       }
     }
-  }, [downloading, meta, normalizedCode, claimantToken, clearDownloadGate])
+  }, [downloading, meta, normalizedCode, claimantToken])
 
   // Space/Enter shortcut for download
   useEffect(() => {
@@ -756,12 +772,6 @@ export default function DownloadPage() {
   }
 
   const handleDownloadSingle = useCallback((index) => {
-    clearDownloadGate()
-    isDownloadingFileRef.current = true
-    downloadGateTimerRef.current = window.setTimeout(() => {
-      clearDownloadGate()
-    }, 15000)
-
     const pw = verifiedPasswordRef.current || undefined
     if (meta?.burnAfterDownload) {
       isBurnClaimedRef.current = true
@@ -772,7 +782,7 @@ export default function DownloadPage() {
     }
     
     downloadSingleFile(normalizedCode, index, pw, claimantToken)
-  }, [normalizedCode, claimantToken, clearDownloadGate])
+  }, [normalizedCode, claimantToken])
 
   const receiverMenuItems = () => {
     if (contextMenu.index === null) return []
