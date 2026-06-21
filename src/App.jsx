@@ -23,11 +23,11 @@ import AmbientBackground from './components/AmbientBackground'
 class RouteErrorBoundary extends Component {
   constructor(props) {
     super(props)
-    this.state = { hasError: false, error: null, isChunkError: false }
+    this.state = { hasError: false, error: null, isChunkError: false, autoReloaded: false }
   }
   static getDerivedStateFromError(error) {
     // ChunkLoadError happens when a new deploy removes old chunk hashes
-    const isChunkError = /chunk|loading chunk|failed to fetch dynamically imported|error loading dynamically imported|dynamically imported module/i.test(
+    const isChunkError = /chunk|loading chunk|failed to fetch dynamically imported|error loading dynamically imported|dynamically imported module|ChunkLoadError/i.test(
       String(error?.message || error?.name || '')
     )
     return { hasError: true, error, isChunkError }
@@ -35,17 +35,17 @@ class RouteErrorBoundary extends Component {
   componentDidCatch(error, info) {
     console.error('[SwiftShare] Route failed to load:', error, info)
     
-    // Auto-reload on chunk load error to recover from new deployments
-    const isChunkError = /chunk|loading chunk|failed to fetch dynamically imported|error loading dynamically imported|dynamically imported module/i.test(
-      String(error?.message || error?.name || '')
-    )
-    if (isChunkError) {
+    if (this.state.isChunkError) {
       const lastReload = sessionStorage.getItem('swiftshare_last_chunk_reload')
       const now = Date.now()
+      // Auto reload ONCE when a chunk error occurs. Guard against infinite loop.
       if (!lastReload || now - parseInt(lastReload, 10) > 15000) {
         sessionStorage.setItem('swiftshare_last_chunk_reload', String(now))
         window.location.reload()
         return
+      } else {
+        // Mark as already auto-reloaded in this error cycle so fallback UI knows
+        this.setState({ autoReloaded: true })
       }
     }
 
@@ -58,6 +58,18 @@ class RouteErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       if (this.state.isChunkError) {
+        if (!this.state.autoReloaded) {
+          const lastReload = sessionStorage.getItem('swiftshare_last_chunk_reload')
+          const now = Date.now()
+          if (!lastReload || now - parseInt(lastReload, 10) > 15000) {
+            return (
+              <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px', padding: '20px', textAlign: 'center' }}>
+                <p style={{ color: 'var(--text)', fontWeight: 600, fontSize: '1.1rem' }}>⚡ Updating SwiftShare...</p>
+                <p style={{ color: 'var(--text-3)', fontSize: '13px' }}>Reloading to fetch the latest version.</p>
+              </div>
+            )
+          }
+        }
         return (
           <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px', padding: '20px', textAlign: 'center' }}>
             <p style={{ color: 'var(--text)', fontWeight: 600, fontSize: '1.1rem' }}>⚡ Update Available</p>
