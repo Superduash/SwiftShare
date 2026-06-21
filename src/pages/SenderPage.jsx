@@ -367,8 +367,14 @@ export default function SenderPage() {
 
         if (!mountedRef.current) return
         const errCode = err?.response?.data?.error?.code
-        // Only redirect for definitive backend responses (not network/timeout errors)
-        if (errCode === 'TRANSFER_NOT_FOUND') {
+        // Only trust a NOT_FOUND response when we don't have data from the upload itself.
+        // A transfer we just created can transiently 404 on this verification fetch due to
+        // a backend read-after-write race — the write may not be visible to this immediate
+        // follow-up read yet. navTransfer is the freshest possible signal (it's literally
+        // the response from the upload we just did), so never let a race condition override it.
+        // A stale cache-only seed with no navTransfer still redirects normally — that case
+        // has no freshness guarantee, so a real 404 there is trusted as before.
+        if (errCode === 'TRANSFER_NOT_FOUND' && !navTransfer) {
           navigate('/expired?reason=notfound', { replace: true })
           return
         }
