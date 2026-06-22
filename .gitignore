@@ -53,7 +53,7 @@ Desktop.ini
 # Generated local export artifacts
 frontendcode.txt
 swiftshare-fix-prompt.md
-exportfront.py
+swiftshare-code-export.txt
 *.local
 
 # Storybook / playwright / cypress
@@ -78,7 +78,7 @@ yarn.lock.bak
 *.rar
 *.7z
 
-# AI Artifacts
+# AI Agent Context
 .kiro/
 .gemini/
 .ai/
