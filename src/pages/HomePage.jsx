@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import {
   Upload, Plus, X, Flame, Shield, Zap, Clock, QrCode,
   ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff,
-  GripVertical
+  GripVertical, ShieldCheck, Github, Linkedin, Twitter, Mail
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -37,6 +37,34 @@ const FEATURES = [
   { icon: Flame, title: 'Burn Mode', desc: 'Vanishes after one grab' },
   { icon: QrCode, title: 'QR Codes', desc: 'Point, scan, done' },
   { icon: Zap, title: 'Live Updates', desc: 'Real-time progress' },
+  { icon: ShieldCheck, title: 'Secure Transfer', desc: 'Encrypted HTTPS delivery' },
+]
+
+const SOCIAL_LINKS = [
+  {
+    icon: Github,
+    href: 'https://github.com/Superduash',
+    label: 'GitHub profile',
+    external: true,
+  },
+  {
+    icon: Linkedin,
+    href: 'https://www.linkedin.com/in/ashwin-a-943114320',
+    label: 'LinkedIn profile',
+    external: true,
+  },
+  {
+    icon: Twitter,
+    href: 'https://x.com/superduash',
+    label: 'X / Twitter profile',
+    external: true,
+  },
+  {
+    icon: Mail,
+    href: 'mailto:helloitsashwin@gmail.com',
+    label: 'Send email',
+    external: false,
+  },
 ]
 
 class LocalErrorBoundary extends Component {
@@ -1177,9 +1205,39 @@ export default function HomePage() {
 
               {/* Version Footer */}
               <div className="text-center mt-8 pb-4">
-                <p className="text-[10px]" style={{ color: 'var(--text-5)' }}>
+                <p className="text-[10px] mb-2.5" style={{ color: 'var(--text-5)' }}>
                   SwiftShare v{import.meta.env.PACKAGE_VERSION || '1.0.0'}
                 </p>
+                <div className="flex items-center justify-center gap-3">
+                  {SOCIAL_LINKS.map(({ icon: SocialIcon, href, label, external }) => (
+                    <a
+                      key={label}
+                      href={href}
+                      aria-label={label}
+                      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                      className="footer-social-link"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--text-5)',
+                        transition: 'color 0.18s ease, transform 0.18s ease',
+                        borderRadius: '6px',
+                        padding: '4px',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.color = 'var(--accent)'
+                        e.currentTarget.style.transform = 'translateY(-1px)'
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.color = 'var(--text-5)'
+                        e.currentTarget.style.transform = 'translateY(0)'
+                      }}
+                    >
+                      <SocialIcon size={14} strokeWidth={1.75} />
+                    </a>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
