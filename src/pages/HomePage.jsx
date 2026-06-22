@@ -157,7 +157,7 @@ export default function HomePage() {
     if (/[A-Z]/.test(pwd)) score++
     if (/[0-9]/.test(pwd)) score++
     if (/[^A-Za-z0-9]/.test(pwd)) score++
-    
+
     if (score <= 1) return { level: 'weak', label: 'Not recommended', color: 'var(--danger)' }
     if (score === 2 || score === 3) return { level: 'medium', label: 'Okay', color: 'var(--warning)' }
     return { level: 'strong', label: 'Strong password', color: 'var(--success)' }
@@ -172,11 +172,11 @@ export default function HomePage() {
     }
 
     uploadHandledRef.current = true
-    
+
     const fname = files[0]?.name || 'file'
     const normalizedTransferCode = String(transferCode).trim().toUpperCase()
-    const transferSnapshot = { 
-      ...payload, 
+    const transferSnapshot = {
+      ...payload,
       code: normalizedTransferCode,
       plaintextPassword: passwordProtected && password ? password : null,
       ownershipToken: payload?.ownershipToken, // FIX: Include in snapshot so it's cached
@@ -194,16 +194,16 @@ export default function HomePage() {
     })
 
     setUploading(false)
-    
+
     // FIX: Pass ownershipToken directly in navigation state so SenderPage can access it
-    navigate(`/sender/${normalizedTransferCode}`, { 
-      state: { 
+    navigate(`/sender/${normalizedTransferCode}`, {
+      state: {
         transfer: transferSnapshot,
         ownershipToken: payload?.ownershipToken // FIX: Include ownership token
       },
       replace: false
     })
-    
+
     const currentSettings = getSettings()
     if (currentSettings.soundEnabled) {
       playUploadSuccess()
@@ -211,7 +211,7 @@ export default function HomePage() {
   }, [files, navigate, password, passwordProtected])
 
   // Title
-  useEffect(() => { document.title = 'SwiftShare — Files sent, not stored' }, [])
+  useEffect(() => { document.title = 'SwiftShare - Share Files Instantly!' }, [])
 
   // Fallback socket completion signal.
   useEffect(() => {
@@ -237,9 +237,9 @@ export default function HomePage() {
     const onPaste = async (e) => {
       const items = e.clipboardData?.items
       if (!items) return
-      
+
       const pastedFiles = []
-      
+
       for (const item of items) {
         // Handle any file type, not just images
         if (item.kind === 'file') {
@@ -262,12 +262,12 @@ export default function HomePage() {
           return
         }
       }
-      
+
       // Add pasted files to the drop zone (up to MAX_FILES limit)
       if (pastedFiles.length > 0) {
         const combined = [...files, ...pastedFiles].slice(0, MAX_FILES)
         const errors = combined.map(validateFile).filter(Boolean)
-        
+
         if (errors.length) {
           if (errors.length === 1) {
             toast.error(errors[0])
@@ -276,7 +276,7 @@ export default function HomePage() {
           }
           return
         }
-        
+
         setFiles(combined)
         toast.success(`${pastedFiles.length} file${pastedFiles.length > 1 ? 's' : ''} pasted!`)
       }
@@ -380,12 +380,12 @@ export default function HomePage() {
       }
 
       const normalizedCode = String(transferCode).trim().toUpperCase()
-      const transferSnapshot = { 
-        ...response, 
+      const transferSnapshot = {
+        ...response,
         code: normalizedCode,
         plaintextPassword: passwordProtected && password ? password : null
       }
-      
+
       saveTransfer({
         code: normalizedCode,
         filename: textData.title || 'Text Snippet',
@@ -397,11 +397,11 @@ export default function HomePage() {
         transfer: transferSnapshot,
       })
 
-      navigate(`/sender/${normalizedCode}`, { 
+      navigate(`/sender/${normalizedCode}`, {
         state: { transferData: transferSnapshot },
         replace: false
       })
-      
+
       const currentSettings = getSettings()
       if (currentSettings.soundEnabled) {
         playUploadSuccess()
@@ -567,9 +567,9 @@ export default function HomePage() {
         onProgress: (info) => {
           if (info?.retrying) {
             // Drop any pending flushes; retry phase is its own indeterminate UI.
-            pendingProgressRef.current = { 
-              percent: 0, 
-              speed: 0, 
+            pendingProgressRef.current = {
+              percent: 0,
+              speed: 0,
               phase: 'retrying',
             }
             scheduleFlush()
@@ -642,7 +642,7 @@ export default function HomePage() {
       }
     }
   }, [])
-  
+
   // Cancel upload handler
   function handleCancelUpload() {
     if (uploadAbortRef.current) {
@@ -716,7 +716,7 @@ export default function HomePage() {
                       <button className="btn-icon" onClick={() => setShowPasteConfirm(false)} aria-label="Cancel paste"><X size={14} /></button>
                     </div>
                     <pre className="text-xs p-2 rounded-xl max-h-24 overflow-auto whitespace-pre-wrap font-mono"
-                         style={{ background: 'var(--bg-sunken)', color: 'var(--text-3)' }}>
+                      style={{ background: 'var(--bg-sunken)', color: 'var(--text-3)' }}>
                       {pastedText.slice(0, 300)}{pastedText.length > 300 ? '...' : ''}
                     </pre>
                     <div className="flex gap-2">
@@ -760,9 +760,9 @@ export default function HomePage() {
                       <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
                         or use Ctrl+V to paste
                       </p>
-                      <button 
+                      <button
                         type="button"
-                        className="btn-primary mb-4 mx-auto" 
+                        className="btn-primary mb-4 mx-auto"
                         onClick={(e) => { e.stopPropagation(); openFileDialog(); }}
                       >
                         Select Files
@@ -770,7 +770,7 @@ export default function HomePage() {
                       <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
                         Max 100 MB total · Up to 10 files
                       </p>
-                      
+
                       {/* Share Text button */}
                       <div className="flex items-center gap-3 justify-center mt-4">
                         <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
@@ -1246,7 +1246,7 @@ export default function HomePage() {
 
       {/* Share Text Modal */}
       <Suspense fallback={null}>
-        <ShareTextModal 
+        <ShareTextModal
           open={shareTextModalOpen}
           onClose={() => setShareTextModalOpen(false)}
           onShare={handleShareText}
