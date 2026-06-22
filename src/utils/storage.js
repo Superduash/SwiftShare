@@ -374,15 +374,22 @@ const DEFAULT_SETTINGS = {
 }
 export function getSettings() {
   const stored = safeGet(KEYS.SETTINGS, {})
-  // Force reducedMotion to false if not explicitly set to true
   const settings = { ...DEFAULT_SETTINGS, ...stored }
-  if (stored.reducedMotion !== true) {
-    settings.reducedMotion = false
+  
+  if (stored._userSetReducedMotion !== true) {
+    const prefersReduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    settings.reducedMotion = Boolean(prefersReduced)
+  } else {
+    settings.reducedMotion = Boolean(stored.reducedMotion)
   }
+  
   return settings
 }
 export function saveSettings(patch) {
   const next = { ...getSettings(), ...patch }
+  if ('reducedMotion' in patch) {
+    next._userSetReducedMotion = true
+  }
   safeSet(KEYS.SETTINGS, next)
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('swiftshare:settings-changed', { detail: next }))
