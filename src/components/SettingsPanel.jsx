@@ -51,8 +51,17 @@ export default function SettingsPanel({ open, onClose }) {
     setSettings(next)
     saveSettings(patch)
 
-    // Force re-render of AmbientBackground when reducedMotion changes
+    // Apply reduce-motion SYNCHRONOUSLY — zero lag, no React cycle delay.
+    // CSS `animation: none` can't kill Web Animations API; we must cancel them directly.
     if ('reducedMotion' in patch) {
+      const enabling = Boolean(patch.reducedMotion)
+      document.body.classList.toggle('reduce-motion', enabling)
+      if (enabling) {
+        // Kill every running Web Animations API animation on the page immediately
+        document.getAnimations().forEach(a => {
+          try { a.cancel() } catch (_) {}
+        })
+      }
       window.dispatchEvent(new CustomEvent('swiftshare:settings-changed'))
     }
   }

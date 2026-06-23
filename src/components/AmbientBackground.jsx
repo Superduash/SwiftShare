@@ -577,16 +577,18 @@ const SCENES = {
 export default memo(function AmbientBackground({ theme: themeProp }) {
   const { theme: contextTheme } = useTheme()
   const theme = themeProp || contextTheme
-  const [reducedMotion, setReducedMotion] = useState(() => getSettings().reducedMotion)
+  const [reducedMotion, setReducedMotion] = useState(
+    () => document.body.classList.contains('reduce-motion') || getSettings().reducedMotion
+  )
 
   useEffect(() => {
-    const handleSettingsChange = () => {
-      setReducedMotion(getSettings().reducedMotion)
-    }
-    window.addEventListener('swiftshare:settings-changed', handleSettingsChange)
-    return () => {
-      window.removeEventListener('swiftshare:settings-changed', handleSettingsChange)
-    }
+    // MutationObserver fires synchronously in the microtask checkpoint right after
+    // the class is toggled — much faster than the custom-event → React-state cycle.
+    const observer = new MutationObserver(() => {
+      setReducedMotion(document.body.classList.contains('reduce-motion'))
+    })
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
   }, [])
 
   if (reducedMotion) return null
