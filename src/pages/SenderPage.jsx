@@ -31,7 +31,6 @@ import FileCard from '../components/FileCard'
 import ActivityLog from '../components/ActivityLog'
 import ProgressBar from '../components/ProgressBar'
 import ErrorState from '../components/ErrorState'
-import NearbyDevices from '../components/NearbyDevices'
 import SharedTextDisplay from '../components/SharedTextDisplay'
 import ContextMenu from '../components/ContextMenu'
 import TransferSummaryCard from '../components/TransferSummaryCard'
@@ -1456,14 +1455,6 @@ export default function SenderPage() {
                     </div>
                   )}
                 </div>
-                )}
-
-                {/* Nearby share prompts - only show if not expired */}
-                {!isExpired && !cancelled && (
-                  <NearbyDevices
-                    currentTransferCode={normalizedCode}
-                    currentFilename={meta?.files?.[0]?.name || 'file'}
-                  />
                 )}
 
                 {/* Countdown - only show if not expired */}
