@@ -360,6 +360,40 @@ a { color: inherit; text-decoration: none; }
     transition-duration: 0.08s;
   }
 
+  /* Small compact button variant — use for inline/contextual buttons */
+  .btn-sm {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    min-height: 32px !important;
+    border-radius: 10px !important;
+    gap: 4px !important;
+  }
+
+  /* Eye toggle for password fields — proper 36x36 touch target */
+  .btn-eye-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-4);
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    backface-visibility: hidden;
+  }
+  .btn-eye-toggle:hover {
+    color: var(--text-2);
+    background: var(--surface-hover);
+  }
+  .btn-eye-toggle:active {
+    background: var(--surface-active);
+    transition-duration: 0.05s;
+  }
+
   .btn-icon {
     display: inline-flex;
     align-items: center;
@@ -743,6 +777,11 @@ body.reduce-motion *::after {
     min-height: 44px;
     padding: 10px 16px;
     font-size: 14px;
+  }
+
+  .btn-sm {
+    min-height: 36px !important;
+    padding: 6px 12px !important;
   }
 
   /* Larger touch targets for file cards */

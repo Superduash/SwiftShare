@@ -117,8 +117,8 @@ function Navbar() {
 
             {/* Shortcuts button - hidden on touch devices */}
             <button
-              className="hidden md:flex items-center gap-1.5 px-2 py-1 mr-2 rounded-lg transition-colors hide-on-touch"
-              style={{ color: 'var(--text-3)', border: '1px solid var(--border)', background: 'var(--bg-sunken)' }}
+              className="hidden md:inline-flex btn-ghost btn-sm mr-1 hide-on-touch"
+              style={{ border: '1px solid var(--border)', background: 'var(--bg-sunken)' }}
               onClick={() => window.dispatchEvent(new CustomEvent('swiftshare:open-shortcuts'))}
               aria-label="View shortcuts"
             >

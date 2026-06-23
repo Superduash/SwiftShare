@@ -967,13 +967,13 @@ export default function HomePage() {
                               <button
                                 type="button"
                                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5"
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 btn-eye-toggle"
                                 onClick={() => setShowPassword(!showPassword)}
                                 tabIndex={-1}
                               >
                                 {showPassword
-                                  ? <EyeOff size={16} style={{ color: 'var(--text-4)' }} />
-                                  : <Eye size={16} style={{ color: 'var(--text-4)' }} />
+                                  ? <EyeOff size={16} />
+                                  : <Eye size={16} />
                                 }
                               </button>
                             </div>

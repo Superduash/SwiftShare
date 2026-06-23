@@ -1384,7 +1384,7 @@ export default function SenderPage() {
                     {(normalizedCode || '').split('').map((ch, i) => (
                       <motion.button
                         key={i}
-                        className="w-11 h-13 rounded-xl flex items-center justify-center font-mono font-bold text-xl cursor-pointer transition-colors"
+                        className="w-11 h-11 rounded-xl flex items-center justify-center font-mono font-bold text-xl cursor-pointer transition-colors"
                         style={{
                           background: 'var(--code-char-bg)',
                           border: '1.5px solid var(--code-char-border)',
@@ -1403,11 +1403,11 @@ export default function SenderPage() {
 
                   {/* Copy and Share buttons */}
                   <div className="flex gap-2">
-                    <button className="btn-secondary flex-1 text-xs" onClick={handleCopyCode}>
+                    <button className="btn-secondary flex-1" onClick={handleCopyCode}>
                       {copiedCode ? <Check size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} />}
                       {copiedCode ? 'Copied!' : 'Copy code'}
                     </button>
-                    <button className="btn-secondary flex-1 text-xs" onClick={handleNativeShare}>
+                    <button className="btn-secondary flex-1" onClick={handleNativeShare}>
                       <Share2 size={14} />
                       Share
                     </button>
@@ -1469,7 +1469,7 @@ export default function SenderPage() {
                           {[10, 30, 60].map(mins => (
                             <button
                               key={mins}
-                              className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${extendMinutes === mins ? 'btn-primary' : 'btn-ghost'}`}
+                              className={`flex-1 rounded-lg text-xs font-medium transition-all btn-sm ${extendMinutes === mins ? 'btn-primary' : 'btn-ghost'}`}
                               onClick={() => setExtendMinutes(mins)}
                             >
                               {mins}m
@@ -1481,7 +1481,7 @@ export default function SenderPage() {
 
                     <div className="mt-4 flex gap-2">
                       <button
-                        className="btn-ghost flex-1 text-xs"
+                        className="btn-ghost flex-1"
                         onClick={handleExtend}
                         disabled={extended || extending}
                         style={confirmExtend ? { borderColor: 'var(--warning)', color: 'var(--warning)' } : undefined}
@@ -1493,7 +1493,7 @@ export default function SenderPage() {
                         )}
                       </button>
                       <button
-                        className={confirmDelete ? 'btn-danger flex-1 text-xs' : 'btn-ghost flex-1 text-xs'}
+                        className={confirmDelete ? 'btn-danger flex-1' : 'btn-ghost flex-1'}
                         onClick={handleDelete}
                         disabled={deleting}
                       >
