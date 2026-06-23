@@ -618,28 +618,23 @@ a { color: inherit; text-decoration: none; }
 
 
 /* ════════════════════════════════════════════
-   REDUCE MOTION — Zero-lag, multi-layer kill
+   REDUCE MOTION — Zero-lag, multi-layer hard stop
    ════════════════════════════════════════════
-   Layer 1: CSS animations stopped via animation:none + duration/delay fallbacks
-   Layer 2: Transitions collapsed to 0.001ms (effectively instant)
-   Layer 3: Web Animations API killed synchronously in JS (SettingsPanel.jsx)
-   Layer 4: Framer Motion disabled via <MotionConfig reducedMotion="always">
-   Layer 5: AmbientBackground unmounted via MutationObserver (same-frame)
+   Layer 1 (CSS):      animation:none + transition:none — hard kills all CSS motion
+   Layer 2 (JS):       Web Animations API cancelled synchronously on click (SettingsPanel.jsx)
+   Layer 3 (React):    AmbientBackground unmounted via MutationObserver (same frame)
+   Layer 4 (FM):       Framer Motion via <MotionConfig reducedMotion="always"> in App.jsx
    ════════════════════════════════════════════ */
 body.reduce-motion,
 body.reduce-motion *,
 body.reduce-motion *::before,
 body.reduce-motion *::after {
   animation: none !important;
-  animation-duration: 0.001ms !important;
-  animation-delay: -1ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
-  transition-delay: 0ms !important;
+  transition: none !important;
   scroll-behavior: auto !important;
 }
 
-/* Shimmer loading blocks — must show static colour, not slide */
+/* Shimmer loading blocks — show static colour, no sliding gradient */
 body.reduce-motion .shimmer-block {
   background: var(--shimmer-from, var(--border)) !important;
   animation: none !important;
