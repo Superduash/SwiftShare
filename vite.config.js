@@ -76,7 +76,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/upload/, /^\/download/],
+          navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/upload/, /^\/download/, /^\/sitemap\.xml/, /^\/robots\.txt/],
           globIgnores: ['**/node_modules/**/*', '**/api/**/*', '**/socket.io/**/*', '**/upload/**/*', '**/download/**/*']
         }
       }),
