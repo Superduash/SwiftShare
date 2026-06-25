@@ -4,6 +4,7 @@ import {
   useLocation, useNavigate, useParams,
 } from 'react-router-dom'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
+import { HelmetProvider, Helmet } from 'react-helmet-async'
 import { Toaster } from 'react-hot-toast'
 import toast from 'react-hot-toast'
 
@@ -281,9 +282,18 @@ export default function App() {
   }, [])
 
   return (
-    <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
-      <SocketProvider>
-        <ConnectionHealthProvider>
+    <HelmetProvider>
+      <Helmet titleTemplate="%s | SwiftShare" defaultTitle="SwiftShare">
+        <meta name="description" content="SwiftShare — Zero-login instant file transfer. Drop, share, done." />
+        <link rel="canonical" href="https://swiftshare.app" />
+        <meta property="og:title" content="SwiftShare" />
+        <meta property="og:description" content="Zero-login instant file transfer. Drop, share, done." />
+        <meta property="og:url" content="https://swiftshare.app" />
+        <meta property="og:type" content="website" />
+      </Helmet>
+      <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
+        <SocketProvider>
+          <ConnectionHealthProvider>
           <TransferProvider>
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <AmbientBackground />
@@ -321,5 +331,6 @@ export default function App() {
         </ConnectionHealthProvider>
       </SocketProvider>
     </MotionConfig>
+    </HelmetProvider>
   )
 }

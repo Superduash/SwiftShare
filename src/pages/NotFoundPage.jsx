@@ -2,14 +2,17 @@ import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Home, ArrowRight, MapPin } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
 
 export default function NotFoundPage() {
   const navigate = useNavigate()
 
-  useEffect(() => { document.title = 'Page not found \u00b7 SwiftShare' }, [])
-
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>Page not found</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <main className="app-main-offset">
         <div className="page-shell-narrow py-20 text-center">
           <motion.div

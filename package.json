@@ -8,7 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --open",
-    "build": "vite build",
+    "build": "node scripts/generate-sitemap.js && vite build",
     "build:analyze": "ANALYZE=true vite build",
     "preview": "vite preview"
   },
@@ -21,6 +21,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-dropzone": "^14.2.10",
+    "react-helmet-async": "^3.0.0",
     "react-hot-toast": "^2.4.1",
     "react-qr-code": "^2.0.21",
     "react-router-dom": "^6.30.3",

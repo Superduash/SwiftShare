@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, lazy, Suspense, useMem
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Download, Loader2, CheckCircle2, Lock, Eye, EyeOff, ShieldX, ShieldCheck, XCircle, Clock, Flame, RefreshCw, Copy, Share2, AlertTriangle } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
 import Spinner from '../components/Spinner'
 import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
@@ -134,7 +135,6 @@ export default function DownloadPage() {
   const isUnloadingRef = useRef(false)
 
   useEffect(() => {
-    document.title = 'Downloading file · SwiftShare'
     return () => { mountedRef.current = false }
   }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
@@ -211,14 +211,6 @@ export default function DownloadPage() {
   useEffect(() => {
     downloadingRef.current = downloading
   }, [downloading])
-
-  // Title
-  useEffect(() => {
-    const fileName = meta?.files?.[0]?.name
-    if (fileName) {
-      document.title = `${fileName} · SwiftShare`
-    }
-  }, [meta])
 
   const patchCachedTransfer = useCallback((patch) => {
     setMeta((prev) => {
@@ -953,6 +945,10 @@ export default function DownloadPage() {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>{meta?.files?.[0]?.name ? `Downloading ${meta.files[0].name}` : 'Downloading file'}</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
 
       <Suspense fallback={null}>
         <FilePreviewModal

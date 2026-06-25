@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Clock, Flame, FileQuestion, Home, ArrowRight, Search } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
 
 const CODE_LENGTH = 6
 const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
@@ -54,8 +55,6 @@ export default function ExpiredPage() {
   const [codeInput, setCodeInput] = useState('')
   const inputRef = useRef(null)
 
-  useEffect(() => { document.title = `${state.title.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim()} \u00b7 SwiftShare` }, [state.title])
-
   function handleCodeSubmit(e) {
     e?.preventDefault()
     const clean = codeInput.toUpperCase().replace(/[^A-HJ-KM-NP-Z2-9]/g, '').slice(0, CODE_LENGTH)
@@ -73,6 +72,10 @@ export default function ExpiredPage() {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>{state.title.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim()}</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <main className="app-main-offset">
         <div className="page-shell-narrow py-20 text-center">
           <motion.div

@@ -7,6 +7,7 @@ import {
   ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff,
   GripVertical, ShieldCheck, Github, Linkedin, Twitter, Mail
 } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
 import toast from 'react-hot-toast'
 
 import { useSocket } from '../context/SocketContext'
@@ -209,9 +210,6 @@ export default function HomePage() {
       playUploadSuccess()
     }
   }, [files, navigate, password, passwordProtected])
-
-  // Title
-  useEffect(() => { document.title = 'SwiftShare - Share Files Instantly!' }, [])
 
   // Fallback socket completion signal.
   useEffect(() => {
@@ -666,8 +664,43 @@ export default function HomePage() {
 
   const hasFiles = files.length > 0
 
+  const schemaData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "url": "https://swiftshare.app/",
+        "name": "SwiftShare",
+        "description": "Zero-login file sharing. Drop, share, done."
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "SwiftShare",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "All",
+        "url": "https://swiftshare.app/",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      }
+    ]
+  }
+
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>Share Files Instantly</title>
+        <meta name="description" content="Send files instantly like a message. Zero-login file sharing that works on any device, anywhere." />
+        <link rel="canonical" href="https://swiftshare.app/" />
+        <meta property="og:title" content="SwiftShare — Share Files Instantly" />
+        <meta property="og:description" content="Send files instantly like a message. Zero-login file sharing that works on any device, anywhere." />
+        <meta property="og:url" content="https://swiftshare.app/" />
+        <script type="application/ld+json">
+          {JSON.stringify(schemaData)}
+        </script>
+      </Helmet>
       <main className="app-main-offset">
         <div className="page-shell-wide py-8 lg:py-12">
 

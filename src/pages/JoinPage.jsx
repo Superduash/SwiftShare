@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, useAnimate } from 'framer-motion'
 import { ArrowRight, Loader2 } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
 import Spinner from '../components/Spinner'
 
 import { getFileMetadataOutcome } from '../services/api'
@@ -53,7 +54,10 @@ export default function JoinPage() {
   }, [])
 
   useEffect(() => {
-    document.title = 'Receive a file · SwiftShare'
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
   }, [])
 
   // Auto-focus first empty
@@ -227,8 +231,35 @@ export default function JoinPage() {
     }
   }
 
+  const schemaData = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [{
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://swiftshare.app/"
+    },{
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Receive a file",
+      "item": "https://swiftshare.app/join"
+    }]
+  }
+
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>Receive a file</title>
+        <meta name="description" content="Enter the 6-character code to receive your file securely on SwiftShare." />
+        <link rel="canonical" href="https://swiftshare.app/join" />
+        <meta property="og:title" content="Receive a file | SwiftShare" />
+        <meta property="og:description" content="Enter the 6-character code to receive your file securely on SwiftShare." />
+        <meta property="og:url" content="https://swiftshare.app/join" />
+        <script type="application/ld+json">
+          {JSON.stringify(schemaData)}
+        </script>
+      </Helmet>
       <main className="app-main-offset">
         <div className="page-shell-narrow py-12 sm:py-20">
           <motion.div

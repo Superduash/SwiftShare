@@ -7,6 +7,7 @@ import {
   QrCode, AlertTriangle,
   XCircle, Flame, Download, Eye
 } from 'lucide-react'
+import { Helmet } from 'react-helmet-async'
 import Spinner from '../components/Spinner'
 import { QRCode } from 'react-qr-code'
 import toast from 'react-hot-toast'
@@ -208,14 +209,6 @@ export default function SenderPage() {
 
   const baseShareUrl = import.meta.env.VITE_SHARE_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
   const shareLink = `${baseShareUrl}/g/${normalizedCode}`
-
-  // Title
-  useEffect(() => {
-    const fileName = meta?.files?.[0]?.name
-    if (fileName) {
-      document.title = `Sharing ${fileName} · SwiftShare`
-    }
-  }, [meta])
 
   const patchCachedTransfer = useCallback((patch) => {
     setMeta((prev) => {
@@ -1211,6 +1204,10 @@ export default function SenderPage() {
 
   return (
     <div className="min-h-screen">
+      <Helmet>
+        <title>{meta?.files?.[0]?.name ? `Sharing ${meta.files[0].name}` : 'Sender Dashboard'}</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <Suspense fallback={null}>
         <QRModal open={qrModal} onClose={() => setQrModal(false)} value={shareLink} code={normalizedCode} />
       </Suspense>
