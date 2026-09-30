@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
           start_url: "/",
           display: "standalone",
           background_color: "#0C0502",
-          theme_color: "#EA580C",
+          theme_color: "#0C0502",
           orientation: "portrait-primary",
           icons: [
             {
@@ -75,6 +75,9 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/, /^\/upload/, /^\/download/, /^\/sitemap\.xml/, /^\/robots\.txt/],
           globIgnores: ['**/node_modules/**/*', '**/api/**/*', '**/socket.io/**/*', '**/upload/**/*', '**/download/**/*']

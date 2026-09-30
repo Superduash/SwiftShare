@@ -32,12 +32,11 @@ const MAX_STUCK_MS = 30000 // Reduced from 60s for faster recovery
 export function ConnectionHealthProvider({ children }) {
   const { socket, isConnected: socketConnected } = useSocket()
 
-  // Status starts at 'syncing' — we don't know yet, and we're trying.
-  // It will flip to 'connected' the moment the socket connects, or to
-  // 'waking'/'offline' if ping calls keep failing.
-  const [status, setStatus] = useState('syncing')
+  // Default to 'connected' when online to avoid transient flashing during initial mount
+  const [status, setStatus] = useState(() => (typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'connected'))
   const [lastOk, setLastOk] = useState(null)
 
+  const mountTimeRef = useRef(Date.now())
   const everConnectedRef = useRef(false)
   const intervalRef = useRef(null)
   const failureCountRef = useRef(0)
@@ -65,13 +64,18 @@ export function ConnectionHealthProvider({ children }) {
       return
     }
 
+    // While browser is online and there are no persistent backend failures, stay 'connected'
+    if (failureCountRef.current < 2) {
+      setStatus('connected')
+      return
+    }
+
     if (pingOkRef.current) {
-      // Ping works, socket doesn't yet → syncing
       setStatus('syncing')
       return
     }
 
-    // No successful link at the moment.
+    // No successful link after confirmed failures.
     if (everConnectedRef.current) {
       setStatus('reconnecting')
     } else {

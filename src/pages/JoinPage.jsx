@@ -275,7 +275,7 @@ export default function JoinPage() {
             <div
               ref={scope}
               id="code-input-row"
-              className="flex justify-center gap-2 sm:gap-3 mb-4"
+              className="flex justify-center items-center gap-1.5 sm:gap-3 mb-4 w-full max-w-sm mx-auto px-1"
             >
               {chars.map((ch, i) => (
                 <motion.input
@@ -288,16 +288,19 @@ export default function JoinPage() {
                   onChange={(e) => handleChange(i, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(i, e)}
                   onFocus={(e) => e.target.select()}
-                  className="w-11 h-13 sm:w-14 sm:h-16 text-center font-mono font-bold text-xl sm:text-2xl rounded-xl outline-none transition-all"
+                  className="w-11 sm:w-14 h-14 sm:h-16 flex-1 max-w-[56px] text-center font-mono font-extrabold text-2xl sm:text-3xl rounded-xl sm:rounded-2xl outline-none transition-all cursor-text uppercase"
                   style={{
                     background: 'var(--code-char-bg)',
                     border: `2px solid ${ch ? 'var(--accent)' : error ? 'var(--danger)' : 'var(--code-char-border)'}`,
                     color: 'var(--accent)',
                     caretColor: 'var(--accent)',
+                    boxShadow: ch ? '0 0 14px var(--accent-glow)' : '0 2px 6px rgba(0,0,0,0.04)',
                   }}
-                  initial={{ y: 6 }}
-                  animate={{ y: 0 }}
-                  transition={{ delay: 0.1 + i * 0.03 }}
+                  whileHover={{ scale: 1.04 }}
+                  whileFocus={{ scale: 1.08 }}
+                  initial={{ y: 8, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.08 + i * 0.03, type: 'spring', damping: 15 }}
                   autoComplete="off"
                   aria-label={`Code digit ${i + 1}`}
                 />

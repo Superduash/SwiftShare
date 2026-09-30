@@ -20,7 +20,7 @@ export default function ContentPageLayout({
   })
 
   return (
-    <div className="min-h-screen flex flex-col justify-between" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
       <main className="app-main-offset flex-1">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
           
@@ -85,14 +85,14 @@ export default function ContentPageLayout({
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <Link
                   to="/"
-                  className="btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold"
+                  className="btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold whitespace-nowrap"
                 >
                   <Zap size={16} />
-                  <span>Send Files Now</span>
+                  <span>Send Files</span>
                 </Link>
                 <Link
                   to="/join"
-                  className="btn-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold"
+                  className="btn-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold whitespace-nowrap"
                 >
                   <Download size={16} />
                   <span>Receive</span>

@@ -1,4 +1,4 @@
-import { Component, useState, Suspense, lazy, useEffect } from 'react'
+import { Component, useState, Suspense, lazy, useEffect, useLayoutEffect } from 'react'
 import {
   BrowserRouter, Routes, Route, Navigate,
   useLocation, useNavigate, useParams,
@@ -18,7 +18,6 @@ import { reportClientError } from './services/api'
 import LoadingScreen from './components/LoadingScreen'
 import ConnectionBanner from './components/ConnectionBanner'
 import Navbar from './components/Navbar'
-import ShortcutsOverlay from './components/ShortcutsOverlay'
 import AmbientBackground from './components/AmbientBackground'
 // ── Error boundary for lazy routes ───────────
 class RouteErrorBoundary extends Component {
@@ -129,29 +128,26 @@ function RouteTracker() {
   return null
 }
 
-// ── Scroll to top ────────────────────────────
-function ScrollToTop() {
-  const { pathname } = useLocation()
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }) }, [pathname])
-  return null
-}
-
 // ── Page transition wrapper ──────────────────
 const pageVariants = {
-  initial: { opacity: 0, y: 6 },
+  initial: { opacity: 0 },
   animate: {
     opacity: 1,
-    y: 0,
-    transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] }
+    transition: { duration: 0.15, ease: 'easeOut' }
   },
   exit: {
     opacity: 0,
-    y: -4,
-    transition: { duration: 0.1, ease: [0.4, 0, 1, 1] }
+    transition: { duration: 0.08, ease: 'easeIn' }
   },
 }
 
 function PageWrapper({ children }) {
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [])
+
   return (
     <motion.div
       variants={pageVariants}
@@ -159,9 +155,8 @@ function PageWrapper({ children }) {
       animate="animate"
       exit="exit"
       style={{
+        transform: 'translateZ(0)',
         willChange: 'opacity',
-        backfaceVisibility: 'hidden',
-        WebkitBackfaceVisibility: 'hidden',
       }}
     >
       {children}
@@ -180,7 +175,6 @@ function AnimatedRoutes() {
   const location = useLocation()
   return (
     <>
-      <ScrollToTop />
       <RouteErrorBoundary>
         <Suspense fallback={<LoadingScreen message="Loading..." />}>
           <AnimatePresence mode="wait">
@@ -282,7 +276,6 @@ function AppContent() {
       {!isAdmin && <NearbyOfferListener />}
       {!isAdmin && <Navbar />}
       <AnimatedRoutes />
-      {!isAdmin && <ShortcutsOverlay />}
     </>
   )
 }
@@ -378,7 +371,6 @@ export default function App() {
                 error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
               }}
             />
-            <ShortcutsOverlay />
           </TransferProvider>
         </ConnectionHealthProvider>
       </SocketProvider>

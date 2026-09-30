@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import {
   Upload, Plus, X, Flame, Shield, Zap, Clock, QrCode,
   ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff,
-  GripVertical, ShieldCheck, Github, Linkedin, Twitter, Mail, Wifi
+  GripVertical, ShieldCheck, Wifi
 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import toast from 'react-hot-toast'
@@ -40,33 +40,6 @@ const FEATURES = [
   { icon: QrCode, title: 'QR Codes', desc: 'Point, scan, done' },
   { icon: Zap, title: 'Live Updates', desc: 'Real-time progress' },
   { icon: ShieldCheck, title: 'Secure Transfer', desc: 'Encrypted HTTPS delivery' },
-]
-
-const SOCIAL_LINKS = [
-  {
-    icon: Github,
-    href: 'https://github.com/Superduash',
-    label: 'GitHub profile',
-    external: true,
-  },
-  {
-    icon: Linkedin,
-    href: 'https://www.linkedin.com/in/ashwin-a-943114320',
-    label: 'LinkedIn profile',
-    external: true,
-  },
-  {
-    icon: Twitter,
-    href: 'https://x.com/superduash',
-    label: 'X / Twitter profile',
-    external: true,
-  },
-  {
-    icon: Mail,
-    href: 'mailto:helloitsashwin@gmail.com',
-    label: 'Send email',
-    external: false,
-  },
 ]
 
 export default function HomePage() {
@@ -662,9 +635,9 @@ export default function HomePage() {
   })
 
   return (
-    <div className="min-h-screen flex flex-col justify-between">
+    <div className="min-h-screen flex flex-col">
       <main className="app-main-offset flex-1">
-        <div className="page-shell-wide py-8 lg:py-12">
+        <div className="page-shell-wide py-6 lg:py-10">
 
           {/* Desktop: split layout */}
           <div className="lg:grid lg:grid-cols-5 lg:gap-10">
@@ -673,7 +646,7 @@ export default function HomePage() {
             <div className="lg:col-span-3">
               {/* Hero text */}
               <motion.div
-                className="mb-6"
+                className="mb-5"
                 initial={{ y: 14 }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -682,18 +655,8 @@ export default function HomePage() {
                   Simple,<br />
                   <span style={{ color: 'var(--accent)' }}>yet too effective.</span>
                 </h1>
-                <p className="text-base sm:text-lg mb-2" style={{ color: 'var(--text-3)' }}>
+                <p className="text-base sm:text-lg" style={{ color: 'var(--text-3)' }}>
                   Send files instantly like a message.
-                </p>
-                <p
-                  className="text-sm font-medium tracking-wide bg-clip-text text-transparent bg-gradient-to-r"
-                  style={{
-                    backgroundImage: 'linear-gradient(to right, var(--accent), var(--accent-hover))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  Works on any device, anywhere.
                 </p>
               </motion.div>
 
@@ -734,35 +697,35 @@ export default function HomePage() {
               >
                 <div
                   {...getRootProps()}
-                  className={`drop-zone relative ${files.length === 0 && !isDragActive && !uploading ? 'drop-zone-idle' : ''} ${isDragActive ? 'active' : ''} ${hasFiles ? 'p-5' : 'p-8 sm:p-12'}`}
-                  style={{ minHeight: hasFiles ? 'auto' : '260px' }}
+                  className={`drop-zone relative ${files.length === 0 && !isDragActive && !uploading ? 'drop-zone-idle' : ''} ${isDragActive ? 'active' : ''} ${hasFiles ? 'p-5' : 'p-6 sm:p-8'}`}
+                  style={{ minHeight: hasFiles ? 'auto' : '220px' }}
                 >
                   <input {...getInputProps()} />
 
                   {!hasFiles ? (
                     <div className="text-center">
                       <motion.div
-                        className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                        className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center"
                         style={{ background: 'var(--accent-soft)', border: '1px solid var(--accent-medium)' }}
                         animate={isDragActive ? { scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] } : {}}
                         transition={{ duration: 0.4 }}
                       >
-                        <Upload size={28} style={{ color: 'var(--accent)' }} />
+                        <Upload size={24} style={{ color: 'var(--accent)' }} />
                       </motion.div>
                       <p className="font-display font-bold text-xl mb-1" style={{ color: 'var(--text)' }}>
                         {isDragActive ? 'Drop it here!' : 'Drag & drop anywhere to start'}
                       </p>
-                      <p className="text-sm mb-4" style={{ color: 'var(--text-3)' }}>
+                      <p className="text-sm mb-3" style={{ color: 'var(--text-3)' }}>
                         or use Ctrl+V to paste
                       </p>
                       <button
                         type="button"
-                        className="btn-primary mb-4 mx-auto"
+                        className="btn-primary mb-3 mx-auto"
                         onClick={(e) => { e.stopPropagation(); openFileDialog(); }}
                       >
                         Select Files
                       </button>
-                      <p className="text-xs mb-4" style={{ color: 'var(--text-4)' }}>
+                      <p className="text-xs mb-3" style={{ color: 'var(--text-4)' }}>
                         Max 100 MB total · Up to 10 files
                       </p>
 
@@ -1256,43 +1219,6 @@ export default function HomePage() {
                   ))}
                 </div>
               </motion.div>
-
-              {/* Version Footer */}
-              <div className="text-center mt-8 pb-4">
-                <p className="text-[10px] mb-2.5" style={{ color: 'var(--text-5)' }}>
-                  SwiftShare v{import.meta.env.PACKAGE_VERSION || '1.0.0'}
-                </p>
-                <div className="flex items-center justify-center gap-3">
-                  {SOCIAL_LINKS.map(({ icon: SocialIcon, href, label, external }) => (
-                    <a
-                      key={label}
-                      href={href}
-                      aria-label={label}
-                      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                      className="footer-social-link"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--text-5)',
-                        transition: 'color 0.18s ease, transform 0.18s ease',
-                        borderRadius: '6px',
-                        padding: '4px',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.color = 'var(--accent)'
-                        e.currentTarget.style.transform = 'translateY(-1px)'
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.color = 'var(--text-5)'
-                        e.currentTarget.style.transform = 'translateY(0)'
-                      }}
-                    >
-                      <SocialIcon size={14} strokeWidth={1.75} />
-                    </a>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         </div>

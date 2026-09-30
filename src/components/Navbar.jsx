@@ -1,10 +1,10 @@
-import React, { useState, memo, useCallback } from 'react'
+import React, { useState, memo, useCallback, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Settings, Zap, ArrowLeft, Sun, Moon, TreePine, Flame, Keyboard } from 'lucide-react'
+import { Settings, Zap, ArrowLeft, Sun, Moon, Keyboard, Download } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useConnectionHealth } from '../context/ConnectionHealthContext'
-import { saveSettings } from '../utils/storage'
 import SettingsPanel from './SettingsPanel'
+import ShortcutsOverlay from './ShortcutsOverlay'
 
 const STATUS_PILL = {
   connected:    { label: 'Live',         tone: 'success', pulse: false },
@@ -20,42 +20,42 @@ const TONE_VARS = {
   danger:  { bg: 'var(--danger-soft)',  fg: 'var(--danger)',  glow: '0 0 6px rgba(220,38,38,0.4)' },
 }
 
-// Sunrise (light) ↔ Sunset (dark) toggle
-// Stored as 'sunrise' (light) and 'sunset' (dark)
-
 function Navbar() {
-  const { theme, setTheme } = useTheme()
+  const { isDark, toggleThemeMode } = useTheme()
   const { status } = useConnectionHealth()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [isInstallable, setIsInstallable] = useState(false)
   const location = useLocation()
   const isHome = location.pathname === '/'
+
+  useEffect(() => {
+    const handleInstallable = () => setIsInstallable(true)
+    if (window.__swiftshare_pwa_prompt) setIsInstallable(true)
+    window.addEventListener('swiftshare:pwa-installable', handleInstallable)
+    return () => window.removeEventListener('swiftshare:pwa-installable', handleInstallable)
+  }, [])
+
+  const handleInstallClick = () => {
+    if (window.__swiftshare_pwa_prompt) {
+      window.__swiftshare_pwa_prompt.prompt()
+      window.__swiftshare_pwa_prompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          setIsInstallable(false)
+        }
+        window.__swiftshare_pwa_prompt = null
+      })
+    }
+  }
 
   const pill = STATUS_PILL[status] || STATUS_PILL.syncing
   const tone = TONE_VARS[pill.tone] || TONE_VARS.warning
 
-  const TOGGLE_MAP = {
-    sunrise: { target: 'sunset', icon: Moon, title: 'Switch to Sunset', color: 'var(--text-3)' },
-    sunset: { target: 'sunrise', icon: Sun, title: 'Switch to Sunrise', color: 'var(--accent)' },
-    light: { target: 'dark', icon: Moon, title: 'Switch to Dark', color: 'var(--text-3)' },
-    dark: { target: 'light', icon: Sun, title: 'Switch to Light', color: 'var(--accent)' },
-    midnight: { target: 'light', icon: Sun, title: 'Switch to Light', color: 'var(--accent)' },
-    sakura: { target: 'lavender', icon: Moon, title: 'Switch to Lavender', color: 'var(--text-3)' },
-    lavender: { target: 'sakura', icon: Sun, title: 'Switch to Sakura', color: 'var(--accent)' },
-    forest: { target: 'volcanic', icon: Flame, title: 'Switch to Volcanic', color: 'var(--text-3)' },
-    volcanic: { target: 'forest', icon: TreePine, title: 'Switch to Forest', color: 'var(--text-3)' },
-  }
-
-  const toggleConfig = TOGGLE_MAP[theme]
-
-  const handleToggle = useCallback(() => {
-    if (toggleConfig) {
-      saveSettings({ randomTheme: false })
-      setTheme(toggleConfig.target)
-    }
-  }, [toggleConfig, setTheme])
-
   const openSettings = useCallback(() => setSettingsOpen(true), [])
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
+
+  const openShortcuts = useCallback(() => setShortcutsOpen(true), [])
+  const closeShortcuts = useCallback(() => setShortcutsOpen(false), [])
 
   return (
     <>
@@ -106,51 +106,69 @@ function Navbar() {
 
           {/* Right */}
           <div className="flex items-center gap-1">
-            {/* Dynamic Theme Toggle */}
-            {toggleConfig && (
-              <button
-                className="btn-icon"
-                onClick={handleToggle}
-                aria-label={toggleConfig.title}
-                title={toggleConfig.title}
-                style={{ marginRight: '2px', position: 'relative', zIndex: 1000 }}
-              >
-                <toggleConfig.icon size={16} style={{ color: toggleConfig.color }} />
-              </button>
-            )}
+            {/* Dark / Light Mode Toggle */}
+            <button
+              className="btn-icon"
+              onClick={toggleThemeMode}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              style={{ marginRight: '2px', position: 'relative', zIndex: 1000 }}
+            >
+              {isDark ? (
+                <Sun size={16} style={{ color: 'var(--accent)' }} />
+              ) : (
+                <Moon size={16} style={{ color: 'var(--text-3)' }} />
+              )}
+            </button>
 
-            {/* Shortcuts button - hidden on touch devices */}
+            {/* Shortcuts button */}
             <button
               className="hidden md:inline-flex btn-ghost btn-sm mr-1 hide-on-touch"
               style={{ border: '1px solid var(--border)', background: 'var(--bg-sunken)' }}
-              onClick={() => window.dispatchEvent(new CustomEvent('swiftshare:open-shortcuts'))}
+              onClick={openShortcuts}
               aria-label="View shortcuts"
             >
               <Keyboard size={14} />
               <span className="text-[10px] font-semibold tracking-wide uppercase">Shortcuts</span>
             </button>
 
-            {/* Connection status pill */}
-            <div
-              className="flex items-center gap-1.5 px-2 py-1 mr-1 rounded-lg transition-colors"
-              style={{ background: tone.bg, position: 'relative', zIndex: 1000 }}
-              title={`${pill.label} — ${status}`}
-              role="status"
-              aria-label={pill.label}
-            >
+            {/* Install App button (PWA) */}
+            {isInstallable && (
+              <button
+                className="inline-flex btn-ghost btn-sm mr-1"
+                style={{ border: '1px solid var(--accent)', background: 'var(--accent-soft)', color: 'var(--accent)' }}
+                onClick={handleInstallClick}
+                aria-label="Install App"
+                title="Install App"
+              >
+                <Download size={14} />
+                <span className="hidden md:inline text-[10px] font-semibold tracking-wide uppercase ml-1.5">Install App</span>
+              </button>
+            )}
+
+            {/* Connection status pill — only shown when there is an active connection issue */}
+            {status !== 'connected' && (
               <div
-                className="w-2 h-2 rounded-full transition-all duration-500"
-                style={{
-                  background: tone.fg,
-                  boxShadow: tone.glow,
-                  animation: pill.pulse ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
-                }}
-                aria-hidden="true"
-              />
-              <span className="text-xs font-medium hidden sm:inline" style={{ color: tone.fg }}>
-                {pill.label}
-              </span>
-            </div>
+                className="flex items-center gap-1.5 px-2 py-1 mr-1 rounded-lg transition-colors"
+                style={{ background: tone.bg, position: 'relative', zIndex: 1000 }}
+                title={`${pill.label} — ${status}`}
+                role="status"
+                aria-label={pill.label}
+              >
+                <div
+                  className="w-2 h-2 rounded-full transition-all duration-500"
+                  style={{
+                    background: tone.fg,
+                    boxShadow: tone.glow,
+                    animation: pill.pulse ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
+                  }}
+                  aria-hidden="true"
+                />
+                <span className="text-xs font-medium hidden sm:inline" style={{ color: tone.fg }}>
+                  {pill.label}
+                </span>
+              </div>
+            )}
 
             <button
               className="btn-icon"
@@ -165,9 +183,9 @@ function Navbar() {
       </nav>
 
       <SettingsPanel open={settingsOpen} onClose={closeSettings} />
+      <ShortcutsOverlay open={shortcutsOpen} onClose={closeShortcuts} />
     </>
   )
 }
 
-// Memoize Navbar - only re-render when theme, status, or location changes
 export default memo(Navbar)

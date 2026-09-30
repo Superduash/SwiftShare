@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion } from 'framer-motion'
 import ContentPageLayout from '../../components/ContentPageLayout'
 import { HelpCircle, ChevronRight } from 'lucide-react'
 
@@ -31,6 +32,10 @@ export default function FaqPage() {
     {
       q: 'Are any file types blocked?',
       a: 'Yes. To protect users from malicious payloads, common executable extensions (.exe, .bat, .cmd, .scr, .vbs) are blocked by the upload filter.'
+    },
+    {
+      q: 'Are files end-to-end encrypted on the client side?',
+      a: 'All data is encrypted in transit using TLS 1.3 to protect against network interception, and passwords are salted and hashed with bcrypt. However, files are stored temporarily on Cloudflare R2 and are not client-side end-to-end (zero-knowledge) encrypted. For maximum privacy, files are automatically deleted upon expiry or first download in Burn Mode.'
     }
   ]
 
@@ -41,23 +46,37 @@ export default function FaqPage() {
       description="Find clear, honest answers regarding file limits, expiration, privacy, device compatibility, and download mechanics on SwiftShare."
       badge="FAQ & Help"
     >
-      <div className="space-y-4">
+      <motion.div 
+        className="space-y-4"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-20px" }}
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.08 } }
+        }}
+      >
         {faqs.map((faq, idx) => (
-          <details
+          <motion.div
             key={idx}
-            className="group p-4 sm:p-5 rounded-xl border transition-colors open:bg-opacity-50"
-            style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
+            variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.3 }}
           >
-            <summary className="font-bold text-sm sm:text-base cursor-pointer flex items-center justify-between list-none" style={{ color: 'var(--text)' }}>
-              <span>{faq.q}</span>
-              <span className="text-xs ml-2 text-gray-400 group-open:rotate-90 transition-transform">▸</span>
-            </summary>
-            <p className="mt-3 text-xs sm:text-sm leading-relaxed border-t pt-3" style={{ borderColor: 'var(--border)', color: 'var(--text-2)' }}>
-              {faq.a}
-            </p>
-          </details>
+            <details
+              className="group p-4 sm:p-5 rounded-xl border transition-colors open:bg-opacity-50"
+              style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
+            >
+              <summary className="font-bold text-sm sm:text-base cursor-pointer flex items-center justify-between list-none" style={{ color: 'var(--text)' }}>
+                <span>{faq.q}</span>
+                <span className="text-xs ml-2 text-gray-400 group-open:rotate-90 transition-transform">▸</span>
+              </summary>
+              <p className="mt-3 text-xs sm:text-sm leading-relaxed border-t pt-3" style={{ borderColor: 'var(--border)', color: 'var(--text-2)' }}>
+                {faq.a}
+              </p>
+            </details>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </ContentPageLayout>
   )
 }

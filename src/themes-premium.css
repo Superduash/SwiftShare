@@ -142,12 +142,12 @@
 }
 
 .share-text-modal .btn-primary:hover {
-  box-shadow: 0 8px 24px var(--accent-soft) !important;
+  box-shadow: none !important;
 }
 
 [data-theme="sunrise"] button.bg-accent:hover,
 [data-theme="sunrise"] a.bg-accent:hover {
-  box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4) !important;
+  box-shadow: none !important;
 }
 
 /* ═══ SUNSET DARK — Deep Ember Night ═══ */

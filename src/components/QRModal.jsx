@@ -86,12 +86,12 @@ function QRModal({ open, onClose, value, code }) {
             </div>
 
             {code && (
-              <div className="flex flex-wrap justify-center gap-1 sm:gap-1.5 max-w-full">
+              <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 max-w-full">
                 {code.split('').map((ch, i) => (
                   <div
                     key={i}
-                    className="w-7 h-9 sm:w-10 sm:h-12 rounded-xl flex items-center justify-center font-mono font-bold text-sm sm:text-lg"
-                    style={{ background: 'var(--code-char-bg)', border: '1px solid var(--code-char-border)', color: 'var(--accent)' }}
+                    className="w-9 sm:w-11 h-11 sm:h-13 rounded-xl sm:rounded-2xl flex items-center justify-center font-mono font-extrabold text-base sm:text-xl shadow-xs"
+                    style={{ background: 'var(--code-char-bg)', border: '1.5px solid var(--code-char-border)', color: 'var(--accent)' }}
                   >
                     {ch}
                   </div>

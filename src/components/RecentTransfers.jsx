@@ -14,12 +14,12 @@ import { getTransferStatus } from '../services/api'
 import { timeAgo } from '../utils/format'
 
 const STATUS_STYLES = {
-  ACTIVE: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Active' },
-  CLAIMED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Claimed' },
-  EXPIRED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Expired' },
-  CANCELLED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Cancelled' },
-  DELETED: { bg: 'var(--danger-soft)', color: 'var(--danger)', label: 'Deleted' },
-  unknown: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: '...' },
+  ACTIVE: { bg: 'var(--success-soft)', color: 'var(--success)', label: 'Active', quiet: false },
+  CLAIMED: { bg: 'var(--warning-soft)', color: 'var(--warning)', label: 'Claimed', quiet: false },
+  EXPIRED: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: 'Expired', quiet: true },
+  CANCELLED: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: 'Cancelled', quiet: true },
+  DELETED: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: 'Deleted', quiet: true },
+  unknown: { bg: 'var(--bg-sunken)', color: 'var(--text-4)', label: '...', quiet: true },
 }
 
 function normalizeCode(code) {
@@ -37,15 +37,26 @@ function statusToExpiredReason(status) {
   return 'expired'
 }
 
+function sortRecentTransfers(list) {
+  return [...list].sort((a, b) => {
+    const aActive = a.status === 'ACTIVE' || a.status === 'CLAIMED'
+    const bActive = b.status === 'ACTIVE' || b.status === 'CLAIMED'
+    if (aActive && !bActive) return -1
+    if (!aActive && bActive) return 1
+    return (new Date(b.savedAt || 0).getTime()) - (new Date(a.savedAt || 0).getTime())
+  })
+}
+
 // Memoized transfer item component to prevent unnecessary re-renders
 const TransferItem = memo(({ transfer, index, onRemove, onClick }) => {
   const s = STATUS_STYLES[transfer.status] || STATUS_STYLES.unknown
+  const isQuiet = s.quiet
   
   return (
     <motion.div
       role="button"
       tabIndex={0}
-      className="w-full surface-card-flat p-3 flex items-center gap-3 text-left group cursor-pointer"
+      className={`w-full surface-card-flat p-2.5 sm:p-3 flex items-center gap-3 text-left group cursor-pointer transition-opacity ${isQuiet ? 'opacity-65 hover:opacity-100' : ''}`}
       initial={{ x: -6 }}
       animate={{ x: 0 }}
       exit={{ opacity: 0, x: 8 }}
@@ -58,11 +69,11 @@ const TransferItem = memo(({ transfer, index, onRemove, onClick }) => {
         }
       }}
     >
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--file-icon-bg)' }}>
-        <FileText size={16} style={{ color: 'var(--file-icon-color)' }} />
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: isQuiet ? 'var(--bg-sunken)' : 'var(--file-icon-bg)' }}>
+        <FileText size={15} style={{ color: isQuiet ? 'var(--text-4)' : 'var(--file-icon-color)' }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+        <p className="text-xs sm:text-sm font-medium truncate" style={{ color: isQuiet ? 'var(--text-3)' : 'var(--text)' }}>
           {transfer.files?.length > 1 ? `${transfer.files.length} files` : (transfer.filename || transfer.code)}
         </p>
         <p className="text-[10px]" style={{ color: 'var(--text-4)' }}>
@@ -93,12 +104,13 @@ function RecentTransfers() {
   const [transfers, setTransfers] = useState(() => {
     const list = getRecentTransfers()
     // Instantly calculate status based on the local clock so the UI doesn't wait for the backend.
-    return list.map(t => {
+    const mapped = list.map(t => {
       if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
         return { ...t, status: 'EXPIRED' }
       }
       return { ...t, status: t.status || 'ACTIVE' }
     })
+    return sortRecentTransfers(mapped)
   })
   const [confirmClear, setConfirmClear] = useState(false)
   const navigate = useNavigate()
@@ -117,12 +129,13 @@ function RecentTransfers() {
     const handleStorageChange = () => {
       if (!mountedRef.current) return
       const list = getRecentTransfers()
-      setTransfers(list.map(t => {
+      const mapped = list.map(t => {
         if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
           return { ...t, status: 'EXPIRED' }
         }
         return { ...t, status: t.status || 'ACTIVE' }
-      }))
+      })
+      setTransfers(sortRecentTransfers(mapped))
     }
 
     window.addEventListener('storage', handleStorageChange)
@@ -139,15 +152,18 @@ function RecentTransfers() {
   useEffect(() => {
     const timer = setInterval(() => {
       if (!mountedRef.current) return
-      setTransfers(prev => prev.map(t => {
-        const status = normalizeStatus(t?.status)
-        if (status === 'CANCELLED' || status === 'DELETED' || status === 'EXPIRED') return t
-        if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
-          return { ...t, status: 'EXPIRED' }
-        }
-        return t
-      }))
-    }, 10000) // Check every 10 seconds
+      setTransfers(prev => {
+        const mapped = prev.map(t => {
+          const status = normalizeStatus(t?.status)
+          if (status === 'CANCELLED' || status === 'DELETED' || status === 'EXPIRED') return t
+          if (t.expiresAt && new Date(t.expiresAt).getTime() < Date.now()) {
+            return { ...t, status: 'EXPIRED' }
+          }
+          return t
+        })
+        return sortRecentTransfers(mapped)
+      })
+    }, 10000)
     return () => clearInterval(timer)
   }, [])
 

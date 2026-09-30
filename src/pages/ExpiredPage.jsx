@@ -114,13 +114,13 @@ export default function ExpiredPage() {
 
             {/* Quick code entry */}
             <div
-              className="max-w-xs mx-auto p-4 rounded-2xl"
+              className="w-full max-w-sm mx-auto p-4 sm:p-5 rounded-2xl"
               style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}
             >
-              <p className="text-xs font-semibold mb-3" style={{ color: 'var(--text-3)' }}>
+              <p className="text-xs font-semibold mb-3 text-center" style={{ color: 'var(--text-3)' }}>
                 Have another code? Try it here:
               </p>
-              <form onSubmit={handleCodeSubmit} className="flex gap-2">
+              <form onSubmit={handleCodeSubmit} className="flex items-center gap-2">
                 <input
                   ref={inputRef}
                   type="text"
@@ -128,9 +128,9 @@ export default function ExpiredPage() {
                   onChange={handleCodeChange}
                   placeholder="ABC123"
                   maxLength={CODE_LENGTH}
-                  className="flex-1 px-3 py-2 rounded-xl text-sm text-center font-mono font-bold uppercase tracking-[0.25em] outline-none transition-all"
+                  className="flex-1 h-11 px-3.5 rounded-xl text-sm text-center font-mono font-bold uppercase tracking-[0.25em] outline-none transition-all"
                   style={{
-                    background: 'var(--bg)',
+                    background: 'var(--surface)',
                     border: '1.5px solid var(--border)',
                     color: 'var(--text)',
                     letterSpacing: '0.2em',
@@ -141,11 +141,16 @@ export default function ExpiredPage() {
                 />
                 <button
                   type="submit"
-                  className="btn-primary !px-3"
+                  className="h-11 w-11 shrink-0 flex items-center justify-center rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  style={{
+                    background: 'var(--accent)',
+                    color: 'var(--accent-contrast, #fff)',
+                    border: 'none',
+                  }}
                   disabled={codeInput.length !== CODE_LENGTH}
                   aria-label="Go to transfer"
                 >
-                  <Search size={16} />
+                  <Search size={18} />
                 </button>
               </form>
             </div>

@@ -15,7 +15,7 @@ export default function PasswordProtectedPage() {
           How SwiftShare Protects Password-Gated Transfers
         </h2>
         <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
-          When sharing sensitive contracts, credentials, or private photos, adding a custom password ensures that only individuals with the passphrase can decrypt and download the files, even if someone else intercepts the 6-digit code or link.
+          When sharing sensitive contracts, credentials, or private photos, adding a custom password ensures that only individuals with the passphrase can authorize access and download the files, even if someone else intercepts the 6-digit code or link.
         </p>
       </section>
 

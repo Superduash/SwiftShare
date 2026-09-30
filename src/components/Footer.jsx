@@ -1,26 +1,45 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Zap, Shield, Lock, Flame, QrCode, FileText, HelpCircle, AlertTriangle } from 'lucide-react'
+import { Zap, Shield, Lock, Flame, QrCode, FileText, HelpCircle, AlertTriangle, Github, Linkedin, Twitter, Mail } from 'lucide-react'
+
+const SOCIAL_LINKS = [
+  { icon: Github, href: 'https://github.com/Superduash', label: 'GitHub profile', external: true },
+  { icon: Linkedin, href: 'https://www.linkedin.com/in/ashwin-a-943114320', label: 'LinkedIn profile', external: true },
+  { icon: Twitter, href: 'https://x.com/superduash', label: 'X / Twitter profile', external: true },
+  { icon: Mail, href: 'mailto:contact@swiftshare.io', label: 'Email support', external: false },
+]
 
 export default function Footer() {
   return (
-    <footer className="w-full mt-20 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 lg:py-16">
+    <footer className="w-full mt-10 sm:mt-14 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 lg:py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12">
           
           {/* Col 1: Brand & Summary */}
-          <div className="md:col-span-1 space-y-4">
+          <div className="md:col-span-1 space-y-3.5">
             <Link to="/" className="inline-flex items-center gap-2 text-lg font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
               <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>
                 <Zap size={16} className="text-white" />
               </div>
               <span>SwiftShare</span>
+              <span className="text-[10px] font-mono font-normal opacity-60 ml-1">v{import.meta.env.PACKAGE_VERSION || '0.7.9'}</span>
             </Link>
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
               Zero-login file and text transfer platform. Share securely across devices with 6-digit codes or QR scans.
             </p>
-            <div className="text-[11px] font-medium px-2.5 py-1.5 rounded-md inline-block" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-              100 MB Limit • TLS 1.3 • Auto-Expiring
+            <div className="flex items-center gap-2.5 pt-1">
+              {SOCIAL_LINKS.map(({ icon: SocialIcon, href, label, external }) => (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  className="p-1.5 rounded-lg transition-all hover:scale-110"
+                  style={{ color: 'var(--text-3)', background: 'var(--bg-sunken)' }}
+                >
+                  <SocialIcon size={14} />
+                </a>
+              ))}
             </div>
           </div>
 

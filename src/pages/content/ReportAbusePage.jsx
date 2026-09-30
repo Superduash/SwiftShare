@@ -2,21 +2,37 @@ import React, { useState } from 'react'
 import ContentPageLayout from '../../components/ContentPageLayout'
 import { AlertTriangle, Send, CheckCircle2, ShieldAlert } from 'lucide-react'
 import toast from 'react-hot-toast'
+import axios from 'axios'
+
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
 export default function ReportAbusePage() {
   const [code, setCode] = useState('')
   const [reason, setReason] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (!reason.trim()) {
-      toast.error('Please describe the reason for your report.')
+    if (!reason.trim() || reason.trim().length < 5) {
+      toast.error('Please describe the reason for your report (min 5 characters).')
       return
     }
 
-    setSubmitted(true)
-    toast.success('Abuse report submitted. Thank you for helping keep SwiftShare safe.')
+    setSubmitting(true)
+    try {
+      await axios.post(`${API_BASE}/api/admin/report-abuse`, {
+        code: code.trim() || undefined,
+        reason: reason.trim(),
+      })
+      setSubmitted(true)
+      toast.success('Abuse report submitted. Thank you for helping keep SwiftShare safe.')
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to submit report. Please try again.'
+      toast.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -75,10 +91,12 @@ export default function ReportAbusePage() {
 
           <button
             type="submit"
+            disabled={submitting}
             className="btn-primary py-2.5 px-6 text-sm font-semibold flex items-center gap-2"
+            style={{ opacity: submitting ? 0.6 : 1 }}
           >
             <Send size={15} />
-            <span>Submit Abuse Report</span>
+            <span>{submitting ? 'Submitting...' : 'Submit Abuse Report'}</span>
           </button>
         </form>
       )}

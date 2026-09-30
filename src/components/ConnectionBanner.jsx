@@ -56,7 +56,8 @@ const TONE_STYLES = {
 // "Syncing" is the normal state during page load while the socket completes its
 // handshake. Don't flash the banner for it unless it persists past this grace
 // window — keeps the UI quiet on every fresh page load.
-const SYNCING_GRACE_MS = 2500
+const SYNCING_GRACE_MS = 5000
+const RECONNECT_GRACE_MS = 3000
 
 // "Restored" success flash duration after a real outage is fixed.
 const RESTORED_FLASH_MS = 1600
@@ -85,15 +86,9 @@ function ConnectionBanner() {
     if (syncingTimerRef.current) { clearTimeout(syncingTimerRef.current); syncingTimerRef.current = null }
     if (restoredTimerRef.current) { clearTimeout(restoredTimerRef.current); restoredTimerRef.current = null }
 
-    // Track whether we've ever been in a real outage state — used to suppress
-    // the "Back online" flash on first-ever connection (which is just normal
-    // page load, not a recovery).
-    if (OUTAGE_STATES.has(status)) {
-      everShownOutageRef.current = true
-    }
-
     if (status === 'connected') {
-      const wasOutage = OUTAGE_STATES.has(prev) && everShownOutageRef.current
+      // Only show "restored" if we ACTUALLY displayed an outage state to the user.
+      const wasOutage = OUTAGE_STATES.has(displayStatus)
       if (wasOutage) {
         setDisplayStatus('restored')
         restoredTimerRef.current = setTimeout(() => {
@@ -101,7 +96,7 @@ function ConnectionBanner() {
           restoredTimerRef.current = null
         }, RESTORED_FLASH_MS)
       } else {
-        // Normal startup path or transient syncing → connected. No flash.
+        // Normal startup path, fast reconnect, or transient syncing → connected. No flash.
         setDisplayStatus('connected')
       }
       return
@@ -109,7 +104,6 @@ function ConnectionBanner() {
 
     if (status === 'syncing' || status === 'waking') {
       // Grace window: don't flash the banner for short transient syncing or fast wake-ups.
-      // If the state persists past the grace, show the banner.
       syncingTimerRef.current = setTimeout(() => {
         setDisplayStatus(status)
         syncingTimerRef.current = null
@@ -117,9 +111,18 @@ function ConnectionBanner() {
       return
     }
 
-    // reconnecting / offline — show immediately, no grace.
+    if (status === 'reconnecting' || status === 'offline') {
+      // Grace window for reconnects and offline states to avoid flashing on quick blips.
+      syncingTimerRef.current = setTimeout(() => {
+        setDisplayStatus(status)
+        syncingTimerRef.current = null
+      }, RECONNECT_GRACE_MS)
+      return
+    }
+
+    // fallback
     setDisplayStatus(status)
-  }, [status])
+  }, [status, displayStatus])
 
   useEffect(() => {
     return () => {

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-  <meta name="theme-color" content="#FDF4EC" />
+  <meta name="theme-color" content="#0C0502" />
   <title>SwiftShare — Send Files Without Sign-Up (Free, Self-Destructing Links)</title>
   <meta name="description" content="Send files or text to any device with a 6-character code or QR scan. No account needed. Links expire automatically, with optional password and burn-after-download." />
   <link rel="canonical" href="%VITE_SITE_URL%/" />
@@ -61,12 +61,11 @@
   }
   </script>
   <script>
-    // FOUC prevention: set theme + body background BEFORE any CSS loads
-    // This is the ONLY place where theme initialization should happen
     (function () {
       try {
-        var valid = ['sunset', 'sunrise', 'dark', 'light', 'midnight', 'sakura', 'lavender', 'forest', 'volcanic'];
-        // Map each theme to its exact --bg value so body never flashes wrong color
+        var DARK_THEMES = ['sunset', 'dark', 'midnight', 'lavender', 'forest', 'volcanic'];
+        var LIGHT_THEMES = ['sunrise', 'light', 'sakura'];
+        var valid = DARK_THEMES.concat(LIGHT_THEMES);
         var bgMap = {
           sunrise: '#FDF9F3',
           sunset: '#0C0502',
@@ -89,29 +88,64 @@
           forest: '#DCF5E8',
           volcanic: '#FFE8E8'
         };
+        var accentMap = {
+          sunrise: '#E05D3A',
+          sunset: '#E05D3A',
+          dark: '#FAFAFA',
+          light: '#18181B',
+          midnight: '#3A88FF',
+          sakura: '#E91E63',
+          lavender: '#A78BFA',
+          forest: '#00D87C',
+          volcanic: '#DC2626'
+        };
+        var surfaceMap = {
+          sunrise: 'rgba(255, 255, 255, 0.4)',
+          sunset: 'rgba(255, 255, 255, 0.05)',
+          dark: 'rgba(255, 255, 255, 0.05)',
+          light: 'rgba(0, 0, 0, 0.03)',
+          midnight: 'rgba(255, 255, 255, 0.05)',
+          sakura: 'rgba(255, 255, 255, 0.5)',
+          lavender: 'rgba(255, 255, 255, 0.05)',
+          forest: 'rgba(255, 255, 255, 0.05)',
+          volcanic: 'rgba(255, 255, 255, 0.05)'
+        };
 
         var settingsRaw = localStorage.getItem('swiftshare_settings');
         var settings = settingsRaw ? JSON.parse(settingsRaw) : null;
         var isRandom = !settings || settings.randomTheme !== false;
+        var modeRaw = localStorage.getItem('swiftshare_theme_mode');
+        var mode = (modeRaw === 'light' || modeRaw === 'dark') ? modeRaw : 'dark';
 
         var theme;
         if (isRandom) {
-          theme = valid[Math.floor(Math.random() * valid.length)];
+          var pool = mode === 'light' ? LIGHT_THEMES : DARK_THEMES;
+          theme = pool[Math.floor(Math.random() * pool.length)];
           localStorage.setItem('swiftshare_theme', JSON.stringify(theme));
         } else {
           var raw = localStorage.getItem('swiftshare_theme');
           var parsed = raw ? JSON.parse(raw) : null;
-          theme = parsed && valid.indexOf(parsed) !== -1 ? parsed : 'sunset';
+          theme = parsed && valid.indexOf(parsed) !== -1 ? parsed : (mode === 'light' ? 'sunrise' : 'sunset');
+          mode = LIGHT_THEMES.indexOf(theme) !== -1 ? 'light' : 'dark';
+          localStorage.setItem('swiftshare_theme_mode', mode);
         }
 
         document.documentElement.setAttribute('data-theme', theme);
-        // Set background + text color immediately to prevent FOUC
         document.documentElement.style.backgroundColor = bgMap[theme] || bgMap.sunset;
         document.documentElement.style.color = colorMap[theme] || colorMap.sunset;
+        document.documentElement.style.setProperty('--initial-accent', accentMap[theme] || '#E05D3A');
+        document.documentElement.style.setProperty('--initial-surface', surfaceMap[theme] || 'rgba(255, 255, 255, 0.05)');
+        
+        var metaTheme = document.querySelector('meta[name="theme-color"]');
+        if (metaTheme) {
+          metaTheme.setAttribute('content', bgMap[theme] || bgMap.sunset);
+        }
       } catch (e) {
         document.documentElement.setAttribute('data-theme', 'sunset');
         document.documentElement.style.backgroundColor = '#0C0502';
         document.documentElement.style.color = '#FDF3E8';
+        document.documentElement.style.setProperty('--initial-accent', '#E05D3A');
+        document.documentElement.style.setProperty('--initial-surface', 'rgba(255, 255, 255, 0.05)');
       }
     })();
   </script>
@@ -122,11 +156,103 @@
       margin: 0;
       padding: 0;
       overflow-x: hidden;
+      min-height: 100%;
     }
 
     body {
       background-color: inherit;
       color: inherit;
+    }
+
+    /* Clean initial loading spinner before React mounts */
+    #root {
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .initial-loading-container {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: inherit;
+      color: inherit;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    .initial-loading-card {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: var(--bg-sunken, var(--initial-surface));
+      border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      overflow: hidden;
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+
+    .initial-loading-glow {
+      position: absolute;
+      inset: -50%;
+      border-radius: 50%;
+      background: var(--accent, var(--initial-accent));
+      opacity: 0.18;
+      filter: blur(14px);
+      animation: ss-initial-pulse 2.4s ease-in-out infinite;
+      transition: background 0.3s ease;
+    }
+
+    .initial-spinner {
+      width: 28px;
+      height: 28px;
+      position: relative;
+      z-index: 1;
+      color: var(--accent, var(--initial-accent));
+      animation: ss-initial-spin 0.8s linear infinite;
+      will-change: transform;
+      transition: color 0.3s ease;
+    }
+
+    .initial-spinner svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    @keyframes ss-initial-spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes ss-initial-pulse {
+      0%, 100% {
+        transform: scale(0.9);
+        opacity: 0.12;
+      }
+      50% {
+        transform: scale(1.15);
+        opacity: 0.25;
+      }
+    }
+
+    body.reduce-motion .initial-spinner {
+      animation: none;
+    }
+    body.reduce-motion .initial-loading-glow {
+      animation: none;
+      opacity: 0.15;
     }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -154,7 +280,19 @@
       } catch (e) { }
     })();
   </script>
-  <div id="root"></div>
+  <div id="root">
+    <div class="initial-loading-container" aria-label="Loading SwiftShare" role="status">
+      <div class="initial-loading-card">
+        <div class="initial-loading-glow"></div>
+        <div class="initial-spinner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke-opacity="0.2" stroke-width="3" stroke-linecap="round" />
+            <path d="M12 2C6.47715 2 2 6.47715 2 12" stroke-width="3" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

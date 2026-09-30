@@ -2,11 +2,12 @@ const KEYS = {
   RECENT: 'swiftshare_recent',
   SETTINGS: 'swiftshare_settings',
   THEME: 'swiftshare_theme',
+  THEME_MODE: 'swiftshare_theme_mode',
   PWA_DISMISSED: 'swiftshare_pwa_dismissed',
   TRANSFER_PREFIX: 'transfer_',
 }
 
-const MAX_RECENT_TRANSFERS = 10;
+const MAX_RECENT_TRANSFERS = 10
 
 function normalizeCode(code) {
   return String(code || '').trim().toUpperCase()
@@ -414,6 +415,14 @@ export function getTheme() {
 }
 export function saveTheme(theme) {
   safeSet(KEYS.THEME, theme)
+}
+
+export function getThemeMode() {
+  const mode = safeGet(KEYS.THEME_MODE, null)
+  return mode === 'light' ? 'light' : 'dark'
+}
+export function saveThemeMode(mode) {
+  safeSet(KEYS.THEME_MODE, mode === 'light' ? 'light' : 'dark')
 }
 
 // ── PWA ────────────────────────────────────

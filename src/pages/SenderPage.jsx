@@ -1347,18 +1347,20 @@ export default function SenderPage() {
                   </button>
 
                   {/* Code characters */}
-                  <div className="flex justify-center gap-1.5 mb-4">
+                  <div className="flex justify-center items-center gap-1.5 sm:gap-2 mb-4">
                     {(normalizedCode || '').split('').map((ch, i) => (
                       <motion.button
                         key={i}
-                        className="w-11 h-11 rounded-xl flex items-center justify-center font-mono font-bold text-xl cursor-pointer transition-colors"
+                        className="w-11 sm:w-13 h-12 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl cursor-pointer transition-all shadow-xs"
                         style={{
                           background: 'var(--code-char-bg)',
                           border: '1.5px solid var(--code-char-border)',
                           color: 'var(--accent)',
                         }}
-                        initial={{ y: 6 }}
-                        animate={{ y: 0 }}
+                        whileHover={{ scale: 1.06 }}
+                        whileTap={{ scale: 0.94 }}
+                        initial={{ y: 6, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.1 + i * 0.04, type: 'spring', damping: 15 }}
                         onClick={handleCopyCode}
                         title="Click to copy code"

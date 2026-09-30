@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion } from 'framer-motion'
 import ContentPageLayout from '../../components/ContentPageLayout'
 import { UserX, ShieldCheck, Zap, HardDrive, Smartphone, Monitor } from 'lucide-react'
 
@@ -19,8 +20,17 @@ export default function NoSignupPage() {
         </p>
       </section>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-        <div className="p-5 rounded-xl border" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+      <motion.div 
+        className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-40px" }}
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: 0.1 } }
+        }}
+      >
+        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }} className="p-5 rounded-xl border surface-card-flat" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
             <UserX size={18} />
           </div>
@@ -28,9 +38,9 @@ export default function NoSignupPage() {
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
             We do not ask for names, phone numbers, email addresses, or social logins. Your files are not associated with any persistent user profile.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="p-5 rounded-xl border" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }} className="p-5 rounded-xl border surface-card-flat" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
             <Zap size={18} />
           </div>
@@ -38,9 +48,9 @@ export default function NoSignupPage() {
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
             Uploads begin streaming immediately. The 6-digit code and QR code are available the second your upload finishes, ready to share via message or scan.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="p-5 rounded-xl border" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }} className="p-5 rounded-xl border surface-card-flat" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
             <HardDrive size={18} />
           </div>
@@ -48,9 +58,9 @@ export default function NoSignupPage() {
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
             Uploaded files reside in high-speed, temporary object storage only until the expiration countdown completes or until claimed via Burn Mode.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="p-5 rounded-xl border" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }} className="p-5 rounded-xl border surface-card-flat" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
             <Smartphone size={18} />
           </div>
@@ -58,8 +68,8 @@ export default function NoSignupPage() {
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
             Works in Chrome, Safari, Firefox, Edge, and mobile browsers on iOS, Android, macOS, Windows, and Linux without native software installation.
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       <section className="space-y-4 pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
         <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text)' }}>

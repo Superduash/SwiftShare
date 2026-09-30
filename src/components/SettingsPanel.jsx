@@ -14,7 +14,7 @@ const EXPIRY_OPTIONS = [
 
 const THEME_OPTIONS = [
   { value: 'sunset', label: 'Sunset', color: '#C85A10', light: false },
-  { value: 'sunrise', label: 'Sunrise', color: '#F07020', light: false },
+  { value: 'sunrise', label: 'Sunrise', color: '#F07020', light: true },
   { value: 'dark', label: 'Dark', color: '#1A1A1E', light: false },
   { value: 'light', label: 'Light', color: '#F0F0F2', light: true },
   { value: 'midnight', label: 'Midnight', color: '#1440A0', light: false },
@@ -25,7 +25,7 @@ const THEME_OPTIONS = [
 ]
 
 export default function SettingsPanel({ open, onClose }) {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, isDark } = useTheme()
   const [settings, setSettings] = useState(getSettings)
 
   useEffect(() => {
@@ -51,13 +51,10 @@ export default function SettingsPanel({ open, onClose }) {
     setSettings(next)
     saveSettings(patch)
 
-    // Apply reduce-motion SYNCHRONOUSLY — zero lag, no React cycle delay.
-    // CSS `animation: none` can't kill Web Animations API; we must cancel them directly.
     if ('reducedMotion' in patch) {
       const enabling = Boolean(patch.reducedMotion)
       document.body.classList.toggle('reduce-motion', enabling)
       if (enabling) {
-        // Kill every running Web Animations API animation on the page immediately
         document.getAnimations().forEach(a => {
           try { a.cancel() } catch (_) {}
         })
@@ -80,49 +77,49 @@ export default function SettingsPanel({ open, onClose }) {
   const isRandomTheme = settings.randomTheme !== false
 
   return (
-    <>
-      <AnimatePresence>
-        {open && (
+    <AnimatePresence>
+      {open && (
+        <motion.div key="settings-wrapper" className="fixed inset-0 z-[80] overflow-hidden" style={{ pointerEvents: 'none' }}>
+          {/* Backdrop */}
           <motion.div
             key="settings-backdrop"
-            className="fixed inset-0 z-[60]"
-            style={{
-              background: 'rgba(0,0,0,0.45)',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-            }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={onClose}
+            aria-hidden="true"
+            style={{ pointerEvents: 'auto' }}
           />
-        )}
-      </AnimatePresence>
 
-      <AnimatePresence mode="wait">
-        {open && (
+          {/* Slide-over panel */}
           <motion.div
             key="settings-panel"
             ref={modalRef}
-            className="fixed top-0 right-0 bottom-0 z-[70] w-full max-w-sm overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Settings"
+            className="fixed top-0 right-0 bottom-0 z-[81] w-full max-w-sm overflow-y-auto overflow-x-hidden shadow-2xl"
             style={{
               background: 'var(--settings-bg)',
               borderLeft: '1px solid var(--border)',
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
-              willChange: 'transform',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+              touchAction: 'pan-y',
+              pointerEvents: 'auto'
             }}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{
-              type: 'tween',
-              duration: 0.22,
-              ease: [0.25, 0.1, 0.25, 1],
+              type: 'spring',
+              damping: 30,
+              stiffness: 300,
+              mass: 0.8,
             }}
           >
-            <div className="p-4 sm:p-6">
+            <div className="p-4 sm:p-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
               {/* Header */}
               <div className="flex items-center justify-between mb-8">
                 <h2 className="font-display font-bold text-xl" style={{ color: 'var(--text)' }}>Settings</h2>
@@ -162,7 +159,7 @@ export default function SettingsPanel({ open, onClose }) {
                       Random on reload
                     </p>
                     <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-                      Random theme every page reload
+                      Random {isDark ? 'dark' : 'light'} themes on every reload
                     </p>
                   </div>
                   <div
@@ -402,8 +399,8 @@ export default function SettingsPanel({ open, onClose }) {
               </div>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
