@@ -1,0 +1,93 @@
+[
+  {
+    "path": "/",
+    "file": "index",
+    "title": "SwiftShare — Send Files Without Sign-Up (Free, Self-Destructing Links)",
+    "description": "Send files or text to any device with a 6-character code or QR scan. No account needed. Links expire automatically, with optional password and burn-after-download.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/how-it-works",
+    "file": "how-it-works",
+    "title": "How SwiftShare Works — Step-by-Step File & Text Sharing",
+    "description": "Learn how SwiftShare transfers files and text securely across devices using short 6-digit codes, instant QR scans, and auto-expiring links without accounts.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/send-files-without-signup",
+    "file": "send-files-without-signup",
+    "title": "Send Files Without Sign-Up — Free, No Account File Transfer",
+    "description": "Transfer files directly between browsers without registration, email, or app downloads. Drop files, get a code, and share instantly.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/share-files-with-qr-code",
+    "file": "share-files-with-qr-code",
+    "title": "Share Files with QR Code — Phone to PC Instant Transfer",
+    "description": "Transfer photos, documents, and videos between mobile phones and computers instantly by scanning a generated QR code with any camera app.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/self-destructing-file-sharing",
+    "file": "self-destructing-file-sharing",
+    "title": "Self-Destructing File Sharing — Auto-Expiring & Burn Mode",
+    "description": "Send confidential files with automatic expiration timers and Burn-After-Download mode. Files are permanently purged after retrieval.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/password-protected-file-transfer",
+    "file": "password-protected-file-transfer",
+    "title": "Password-Protected File Transfer — Secure Link Sharing",
+    "description": "Protect shared files with bcrypt-hashed passwords and progressive brute-force lockouts. Only recipients with the passphrase can access downloads.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/share-text-and-code-snippets",
+    "file": "share-text-and-code-snippets",
+    "title": "Share Text & Code Snippets — Fast Temporary Pastebin",
+    "description": "Share formatted text, code blocks, logs, and passwords up to 256 KB across devices with syntax-ready display and auto-destruction.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/airdrop-alternative",
+    "file": "airdrop-alternative",
+    "title": "Cross-Platform AirDrop Alternative for Windows, Android & Linux",
+    "description": "Fast wireless file sharing between Android, Windows, macOS, Linux, and iOS over standard web browsers without installing special software.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/security",
+    "file": "security",
+    "title": "Security Architecture & Trust — SwiftShare",
+    "description": "Transparent security overview: TLS 1.3 transit encryption, bcrypt password hashing, signed HMAC download tokens, and automated R2 storage deletion.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/faq",
+    "file": "faq",
+    "title": "Frequently Asked Questions — SwiftShare",
+    "description": "Find answers regarding file size limits (100 MB), expiration timers, privacy, browser compatibility, and download mechanics.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/privacy",
+    "file": "privacy",
+    "title": "Privacy Policy — SwiftShare",
+    "description": "SwiftShare privacy practices: zero personal tracking, DNT / GPC compliance, masked IP logging, and automated data purging.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/terms",
+    "file": "terms",
+    "title": "Terms of Service — SwiftShare",
+    "description": "Terms of use and acceptable usage guidelines for SwiftShare's temporary file and text transfer platform.",
+    "lastmod": "2026-09-30"
+  },
+  {
+    "path": "/report-abuse",
+    "file": "report-abuse",
+    "title": "Report Abuse & DMCA Takedown — SwiftShare",
+    "description": "Report malicious files, phishing links, copyrighted material, or harmful content for immediate investigation and takedown.",
+    "lastmod": "2026-09-30"
+  }
+]

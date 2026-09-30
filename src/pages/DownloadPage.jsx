@@ -31,6 +31,7 @@ import StatusBanner from '../components/StatusBanner'
 import SharedTextDisplay from '../components/SharedTextDisplay'
 import ContextMenu from '../components/ContextMenu'
 import SecurityInfoCard from '../components/SecurityInfoCard'
+import { useSeo } from '../hooks/useSeo'
 
 const FilePreviewModal = lazy(() =>
   import('../components/FilePreviewModal').catch(() => ({ default: () => null }))
@@ -55,6 +56,13 @@ const MAX_AUTO_RETRIES = 5
 export default function DownloadPage() {
   const { code } = useParams()
   const normalizedCode = String(code || '').trim().toUpperCase()
+
+  useSeo({
+    title: 'Download Transfer',
+    description: 'Direct file download on SwiftShare.',
+    noindex: true,
+  })
+
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transferData || null

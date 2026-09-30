@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2 } from 'lucide-react'
+import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2, Shuffle } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, clearTransfers } from '../utils/storage'
 import toast from 'react-hot-toast'
@@ -77,6 +77,8 @@ export default function SettingsPanel({ open, onClose }) {
     toast.success('Transfer history cleared')
   }
 
+  const isRandomTheme = settings.randomTheme !== false
+
   return (
     <>
       <AnimatePresence>
@@ -134,6 +136,50 @@ export default function SettingsPanel({ open, onClose }) {
                 <label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: 'var(--text-3)' }}>
                   Theme
                 </label>
+
+                {/* Random Theme on Reload Toggle */}
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-3 p-3 mb-3.5 rounded-xl transition-all cursor-pointer"
+                  style={{
+                    background: isRandomTheme ? 'var(--accent-soft)' : 'transparent',
+                    border: `1.5px solid ${isRandomTheme ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                  onClick={() => update({ randomTheme: !isRandomTheme })}
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                    style={{
+                      background: isRandomTheme ? 'var(--accent)' : 'var(--surface-hover)',
+                      color: isRandomTheme ? 'var(--accent-contrast, #fff)' : 'var(--text-3)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Shuffle size={16} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold" style={{ color: isRandomTheme ? 'var(--accent)' : 'var(--text-2)' }}>
+                      Random on reload
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--text-4)' }}>
+                      Random theme every page reload
+                    </p>
+                  </div>
+                  <div
+                    className="w-10 h-6 rounded-full relative transition-all"
+                    style={{ background: isRandomTheme ? 'var(--accent)' : 'var(--border-strong)' }}
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                      style={{
+                        background: '#fff',
+                        left: isRandomTheme ? '22px' : '4px',
+                      }}
+                    />
+                  </div>
+                </button>
+
+                {/* 9 Theme Swatches Grid */}
                 <div className="grid grid-cols-3 gap-3">
                   {THEME_OPTIONS.map(opt => {
                     const isActive = theme === opt.value
@@ -143,12 +189,16 @@ export default function SettingsPanel({ open, onClose }) {
                     return (
                       <button
                         key={opt.value}
+                        type="button"
                         className="flex flex-col items-center gap-2 p-2 sm:p-3 rounded-xl transition-all min-w-0"
                         style={{
                           background: isActive ? 'var(--accent-soft)' : 'transparent',
                           border: `2px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
                         }}
-                        onClick={() => setTheme(opt.value)}
+                        onClick={() => {
+                          update({ randomTheme: false })
+                          setTheme(opt.value)
+                        }}
                         aria-label={`Switch to ${opt.label} theme`}
                       >
                         <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">

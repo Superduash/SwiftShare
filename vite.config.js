@@ -103,7 +103,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: false,
-          timeout: 60000,
+          timeout: 600000,
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {
               console.log('[Vite] Proxy error for /api:', err.message);
@@ -121,7 +121,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           ws: true,
-          timeout: 60000,
+          timeout: 600000,
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {
               console.log('[Vite] Proxy error for /socket.io:', err.message);
@@ -150,6 +150,7 @@ export default defineConfig(({ mode }) => {
           // assign it to a named vendor chunk. Object form is not supported
           // under rolldown.
           manualChunks(id) {
+            if (id.includes('/src/pages/admin/') || id.includes('/src/components/admin/')) return 'admin'
             if (!id.includes('node_modules')) return
             if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler)\//.test(id)) return 'react-vendor'
             if (/\/node_modules\/framer-motion\//.test(id)) return 'motion'

@@ -270,13 +270,56 @@ function RecentTransfers() {
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>Recent</h3>
         </div>
         {confirmClear ? (
-          <div className="flex items-center gap-2">
-            <span className="text-[11px]" style={{ color: 'var(--danger)' }}>Clear history?</span>
-            <button className="btn-danger text-[11px] !py-1 !px-2" onClick={() => { clearTransfers(); setTransfers([]); setConfirmClear(false); }}>Yes</button>
-            <button className="btn-ghost text-[11px] !py-1 !px-2" onClick={() => setConfirmClear(false)}>No</button>
+          <div className="flex items-center gap-1.5 animate-fadeIn">
+            <span className="text-xs font-medium" style={{ color: 'var(--danger)' }}>Clear history?</span>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all active:scale-95 cursor-pointer"
+              style={{
+                background: 'var(--danger)',
+                color: '#ffffff',
+                border: '1px solid var(--danger)',
+              }}
+              onClick={() => {
+                clearTransfers()
+                setTransfers([])
+                setConfirmClear(false)
+              }}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center px-2.5 py-0.5 text-xs font-medium rounded-md transition-all active:scale-95 cursor-pointer"
+              style={{
+                background: 'var(--bg-sunken)',
+                color: 'var(--text-2)',
+                border: '1px solid var(--border)',
+              }}
+              onClick={() => setConfirmClear(false)}
+            >
+              No
+            </button>
           </div>
         ) : (
-          <button className="btn-ghost text-[11px] !py-1 !px-2" onClick={() => setConfirmClear(true)}>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md transition-colors cursor-pointer"
+            style={{
+              color: 'var(--text-3)',
+              background: 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--text)'
+              e.currentTarget.style.background = 'var(--surface-hover, var(--bg-sunken))'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-3)'
+              e.currentTarget.style.background = 'transparent'
+            }}
+            onClick={() => setConfirmClear(true)}
+            title="Clear transfer history"
+          >
             <Trash2 size={11} /> Clear
           </button>
         )}

@@ -10,6 +10,8 @@ import Navbar from '../components/Navbar'
 import NearbyDevices from '../components/NearbyDevices'
 import ErrorState from '../components/ErrorState'
 import { saveTransfer } from '../utils/storage'
+import { useSeo } from '../hooks/useSeo'
+import Footer from '../components/Footer'
 
 const CODE_LENGTH = 6
 const JOIN_REQUEST_HARD_TIMEOUT_MS = 60000 // 60s for Render cold starts
@@ -231,39 +233,19 @@ export default function JoinPage() {
     }
   }
 
-  const schemaData = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [{
-      "@type": "ListItem",
-      "position": 1,
-      "name": "Home",
-      "item": "https://swiftshare.app/"
-    },{
-      "@type": "ListItem",
-      "position": 2,
-      "name": "Receive a file",
-      "item": "https://swiftshare.app/join"
-    }]
-  }
+  useSeo({
+    title: 'Receive a File — SwiftShare',
+    description: 'Enter a 6-digit code or scan a QR code to instantly receive files and text shared with you. No sign-up required.',
+    noindex: false,
+  })
 
   return (
-    <div className="min-h-screen">
-      <Helmet>
-        <title>Receive a file</title>
-        <meta name="description" content="Enter the 6-character code to receive your file securely on SwiftShare." />
-        <link rel="canonical" href="https://swiftshare.app/join" />
-        <meta property="og:title" content="Receive a file | SwiftShare" />
-        <meta property="og:description" content="Enter the 6-character code to receive your file securely on SwiftShare." />
-        <meta property="og:url" content="https://swiftshare.app/join" />
-        <script type="application/ld+json">
-          {JSON.stringify(schemaData)}
-        </script>
-      </Helmet>
-      <main className="app-main-offset">
-        <div className="page-shell-narrow py-12 sm:py-20">
+    <div className="min-h-screen flex flex-col justify-between">
+      <main className="app-main-offset flex-1">
+        <div className="page-shell-narrow py-8 sm:py-14">
+          {/* Header */}
           <motion.div
-            className="text-center mb-10"
+            className="text-center mb-8"
             initial={{ y: 14 }}
             animate={{ y: 0 }}
             transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -271,97 +253,113 @@ export default function JoinPage() {
             <h1 className="font-display font-extrabold text-3xl sm:text-4xl mb-2" style={{ color: 'var(--text)' }}>
               Receive a file
             </h1>
-            <p className="text-base" style={{ color: 'var(--text-3)' }}>
-              Enter the 6-character code from the sender
+            <p className="text-sm sm:text-base" style={{ color: 'var(--text-3)' }}>
+              Enter the 6-character code or select an active transfer on your local network
             </p>
           </motion.div>
 
-          {/* OTP Input */}
+          {/* Primary Code Entry Card */}
           <motion.div
-            ref={scope}
-            id="code-input-row"
-            className="flex justify-center gap-2 sm:gap-3 mb-6"
+            className="surface-card p-6 sm:p-8 mb-8"
             initial={{ y: 10 }}
             animate={{ y: 0 }}
             transition={{ delay: 0.08 }}
           >
-            {chars.map((ch, i) => (
-              <motion.input
-                key={i}
-                ref={(el) => { inputRefs.current[i] = el }}
-                type="text"
-                inputMode="text"
-                maxLength={6}
-                value={ch}
-                onChange={(e) => handleChange(i, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(i, e)}
-                onFocus={(e) => e.target.select()}
-                className="w-12 h-14 sm:w-14 sm:h-16 text-center font-mono font-bold text-xl sm:text-2xl rounded-xl outline-none transition-all"
-                style={{
-                  background: 'var(--code-char-bg)',
-                  border: `2px solid ${ch ? 'var(--accent)' : error ? 'var(--danger)' : 'var(--code-char-border)'}`,
-                  color: 'var(--accent)',
-                  caretColor: 'var(--accent)',
-                }}
-                initial={{ y: 6 }}
-                animate={{ y: 0 }}
-                transition={{ delay: 0.1 + i * 0.03 }}
-                autoComplete="off"
-                aria-label={`Code digit ${i + 1}`}
-              />
-            ))}
+            <div className="text-center mb-5">
+              <span className="text-xs font-semibold uppercase tracking-wider block" style={{ color: 'var(--text-3)' }}>
+                Enter 6-digit Code
+              </span>
+            </div>
+
+            {/* OTP Input */}
+            <div
+              ref={scope}
+              id="code-input-row"
+              className="flex justify-center gap-2 sm:gap-3 mb-4"
+            >
+              {chars.map((ch, i) => (
+                <motion.input
+                  key={i}
+                  ref={(el) => { inputRefs.current[i] = el }}
+                  type="text"
+                  inputMode="text"
+                  maxLength={6}
+                  value={ch}
+                  onChange={(e) => handleChange(i, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(i, e)}
+                  onFocus={(e) => e.target.select()}
+                  className="w-11 h-13 sm:w-14 sm:h-16 text-center font-mono font-bold text-xl sm:text-2xl rounded-xl outline-none transition-all"
+                  style={{
+                    background: 'var(--code-char-bg)',
+                    border: `2px solid ${ch ? 'var(--accent)' : error ? 'var(--danger)' : 'var(--code-char-border)'}`,
+                    color: 'var(--accent)',
+                    caretColor: 'var(--accent)',
+                  }}
+                  initial={{ y: 6 }}
+                  animate={{ y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.03 }}
+                  autoComplete="off"
+                  aria-label={`Code digit ${i + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Alphabet hint */}
+            <p className="text-center text-xs mb-6" style={{ color: 'var(--text-4)' }}>
+              Letters A–Z (except O, I, L) and numbers 2–9
+            </p>
+
+            {/* Error */}
+            {error && (
+              <motion.div
+                className="text-center mb-5"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <ErrorState
+                  code={error}
+                  onRetry={() => {
+                    setError(null)
+                    setLoading(false)
+                    const code = chars.join('')
+                    if (code.length === CODE_LENGTH) void handleSubmit(code)
+                  }}
+                  autoRetry={true}
+                  hideAction={true}
+                />
+              </motion.div>
+            )}
+
+            {/* Submit button */}
+            <div className="text-center">
+              <button
+                className="btn-primary w-full sm:w-auto sm:px-12 mx-auto"
+                onClick={() => { void handleSubmit(chars.join('')) }}
+                disabled={loading || chars.some(c => !c)}
+              >
+                {loading ? (
+                  <><Spinner size={16} /> Checking code...</>
+                ) : (
+                  <>Get file <ArrowRight size={16} /></>
+                )}
+              </button>
+            </div>
           </motion.div>
 
-          {/* Alphabet hint */}
-          <p className="text-center text-xs mb-4" style={{ color: 'var(--text-4)' }}>
-            Letters A–Z (except O, I, L) and numbers 2–9
-          </p>
-
-          {/* Error */}
-          {error && (
-            <motion.div
-              className="text-center mb-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              <ErrorState
-                code={error}
-                onRetry={() => {
-                  setError(null)
-                  setLoading(false)
-                  const code = chars.join('')
-                  if (code.length === CODE_LENGTH) void handleSubmit(code)
-                }}
-                autoRetry={true}
-                hideAction={true}
-              />
-            </motion.div>
-          )}
-
-          {/* Submit button */}
-          <motion.div
-            className="text-center mb-10"
-            initial={{ y: 6 }}
-            animate={{ y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <button
-              className="btn-primary mx-auto px-10"
-              onClick={() => { void handleSubmit(chars.join('')) }}
-              disabled={loading || chars.some(c => !c)}
-            >
-              {loading ? (
-                <><Spinner size={16} /> Checking...</>
-              ) : (
-                <>Get file <ArrowRight size={16} /></>
-              )}
-            </button>
-          </motion.div>
+          {/* Section Divider */}
+          <div className="flex items-center gap-3 my-8">
+            <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-4)' }}>
+              Or receive from nearby Wi-Fi
+            </span>
+            <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+          </div>
 
           {/* Nearby Devices */}
           <NearbyDevices />
         </div>
       </main>
+      <Footer />
     </div>
   )
 }

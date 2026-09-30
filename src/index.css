@@ -770,6 +770,84 @@ body.reduce-motion .shimmer-block {
   animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   RECEIVE FILE CTA — ROTATING GLOWING OUTLINE BEAM
+   ═══════════════════════════════════════════════════════════════ */
+.receive-beam-card-wrap {
+  position: relative;
+  border-radius: clamp(16px, 4vw, 20px);
+  padding: 1.5px;
+  overflow: hidden;
+  background: var(--border);
+  box-shadow: var(--shadow-card, 0 4px 20px rgba(0, 0, 0, 0.06));
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  isolation: isolate;
+  backface-visibility: hidden;
+}
+
+.receive-beam-card-wrap:hover {
+  transform: translateY(-2px) scale(1.006);
+  box-shadow: 0 8px 24px var(--accent-glow, rgba(200, 90, 16, 0.2)), var(--shadow-card);
+}
+
+.receive-beam-card-glow {
+  position: absolute;
+  inset: -150%;
+  margin: auto;
+  aspect-ratio: 1 / 1;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    transparent 0deg,
+    transparent 260deg,
+    var(--accent-glow, rgba(200, 90, 16, 0.25)) 305deg,
+    var(--accent) 345deg,
+    var(--accent-hover, var(--accent)) 360deg
+  );
+  animation: receive-border-beam-spin 3.5s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+  will-change: transform;
+}
+
+@keyframes receive-border-beam-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.receive-beam-card-inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  border-radius: calc(clamp(16px, 4vw, 20px) - 1.5px);
+  background: var(--surface);
+  border: none;
+  outline: none;
+  transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+}
+
+.receive-beam-card-inner:hover {
+  background: color-mix(in srgb, var(--surface) 95%, var(--accent) 5%);
+}
+
+.receive-beam-card-inner:active {
+  background: var(--surface-hover, var(--surface));
+}
+
+body.reduce-motion .receive-beam-card-glow {
+  animation: none !important;
+  display: none !important;
+}
+
+body.reduce-motion .receive-beam-card-wrap {
+  border: 1.5px solid var(--accent);
+  padding: 0;
+}
+
 /* ═══════════════════════════════════════════
    MOBILE & RESPONSIVE ENHANCEMENTS
    ═══════════════════════════════════════════ */

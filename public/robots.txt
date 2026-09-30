@@ -1,9 +1,4 @@
 User-agent: *
 Allow: /
-Allow: /join
-Disallow: /sender/
-Disallow: /download/
-Disallow: /expired/
-Disallow: /api/
 
-Sitemap: https://swiftshare.app/sitemap.xml
+Sitemap: https://swiftsharegg.vercel.app/sitemap.xml

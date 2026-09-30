@@ -52,7 +52,7 @@ export default function SecurityInfoCard({ burnAfterDownload, passwordProtected 
                 <p className="text-xs" style={{ color: 'var(--text-2)' }}>
                   {passwordProtected 
                     ? 'This transfer is protected by a custom password.'
-                    : 'End-to-end encrypted in transit (TLS 1.3).'}
+                    : 'Encrypted in transit over HTTPS (TLS 1.3).'}
                 </p>
               </div>
               {burnAfterDownload && (

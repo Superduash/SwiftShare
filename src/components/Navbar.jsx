@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Settings, Zap, ArrowLeft, Sun, Moon, TreePine, Flame, Keyboard } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useConnectionHealth } from '../context/ConnectionHealthContext'
+import { saveSettings } from '../utils/storage'
 import SettingsPanel from './SettingsPanel'
 
 const STATUS_PILL = {
@@ -47,7 +48,10 @@ function Navbar() {
   const toggleConfig = TOGGLE_MAP[theme]
 
   const handleToggle = useCallback(() => {
-    if (toggleConfig) setTheme(toggleConfig.target)
+    if (toggleConfig) {
+      saveSettings({ randomTheme: false })
+      setTheme(toggleConfig.target)
+    }
   }, [toggleConfig, setTheme])
 
   const openSettings = useCallback(() => setSettingsOpen(true), [])

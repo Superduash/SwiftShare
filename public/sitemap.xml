@@ -1,13 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://swiftshare.app/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
+    <loc>https://swiftsharegg.vercel.app/</loc>
+    <lastmod>2026-09-30</lastmod>
   </url>
   <url>
-    <loc>https://swiftshare.app/join</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://swiftsharegg.vercel.app/how-it-works</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/send-files-without-signup</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/share-files-with-qr-code</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/self-destructing-file-sharing</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/password-protected-file-transfer</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/share-text-and-code-snippets</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/airdrop-alternative</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/security</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/faq</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/privacy</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/terms</loc>
+    <lastmod>2026-09-30</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/report-abuse</loc>
+    <lastmod>2026-09-30</lastmod>
   </url>
 </urlset>

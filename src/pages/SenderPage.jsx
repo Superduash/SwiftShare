@@ -5,7 +5,7 @@ import {
   Copy, Check, Share2, Clock, Trash2,
   MessageCircle, Mail, Maximize2, Send,
   QrCode, AlertTriangle,
-  XCircle, Flame, Download, Eye
+  XCircle, Flame, Download, Eye, Wifi
 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import Spinner from '../components/Spinner'
@@ -15,7 +15,7 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import {
   extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword, getTextContent,
-  verifyOwnership, getFileMetadata, getTransferActivity, getTransferStatus
+  verifyOwnership, getFileMetadata, getTransferActivity, getTransferStatus, updateTransferNearby
 } from '../services/api'
 import {
   getCachedTransfer,
@@ -25,6 +25,7 @@ import {
   updateTransferStatus,
 } from '../utils/storage'
 import { copyToClipboard, shareOrCopy, canWebShare } from '../utils/clipboard'
+import { useSeo } from '../hooks/useSeo'
 
 import StatusBanner from '../components/StatusBanner'
 import CountdownRing from '../components/CountdownRing'
@@ -66,6 +67,13 @@ const listVariants = {
 export default function SenderPage() {
   const { code } = useParams()
   const normalizedCode = String(code || '').trim().toUpperCase()
+
+  useSeo({
+    title: 'Sending Transfer',
+    description: 'Active SwiftShare transfer session.',
+    noindex: true,
+  })
+
   const navigate = useNavigate()
   const location = useLocation()
   const navState = location.state?.transfer || location.state?.transferData || null
@@ -127,12 +135,19 @@ export default function SenderPage() {
   const [textLoading, setTextLoading] = useState(false)
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null })
   const [downloadCount, setDownloadCount] = useState(initialCachedTransfer?.downloadCount || 0)
+  const [nearbyVisible, setNearbyVisible] = useState(() => initialCachedTransfer?.nearbyVisible !== false)
+  const [togglingNearby, setTogglingNearby] = useState(false)
 
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
   const activityRefreshTimerRef = useRef(null)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
+  useEffect(() => {
+    if (typeof meta?.nearbyVisible === 'boolean') {
+      setNearbyVisible(meta.nearbyVisible)
+    }
+  }, [meta?.nearbyVisible])
   
   const [authorized, setAuthorized] = useState(false)
   const [verifyingAuth, setVerifyingAuth] = useState(true)
@@ -894,6 +909,23 @@ export default function SenderPage() {
     }
   }
 
+  const handleToggleNearby = useCallback(async () => {
+    if (meta?.passwordProtected || togglingNearby || !normalizedCode) return
+    const nextVal = !nearbyVisible
+    setTogglingNearby(true)
+    setNearbyVisible(nextVal)
+    try {
+      await updateTransferNearby(normalizedCode, nextVal, ownershipToken || meta?.ownershipToken)
+      patchCachedTransfer({ nearbyVisible: nextVal })
+      toast.success(nextVal ? 'Visible to nearby devices' : 'Hidden from nearby devices')
+    } catch (err) {
+      setNearbyVisible(!nextVal)
+      toast.error('Failed to update nearby visibility')
+    } finally {
+      setTogglingNearby(false)
+    }
+  }, [meta, togglingNearby, normalizedCode, nearbyVisible, ownershipToken, patchCachedTransfer])
+
   // Per-file operations
   const handlePreview = useCallback((index) => {
     const file = meta?.files?.[index]
@@ -1228,137 +1260,75 @@ export default function SenderPage() {
 
       <main className="app-main-offset">
         <div className="page-shell-wide py-8">
-          <div className="lg:grid lg:grid-cols-5 lg:gap-10">
+          {/* Status banners at top of page for maximum visibility */}
+          <AnimatePresence>
+            {isExpired && (
+              <StatusBanner
+                key="expired"
+                tone="danger"
+                icon={Clock}
+                title="This transfer has expired and is no longer available for download"
+                description="The files are pending permanent deletion from cloud storage."
+                className="mb-5"
+              />
+            )}
+            {cancelled && (
+              <StatusBanner
+                key="cancelled"
+                tone="danger"
+                icon={XCircle}
+                title="Transfer cancelled — files permanently deleted"
+                className="mb-5"
+              />
+            )}
+            {meta?.status === 'CLAIMED' && !burnRemoved && (
+              <StatusBanner
+                key="claimed"
+                tone="warning"
+                icon={Flame}
+                title="Transfer Claimed"
+                description="A recipient has claimed this transfer."
+                tip="The transfer will be removed when the active recipient leaves."
+                className="mb-5"
+              />
+            )}
+            {burnRemoved && (
+              <StatusBanner
+                key="burn-removed"
+                tone="danger"
+                icon={Flame}
+                title="Transfer Removed"
+                description="This burn transfer has been permanently removed."
+                className="mb-5"
+              />
+            )}
+            {/* Expiry warning banners - only show if not already expired */}
+            {!isExpired && !cancelled && secondsRemaining > 0 && secondsRemaining <= 60 && (
+              <StatusBanner
+                key="expiring-critical"
+                tone="danger"
+                icon={AlertTriangle}
+                title={`Expires in ${secondsRemaining}s — extend or share now`}
+                className="mb-5"
+              />
+            )}
+            {!isExpired && !cancelled && secondsRemaining > 60 && secondsRemaining <= 300 && (
+              <StatusBanner
+                key="expiring-soon"
+                tone="warning"
+                icon={Clock}
+                title={`Expires in ${Math.ceil(secondsRemaining / 60)} min — extend soon`}
+                className="mb-5"
+              />
+            )}
+          </AnimatePresence>
 
-            {/* ═══ LEFT: scrolling content ═══ */}
-            <div className="lg:col-span-3 space-y-5">
-              {/* Status banners */}
-              <AnimatePresence>
-                {isExpired && (
-                  <StatusBanner
-                    key="expired"
-                    tone="danger"
-                    icon={Clock}
-                    title="This transfer has expired and is no longer available for download"
-                    description="The files are pending permanent deletion from cloud storage."
-                    className="mb-4"
-                  />
-                )}
-                {cancelled && (
-                  <StatusBanner
-                    key="cancelled"
-                    tone="danger"
-                    icon={XCircle}
-                    title="Transfer cancelled — files permanently deleted"
-                    className="mb-4"
-                  />
-                )}
-                {meta?.status === 'CLAIMED' && !burnRemoved && (
-                  <StatusBanner
-                    key="claimed"
-                    tone="warning"
-                    icon={Flame}
-                    title="Transfer Claimed"
-                    description="A recipient has claimed this transfer."
-                    tip="The transfer will be removed when the active recipient leaves."
-                    className="mb-4"
-                  />
-                )}
-                {burnRemoved && (
-                  <StatusBanner
-                    key="burn-removed"
-                    tone="danger"
-                    icon={Flame}
-                    title="Transfer Removed"
-                    description="This burn transfer has been permanently removed."
-                    className="mb-4"
-                  />
-                )}
-                {/* Expiry warning banners - only show if not already expired */}
-                {!isExpired && !cancelled && secondsRemaining > 0 && secondsRemaining <= 60 && (
-                  <StatusBanner
-                    key="expiring-critical"
-                    tone="danger"
-                    icon={AlertTriangle}
-                    title={`Expires in ${secondsRemaining}s — extend or share now`}
-                    className="mb-4"
-                  />
-                )}
-                {!isExpired && !cancelled && secondsRemaining > 60 && secondsRemaining <= 300 && (
-                  <StatusBanner
-                    key="expiring-soon"
-                    tone="warning"
-                    icon={Clock}
-                    title={`Expires in ${Math.ceil(secondsRemaining / 60)} min — extend soon`}
-                    className="mb-4"
-                  />
-                )}
-              </AnimatePresence>
+          <div className="flex flex-col lg:grid lg:grid-cols-5 lg:gap-10">
 
-              {/* Transfer Summary */}
-              {!cancelled && !isExpired && meta && (
-                <TransferSummaryCard meta={meta} url={shareLink} onCopy={handleCopyLink} />
-              )}
-
-
-
-              {/* Text Share Display or Files */}
-              {isTextShare ? (
-                /* Show text content inline */
-                <motion.div initial={{ y: 6 }} animate={{ y: 0 }}>
-                  <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
-                    Shared Text
-                  </h2>
-                  {textLoading ? (
-                    <div className="surface-card p-8 text-center">
-                      <Spinner size={24} className="mx-auto mb-2" style={{ color: 'var(--accent)' }} />
-                      <p className="text-sm" style={{ color: 'var(--text-3)' }}>Loading text...</p>
-                    </div>
-                  ) : (
-                    <SharedTextDisplay
-                      textContent={textContent || ''}
-                      title={meta?.files?.[0]?.name?.replace(/\.txt$/i, '') || 'Text Snippet'}
-                      isPasswordProtected={Boolean(meta?.passwordProtected)}
-                      isUnlocked={passwordVerified}
-                      onUnlock={handleTextUnlock}
-                      allowEdit={false}
-                    />
-                  )}
-                </motion.div>
-              ) : (
-                /* Show files as cards */
-                <motion.div initial={{ y: 6 }} animate={{ y: 0 }}>
-                  <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
-                    {isExpired ? 'Files Expired' : `Shared Files (${meta?.files?.length || 0})`}
-                  </h2>
-                  <motion.div variants={listVariants} initial="hidden" animate="visible" className="space-y-2">
-                    {memoizedFileList}
-                  </motion.div>
-                  <ContextMenu
-                    open={contextMenu.open}
-                    x={contextMenu.x}
-                    y={contextMenu.y}
-                    items={senderMenuItems()}
-                    onClose={() => setContextMenu(prev => ({ ...prev, open: false }))}
-                  />
-                </motion.div>
-              )}
-
-
-
-              {/* Transfer Stats */}
-              {!cancelled && (
-                <TransferStatsCard downloadCount={downloadCount} viewCount={meta?.viewCount || activity?.filter(a => a.event === 'viewed').length || 0} />
-              )}
-
-              {/* Activity */}
-              <ActivityLog activity={activity} isLoading={loading} />
-            </div>
-
-            {/* ═══ RIGHT: sticky share panel ═══ */}
-            <div className="lg:col-span-2 mt-8 lg:mt-0">
+            {/* ═══ PRIMARY SHARE PANEL (TOP ON MOBILE: order-1, RIGHT ON DESKTOP: lg:order-2 lg:col-span-2) ═══ */}
+            <div className="order-1 lg:order-2 lg:col-span-2 mb-8 lg:mb-0">
               <div className="lg:sticky lg:top-20 space-y-5">
-                {/* QR Code */}
+                {/* QR Code and Code Box */}
                 <motion.div
                   className="surface-card p-5 text-center"
                   initial={{ scale: 0.96 }}
@@ -1454,7 +1424,7 @@ export default function SenderPage() {
                 </div>
                 )}
 
-                {/* Countdown - only show if not expired */}
+                {/* Countdown timer & controls - only show if not expired */}
                 {!isExpired && !cancelled && (
                   <div className="surface-card p-5 text-center">
                     <CountdownRing secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} size={130} />
@@ -1511,6 +1481,39 @@ export default function SenderPage() {
                   </div>
                 )}
 
+                {/* Nearby Devices Visibility Toggle - only when not password protected */}
+                {!meta?.passwordProtected && !isExpired && !cancelled && (
+                  <div className="surface-card p-4">
+                    <button
+                      type="button"
+                      className="w-full flex items-center gap-3 transition-all cursor-pointer text-left"
+                      onClick={handleToggleNearby}
+                      disabled={togglingNearby}
+                    >
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors" style={{ background: nearbyVisible ? 'var(--success-soft)' : 'var(--bg-sunken)' }}>
+                        <Wifi size={18} style={{ color: nearbyVisible ? 'var(--success)' : 'var(--text-4)' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate" style={{ color: nearbyVisible ? 'var(--success)' : 'var(--text-2)' }}>
+                          Show to nearby devices
+                        </p>
+                        <p className="text-xs truncate" style={{ color: 'var(--text-4)' }}>
+                          {nearbyVisible ? 'Visible on your local Wi-Fi' : 'Hidden from nearby discovery'}
+                        </p>
+                      </div>
+                      <div
+                        className="w-10 h-6 rounded-full relative transition-all shrink-0"
+                        style={{ background: nearbyVisible ? 'var(--success)' : 'var(--border-strong)' }}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                          style={{ background: '#fff', left: nearbyVisible ? '22px' : '4px' }}
+                        />
+                      </div>
+                    </button>
+                  </div>
+                )}
+
                 {/* Burn badge */}
                 {meta?.burnAfterDownload && !burnRemoved && meta?.status !== 'CLAIMED' && (
                   <StatusBanner
@@ -1522,6 +1525,65 @@ export default function SenderPage() {
                 )}
               </div>
             </div>
+
+            {/* ═══ DETAILS & CONTENT PANEL (BOTTOM ON MOBILE: order-2, LEFT ON DESKTOP: lg:order-1 lg:col-span-3) ═══ */}
+            <div className="order-2 lg:order-1 lg:col-span-3 space-y-5">
+              {/* Transfer Summary */}
+              {!cancelled && !isExpired && meta && (
+                <TransferSummaryCard meta={meta} url={shareLink} onCopy={handleCopyLink} />
+              )}
+
+              {/* Text Share Display or Files */}
+              {isTextShare ? (
+                /* Show text content inline */
+                <motion.div initial={{ y: 6 }} animate={{ y: 0 }}>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
+                    Shared Text
+                  </h2>
+                  {textLoading ? (
+                    <div className="surface-card p-8 text-center">
+                      <Spinner size={24} className="mx-auto mb-2" style={{ color: 'var(--accent)' }} />
+                      <p className="text-sm" style={{ color: 'var(--text-3)' }}>Loading text...</p>
+                    </div>
+                  ) : (
+                    <SharedTextDisplay
+                      textContent={textContent || ''}
+                      title={meta?.files?.[0]?.name?.replace(/\.txt$/i, '') || 'Text Snippet'}
+                      isPasswordProtected={Boolean(meta?.passwordProtected)}
+                      isUnlocked={passwordVerified}
+                      onUnlock={handleTextUnlock}
+                      allowEdit={false}
+                    />
+                  )}
+                </motion.div>
+              ) : (
+                /* Show files as cards */
+                <motion.div initial={{ y: 6 }} animate={{ y: 0 }}>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
+                    {isExpired ? 'Files Expired' : `Shared Files (${meta?.files?.length || 0})`}
+                  </h2>
+                  <motion.div variants={listVariants} initial="hidden" animate="visible" className="space-y-2">
+                    {memoizedFileList}
+                  </motion.div>
+                  <ContextMenu
+                    open={contextMenu.open}
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    items={senderMenuItems()}
+                    onClose={() => setContextMenu(prev => ({ ...prev, open: false }))}
+                  />
+                </motion.div>
+              )}
+
+              {/* Transfer Stats */}
+              {!cancelled && (
+                <TransferStatsCard downloadCount={downloadCount} viewCount={meta?.viewCount || activity?.filter(a => a.event === 'viewed').length || 0} />
+              )}
+
+              {/* Activity */}
+              <ActivityLog activity={activity} isLoading={loading} />
+            </div>
+
           </div>
         </div>
       </main>

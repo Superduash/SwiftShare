@@ -226,22 +226,40 @@ export function markBackendReachable() {
 //    modifications between selection and upload. We pre-read into memory to avoid
 //    Chrome's ERR_UPLOAD_FILE_CHANGED error.
 
-// Adaptive stall timeout: slow mobile networks need more patience
+// Adaptive stall timeout: calibrated by actual measured network speed.
+// XHR progress fires on every TCP ACK burst, so the watchdog ONLY triggers
+// when ZERO bytes move for the full duration — not just "slow" uploads.
+// Being conservative here has no cost on a working connection.
 function getStallTimeoutMs() {
   try {
     const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection
-    if (!conn) return 90_000
-    if (conn.effectiveType === 'slow-2g') return 180_000
-    if (conn.effectiveType === '2g') return 150_000
-    if (conn.effectiveType === '3g') return 120_000
-    return 90_000  // WiFi/4G: 90s — mobile WiFi can hiccup for 60-80s during handoff
+    if (!conn) return 90_000 // Unknown: use original safe default
+
+    // Prefer downlink (Mbps) over effectiveType — more granular
+    const downlink = Number(conn.downlink) // Mbps, 0 if unknown
+    if (downlink > 0) {
+      // < 0.5 Mbps (slow-2g/2g): maximum patience for very slow links
+      if (downlink < 0.5) return 150_000
+      // 0.5–2 Mbps (3G range): tolerate radio handoff recovery
+      if (downlink < 2) return 120_000
+      // 2–10 Mbps (4G/LTE): allow for coverage gaps and band switches
+      if (downlink < 10) return 90_000
+      // ≥ 10 Mbps (WiFi/5G): still 60s — WiFi AP handoffs can pause 20–60s
+      return 60_000
+    }
+
+    // Fallback to effectiveType when downlink unavailable
+    if (conn.effectiveType === 'slow-2g') return 150_000
+    if (conn.effectiveType === '2g') return 120_000
+    if (conn.effectiveType === '3g') return 90_000
+    return 90_000 // WiFi/4G — restored conservative original value
   } catch {
     return 90_000
   }
 }
 
-const RETRY_LIMIT = 5
-const MAX_RETRY_DELAY_MS = 10_000 // Cap retry delay at 10 seconds
+const RETRY_LIMIT = 3
+const MAX_RETRY_DELAY_MS = 8_000 // Cap retry delay at 8 seconds
 
 function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalSize = 0, fileName = 'file', uploadStartTime = Date.now() } = {}) {
   return new Promise((resolve, reject) => {
@@ -454,6 +472,7 @@ export async function uploadClipboard(imageBase64, burnAfterDownload, senderSock
     imageBase64: toDataUrl(imageBase64, options.mimeType || 'image/png'),
     burnAfterDownload: Boolean(burnAfterDownload),
     senderSocketId: typeof senderSocketId === 'string' ? senderSocketId : '',
+    nearbyVisible: options.passwordProtected ? false : (options.nearbyVisible !== false),
   }
 
   if (typeof options.passwordProtected === 'boolean') {
@@ -473,13 +492,14 @@ export async function uploadClipboard(imageBase64, burnAfterDownload, senderSock
 }
 
 // ── Text Sharing ────────────────────────────
-export async function shareText({ content, title, expiryMinutes, burnAfterDownload, passwordProtected, password, socketId }) {
+export async function shareText({ content, title, expiryMinutes, burnAfterDownload, passwordProtected, password, socketId, nearbyVisible }) {
   const payload = {
     content,
     title,
     expiryMinutes,
     burnAfterDownload,
     socketId,
+    nearbyVisible: passwordProtected ? false : (nearbyVisible !== false),
   }
   if (passwordProtected && password) {
     payload.passwordProtected = true
@@ -572,6 +592,14 @@ export async function deleteTransfer(code, ownershipToken) {
 export async function finalizeBurnTransfer(code, claimantToken) {
   const config = claimantToken ? { headers: { 'X-Claimant-Token': String(claimantToken) } } : undefined
   const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/burn-finalize`, undefined, config)
+  return unwrapResponse(data)
+}
+
+export async function updateTransferNearby(code, nearbyVisible, ownershipToken) {
+  const config = ownershipToken
+    ? { headers: { 'X-Ownership-Token': String(ownershipToken) } }
+    : {}
+  const { data } = await API.patch(`/api/transfer/${normalizeCode(code)}/nearby`, { nearbyVisible }, config)
   return unwrapResponse(data)
 }
 

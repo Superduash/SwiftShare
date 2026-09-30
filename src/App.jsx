@@ -101,6 +101,33 @@ import NotFoundPage from './pages/NotFoundPage'
 // Lazy — heavier pages
 const SenderPage = lazy(() => import('./pages/SenderPage'))
 const DownloadPage = lazy(() => import('./pages/DownloadPage'))
+const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
+
+// Lazy — SEO content pages
+const HowItWorksPage = lazy(() => import('./pages/content/HowItWorksPage'))
+const NoSignupPage = lazy(() => import('./pages/content/NoSignupPage'))
+const QrSharePage = lazy(() => import('./pages/content/QrSharePage'))
+const SelfDestructPage = lazy(() => import('./pages/content/SelfDestructPage'))
+const PasswordProtectedPage = lazy(() => import('./pages/content/PasswordProtectedPage'))
+const SnippetSharePage = lazy(() => import('./pages/content/SnippetSharePage'))
+const AirDropAlternativePage = lazy(() => import('./pages/content/AirDropAlternativePage'))
+const SecurityPage = lazy(() => import('./pages/content/SecurityPage'))
+const FaqPage = lazy(() => import('./pages/content/FaqPage'))
+const PrivacyPage = lazy(() => import('./pages/content/PrivacyPage'))
+const TermsPage = lazy(() => import('./pages/content/TermsPage'))
+const ReportAbusePage = lazy(() => import('./pages/content/ReportAbusePage'))
+
+import { trackPageView } from './utils/analytics'
+
+// ── Route Tracker for Analytics ──────────────
+function RouteTracker() {
+  const location = useLocation()
+  useEffect(() => {
+    trackPageView(location.pathname)
+  }, [location.pathname])
+  return null
+}
 
 // ── Scroll to top ────────────────────────────
 function ScrollToTop() {
@@ -164,6 +191,26 @@ function AnimatedRoutes() {
               <Route path="/g/:code" element={<LegacyShareRedirect />} />
               <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
               <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
+              
+              {/* Informational & SEO Content Pages */}
+              <Route path="/how-it-works" element={<PageWrapper><HowItWorksPage /></PageWrapper>} />
+              <Route path="/send-files-without-signup" element={<PageWrapper><NoSignupPage /></PageWrapper>} />
+              <Route path="/share-files-with-qr-code" element={<PageWrapper><QrSharePage /></PageWrapper>} />
+              <Route path="/self-destructing-file-sharing" element={<PageWrapper><SelfDestructPage /></PageWrapper>} />
+              <Route path="/password-protected-file-transfer" element={<PageWrapper><PasswordProtectedPage /></PageWrapper>} />
+              <Route path="/share-text-and-code-snippets" element={<PageWrapper><SnippetSharePage /></PageWrapper>} />
+              <Route path="/airdrop-alternative" element={<PageWrapper><AirDropAlternativePage /></PageWrapper>} />
+              <Route path="/security" element={<PageWrapper><SecurityPage /></PageWrapper>} />
+              <Route path="/faq" element={<PageWrapper><FaqPage /></PageWrapper>} />
+              <Route path="/privacy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
+              <Route path="/terms" element={<PageWrapper><TermsPage /></PageWrapper>} />
+              <Route path="/report-abuse" element={<PageWrapper><ReportAbusePage /></PageWrapper>} />
+
+              {/* Admin Panel */}
+              <Route path="/admin" element={<PageWrapper><AdminLogin /></PageWrapper>} />
+              <Route path="/admin/*" element={<PageWrapper><AdminDashboard /></PageWrapper>} />
+              
+              {/* 404 Fallback */}
               <Route path="*" element={<PageWrapper><NotFoundPage /></PageWrapper>} />
             </Routes>
           </AnimatePresence>
@@ -221,6 +268,23 @@ function NearbyOfferListener() {
   }, [socket, navigate])
 
   return null
+}
+
+function AppContent() {
+  const location = useLocation()
+  const isAdmin = location.pathname.startsWith('/admin')
+
+  return (
+    <>
+      <RouteTracker />
+      {!isAdmin && <AmbientBackground />}
+      <ConnectionBanner />
+      {!isAdmin && <NearbyOfferListener />}
+      {!isAdmin && <Navbar />}
+      <AnimatedRoutes />
+      {!isAdmin && <ShortcutsOverlay />}
+    </>
+  )
 }
 
 // ── Root ─────────────────────────────────────
@@ -283,24 +347,12 @@ export default function App() {
 
   return (
     <HelmetProvider>
-      <Helmet titleTemplate="%s | SwiftShare" defaultTitle="SwiftShare">
-        <meta name="description" content="SwiftShare — Zero-login instant file transfer. Drop, share, done." />
-        <link rel="canonical" href="https://swiftshare.app" />
-        <meta property="og:title" content="SwiftShare" />
-        <meta property="og:description" content="Zero-login instant file transfer. Drop, share, done." />
-        <meta property="og:url" content="https://swiftshare.app" />
-        <meta property="og:type" content="website" />
-      </Helmet>
       <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
         <SocketProvider>
           <ConnectionHealthProvider>
           <TransferProvider>
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <AmbientBackground />
-              <ConnectionBanner />
-              <NearbyOfferListener />
-              <Navbar />
-              <AnimatedRoutes />
+              <AppContent />
             </BrowserRouter>
             <Toaster
               position="bottom-center"

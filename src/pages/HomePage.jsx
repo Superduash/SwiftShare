@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import {
   Upload, Plus, X, Flame, Shield, Zap, Clock, QrCode,
   ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff,
-  GripVertical, ShieldCheck, Github, Linkedin, Twitter, Mail
+  GripVertical, ShieldCheck, Github, Linkedin, Twitter, Mail, Wifi
 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import toast from 'react-hot-toast'
@@ -23,9 +23,10 @@ import ExpirySelector from '../components/ExpirySelector'
 import ProgressBar from '../components/ProgressBar'
 import FinalizingIndicator from '../components/FinalizingIndicator'
 import RecentTransfers from '../components/RecentTransfers'
-import NearbyDevices from '../components/NearbyDevices'
 import ContextMenu from '../components/ContextMenu'
 import { copyToClipboard } from '../utils/clipboard'
+import { useSeo } from '../hooks/useSeo'
+import Footer from '../components/Footer'
 
 const ShareTextModal = lazy(() => import('../components/ShareTextModal').catch(() => ({ default: () => null })))
 const BLOCKED_EXTS = new Set(['.exe', '.bat', '.sh', '.cmd', '.msi', '.scr', '.com', '.vbs', '.ps1', '.jar'])
@@ -68,25 +69,6 @@ const SOCIAL_LINKS = [
   },
 ]
 
-class LocalErrorBoundary extends Component {
-  constructor(props) {
-    super(props)
-    this.state = { hasError: false }
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback || null
-    }
-
-    return this.props.children
-  }
-}
-
 export default function HomePage() {
   const navigate = useNavigate()
   const { socket, isConnected, socketId } = useSocket()
@@ -96,6 +78,7 @@ export default function HomePage() {
   const [files, setFiles] = useState([])
   const [expiry, setExpiry] = useState(initialSettings.defaultExpiry || 60)
   const [burn, setBurn] = useState(initialSettings.defaultBurn || false)
+  const [nearbyVisible, setNearbyVisible] = useState(true)
   // Track whether the user has manually overridden the picker in this session.
   // If they have, we don't stomp their choice when settings change. If they
   // haven't, the picker should mirror whatever default is currently saved.
@@ -369,6 +352,7 @@ export default function HomePage() {
     try {
       const response = await shareText({
         ...textData,
+        nearbyVisible: textData.passwordProtected ? false : (typeof textData.nearbyVisible !== 'undefined' ? textData.nearbyVisible : nearbyVisible),
         socketId: socketId || undefined,
       })
 
@@ -503,30 +487,38 @@ export default function HomePage() {
 
     let uploadSucceeded = false
     try {
-      // Pre-read files to avoid Android handle invalidation.
-      const safeFiles = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        try {
-          const buffer = await file.arrayBuffer();
-          const safeFile = new File(
-            [buffer],
-            file.name,
-            {
-              type: file.type,
-              lastModified: file.lastModified
-            }
-          );
-          safeFiles.push(safeFile);
-        } catch (readError) {
-          throw new Error(`"${file.name}" became unavailable. Please re-select the file and try again.`);
+      // Pre-read is only needed on Android/mobile Chrome where the OS can
+      // invalidate file handles via MediaStore between selection and upload.
+      // Desktop browsers keep handles stable, so we skip the copy to save
+      // memory and avoid doubling peak RAM usage for large files.
+      const needsPreRead = /Android/i.test(navigator.userAgent)
+      const formData = new FormData()
+
+      if (needsPreRead) {
+        // Read files sequentially to keep peak memory lower than reading
+        // all at once. Each buffer is handed to FormData immediately so
+        // the previous one can be GC'd.
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          try {
+            const buffer = await file.arrayBuffer()
+            formData.append('files', new File(
+              [buffer],
+              file.name,
+              { type: file.type, lastModified: file.lastModified }
+            ))
+          } catch (readError) {
+            throw new Error(`"${file.name}" became unavailable. Please re-select the file and try again.`)
+          }
         }
+      } else {
+        // Desktop: use original file objects directly — zero copy overhead
+        files.forEach(f => formData.append('files', f))
       }
 
-      const formData = new FormData()
-      safeFiles.forEach(f => formData.append('files', f))
       formData.append('expiryMinutes', expiry)
       formData.append('burnAfterDownload', burn)
+      formData.append('nearbyVisible', passwordProtected ? 'false' : String(nearbyVisible))
       if (passwordProtected && password.trim()) {
         formData.append('passwordProtected', 'true')
         formData.append('password', password)
@@ -664,44 +656,14 @@ export default function HomePage() {
 
   const hasFiles = files.length > 0
 
-  const schemaData = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebSite",
-        "url": "https://swiftshare.app/",
-        "name": "SwiftShare",
-        "description": "Zero-login file sharing. Drop, share, done."
-      },
-      {
-        "@type": "SoftwareApplication",
-        "name": "SwiftShare",
-        "applicationCategory": "UtilitiesApplication",
-        "operatingSystem": "All",
-        "url": "https://swiftshare.app/",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
-      }
-    ]
-  }
+  useSeo({
+    title: 'SwiftShare — Send Files Without Sign-Up (Free, Self-Destructing Links)',
+    description: 'Send files or text to any device with a 6-character code or QR scan. No account needed. Links expire automatically, with optional password and burn-after-download.',
+  })
 
   return (
-    <div className="min-h-screen">
-      <Helmet>
-        <title>Share Files Instantly</title>
-        <meta name="description" content="Send files instantly like a message. Zero-login file sharing that works on any device, anywhere." />
-        <link rel="canonical" href="https://swiftshare.app/" />
-        <meta property="og:title" content="SwiftShare — Share Files Instantly" />
-        <meta property="og:description" content="Send files instantly like a message. Zero-login file sharing that works on any device, anywhere." />
-        <meta property="og:url" content="https://swiftshare.app/" />
-        <script type="application/ld+json">
-          {JSON.stringify(schemaData)}
-        </script>
-      </Helmet>
-      <main className="app-main-offset">
+    <div className="min-h-screen flex flex-col justify-between">
+      <main className="app-main-offset flex-1">
         <div className="page-shell-wide py-8 lg:py-12">
 
           {/* Desktop: split layout */}
@@ -949,8 +911,15 @@ export default function HomePage() {
                           border: `1.5px solid ${passwordProtected ? 'var(--accent)' : 'var(--border)'}`,
                         }}
                         onClick={() => {
-                          setPasswordProtected(!passwordProtected)
-                          if (passwordProtected) { setPassword(''); setShowPassword(false) }
+                          const next = !passwordProtected
+                          setPasswordProtected(next)
+                          if (next) {
+                            setNearbyVisible(false)
+                          } else {
+                            setNearbyVisible(true)
+                            setPassword('')
+                            setShowPassword(false)
+                          }
                         }}
                       >
                         <Lock size={18} style={{ color: passwordProtected ? 'var(--accent)' : 'var(--text-4)' }} />
@@ -1048,6 +1017,36 @@ export default function HomePage() {
                       </AnimatePresence>
                     </div>
 
+                    {/* Nearby devices discovery toggle - only when not password-protected */}
+                    {!passwordProtected && (
+                      <button
+                        type="button"
+                        className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer"
+                        style={{
+                          background: nearbyVisible ? 'var(--success-soft)' : 'transparent',
+                          border: `1.5px solid ${nearbyVisible ? 'var(--success)' : 'var(--border)'}`,
+                        }}
+                        onClick={() => setNearbyVisible(!nearbyVisible)}
+                      >
+                        <Wifi size={18} style={{ color: nearbyVisible ? 'var(--success)' : 'var(--text-4)' }} />
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-semibold" style={{ color: nearbyVisible ? 'var(--success)' : 'var(--text-2)' }}>
+                            Show to nearby devices
+                          </p>
+                          <p className="text-xs" style={{ color: 'var(--text-4)' }}>Allow devices on your local Wi-Fi to discover this transfer</p>
+                        </div>
+                        <div
+                          className="w-10 h-6 rounded-full relative transition-all"
+                          style={{ background: nearbyVisible ? 'var(--success)' : 'var(--border-strong)' }}
+                        >
+                          <div
+                            className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                            style={{ background: '#fff', left: nearbyVisible ? '22px' : '4px' }}
+                          />
+                        </div>
+                      </button>
+                    )}
+
                     {/* Upload button */}
                     <motion.button
                       className="btn-primary w-full text-base group"
@@ -1141,38 +1140,65 @@ export default function HomePage() {
 
               {/* Receive section (mobile) */}
               <div className="mt-8 lg:hidden">
-                <button
-                  className="btn-secondary w-full"
-                  onClick={() => navigate('/join')}
-                >
-                  <Clipboard size={16} />
-                  Receive a file
-                  <ArrowRight size={14} />
-                </button>
+                <div className="receive-beam-card-wrap w-full">
+                  <div className="receive-beam-card-glow" />
+                  <button
+                    type="button"
+                    className="receive-beam-card-inner flex items-center justify-between p-4 group cursor-pointer"
+                    onClick={() => navigate('/join')}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)' }}>
+                        <Clipboard size={18} style={{ color: 'var(--accent)' }} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                          Receive a file
+                          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                            Got a code?
+                          </span>
+                        </p>
+                        <p className="text-xs" style={{ color: 'var(--text-3)' }}>Enter a 6-digit code to grab your file</p>
+                      </div>
+                    </div>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 group-hover:translate-x-1 transition-transform" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                      <ArrowRight size={16} style={{ color: 'var(--accent)' }} />
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* ═══ RIGHT: Secondary info (40%) ═══ */}
             <div className="lg:col-span-2 mt-10 lg:mt-0 space-y-6">
               {/* Receive CTA (desktop) */}
-              <motion.button
-                className="hidden lg:flex w-full items-center gap-3 surface-card p-4 group cursor-pointer"
-                style={{ borderColor: 'var(--border)' }}
-                whileHover={{ scale: 1.01, borderColor: 'var(--accent)' }}
-                onClick={() => navigate('/join')}
+              <motion.div
+                className="hidden lg:block receive-beam-card-wrap w-full"
                 initial={{ y: 10 }}
                 animate={{ y: 0 }}
                 transition={{ delay: 0.15 }}
               >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)' }}>
-                  <Clipboard size={18} style={{ color: 'var(--accent)' }} />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Receive a file</p>
-                  <p className="text-xs" style={{ color: 'var(--text-3)' }}>Enter a code to grab your file</p>
-                </div>
-                <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--accent)' }} />
-              </motion.button>
+                <div className="receive-beam-card-glow" />
+                <button
+                  type="button"
+                  className="receive-beam-card-inner flex items-center gap-3 p-4 group cursor-pointer"
+                  onClick={() => navigate('/join')}
+                >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)' }}>
+                    <Clipboard size={18} style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                      Receive a file
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                        Got a code?
+                      </span>
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--text-3)' }}>Enter a 6-digit code to grab your file</p>
+                  </div>
+                  <ArrowRight size={16} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all" style={{ color: 'var(--accent)' }} />
+                </button>
+              </motion.div>
 
               {/* Features grid */}
               <motion.div
@@ -1200,11 +1226,6 @@ export default function HomePage() {
 
               {/* Recent Transfers */}
               <RecentTransfers />
-
-              {/* Nearby Devices */}
-              <LocalErrorBoundary fallback={null}>
-                <NearbyDevices />
-              </LocalErrorBoundary>
 
               {/* How it works */}
               <motion.div
@@ -1276,6 +1297,7 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+      <Footer />
 
       {/* Share Text Modal */}
       <Suspense fallback={null}>

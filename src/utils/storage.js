@@ -371,6 +371,7 @@ const DEFAULT_SETTINGS = {
   soundEnabled: true,
   autoDownload: false,
   notificationsEnabled: false,
+  randomTheme: true, // Random theme on every reload by default
 }
 export function getSettings() {
   const stored = safeGet(KEYS.SETTINGS, {})
