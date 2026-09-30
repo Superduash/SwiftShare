@@ -811,19 +811,29 @@ body.reduce-motion .shimmer-block {
   z-index: 1;
   width: 100%;
   border-radius: calc(clamp(16px, 4vw, 20px) - 1.5px);
-  background: var(--surface);
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--surface), var(--surface));
   border: none;
   outline: none;
+  overflow: hidden;
   transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
 }
 
 .receive-beam-card-inner:hover {
-  background: color-mix(in srgb, var(--surface) 95%, var(--accent) 5%);
+  background-color: var(--bg);
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--surface) 95%, var(--accent) 5%),
+    color-mix(in srgb, var(--surface) 95%, var(--accent) 5%)
+  );
 }
 
 .receive-beam-card-inner:active {
-  background: var(--surface-hover, var(--surface));
+  background-color: var(--bg);
+  background-image: linear-gradient(
+    var(--surface-hover, var(--surface)),
+    var(--surface-hover, var(--surface))
+  );
 }
 
 body.reduce-motion .receive-beam-card-glow {

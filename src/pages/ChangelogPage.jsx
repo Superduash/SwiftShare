@@ -12,7 +12,7 @@ export default function ChangelogPage() {
       badgeColor="var(--accent)"
     >
       <div className="space-y-12">
-        {/* Release: v0.8.0 */}
+        {/* Release: v0.8.1 */}
         <section className="relative pl-6 sm:pl-8 border-l-2" style={{ borderColor: 'var(--accent)' }}>
           {/* Timeline node */}
           <div
@@ -25,13 +25,54 @@ export default function ChangelogPage() {
           <div className="mb-4">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="font-mono font-bold text-lg sm:text-xl" style={{ color: 'var(--text)' }}>
-                v0.8.0
+                v0.8.1
               </span>
               <span
                 className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
                 style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
               >
                 Latest Release
+              </span>
+              <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+                September 30, 2026
+              </span>
+            </div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-2)' }}>
+              Outline Loader Polish, Solid Theme Swatches &amp; Toast Optimizations
+            </p>
+          </div>
+
+          <div className="space-y-4 text-xs sm:text-sm">
+            <div className="p-4 sm:p-5 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <ul className="space-y-2 list-disc list-inside" style={{ color: 'var(--text-2)' }}>
+                <li>
+                  <strong>Clean Outline Border Loader:</strong> Fixed the receive card border beam in light themes to keep the interior opaque and render purely as an outline beam without radar/triangle interior bleed.
+                </li>
+                <li>
+                  <strong>Solid Theme Swatches:</strong> Swatches in the Appearance settings now display a clean, single solid color swatch instead of multi-color stripes.
+                </li>
+                <li>
+                  <strong>Toast Limiter &amp; Click-to-Dismiss:</strong> Added automatic toast capping (max 2 active toasts) to prevent toast stacking, instant tap/click to dismiss, and removed noisy swatch-click notifications.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Release: v0.8.0 */}
+        <section className="relative pl-6 sm:pl-8 border-l-2" style={{ borderColor: 'var(--border)' }}>
+          {/* Timeline node */}
+          <div
+            className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-2 flex items-center justify-center"
+            style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
+          >
+            <div className="w-2 h-2 rounded-full" style={{ background: 'var(--text-4)' }} />
+          </div>
+
+          <div className="mb-4">
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <span className="font-mono font-bold text-lg sm:text-xl" style={{ color: 'var(--text)' }}>
+                v0.8.0
               </span>
               <span className="text-xs" style={{ color: 'var(--text-3)' }}>
                 September 30, 2026
