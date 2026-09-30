@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2, Shuffle } from 'lucide-react'
+import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2, Shuffle, Sun, Moon } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, clearTransfers } from '../utils/storage'
 import toast from 'react-hot-toast'

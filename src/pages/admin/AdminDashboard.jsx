@@ -25,8 +25,11 @@ const THEME_OPTIONS = [
   { value: 'midnight', label: 'Midnight', color: '#1440A0' },
   { value: 'sakura', label: 'Sakura', color: '#F472B6' },
   { value: 'lavender', label: 'Lavender', color: '#A78BFA' },
+  { value: 'lavender-mist', label: 'Lavender Mist', color: '#8B5CF6' },
   { value: 'forest', label: 'Forest', color: '#00D87C' },
+  { value: 'forest-mist', label: 'Forest Mist', color: '#059669' },
   { value: 'volcanic', label: 'Volcanic', color: '#CC1010' },
+  { value: 'ember', label: 'Ember', color: '#DC2626' },
 ]
 
 export default function AdminDashboard() {

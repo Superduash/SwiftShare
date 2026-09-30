@@ -4,6 +4,7 @@ import reactPlugin from 'eslint-plugin-react';
 export default [
   js.configs.recommended,
   {
+    files: ['**/*.{js,jsx,mjs}'],
     plugins: {
       react: reactPlugin
     },
@@ -22,6 +23,10 @@ export default [
         sessionStorage: 'readonly',
         XMLHttpRequest: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
+        Blob: 'readonly',
+        File: 'readonly',
+        crypto: 'readonly',
         Notification: 'readonly',
         Event: 'readonly',
         CustomEvent: 'readonly',
