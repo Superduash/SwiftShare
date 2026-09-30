@@ -185,6 +185,11 @@ export default function SettingsPanel({ open, onClose }) {
                       onClick={() => setRandom(!random)}
                       className="w-10 h-6 rounded-full relative transition-all cursor-pointer"
                       style={{
+                        minWidth: '40px',
+                        minHeight: '24px',
+                        width: '40px',
+                        height: '24px',
+                        padding: 0,
                         background: random
                           ? (isDark ? '#3F3F46' : 'var(--accent)')
                           : 'var(--border-strong)',
