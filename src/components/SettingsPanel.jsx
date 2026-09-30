@@ -228,8 +228,8 @@ export default function SettingsPanel({ open, onClose }) {
                     const lightTheme = themes.find(t => t.id === darkTheme.pair) || darkTheme
                     return [darkTheme, lightTheme].map(opt => {
                       const isActive = theme === opt.id
-                      const mainColor = opt.swatch[2] || opt.swatch[0]
-                      const checkColor = (opt.id === 'dark' || mainColor === '#FAFAFA' || mainColor === '#FFFFFF') ? '#000000' : '#FFFFFF'
+                      const mainColor = opt.swatch[0]
+                      const checkColor = opt.mode === 'light' ? '#000000' : '#FFFFFF'
 
                       return (
                         <button
