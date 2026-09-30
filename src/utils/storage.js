@@ -411,18 +411,23 @@ if (typeof window !== 'undefined') {
 
 // ── Theme ──────────────────────────────────
 export function getTheme() {
-  return safeGet(KEYS.THEME, 'sunset')
+  const v2 = safeGet('swiftshare:theme:v2', null)
+  return v2?.theme || 'sunset'
 }
 export function saveTheme(theme) {
-  safeSet(KEYS.THEME, theme)
+  const v2 = safeGet('swiftshare:theme:v2', { v: 2, mode: 'dark', random: true, last: {} })
+  v2.theme = theme
+  safeSet('swiftshare:theme:v2', v2)
 }
 
 export function getThemeMode() {
-  const mode = safeGet(KEYS.THEME_MODE, null)
-  return mode === 'light' ? 'light' : 'dark'
+  const v2 = safeGet('swiftshare:theme:v2', null)
+  return v2?.mode === 'light' ? 'light' : 'dark'
 }
 export function saveThemeMode(mode) {
-  safeSet(KEYS.THEME_MODE, mode === 'light' ? 'light' : 'dark')
+  const v2 = safeGet('swiftshare:theme:v2', { v: 2, mode: 'dark', random: true, last: {} })
+  v2.mode = mode === 'light' ? 'light' : 'dark'
+  safeSet('swiftshare:theme:v2', v2)
 }
 
 // ── PWA ────────────────────────────────────

@@ -565,13 +565,144 @@ const SunsetScene = memo(function SunsetScene() {
   )
 })
 
-// Themes WITH animated particles: sakura, midnight, lavender, forest, volcanic
-// Themes WITHOUT particles (clean ambient only): light, dark, sunrise, sunset
+/* ── ORBS-SOFT — Lavender Mist (Light, soft violet bokeh orbs) ── */
+const OrbsSoftScene = memo(function OrbsSoftScene() {
+  const isMobile = useIsMobile()
+  const orbs = useMemo(() => {
+    const r = makeRand(101)
+    const count = isMobile ? 8 : 16
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      left: `${r() * 100}%`,
+      top: `${r() * 95}%`,
+      size: r() * 120 + 80,
+      opacity: 0.20 + r() * 0.22,
+      dur: r() * 16 + 18,
+      delay: -(r() * 20),
+      tx: (r() - 0.5) * 80,
+      ty: (r() - 0.5) * 60,
+      color: i % 3 === 0 ? 'rgba(167,139,250,0.40)' : i % 3 === 1 ? 'rgba(217,180,254,0.35)' : 'rgba(129,140,248,0.30)',
+    }))
+  }, [isMobile])
+
+  return (
+    <>
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 70% 50% at 20% 10%, rgba(167,139,250,0.12) 0%, transparent 60%)' }} />
+      {orbs.map(o => (
+        <div
+          key={o.id}
+          style={{
+            position: 'absolute',
+            left: o.left,
+            top: o.top,
+            width: `${o.size}px`,
+            height: `${o.size}px`,
+            borderRadius: '50%',
+            filter: 'blur(50px)',
+            background: o.color,
+            opacity: o.opacity,
+            animation: `ss-float-slow ${o.dur}s ${o.delay}s ease-in-out infinite alternate`,
+            willChange: 'transform',
+          }}
+        />
+      ))}
+    </>
+  )
+})
+
+/* ── MOTES — Forest Mist (Light, pollen motes & faint sun rays) ── */
+const MotesScene = memo(function MotesScene() {
+  const isMobile = useIsMobile()
+  const motes = useMemo(() => {
+    const r = makeRand(202)
+    const count = isMobile ? 12 : 24
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      left: `${r() * 100}%`,
+      top: `${r() * 100}%`,
+      size: r() * 3 + 2,
+      opacity: 0.35 + r() * 0.40,
+      dur: r() * 10 + 12,
+      delay: -(r() * 15),
+      drift: (r() - 0.5) * 60,
+      rise: -(r() * 40 + 30),
+      color: i % 3 === 0 ? 'rgba(52,211,153,0.50)' : i % 3 === 1 ? 'rgba(163,230,53,0.40)' : 'rgba(255,255,255,0.85)',
+    }))
+  }, [isMobile])
+
+  return (
+    <>
+      {/* Faint diagonal sunbeam rays */}
+      <div style={{ position: 'absolute', top: '-10%', left: '15%', width: '120px', height: '140vh', transform: 'rotate(25deg)', filter: 'blur(40px)', background: 'linear-gradient(180deg, rgba(217,249,157,0.18) 0%, transparent 80%)' }} />
+      <div style={{ position: 'absolute', top: '-10%', left: '55%', width: '160px', height: '140vh', transform: 'rotate(25deg)', filter: 'blur(50px)', background: 'linear-gradient(180deg, rgba(52,211,153,0.12) 0%, transparent 80%)' }} />
+      {motes.map(m => (
+        <div
+          key={m.id}
+          style={{
+            position: 'absolute',
+            left: m.left,
+            top: m.top,
+            width: `${m.size}px`,
+            height: `${m.size}px`,
+            borderRadius: '50%',
+            background: m.color,
+            boxShadow: `0 0 6px ${m.color}`,
+            opacity: m.opacity,
+            animation: `ss-float-slow ${m.dur}s ${m.delay}s ease-in-out infinite alternate`,
+            willChange: 'transform',
+          }}
+        />
+      ))}
+    </>
+  )
+})
+
+/* ── EMBERS-DAY — Ember (Light, soft warm coral/amber sparks) ── */
+const EmbersDayScene = memo(function EmbersDayScene() {
+  const isMobile = useIsMobile()
+  const embers = useMemo(() => {
+    const r = makeRand(303)
+    const count = isMobile ? 12 : 22
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      left: `${2 + r() * 96}%`,
+      bottom: `${r() * 25}%`,
+      size: r() * 3 + 2,
+      dur: r() * 6 + 6,
+      delay: -(r() * 10),
+      drift: (r() - 0.5) * 60,
+      rise: -(r() * 50 + 40),
+      opacity: 0.35 + r() * 0.30,
+      color: i % 3 === 0 ? 'rgba(255,138,101,0.65)' : i % 3 === 1 ? 'rgba(255,183,77,0.55)' : 'rgba(229,57,53,0.45)',
+    }))
+  }, [isMobile])
+
+  return (
+    <>
+      <div style={{ position: 'absolute', bottom: 0, left: '10%', right: '10%', height: '30%', filter: 'blur(60px)', background: 'radial-gradient(ellipse 80% 50% at 50% 100%, rgba(255,138,101,0.15) 0%, transparent 70%)' }} />
+      {embers.map(e => <Ember key={e.id} e={e} />)}
+    </>
+  )
+})
+
+// Themes with animated scenes
 const SCENES = {
-  sunrise: SunriseScene, sunset: SunsetScene,
-  sakura: SakuraScene, midnight: MidnightScene,
-  lavender: LavenderScene, forest: ForestScene,
-  volcanic: VolcanicScene, dark: DarkScene, light: LightScene,
+  sunrise: SunriseScene,
+  sunset: SunsetScene,
+  sakura: SakuraScene,
+  midnight: MidnightScene,
+  lavender: LavenderScene,
+  forest: ForestScene,
+  volcanic: VolcanicScene,
+  dark: DarkScene,
+  light: LightScene,
+  // 3 New Light Twins (by id and scene name)
+  'lavender-mist': OrbsSoftScene,
+  'orbs-soft': OrbsSoftScene,
+  'forest-mist': MotesScene,
+  motes: MotesScene,
+  ember: EmbersDayScene,
+  'embers-day': EmbersDayScene,
 }
 
 export default memo(function AmbientBackground({ theme: themeProp }) {

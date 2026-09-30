@@ -116,6 +116,7 @@ const FaqPage = lazy(() => import('./pages/content/FaqPage'))
 const PrivacyPage = lazy(() => import('./pages/content/PrivacyPage'))
 const TermsPage = lazy(() => import('./pages/content/TermsPage'))
 const ReportAbusePage = lazy(() => import('./pages/content/ReportAbusePage'))
+const ChangelogPage = lazy(() => import('./pages/ChangelogPage'))
 
 import { trackPageView } from './utils/analytics'
 
@@ -199,6 +200,7 @@ function AnimatedRoutes() {
               <Route path="/privacy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
               <Route path="/terms" element={<PageWrapper><TermsPage /></PageWrapper>} />
               <Route path="/report-abuse" element={<PageWrapper><ReportAbusePage /></PageWrapper>} />
+              <Route path="/changelog" element={<PageWrapper><ChangelogPage /></PageWrapper>} />
 
               {/* Admin Panel */}
               <Route path="/admin" element={<PageWrapper><AdminLogin /></PageWrapper>} />

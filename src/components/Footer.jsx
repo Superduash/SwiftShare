@@ -17,13 +17,21 @@ export default function Footer() {
           
           {/* Col 1: Brand & Summary */}
           <div className="md:col-span-1 space-y-3.5">
-            <Link to="/" className="inline-flex items-center gap-2 text-lg font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>
-                <Zap size={16} className="text-white" />
-              </div>
-              <span>SwiftShare</span>
-              <span className="text-[10px] font-mono font-normal opacity-60 ml-1">v{import.meta.env.PACKAGE_VERSION || '0.7.9'}</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link to="/" className="inline-flex items-center gap-2 text-lg font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>
+                  <Zap size={16} className="text-white" />
+                </div>
+                <span>SwiftShare</span>
+              </Link>
+              <Link
+                to="/changelog"
+                title="View product changelog"
+                className="text-[10px] font-mono font-medium opacity-60 hover:opacity-100 hover:text-[var(--accent)] hover:underline transition-all"
+              >
+                v{import.meta.env.PACKAGE_VERSION || '0.8.0'}
+              </Link>
+            </div>
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
               Zero-login file and text transfer platform. Share securely across devices with 6-digit codes or QR scans.
             </p>
@@ -147,7 +155,9 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="mt-12 pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4 text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text-3)' }}>
           <p>© {new Date().getFullYear()} SwiftShare. Free, temporary, private browser file sharing.</p>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+            <Link to="/changelog" className="hover:underline">Changelog</Link>
+            <span>•</span>
             <Link to="/security" className="hover:underline">TLS 1.3</Link>
             <span>•</span>
             <Link to="/privacy" className="hover:underline">No Tracking</Link>

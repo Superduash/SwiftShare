@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-  <meta name="theme-color" content="#0C0502" />
+  <meta name="theme-color" content="#09090B" />
+  <meta name="color-scheme" content="dark light" />
   <title>SwiftShare — Send Files Without Sign-Up (Free, Self-Destructing Links)</title>
   <meta name="description" content="Send files or text to any device with a 6-character code or QR scan. No account needed. Links expire automatically, with optional password and burn-after-download." />
   <link rel="canonical" href="%VITE_SITE_URL%/" />
@@ -63,94 +64,136 @@
   <script>
     (function () {
       try {
-        var DARK_THEMES = ['sunset', 'dark', 'midnight', 'lavender', 'forest', 'volcanic'];
-        var LIGHT_THEMES = ['sunrise', 'light', 'sakura'];
-        var valid = DARK_THEMES.concat(LIGHT_THEMES);
-        var bgMap = {
-          sunrise: '#FDF9F3',
-          sunset: '#0C0502',
-          dark: '#09090B',
-          light: '#FAFAFA',
-          midnight: '#000000',
-          sakura: '#F5F9FC',
-          lavender: '#0A0618',
-          forest: '#050C08',
-          volcanic: '#0D0505'
-        };
-        var colorMap = {
-          sunrise: '#1C1917',
-          sunset: '#FDF3E8',
-          dark: '#FAFAFA',
-          light: '#09090B',
-          midnight: '#D0E4FA',
-          sakura: '#420818',
-          lavender: '#F0ECFF',
-          forest: '#DCF5E8',
-          volcanic: '#FFE8E8'
-        };
-        var accentMap = {
-          sunrise: '#E05D3A',
-          sunset: '#E05D3A',
-          dark: '#FAFAFA',
-          light: '#18181B',
-          midnight: '#3A88FF',
-          sakura: '#E91E63',
-          lavender: '#A78BFA',
-          forest: '#00D87C',
-          volcanic: '#DC2626'
-        };
-        var surfaceMap = {
-          sunrise: 'rgba(255, 255, 255, 0.4)',
-          sunset: 'rgba(255, 255, 255, 0.05)',
-          dark: 'rgba(255, 255, 255, 0.05)',
-          light: 'rgba(0, 0, 0, 0.03)',
-          midnight: 'rgba(255, 255, 255, 0.05)',
-          sakura: 'rgba(255, 255, 255, 0.5)',
-          lavender: 'rgba(255, 255, 255, 0.05)',
-          forest: 'rgba(255, 255, 255, 0.05)',
-          volcanic: 'rgba(255, 255, 255, 0.05)'
-        };
+        var registry = __THEME_REGISTRY__;
+        var KEY = 'swiftshare:theme:v2';
+        var stored = null;
 
-        var settingsRaw = localStorage.getItem('swiftshare_settings');
-        var settings = settingsRaw ? JSON.parse(settingsRaw) : null;
-        var isRandom = !settings || settings.randomTheme !== false;
-        var modeRaw = localStorage.getItem('swiftshare_theme_mode');
-        var mode = (modeRaw === 'light' || modeRaw === 'dark') ? modeRaw : 'dark';
+        try {
+          var raw = localStorage.getItem(KEY);
+          stored = raw ? JSON.parse(raw) : null;
+        } catch (e) {}
 
-        var theme;
-        if (isRandom) {
-          var pool = mode === 'light' ? LIGHT_THEMES : DARK_THEMES;
-          theme = pool[Math.floor(Math.random() * pool.length)];
-          localStorage.setItem('swiftshare_theme', JSON.stringify(theme));
-        } else {
-          var raw = localStorage.getItem('swiftshare_theme');
-          var parsed = raw ? JSON.parse(raw) : null;
-          theme = parsed && valid.indexOf(parsed) !== -1 ? parsed : (mode === 'light' ? 'sunrise' : 'sunset');
-          mode = LIGHT_THEMES.indexOf(theme) !== -1 ? 'light' : 'dark';
-          localStorage.setItem('swiftshare_theme_mode', mode);
+        // One-time legacy migration if v2 key is absent
+        if (!stored) {
+          try {
+            var rawTheme = localStorage.getItem('swiftshare_theme');
+            var rawMode = localStorage.getItem('swiftshare_theme_mode');
+            var rawSettings = localStorage.getItem('swiftshare_settings');
+            if (rawTheme || rawMode || rawSettings) {
+              var parsedTheme = null;
+              try { parsedTheme = rawTheme ? JSON.parse(rawTheme) : null; } catch (e) { parsedTheme = rawTheme; }
+              var parsedSettings = null;
+              try { parsedSettings = rawSettings ? JSON.parse(rawSettings) : null; } catch (e) {}
+
+              var hasManual = Boolean(parsedTheme && registry.themes.some(function(t) { return t.id === parsedTheme; }));
+              var isRandom = (parsedSettings && typeof parsedSettings.randomTheme === 'boolean')
+                ? parsedSettings.randomTheme
+                : !hasManual;
+              var targetTheme = hasManual ? parsedTheme : (rawMode === 'light' ? 'sunrise' : 'sunset');
+              var matched = registry.themes.find(function(t) { return t.id === targetTheme; }) || registry.themes[0];
+
+              stored = {
+                v: 2,
+                mode: matched.mode,
+                random: isRandom,
+                theme: matched.id,
+                last: {}
+              };
+              stored.last[matched.mode] = matched.id;
+
+              localStorage.removeItem('swiftshare_theme');
+              localStorage.removeItem('swiftshare_theme_mode');
+            }
+          } catch (e) {}
         }
 
-        document.documentElement.setAttribute('data-theme', theme);
-        document.documentElement.style.backgroundColor = bgMap[theme] || bgMap.sunset;
-        document.documentElement.style.color = colorMap[theme] || colorMap.sunset;
-        document.documentElement.style.setProperty('--initial-accent', accentMap[theme] || '#E05D3A');
-        document.documentElement.style.setProperty('--initial-surface', surfaceMap[theme] || 'rgba(255, 255, 255, 0.05)');
-        
+        var defaultMode = registry.default.mode || 'dark';
+        var defaultRandom = registry.default.random !== false;
+
+        if (!stored || typeof stored !== 'object') {
+          var defTheme = defaultMode === 'light' ? 'sunrise' : 'sunset';
+          stored = {
+            v: 2,
+            mode: defaultMode,
+            random: defaultRandom,
+            theme: defTheme,
+            last: {}
+          };
+          stored.last[defaultMode] = defTheme;
+        }
+
+        var themeObj = registry.themes.find(function(t) { return t.id === stored.theme; });
+        if (!themeObj) {
+          var fbId = stored.mode === 'light' ? 'sunrise' : 'sunset';
+          themeObj = registry.themes.find(function(t) { return t.id === fbId; }) || registry.themes[0];
+        }
+        stored.mode = themeObj.mode;
+        stored.theme = themeObj.id;
+        if (typeof stored.random !== 'boolean') stored.random = defaultRandom;
+        if (!stored.last) stored.last = {};
+        stored.last[stored.mode] = stored.theme;
+
+        if (stored.random) {
+          var pool = registry.themes.filter(function(t) { return t.mode === stored.mode; });
+          var lastId = stored.last[stored.mode];
+          var candidates = pool.length > 1 ? pool.filter(function(t) { return t.id !== lastId; }) : pool;
+          if (candidates.length === 0) candidates = pool;
+          var picked = candidates[Math.floor(Math.random() * candidates.length)];
+          stored.theme = picked.id;
+          stored.mode = picked.mode;
+          stored.last[picked.mode] = picked.id;
+          themeObj = picked;
+        }
+
+        try {
+          localStorage.setItem(KEY, JSON.stringify(stored));
+        } catch (e) {}
+
+        var html = document.documentElement;
+        html.setAttribute('data-theme', themeObj.id);
+        html.setAttribute('data-mode', themeObj.mode);
+        html.style.colorScheme = themeObj.mode;
+        html.style.backgroundColor = themeObj.boot.bg;
+        html.style.color = themeObj.boot.text;
+
         var metaTheme = document.querySelector('meta[name="theme-color"]');
         if (metaTheme) {
-          metaTheme.setAttribute('content', bgMap[theme] || bgMap.sunset);
+          metaTheme.setAttribute('content', themeObj.boot.themeColor);
         }
-      } catch (e) {
+
+        html.classList.add('no-theme-transition');
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            html.classList.remove('no-theme-transition');
+          });
+        });
+
+        window.__SS_THEME__ = {
+          theme: themeObj.id,
+          mode: themeObj.mode,
+          random: stored.random,
+          prefs: stored
+        };
+      } catch (err) {
         document.documentElement.setAttribute('data-theme', 'sunset');
+        document.documentElement.setAttribute('data-mode', 'dark');
+        document.documentElement.style.colorScheme = 'dark';
         document.documentElement.style.backgroundColor = '#0C0502';
         document.documentElement.style.color = '#FDF3E8';
-        document.documentElement.style.setProperty('--initial-accent', '#E05D3A');
-        document.documentElement.style.setProperty('--initial-surface', 'rgba(255, 255, 255, 0.05)');
       }
     })();
   </script>
   <style>
-    /* CRITICAL: Prevent white flashes and scrollbar layout shifts during page load */
+    /* CRITICAL: Prevent white flashes and theme transition flickering during boot */
+    html.no-theme-transition * {
+      transition: none !important;
+    }
+    html[data-mode="dark"] {
+      color-scheme: dark;
+    }
+    html[data-mode="light"] {
+      color-scheme: light;
+    }
     html,
     body {
       margin: 0;

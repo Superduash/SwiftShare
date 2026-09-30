@@ -1,5 +1,6 @@
 import React, { useState, memo, useCallback, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Settings, Zap, ArrowLeft, Sun, Moon, Keyboard, Download } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { useConnectionHealth } from '../context/ConnectionHealthContext'
@@ -108,17 +109,27 @@ function Navbar() {
           <div className="flex items-center gap-1">
             {/* Dark / Light Mode Toggle */}
             <button
-              className="btn-icon"
+              type="button"
+              className="btn-icon focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
               onClick={toggleThemeMode}
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
               style={{ marginRight: '2px', position: 'relative', zIndex: 1000 }}
             >
-              {isDark ? (
-                <Sun size={16} style={{ color: 'var(--accent)' }} />
-              ) : (
-                <Moon size={16} style={{ color: 'var(--text-3)' }} />
-              )}
+              <motion.div
+                key={isDark ? 'dark-icon' : 'light-icon'}
+                initial={{ rotate: -30, opacity: 0, scale: 0.8 }}
+                animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                exit={{ rotate: 30, opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center justify-center"
+              >
+                {isDark ? (
+                  <Sun size={16} style={{ color: 'var(--accent)' }} />
+                ) : (
+                  <Moon size={16} style={{ color: 'var(--text)' }} />
+                )}
+              </motion.div>
             </button>
 
             {/* Shortcuts button */}

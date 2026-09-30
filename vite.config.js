@@ -6,6 +6,17 @@ import { readFileSync } from 'fs'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
+function themeRegistryPlugin() {
+  return {
+    name: 'theme-registry-plugin',
+    transformIndexHtml(html) {
+      const registryRaw = readFileSync('./src/theme/theme-registry.json', 'utf-8')
+      const minified = JSON.stringify(JSON.parse(registryRaw))
+      return html.replace('__THEME_REGISTRY__', () => minified)
+    }
+  }
+}
+
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '')
@@ -20,6 +31,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      themeRegistryPlugin(),
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
@@ -30,8 +42,8 @@ export default defineConfig(({ mode }) => {
           description: "Fast, secure file sharing with temporary links and burn-after-reading mode",
           start_url: "/",
           display: "standalone",
-          background_color: "#0C0502",
-          theme_color: "#0C0502",
+          background_color: "#09090B",
+          theme_color: "#09090B",
           orientation: "portrait-primary",
           icons: [
             {

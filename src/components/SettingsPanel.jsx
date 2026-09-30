@@ -12,20 +12,8 @@ const EXPIRY_OPTIONS = [
   { value: 300, label: '5 hours' },
 ]
 
-const THEME_OPTIONS = [
-  { value: 'sunset', label: 'Sunset', color: '#C85A10', light: false },
-  { value: 'sunrise', label: 'Sunrise', color: '#F07020', light: true },
-  { value: 'dark', label: 'Dark', color: '#1A1A1E', light: false },
-  { value: 'light', label: 'Light', color: '#F0F0F2', light: true },
-  { value: 'midnight', label: 'Midnight', color: '#1440A0', light: false },
-  { value: 'sakura', label: 'Sakura', color: '#F472B6', light: true },
-  { value: 'lavender', label: 'Lavender', color: '#A78BFA', light: false },
-  { value: 'forest', label: 'Forest', color: '#00D87C', light: false },
-  { value: 'volcanic', label: 'Volcanic', color: '#CC1010', light: false },
-]
-
 export default function SettingsPanel({ open, onClose }) {
-  const { theme, setTheme, isDark } = useTheme()
+  const { theme, mode, isDark, random, themes, setMode, pickTheme, setRandom, shuffle } = useTheme()
   const [settings, setSettings] = useState(getSettings)
 
   useEffect(() => {
@@ -128,107 +116,171 @@ export default function SettingsPanel({ open, onClose }) {
                 </button>
               </div>
 
-              {/* Theme */}
+              {/* Appearance / Theme */}
               <div className="mb-8">
-                <label className="text-xs font-semibold uppercase tracking-wider mb-3 block" style={{ color: 'var(--text-3)' }}>
-                  Theme
-                </label>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-semibold uppercase tracking-wider block" style={{ color: 'var(--text-3)' }}>
+                    Appearance
+                  </label>
+                </div>
 
-                {/* Random Theme on Reload Toggle */}
-                <button
-                  type="button"
-                  className="w-full flex items-center gap-3 p-3 mb-3.5 rounded-xl transition-all cursor-pointer"
-                  style={{
-                    background: isRandomTheme ? 'var(--accent-soft)' : 'transparent',
-                    border: `1.5px solid ${isRandomTheme ? 'var(--accent)' : 'var(--border)'}`,
-                  }}
-                  onClick={() => update({ randomTheme: !isRandomTheme })}
-                >
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                {/* Segmented control: Dark | Light */}
+                <div className="flex p-1 rounded-xl mb-4" style={{ background: 'var(--bg-sunken)', border: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${isDark ? 'shadow-sm' : ''}`}
                     style={{
-                      background: isRandomTheme ? 'var(--accent)' : 'var(--surface-hover)',
-                      color: isRandomTheme ? 'var(--accent-contrast, #fff)' : 'var(--text-3)',
-                      transition: 'all 0.2s ease',
+                      background: isDark ? 'var(--surface)' : 'transparent',
+                      color: isDark ? 'var(--accent)' : 'var(--text-3)',
+                    }}
+                    onClick={() => setMode('dark')}
+                  >
+                    <Moon size={14} />
+                    <span>Dark</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${!isDark ? 'shadow-sm' : ''}`}
+                    style={{
+                      background: !isDark ? 'var(--surface)' : 'transparent',
+                      color: !isDark ? 'var(--accent)' : 'var(--text-3)',
+                    }}
+                    onClick={() => setMode('light')}
+                  >
+                    <Sun size={14} />
+                    <span>Light</span>
+                  </button>
+                </div>
+
+                {/* Random Theme Switch & Shuffle */}
+                <div
+                  className="w-full p-3 mb-4 rounded-xl transition-all"
+                  style={{
+                    background: random ? 'var(--accent-soft)' : 'transparent',
+                    border: `1.5px solid ${random ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                        style={{
+                          background: random ? 'var(--accent)' : 'var(--surface-hover)',
+                          color: random ? 'var(--on-accent, #fff)' : 'var(--text-3)',
+                        }}
+                      >
+                        <Shuffle size={14} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: random ? 'var(--accent)' : 'var(--text)' }}>
+                          Random theme
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={random}
+                      aria-label="Toggle random theme"
+                      onClick={() => setRandom(!random)}
+                      className="w-10 h-6 rounded-full relative transition-all cursor-pointer"
+                      style={{ background: random ? 'var(--accent)' : 'var(--border-strong)' }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                        style={{
+                          background: '#fff',
+                          left: random ? '22px' : '4px',
+                        }}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[11px] mb-2.5 leading-snug" style={{ color: 'var(--text-3)' }}>
+                    Picks a new {mode} theme each time you open SwiftShare.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!random}
+                    onClick={shuffle}
+                    className="w-full py-1.5 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-2)',
                     }}
                   >
-                    <Shuffle size={16} />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-semibold" style={{ color: isRandomTheme ? 'var(--accent)' : 'var(--text-2)' }}>
-                      Random on reload
-                    </p>
-                    <p className="text-xs" style={{ color: 'var(--text-4)' }}>
-                      Random {isDark ? 'dark' : 'light'} themes on every reload
-                    </p>
-                  </div>
-                  <div
-                    className="w-10 h-6 rounded-full relative transition-all"
-                    style={{ background: isRandomTheme ? 'var(--accent)' : 'var(--border-strong)' }}
-                  >
-                    <div
-                      className="w-4 h-4 rounded-full absolute top-1 transition-all"
-                      style={{
-                        background: '#fff',
-                        left: isRandomTheme ? '22px' : '4px',
-                      }}
-                    />
-                  </div>
-                </button>
+                    <Shuffle size={12} className={random ? 'text-[var(--accent)]' : ''} />
+                    <span>Shuffle now</span>
+                  </button>
+                </div>
 
-                {/* 9 Theme Swatches Grid */}
-                <div className="grid grid-cols-3 gap-3">
-                  {THEME_OPTIONS.map(opt => {
-                    const isActive = theme === opt.value
-                    // Swatches with light backgrounds need dark checkmarks
-                    const checkmarkColor = opt.light ? '#111827' : '#FFFFFF'
+                {/* 12-Theme Two-Column Paired Grid */}
+                <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--text-4)' }}>
+                  <span>Dark</span>
+                  <span>Light</span>
+                </div>
+                <div
+                  className="grid grid-cols-2 gap-2"
+                  role="radiogroup"
+                  aria-label="Theme selection"
+                >
+                  {themes.filter(t => t.mode === 'dark').map(darkTheme => {
+                    const lightTheme = themes.find(t => t.id === darkTheme.pair) || darkTheme
+                    return [darkTheme, lightTheme].map(opt => {
+                      const isActive = theme === opt.id
+                      const checkmarkColor = opt.mode === 'light' ? '#111827' : '#FFFFFF'
 
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        className="flex flex-col items-center gap-2 p-2 sm:p-3 rounded-xl transition-all min-w-0"
-                        style={{
-                          background: isActive ? 'var(--accent-soft)' : 'transparent',
-                          border: `2px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
-                        }}
-                        onClick={() => {
-                          update({ randomTheme: false })
-                          setTheme(opt.value)
-                        }}
-                        aria-label={`Switch to ${opt.label} theme`}
-                      >
-                        <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
-                          <div
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all"
-                            style={{
-                              background: opt.color,
-                              boxShadow: isActive
-                                ? `inset 0 0 0 1px var(--border-strong), 0 0 0 3px var(--accent-soft)`
-                                : `inset 0 0 0 1px var(--border-strong)`,
-                              // Force hardware anti-aliasing for smooth rounded edges
-                              outline: '1px solid transparent',
-                              WebkitBackfaceVisibility: 'hidden',
-                              transform: 'translateZ(0)',
-                            }}
-                          />
-                          {isActive && (
-                            <div
-                              className="absolute inset-0 flex items-center justify-center"
-                              style={{ color: checkmarkColor }}
-                            >
-                              <Check size={16} strokeWidth={3} />
-                            </div>
-                          )}
-                        </div>
-                        <span
-                          className="text-xs font-medium text-center"
-                          style={{ color: isActive ? 'var(--accent)' : 'var(--text-3)' }}
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={isActive}
+                          className="flex items-center gap-2 p-2 rounded-xl transition-all text-left relative min-w-0"
+                          style={{
+                            background: isActive ? 'var(--accent-soft)' : 'var(--surface)',
+                            border: `1.5px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                          }}
+                          onClick={() => {
+                            pickTheme(opt.id)
+                            toast.success(`Random theme off — using ${opt.label}`)
+                          }}
+                          aria-label={`Switch to ${opt.label} theme`}
                         >
-                          {opt.label}
-                        </span>
-                      </button>
-                    )
+                          {/* 3-color swatch */}
+                          <div className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border" style={{ borderColor: 'var(--border)' }}>
+                            <div className="absolute inset-0 flex">
+                              <div className="w-1/3 h-full" style={{ background: opt.swatch[0] }} />
+                              <div className="w-1/3 h-full" style={{ background: opt.swatch[1] }} />
+                              <div className="w-1/3 h-full" style={{ background: opt.swatch[2] }} />
+                            </div>
+                            {isActive && (
+                              <div className="absolute inset-0 bg-black/25 flex items-center justify-center" style={{ color: checkmarkColor }}>
+                                <Check size={13} strokeWidth={3.5} />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <span
+                              className="text-xs font-semibold block truncate"
+                              style={{ color: isActive ? 'var(--accent)' : 'var(--text)' }}
+                            >
+                              {opt.label}
+                            </span>
+                          </div>
+
+                          {isActive && random && (
+                            <span
+                              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-tighter"
+                              style={{ background: 'var(--accent)', color: 'var(--on-accent, #fff)' }}
+                            >
+                              Auto
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })
                   })}
                 </div>
               </div>

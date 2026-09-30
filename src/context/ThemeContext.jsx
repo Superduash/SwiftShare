@@ -1,81 +1,158 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
-import { getTheme, saveTheme, getThemeMode, saveThemeMode, getSettings, saveSettings } from '../utils/storage'
-
-export const DARK_THEMES = ['sunset', 'dark', 'midnight', 'lavender', 'forest', 'volcanic']
-export const LIGHT_THEMES = ['sunrise', 'light', 'sakura']
-export const VALID_THEMES = [...DARK_THEMES, ...LIGHT_THEMES]
-
-export const THEME_PAIRS = {
-  sunset: 'sunrise',
-  sunrise: 'sunset',
-  dark: 'light',
-  light: 'dark',
-  midnight: 'sakura',
-  sakura: 'midnight',
-  lavender: 'sakura',
-  forest: 'sunrise',
-  volcanic: 'sunrise',
-}
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import registry from '../theme/theme-registry.json'
+import {
+  STORAGE_KEY_V2,
+  resolveInitial,
+  toggleMode as engineToggleMode,
+  pickManual as enginePickManual,
+  setRandom as engineSetRandom,
+  shuffle as engineShuffle,
+  repair as engineRepair,
+  getThemeById,
+} from '../theme/themeEngine.js'
 
 const ThemeContext = createContext({
   theme: 'sunset',
-  themeMode: 'dark',
+  mode: 'dark',
   isDark: true,
-  setTheme: () => {},
-  toggleThemeMode: () => {},
+  random: true,
+  themes: registry.themes,
+  toggleMode: () => {},
+  setMode: () => {},
+  pickTheme: () => {},
+  setRandom: () => {},
+  shuffle: () => {},
 })
 
+function applyThemeToDocument(themeId, mode) {
+  const themeObj = getThemeById(registry, themeId)
+  if (!themeObj) return
+
+  const html = document.documentElement
+  html.setAttribute('data-theme', themeObj.id)
+  html.setAttribute('data-mode', mode)
+  html.style.colorScheme = mode
+  html.style.backgroundColor = themeObj.boot.bg
+  html.style.color = themeObj.boot.text
+
+  const metaTheme = document.querySelector('meta[name="theme-color"]')
+  if (metaTheme) {
+    metaTheme.setAttribute('content', themeObj.boot.themeColor)
+  }
+}
+
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(() => {
-    let saved = getTheme()
-    if (saved === 'system') saved = null
-    if (VALID_THEMES.includes(saved)) return saved
-    return 'sunset'
-  })
-
-  const [themeMode, setThemeModeState] = useState(() => {
-    const stored = getThemeMode()
-    if (stored === 'light' || stored === 'dark') return stored
-    return LIGHT_THEMES.includes(theme) ? 'light' : 'dark'
-  })
-
-  const isDark = themeMode === 'dark'
-
-  const setTheme = useCallback((newTheme) => {
-    if (!VALID_THEMES.includes(newTheme)) return
-    const mode = LIGHT_THEMES.includes(newTheme) ? 'light' : 'dark'
-    setThemeState(newTheme)
-    setThemeModeState(mode)
-    document.documentElement.setAttribute('data-theme', newTheme)
-    saveTheme(newTheme)
-    saveThemeMode(mode)
-  }, [])
-
-  const toggleThemeMode = useCallback(() => {
-    const nextMode = isDark ? 'light' : 'dark'
-    let nextTheme = THEME_PAIRS[theme]
-    if (!nextTheme || (nextMode === 'light' && !LIGHT_THEMES.includes(nextTheme)) || (nextMode === 'dark' && !DARK_THEMES.includes(nextTheme))) {
-      nextTheme = nextMode === 'light' ? 'sunrise' : 'sunset'
+  const [prefs, setPrefs] = useState(() => {
+    // 1. First priority: read pre-resolved state from window.__SS_THEME__
+    if (typeof window !== 'undefined' && window.__SS_THEME__?.prefs) {
+      return engineRepair(window.__SS_THEME__.prefs, registry)
     }
 
-    setThemeModeState(nextMode)
-    setThemeState(nextTheme)
-    document.documentElement.setAttribute('data-theme', nextTheme)
-    saveTheme(nextTheme)
-    saveThemeMode(nextMode)
-  }, [isDark, theme])
+    // 2. Fallback: read localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_V2)
+        const parsed = raw ? JSON.parse(raw) : null
+        return resolveInitial(parsed, registry)
+      } catch (err) {
+        return resolveInitial(null, registry)
+      }
+    }
 
+    return resolveInitial(null, registry)
+  })
+
+  const prefsRef = useRef(prefs)
+  prefsRef.current = prefs
+
+  const saveAndApply = useCallback((nextPrefs, skipViewTransition = false) => {
+    const isReduced = typeof document !== 'undefined' && (
+      document.body.classList.contains('reduce-motion') ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    )
+
+    const executeApply = () => {
+      setPrefs(nextPrefs)
+      applyThemeToDocument(nextPrefs.theme, nextPrefs.mode)
+      try {
+        localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(nextPrefs))
+      } catch {}
+    }
+
+    if (
+      !skipViewTransition &&
+      !isReduced &&
+      typeof document !== 'undefined' &&
+      typeof document.startViewTransition === 'function'
+    ) {
+      document.startViewTransition(executeApply)
+    } else {
+      executeApply()
+    }
+  }, [])
+
+  // Listen to cross-tab storage changes
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
+    const handleStorage = (e) => {
+      if (e.key === STORAGE_KEY_V2 && e.newValue) {
+        try {
+          const incoming = JSON.parse(e.newValue)
+          const repaired = engineRepair(incoming, registry)
+          setPrefs(repaired)
+          applyThemeToDocument(repaired.theme, repaired.mode)
+        } catch {}
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  // Ensure DOM is in sync on mount
+  useEffect(() => {
+    applyThemeToDocument(prefs.theme, prefs.mode)
+  }, [prefs.theme, prefs.mode])
+
+  const toggleMode = useCallback(() => {
+    const next = engineToggleMode(prefsRef.current, registry)
+    saveAndApply(next)
+  }, [saveAndApply])
+
+  const setMode = useCallback((desiredMode) => {
+    if (prefsRef.current.mode === desiredMode) return
+    const next = engineToggleMode(prefsRef.current, registry)
+    saveAndApply(next)
+  }, [saveAndApply])
+
+  const pickTheme = useCallback((themeId) => {
+    const next = enginePickManual(prefsRef.current, registry, themeId)
+    saveAndApply(next)
+  }, [saveAndApply])
+
+  const setRandomMode = useCallback((randomFlag) => {
+    const next = engineSetRandom(prefsRef.current, registry, randomFlag)
+    saveAndApply(next)
+  }, [saveAndApply])
+
+  const shuffleTheme = useCallback(() => {
+    const next = engineShuffle(prefsRef.current, registry)
+    saveAndApply(next)
+  }, [saveAndApply])
 
   const contextValue = useMemo(() => ({
-    theme,
-    themeMode,
-    isDark,
-    setTheme,
-    toggleThemeMode,
-  }), [theme, themeMode, isDark, setTheme, toggleThemeMode])
+    theme: prefs.theme,
+    mode: prefs.mode,
+    isDark: prefs.mode === 'dark',
+    random: prefs.random,
+    themes: registry.themes,
+    toggleMode,
+    setMode,
+    pickTheme,
+    setRandom: setRandomMode,
+    shuffle: shuffleTheme,
+    // Compatibility helpers for existing callers
+    setTheme: pickTheme,
+    toggleThemeMode: toggleMode,
+  }), [prefs.theme, prefs.mode, prefs.random, toggleMode, setMode, pickTheme, setRandomMode, shuffleTheme])
 
   return (
     <ThemeContext.Provider value={contextValue}>

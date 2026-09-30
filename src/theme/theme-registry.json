@@ -1,0 +1,116 @@
+{
+  "default": {
+    "mode": "dark",
+    "random": true
+  },
+  "themes": [
+    {
+      "id": "sunset",
+      "label": "Sunset",
+      "mode": "dark",
+      "pair": "sunrise",
+      "scene": "sunset",
+      "boot": { "bg": "#0C0502", "text": "#FDF3E8", "themeColor": "#0C0502" },
+      "swatch": ["#0C0502", "#180C05", "#FF6B1A"]
+    },
+    {
+      "id": "dark",
+      "label": "Dark",
+      "mode": "dark",
+      "pair": "light",
+      "scene": "dark",
+      "boot": { "bg": "#09090B", "text": "#FAFAFA", "themeColor": "#09090B" },
+      "swatch": ["#09090B", "#161618", "#FAFAFA"]
+    },
+    {
+      "id": "midnight",
+      "label": "Midnight",
+      "mode": "dark",
+      "pair": "sakura",
+      "scene": "midnight",
+      "boot": { "bg": "#000000", "text": "#D0E4FA", "themeColor": "#000000" },
+      "swatch": ["#000000", "#040A14", "#3A88FF"]
+    },
+    {
+      "id": "lavender",
+      "label": "Lavender",
+      "mode": "dark",
+      "pair": "lavender-mist",
+      "scene": "lavender",
+      "boot": { "bg": "#0A0618", "text": "#F0ECFF", "themeColor": "#0A0618" },
+      "swatch": ["#0A0618", "#161030", "#A78BFA"]
+    },
+    {
+      "id": "forest",
+      "label": "Forest",
+      "mode": "dark",
+      "pair": "forest-mist",
+      "scene": "forest",
+      "boot": { "bg": "#050C08", "text": "#DCF5E8", "themeColor": "#050C08" },
+      "swatch": ["#050C08", "#0A1610", "#00D87C"]
+    },
+    {
+      "id": "volcanic",
+      "label": "Volcanic",
+      "mode": "dark",
+      "pair": "ember",
+      "scene": "volcanic",
+      "boot": { "bg": "#0D0505", "text": "#FFE8E8", "themeColor": "#0D0505" },
+      "swatch": ["#0D0505", "#1A0C0C", "#DC2626"]
+    },
+    {
+      "id": "sunrise",
+      "label": "Sunrise",
+      "mode": "light",
+      "pair": "sunset",
+      "scene": "sunrise",
+      "boot": { "bg": "#FDF9F3", "text": "#1C1917", "themeColor": "#FDF9F3" },
+      "swatch": ["#FDF9F3", "#FFFFFF", "#E05D3A"]
+    },
+    {
+      "id": "light",
+      "label": "Light",
+      "mode": "light",
+      "pair": "dark",
+      "scene": "light",
+      "boot": { "bg": "#FAFAFA", "text": "#09090B", "themeColor": "#FAFAFA" },
+      "swatch": ["#FAFAFA", "#FFFFFF", "#18181B"]
+    },
+    {
+      "id": "sakura",
+      "label": "Sakura",
+      "mode": "light",
+      "pair": "midnight",
+      "scene": "sakura",
+      "boot": { "bg": "#F5F9FC", "text": "#420818", "themeColor": "#F5F9FC" },
+      "swatch": ["#F5F9FC", "#FFFFFF", "#E91E63"]
+    },
+    {
+      "id": "lavender-mist",
+      "label": "Lavender Mist",
+      "mode": "light",
+      "pair": "lavender",
+      "scene": "orbs-soft",
+      "boot": { "bg": "#F7F4FF", "text": "#1E1140", "themeColor": "#F7F4FF" },
+      "swatch": ["#F7F4FF", "#FFFFFF", "#6A44E0"]
+    },
+    {
+      "id": "forest-mist",
+      "label": "Forest Mist",
+      "mode": "light",
+      "pair": "forest",
+      "scene": "motes",
+      "boot": { "bg": "#F1F8F3", "text": "#0E2B1C", "themeColor": "#F1F8F3" },
+      "swatch": ["#F1F8F3", "#FFFFFF", "#0A7F4B"]
+    },
+    {
+      "id": "ember",
+      "label": "Ember",
+      "mode": "light",
+      "pair": "volcanic",
+      "scene": "embers-day",
+      "boot": { "bg": "#FFF6F3", "text": "#3B0F10", "themeColor": "#FFF6F3" },
+      "swatch": ["#FFF6F3", "#FFFFFF", "#C62828"]
+    }
+  ]
+}
