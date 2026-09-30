@@ -136,14 +136,18 @@ function PageWrapper({ children }) {
   }, [])
 
   return (
-    <div
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
       style={{
         transform: 'translateZ(0)',
         willChange: 'opacity',
       }}
     >
       {children}
-    </div>
+    </motion.div>
   )
 }
 
