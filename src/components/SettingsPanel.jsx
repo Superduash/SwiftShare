@@ -184,12 +184,17 @@ export default function SettingsPanel({ open, onClose }) {
                       aria-label="Toggle random theme"
                       onClick={() => setRandom(!random)}
                       className="w-10 h-6 rounded-full relative transition-all cursor-pointer"
-                      style={{ background: random ? 'var(--accent)' : 'var(--border-strong)' }}
+                      style={{
+                        background: random
+                          ? (isDark ? '#3F3F46' : 'var(--accent)')
+                          : 'var(--border-strong)',
+                        border: `1px solid ${isDark ? '#52525B' : 'transparent'}`,
+                      }}
                     >
                       <div
                         className="w-4 h-4 rounded-full absolute top-1 transition-all"
                         style={{
-                          background: '#fff',
+                          background: isDark ? '#FAFAFA' : '#FFFFFF',
                           left: random ? '22px' : '4px',
                         }}
                       />
