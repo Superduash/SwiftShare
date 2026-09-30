@@ -1,10 +1,10 @@
-// Subtle success sounds using Web Audio API.
-// Browser autoplay policies require a user gesture before audio can play,
-// so we unlock the context on first interaction.
 let audioContext = null
+let userInteracted = false
 let unlockListenersBound = false
 
 function getAudioContext() {
+  if (typeof window === 'undefined') return null
+  if (!userInteracted) return null
   if (audioContext) return audioContext
   try {
     const Ctor = window.AudioContext || window.webkitAudioContext
@@ -17,11 +17,12 @@ function getAudioContext() {
 }
 
 async function unlockAudio() {
+  userInteracted = true
   const ctx = getAudioContext()
   if (!ctx) return false
   try {
     if (ctx.state === 'suspended') {
-      await ctx.resume()
+      await ctx.resume().catch(() => {})
     }
     return ctx.state === 'running'
   } catch {
@@ -33,10 +34,10 @@ function bindUnlockListeners() {
   if (unlockListenersBound || typeof window === 'undefined') return
   unlockListenersBound = true
 
-  const events = ['pointerdown', 'keydown', 'touchstart', 'mousedown']
+  const events = ['pointerdown', 'keydown', 'touchstart', 'mousedown', 'click']
   const onFirstInteraction = () => {
-    void unlockAudio().then((ok) => {
-      if (!ok) return
+    userInteracted = true
+    void unlockAudio().then(() => {
       events.forEach((eventName) => window.removeEventListener(eventName, onFirstInteraction))
     })
   }

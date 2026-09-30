@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Shield, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { Shield, Lock, User, Eye, EyeOff, AlertCircle, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { adminLogin } from '../../services/adminApi'
 
@@ -69,7 +69,7 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--bg)] text-[var(--text)] transition-colors duration-300">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -77,10 +77,27 @@ export default function AdminLogin() {
         className="w-full max-w-md bg-[var(--surface-card)] border border-[var(--border)] rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl"
       >
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-[var(--accent)]/10 border border-[var(--accent)]/30 flex items-center justify-center text-[var(--accent)] mb-3">
-            <Shield className="w-6 h-6" />
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center logo-icon mb-3 shadow-lg shadow-[var(--accent)]/25"
+            style={{
+              background: 'var(--accent)',
+              boxShadow: '0 4px 14px var(--accent-glow)',
+            }}
+            aria-hidden="true"
+          >
+            <Zap size={24} color="var(--logo-icon, var(--accent-contrast, #fff))" strokeWidth={2.5} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">SwiftShare Admin</h1>
+          <h1
+            className="font-display text-xl font-bold tracking-tight"
+            style={{
+              background: 'var(--logo-gradient, linear-gradient(135deg, var(--text) 0%, var(--accent) 100%))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            SwiftShare Admin
+          </h1>
           <p className="text-xs text-[var(--text-3)] mt-1">
             Restricted area. All access attempts are monitored and logged.
           </p>

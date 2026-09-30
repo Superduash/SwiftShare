@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, TrendingUp, ArrowLeftRight, Radio,
   Server, Shield, LogOut, RefreshCw, Sparkles, ChevronDown,
-  Clock, ShieldAlert
+  Clock, ShieldAlert, Zap, Palette, Check
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -15,8 +15,22 @@ import SystemPanel from '../../components/admin/SystemPanel'
 import AuditPanel from '../../components/admin/AuditPanel'
 import ShareSnapshotModal from '../../components/admin/ShareSnapshotModal'
 import { checkAdminSession, adminLogout, adminLogoutAll, fetchOverview } from '../../services/adminApi'
+import { useTheme } from '../../context/ThemeContext'
+
+const THEME_OPTIONS = [
+  { value: 'sunset', label: 'Sunset', color: '#C85A10' },
+  { value: 'sunrise', label: 'Sunrise', color: '#F07020' },
+  { value: 'dark', label: 'Dark', color: '#1A1A1E' },
+  { value: 'light', label: 'Light', color: '#F0F0F2' },
+  { value: 'midnight', label: 'Midnight', color: '#1440A0' },
+  { value: 'sakura', label: 'Sakura', color: '#F472B6' },
+  { value: 'lavender', label: 'Lavender', color: '#A78BFA' },
+  { value: 'forest', label: 'Forest', color: '#00D87C' },
+  { value: 'volcanic', label: 'Volcanic', color: '#CC1010' },
+]
 
 export default function AdminDashboard() {
+  const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState('overview')
   const [range, setRange] = useState('7d')
   const [adminUser, setAdminUser] = useState('Admin')
@@ -26,9 +40,11 @@ export default function AdminDashboard() {
   const [showShareModal, setShowShareModal] = useState(false)
   const [overviewData, setOverviewData] = useState(null)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showThemeMenu, setShowThemeMenu] = useState(false)
 
   const navigate = useNavigate()
   const userMenuRef = useRef(null)
+  const themeMenuRef = useRef(null)
 
   // Validate session on mount & listen for unauthorized events
   useEffect(() => {
@@ -117,11 +133,14 @@ export default function AdminDashboard() {
     return () => clearInterval(autoRefreshTimer)
   }, [])
 
-  // Close user dropdown menu on outside click
+  // Close dropdown menus on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
         setShowUserMenu(false)
+      }
+      if (themeMenuRef.current && !themeMenuRef.current.contains(e.target)) {
+        setShowThemeMenu(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -172,17 +191,35 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="min-h-screen flex bg-[var(--bg)] text-[var(--text)] pb-20 md:pb-0">
+    <div className="min-h-screen flex bg-[var(--bg)] text-[var(--text)] pb-20 md:pb-0 transition-colors duration-300">
       {/* Desktop Left Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-[var(--border)] bg-[var(--surface-card)] p-5 justify-between select-none">
         <div className="flex flex-col gap-6">
           {/* Brand */}
           <div className="flex items-center gap-3 px-2">
-            <div className="w-9 h-9 rounded-xl bg-[var(--accent)] text-white flex items-center justify-center font-bold text-base shadow-lg shadow-[var(--accent)]/20">
-              ⚡
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center logo-icon shadow-lg shadow-[var(--accent)]/20"
+              style={{
+                background: 'var(--accent)',
+                boxShadow: '0 2px 8px var(--accent-glow)',
+                transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease'
+              }}
+              aria-hidden="true"
+            >
+              <Zap size={18} color="var(--logo-icon, var(--accent-contrast, #fff))" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="font-bold text-sm leading-tight tracking-tight">SwiftShare</h1>
+              <h1
+                className="font-display font-bold text-base leading-tight tracking-tight"
+                style={{
+                  background: 'var(--logo-gradient, linear-gradient(135deg, var(--text) 0%, var(--accent) 100%))',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                SwiftShare
+              </h1>
               <span className="text-[10px] font-mono text-[var(--accent)] uppercase font-semibold">
                 Admin Console
               </span>
@@ -304,6 +341,58 @@ export default function AdminDashboard() {
             >
               <Sparkles className="w-3.5 h-3.5" /> Share Snapshot
             </button>
+
+            {/* Theme Switcher Button & Dropdown */}
+            <div className="relative" ref={themeMenuRef}>
+              <button
+                onClick={() => setShowThemeMenu(!showThemeMenu)}
+                className="p-2 rounded-xl bg-[var(--surface)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-2)] transition-colors flex items-center gap-1.5"
+                title={`Current Theme: ${theme}`}
+                aria-label="Change Theme"
+              >
+                <Palette className="w-3.5 h-3.5" />
+                <span
+                  className="w-2.5 h-2.5 rounded-full border border-black/20"
+                  style={{ background: THEME_OPTIONS.find((t) => t.value === theme)?.color || 'var(--accent)' }}
+                />
+              </button>
+
+              {showThemeMenu && (
+                <div className="absolute right-0 mt-2 w-48 p-2 rounded-2xl bg-[var(--surface-card)] border border-[var(--border)] shadow-2xl flex flex-col gap-1 z-40 backdrop-blur-xl">
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-3)]">
+                    Select Theme
+                  </div>
+                  <div className="grid grid-cols-1 gap-0.5">
+                    {THEME_OPTIONS.map((opt) => {
+                      const isSelected = theme === opt.value
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            setTheme(opt.value)
+                            setShowThemeMenu(false)
+                          }}
+                          className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                            isSelected
+                              ? 'bg-[var(--accent)]/15 text-[var(--accent)] font-semibold'
+                              : 'text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
+                              style={{ background: opt.color }}
+                            />
+                            <span>{opt.label}</span>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-[var(--accent)]" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Refresh Button & Status */}
             <button

@@ -37,12 +37,22 @@ export default function OverviewPanel({ range = '7d' }) {
     setLoading(true)
     setError(null)
     try {
-      const [overviewRes, funnelRes] = await Promise.all([
+      const [overviewResult, funnelResult] = await Promise.allSettled([
         fetchOverview(range),
         fetchFunnel(range),
       ])
-      setData(overviewRes)
-      setFunnel(funnelRes)
+
+      if (overviewResult.status === 'fulfilled') {
+        setData(overviewResult.value)
+      } else {
+        setError(overviewResult.reason?.response?.data?.error || 'Failed to load overview data')
+      }
+
+      if (funnelResult.status === 'fulfilled') {
+        setFunnel(funnelResult.value)
+      } else {
+        setFunnel({ visitors: 0, created: 0, downloaded: 0, createRate: 0, downloadRate: 0 })
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load overview data')
     } finally {
