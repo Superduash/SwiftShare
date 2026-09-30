@@ -12,6 +12,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </ThemeProvider>
 )
 
+requestAnimationFrame(() => {
+  document.documentElement.classList.add('app-mounted')
+})
+
 // ── PWA Install Prompt (Task 16.5) ────────────────────────────────────────────
 // Capture the beforeinstallprompt event and expose it globally so App.jsx or
 // any component can call window.__swiftshare_pwa_prompt.prompt() at the right moment.
