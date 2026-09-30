@@ -8,7 +8,6 @@
   html {
     font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
     -webkit-overflow-scrolling: touch;
@@ -23,7 +22,6 @@
 button, a, input, select, textarea, [role="button"], [tabindex] {
   /* Prevent text blur during animations */
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Buttery smooth scrolling */
@@ -70,7 +68,6 @@ body {
   position: relative;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   scrollbar-gutter: stable;
   overflow-x: hidden;
   width: 100%;
@@ -113,7 +110,6 @@ input, button, textarea, select {
   font: inherit;
   /* Premium text rendering */
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   /* Prevent blur on interactions - use translate3d for GPU */
   
@@ -125,7 +121,6 @@ img {
   max-width: 100%; 
   display: block;
   /* Premium image rendering */
-  image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   
   backface-visibility: hidden;
@@ -1078,7 +1073,6 @@ body.reduce-motion .receive-beam-card-wrap {
   }
 
   img, svg {
-    image-rendering: -webkit-optimize-contrast;
   }
 }
 
@@ -1148,12 +1142,10 @@ body.reduce-motion .receive-beam-card-wrap {
   * {
     /* Premium subpixel rendering on high-DPI */
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
   
   img, video {
     /* Crisp image rendering on Retina */
-    image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
   }
 }
@@ -1185,7 +1177,6 @@ h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {
   font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
   /* Prevent text blur during animations */
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 /* NOTE: The .fixed/.sticky/nav transform:translate3d + backface-visibility rule was removed.

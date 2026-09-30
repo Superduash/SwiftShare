@@ -1,6 +1,24 @@
+import tailwindcss from 'tailwindcss'
+import autoprefixer from 'autoprefixer'
+
 export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
+  plugins: [
+    tailwindcss(),
+    autoprefixer(),
+    {
+      postcssPlugin: 'postcss-swiftshare-cleanup',
+      Once(root) {
+        root.walkDecls((decl) => {
+          if ([
+            '-webkit-text-size-adjust',
+            '-moz-column-gap',
+            '-moz-osx-font-smoothing',
+            '-webkit-optimize-contrast',
+          ].includes(decl.prop)) {
+            decl.remove()
+          }
+        })
+      },
+    },
+  ],
 }
