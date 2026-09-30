@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, useAnimate } from 'framer-motion'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { ArrowRight, Loader2, QrCode } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import Spinner from '../components/Spinner'
 
@@ -9,6 +9,7 @@ import { getFileMetadataOutcome } from '../services/api'
 import Navbar from '../components/Navbar'
 import NearbyDevices from '../components/NearbyDevices'
 import ErrorState from '../components/ErrorState'
+import QRScannerModal from '../components/QRScannerModal'
 import { saveTransfer } from '../utils/storage'
 import { useSeo } from '../hooks/useSeo'
 import Footer from '../components/Footer'
@@ -44,16 +45,12 @@ export default function JoinPage() {
   }, [codeString, animate, scope])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
   const inputRefs = useRef([])
   const submitInFlightRef = useRef(false)
   const mountedRef = useRef(true)
 
-  useEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
+  const hasCameraSupport = typeof navigator !== 'undefined' && Boolean(navigator?.mediaDevices?.getUserMedia)
 
   useEffect(() => {
     mountedRef.current = true
@@ -187,6 +184,17 @@ export default function JoinPage() {
     }
   }, [chars, handleSubmit])
 
+  const handleScanQr = useCallback((scannedCode) => {
+    setQrModalOpen(false)
+    if (!scannedCode) return
+    const cleanCode = String(scannedCode).toUpperCase().replace(/[^A-HJ-KM-NP-Z2-9]/g, '').slice(0, CODE_LENGTH)
+    if (cleanCode.length === CODE_LENGTH) {
+      const nextChars = cleanCode.split('')
+      setChars(nextChars)
+      void handleSubmit(cleanCode)
+    }
+  }, [handleSubmit])
+
   function handleChange(idx, value) {
     const ch = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (!ch) return
@@ -278,7 +286,7 @@ export default function JoinPage() {
               className="flex justify-center items-center gap-1.5 sm:gap-3 mb-4 w-full max-w-sm mx-auto px-1"
             >
               {chars.map((ch, i) => (
-                <motion.input
+                <input
                   key={i}
                   ref={(el) => { inputRefs.current[i] = el }}
                   type="text"
@@ -288,19 +296,17 @@ export default function JoinPage() {
                   onChange={(e) => handleChange(i, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(i, e)}
                   onFocus={(e) => e.target.select()}
-                  className="w-11 sm:w-14 h-14 sm:h-16 flex-1 max-w-[56px] text-center font-mono font-extrabold text-2xl sm:text-3xl rounded-xl sm:rounded-2xl outline-none transition-all cursor-text uppercase"
+                  className="w-11 sm:w-14 h-14 sm:h-16 flex-1 max-w-[56px] text-center font-mono font-extrabold text-2xl sm:text-3xl rounded-xl sm:rounded-2xl outline-none transition-all duration-150 cursor-text uppercase"
                   style={{
                     background: 'var(--code-char-bg)',
                     border: `2px solid ${ch ? 'var(--accent)' : error ? 'var(--danger)' : 'var(--code-char-border)'}`,
                     color: 'var(--accent)',
                     caretColor: 'var(--accent)',
                     boxShadow: ch ? '0 0 14px var(--accent-glow)' : '0 2px 6px rgba(0,0,0,0.04)',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'none',
+                    appearance: 'none',
                   }}
-                  whileHover={{ scale: 1.04 }}
-                  whileFocus={{ scale: 1.08 }}
-                  initial={{ y: 8, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.08 + i * 0.03, type: 'spring', damping: 15 }}
                   autoComplete="off"
                   aria-label={`Code digit ${i + 1}`}
                 />
@@ -333,10 +339,10 @@ export default function JoinPage() {
               </motion.div>
             )}
 
-            {/* Submit button */}
-            <div className="text-center">
+            {/* Submit button & Scan QR action */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
-                className="btn-primary w-full sm:w-auto sm:px-12 mx-auto"
+                className="btn-primary w-full sm:w-auto sm:px-10"
                 onClick={() => { void handleSubmit(chars.join('')) }}
                 disabled={loading || chars.some(c => !c)}
               >
@@ -346,6 +352,17 @@ export default function JoinPage() {
                   <>Get file <ArrowRight size={16} /></>
                 )}
               </button>
+              {hasCameraSupport && (
+                <button
+                  type="button"
+                  className="btn-secondary w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:border-[var(--accent)]"
+                  onClick={() => setQrModalOpen(true)}
+                  aria-label="Scan QR Code"
+                >
+                  <QrCode size={16} className="text-[var(--accent)]" />
+                  <span>Scan QR</span>
+                </button>
+              )}
             </div>
           </motion.div>
 
@@ -362,7 +379,13 @@ export default function JoinPage() {
           <NearbyDevices />
         </div>
       </main>
+      <QRScannerModal
+        open={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+        onScan={handleScanQr}
+      />
       <Footer />
     </div>
   )
 }
+
