@@ -30,7 +30,7 @@
 
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="application-name" content="SwiftShare" />
 
   <script type="application/ld+json">
@@ -150,11 +150,40 @@
         } catch (e) {}
 
         var html = document.documentElement;
+        var startupBorder = themeObj.mode === 'dark'
+          ? 'rgba(255,255,255,0.12)'
+          : 'rgba(0,0,0,0.12)';
+        var startupSurface = themeObj.swatch && themeObj.swatch[1]
+          ? themeObj.swatch[1]
+          : themeObj.boot.bg;
+        var startupAccent = themeObj.swatch && themeObj.swatch[2]
+          ? themeObj.swatch[2]
+          : themeObj.boot.text;
         html.setAttribute('data-theme', themeObj.id);
         html.setAttribute('data-mode', themeObj.mode);
         html.style.colorScheme = themeObj.mode;
         html.style.backgroundColor = themeObj.boot.bg;
         html.style.color = themeObj.boot.text;
+        html.style.setProperty('--bg', themeObj.boot.bg);
+        html.style.setProperty('--bg-sunken', themeObj.boot.bg);
+        html.style.setProperty('--surface', startupSurface);
+        html.style.setProperty('--surface-card', startupSurface);
+        html.style.setProperty('--surface-hover', startupSurface);
+        html.style.setProperty('--border', startupBorder);
+        html.style.setProperty('--nav-bg', themeObj.boot.bg);
+        html.style.setProperty('--nav-border', startupBorder);
+        html.style.setProperty('--text', themeObj.boot.text);
+        html.style.setProperty('--text-2', themeObj.boot.text);
+        html.style.setProperty('--text-3', themeObj.boot.text);
+        html.style.setProperty('--accent', startupAccent);
+        html.style.setProperty('--accent-text', startupAccent);
+        html.style.setProperty('--accent-fill', startupAccent);
+        html.style.setProperty('--accent-contrast', '#FFFFFF');
+        html.style.setProperty('--on-accent', '#FFFFFF');
+        html.style.setProperty('--accent-soft', 'rgba(255,255,255,0.10)');
+        html.style.setProperty('--accent-medium', 'rgba(255,255,255,0.18)');
+        html.style.setProperty('--accent-glow', 'rgba(255,255,255,0.20)');
+        html.style.setProperty('--shadow-sm', '0 8px 32px rgba(0,0,0,0.25)');
 
         var metaTheme = document.querySelector('meta[name="theme-color"]');
         if (metaTheme) {
@@ -175,11 +204,14 @@
           prefs: stored
         };
       } catch (err) {
-        document.documentElement.setAttribute('data-theme', 'sunset');
+        document.documentElement.setAttribute('data-theme', 'dark');
         document.documentElement.setAttribute('data-mode', 'dark');
         document.documentElement.style.colorScheme = 'dark';
-        document.documentElement.style.backgroundColor = '#0C0502';
-        document.documentElement.style.color = '#FDF3E8';
+        document.documentElement.style.backgroundColor = '#09090B';
+        document.documentElement.style.color = '#FAFAFA';
+        document.documentElement.style.setProperty('--bg', '#09090B');
+        document.documentElement.style.setProperty('--text', '#FAFAFA');
+        document.documentElement.style.setProperty('--accent', '#71717A');
       }
     })();
   </script>
