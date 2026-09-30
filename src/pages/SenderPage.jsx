@@ -141,6 +141,7 @@ export default function SenderPage() {
   const mountedRef = useRef(true)
   const metaRef = useRef(initialCachedTransfer)
   const activityRefreshTimerRef = useRef(null)
+  const clockOffsetRef = useRef(0)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
   useEffect(() => { metaRef.current = meta }, [meta])
   useEffect(() => {
@@ -481,10 +482,18 @@ export default function SenderPage() {
     timerRef.current = setInterval(() => {
       const currentMeta = metaRef.current
       if (currentMeta?.expiresAt) {
-        const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
+        const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - (Date.now() + clockOffsetRef.current)) / 1000))
         setSecondsRemaining(seconds)
       }
     }, 1000)
+    const onCountdownTick = ({ secondsRemaining: syncedSeconds, serverTime } = {}) => {
+      if (Number.isFinite(Number(serverTime))) {
+        clockOffsetRef.current = Number(serverTime) - Date.now()
+      }
+      if (Number.isFinite(Number(syncedSeconds))) {
+        setSecondsRemaining(Math.max(0, Math.ceil(Number(syncedSeconds))))
+      }
+    }
     const onExpired = () => {
       if (!mountedRef.current) return
       // Keep sender on page; the isExpired computed value will update the UI.
@@ -631,6 +640,7 @@ export default function SenderPage() {
     }
 
     socket.on('connect', connectRoom)
+    socket.on('countdown-tick', onCountdownTick)
     socket.on('transfer-expired', onExpired)
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
@@ -666,6 +676,7 @@ export default function SenderPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
       socket.off('connect', connectRoom)
+      socket.off('countdown-tick', onCountdownTick)
       socket.off('transfer-expired', onExpired)
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)

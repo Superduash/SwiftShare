@@ -137,6 +137,7 @@ export default function DownloadPage() {
   const downloadedAnyRef = useRef(false)
   const burnFinalizeRequestedRef = useRef(false)
   const requestInFlightRef = useRef(false)
+  const clockOffsetRef = useRef(0)
   const requestTokenRef = useRef(0)
   const retryTimerRef = useRef(null)
   const terminalNavigatedRef = useRef(false)
@@ -547,7 +548,7 @@ export default function DownloadPage() {
     timerRef.current = setInterval(() => {
       const currentMeta = metaRef.current
       if (currentMeta?.expiresAt) {
-        const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - Date.now()) / 1000))
+        const seconds = Math.max(0, Math.ceil((new Date(currentMeta.expiresAt).getTime() - (Date.now() + clockOffsetRef.current)) / 1000))
         setSecondsRemaining(seconds)
       }
     }, 1000)
@@ -555,6 +556,14 @@ export default function DownloadPage() {
     const onExpired = () => {
       setTransferStatus('EXPIRED')
       patchCachedTransfer({ status: 'EXPIRED' })
+    }
+    const onCountdownTick = ({ secondsRemaining: syncedSeconds, serverTime } = {}) => {
+      if (Number.isFinite(Number(serverTime))) {
+        clockOffsetRef.current = Number(serverTime) - Date.now()
+      }
+      if (Number.isFinite(Number(syncedSeconds))) {
+        setSecondsRemaining(Math.max(0, Math.ceil(Number(syncedSeconds))))
+      }
     }
     // Throttle and coalesce progress renders.
     let downProgRaf = 0
@@ -631,6 +640,7 @@ export default function DownloadPage() {
 
     socket.on('connect', connectRoom)
     socket.on('transfer-expired', onExpired)
+    socket.on('countdown-tick', onCountdownTick)
     socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-cancelled', onCancelled)
@@ -642,6 +652,7 @@ export default function DownloadPage() {
       if (timerRef.current) clearInterval(timerRef.current)
       socket.off('connect', connectRoom)
       socket.off('transfer-expired', onExpired)
+      socket.off('countdown-tick', onCountdownTick)
       socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-cancelled', onCancelled)
