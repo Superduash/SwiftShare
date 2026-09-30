@@ -7,7 +7,7 @@ export default {
     autoprefixer(),
     {
       postcssPlugin: 'postcss-swiftshare-cleanup',
-      Once(root) {
+      OnceExit(root) {
         root.walkDecls((decl) => {
           if ([
             '-webkit-text-size-adjust',
