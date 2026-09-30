@@ -6,13 +6,17 @@ import { readFileSync } from 'fs'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
-function themeRegistryPlugin() {
+function themeRegistryPlugin(siteUrl) {
   return {
     name: 'theme-registry-plugin',
     transformIndexHtml(html) {
       const registryRaw = readFileSync('./src/theme/theme-registry.json', 'utf-8')
       const minified = JSON.stringify(JSON.parse(registryRaw))
-      return html.replace('__THEME_REGISTRY__', () => minified)
+      let res = html.replace('__THEME_REGISTRY__', () => minified)
+      if (siteUrl) {
+        res = res.replaceAll('%VITE_SITE_URL%', siteUrl)
+      }
+      return res
     }
   }
 }
@@ -21,17 +25,21 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '')
   
+  const siteUrl = (env.VITE_SITE_URL || process.env.VITE_SITE_URL || 'https://swiftsharegg.vercel.app').replace(/\/+$/, '')
+  process.env.VITE_SITE_URL = siteUrl
+
   const backendTarget = (env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')
   const isAnalyze = process.env.ANALYZE === 'true'
   
   console.log('[Vite] Backend target:', backendTarget)
+  console.log('[Vite] Site URL:', siteUrl)
   console.log('[Vite] Mode:', mode)
   if (isAnalyze) console.log('[Vite] Bundle analysis enabled')
 
   return {
     plugins: [
       react(),
-      themeRegistryPlugin(),
+      themeRegistryPlugin(siteUrl),
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
