@@ -59,7 +59,7 @@ export default function SettingsPanel({ open, onClose }) {
     }
     clearTransfers()
     setConfirmClear(false)
-    toast.success('Transfer history cleared')
+    toast.success('Transfer history cleared', { id: 'clear-history' })
   }
 
   const isRandomTheme = settings.randomTheme !== false
@@ -244,7 +244,6 @@ export default function SettingsPanel({ open, onClose }) {
                           }}
                           onClick={() => {
                             pickTheme(opt.id)
-                            toast.success(`Random theme off — using ${opt.label}`)
                           }}
                           aria-label={`Switch to ${opt.label} theme`}
                         >

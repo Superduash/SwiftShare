@@ -4,6 +4,7 @@ import {
   FileText, Image, Video, FileArchive, File, FileSpreadsheet,
   Download, Eye, X, Music, FileCode, Presentation, Copy, Check
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { formatBytes } from '../utils/format'
 import { isFilePreviewable } from '../utils/preview'
 
@@ -88,10 +89,10 @@ function FileCardBase({
       copyToClipboard(file?.name || '').then(success => {
         if (success) {
           setCopiedName(true)
-          toast.success('Filename copied')
+          toast.success('Filename copied', { id: 'copy-filename' })
           setTimeout(() => setCopiedName(false), 2000)
         } else {
-          toast.error('Failed to copy')
+          toast.error('Failed to copy', { id: 'copy-filename' })
         }
       })
     })

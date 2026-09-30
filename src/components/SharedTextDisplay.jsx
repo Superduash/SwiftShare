@@ -42,13 +42,13 @@ function SharedTextDisplay({
       const success = await copyToClipboard(textContent)
       if (success) {
         setCopied(true)
-        toast.success('Text copied to clipboard')
+        toast.success('Text copied to clipboard', { id: 'copy-text' })
         setTimeout(() => setCopied(false), 2000)
       } else {
         throw new Error('Fallback failed')
       }
     } catch (err) {
-      toast.error('Failed to copy text')
+      toast.error('Failed to copy text', { id: 'copy-text' })
     }
   }, [isUnlocked, textContent])
 

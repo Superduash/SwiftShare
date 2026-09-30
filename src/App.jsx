@@ -5,8 +5,7 @@ import {
 } from 'react-router-dom'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { HelmetProvider, Helmet } from 'react-helmet-async'
-import { Toaster } from 'react-hot-toast'
-import toast from 'react-hot-toast'
+import toast, { Toaster, ToastBar, useToasterStore } from 'react-hot-toast'
 
 import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
@@ -282,6 +281,19 @@ function AppContent() {
   )
 }
 
+function ToastLimiter({ limit = 2 }) {
+  const { toasts } = useToasterStore()
+
+  useEffect(() => {
+    toasts
+      .filter((t) => t.visible)
+      .filter((_, i) => i >= limit)
+      .forEach((t) => toast.dismiss(t.id))
+  }, [toasts, limit])
+
+  return null
+}
+
 // ── Root ─────────────────────────────────────
 export default function App() {
   const [reducedMotion, setReducedMotion] = useState(() => {
@@ -349,6 +361,7 @@ export default function App() {
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <AppContent />
             </BrowserRouter>
+            <ToastLimiter limit={2} />
             <Toaster
               position="bottom-center"
               gutter={8}
@@ -357,7 +370,7 @@ export default function App() {
                 zIndex: 9999,
               }}
               toastOptions={{
-                duration: 3500,
+                duration: 2500,
                 style: {
                   background: 'var(--toast-bg)',
                   color: 'var(--toast-text)',
@@ -367,12 +380,32 @@ export default function App() {
                   fontSize: '13px',
                   fontWeight: '600',
                   maxWidth: '90vw',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  boxShadow: '0 10px 30px -5px rgba(0,0,0,0.25)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  cursor: 'pointer',
+                  userSelect: 'none',
                 },
-                success: { iconTheme: { primary: '#16A34A', secondary: 'var(--toast-bg)' } },
-                error: { iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' } },
+                success: {
+                  duration: 2200,
+                  iconTheme: { primary: '#16A34A', secondary: 'var(--toast-bg)' },
+                },
+                error: {
+                  duration: 3500,
+                  iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' },
+                },
               }}
-            />
+            >
+              {(t) => (
+                <div
+                  onClick={() => toast.dismiss(t.id)}
+                  title="Click to dismiss"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <ToastBar toast={t} />
+                </div>
+              )}
+            </Toaster>
           </TransferProvider>
         </ConnectionHealthProvider>
       </SocketProvider>

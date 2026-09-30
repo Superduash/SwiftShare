@@ -534,7 +534,7 @@ export default function SenderPage() {
     }
     const onCancelled = () => {
       if (!mountedRef.current) return
-      toast('Transfer Cancelled')
+      toast('Transfer Cancelled', { icon: '🚫', id: 'transfer-status' })
       setCancelled(true)
       patchCachedTransfer({ status: 'CANCELLED' })
       updateTransferStatus(normalizedCode, 'CANCELLED')
@@ -545,13 +545,13 @@ export default function SenderPage() {
       if (reason === 'burn') {
         // Claimant left; transfer was permanently removed.
         // Stay on SenderPage and show an inline "Transfer Removed" banner.
-        toast('Transfer Removed')
+        toast('Transfer Removed', { icon: '🗑️', id: 'transfer-status' })
         setBurnRemoved(true)
         patchCachedTransfer({ status: 'DELETED' })
         updateTransferStatus(normalizedCode, 'DELETED')
         requestActivityRefresh()
       } else {
-        toast('Transfer Removed')
+        toast('Transfer Removed', { icon: '🗑️', id: 'transfer-status' })
         setCancelled(true)
         patchCachedTransfer({ status: 'DELETED' })
         updateTransferStatus(normalizedCode, 'DELETED')
@@ -775,10 +775,10 @@ export default function SenderPage() {
     copyToClipboard(normalizedCode).then((success) => {
       if (success) {
         setCopiedCode(true)
-        toast.success('Code copied to clipboard')
+        toast.success('Code copied to clipboard', { id: 'copy-code' })
         setTimeout(() => setCopiedCode(false), 2000)
       } else {
-        toast.error('Failed to copy code')
+        toast.error('Failed to copy code', { id: 'copy-code' })
       }
     })
   }, [normalizedCode])
@@ -787,7 +787,7 @@ export default function SenderPage() {
     try {
       const success = await copyToClipboard(shareLink)
       if (success) {
-        toast.success('Share link copied')
+        toast.success('Share link copied', { id: 'copy-link' })
       }
     } catch {
       // Silently ignore
