@@ -60,15 +60,15 @@ export default function OverviewPanel({ range = '7d' }) {
     }
   }
 
-  const loadTimeseries = async (metric) => {
+  const loadTimeseries = async (metric, signal) => {
     setTimeseriesLoading(true)
     try {
       const res = await fetchTimeseries(metric, range)
-      setTimeseriesData(res?.series || [])
+      if (!signal.aborted) setTimeseriesData(res?.series || [])
     } catch (err) {
-      console.error('Failed to load timeseries', err)
+      if (!signal.aborted) console.error('Failed to load timeseries', err)
     } finally {
-      setTimeseriesLoading(false)
+      if (!signal.aborted) setTimeseriesLoading(false)
     }
   }
 
@@ -77,7 +77,9 @@ export default function OverviewPanel({ range = '7d' }) {
   }, [range])
 
   useEffect(() => {
-    loadTimeseries(activeMetric)
+    const controller = new AbortController()
+    loadTimeseries(activeMetric, controller.signal)
+    return () => controller.abort()
   }, [activeMetric, range])
 
   if (loading) {

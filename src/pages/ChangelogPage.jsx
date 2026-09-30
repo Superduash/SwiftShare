@@ -92,10 +92,10 @@ export default function ChangelogPage() {
               </div>
               <ul className="space-y-1.5 list-disc list-inside" style={{ color: 'var(--text-2)' }}>
                 <li>
-                  <strong>Three New Light Twins:</strong> Added <em>Lavender Mist</em> (daylight violet), <em>Forest Mist</em> (sunlit canopy), and <em>Ember</em> (coral-to-crimson magma).
+                  <strong>Three New Light Twins:</strong> Added <em>Lilac</em> (daylight violet), <em>Mint</em> (sunlit canopy), and <em>Ember</em> (coral-to-crimson magma).
                 </li>
                 <li>
-                  <strong>Deterministic 1-to-1 Dark/Light Pairs:</strong> Sunset ↔ Sunrise, Dark ↔ Light, Midnight ↔ Sakura, Lavender ↔ Lavender Mist, Forest ↔ Forest Mist, Volcanic ↔ Ember.
+                  <strong>Deterministic 1-to-1 Dark/Light Pairs:</strong> Sunset ↔ Sunrise, Dark ↔ Light, Midnight ↔ Sakura, Lavender ↔ Lilac, Forest ↔ Mint, Volcanic ↔ Ember.
                 </li>
                 <li>
                   <strong>Mode-Preserving Randomizer:</strong> When "Random on reload" is active, dark mode only picks from dark themes, and light mode only picks from light themes.

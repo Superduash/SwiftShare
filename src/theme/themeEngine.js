@@ -72,7 +72,11 @@ export function repair(prefs, registry) {
     }
   }
 
-  let themeObj = getThemeById(registry, prefs.theme)
+  const migratedThemeId = {
+    'lavender-mist': 'lilac',
+    'forest-mist': 'mint',
+  }[prefs.theme] || prefs.theme
+  let themeObj = getThemeById(registry, migratedThemeId)
   let mode = prefs.mode === 'light' ? 'light' : 'dark'
 
   if (!themeObj) {

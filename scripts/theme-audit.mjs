@@ -156,7 +156,7 @@ async function runAudit() {
     const failText2 = crText2Bg < 4.5
     const failAccentText = crAccentText < 4.5
     const failOnAccent = crOnAccent < 4.5
-    const isNew = ['lavender-mist', 'forest-mist', 'ember'].includes(id)
+    const isNew = ['lilac', 'mint', 'ember'].includes(id)
     const failBorder = crInputBorder < 3
 
     if (failText || failText2 || failAccentText || failOnAccent || (isNew && failBorder)) {

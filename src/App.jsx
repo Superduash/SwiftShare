@@ -40,7 +40,6 @@ class RouteErrorBoundary extends Component {
       // Auto reload ONCE when a chunk error occurs. Guard against infinite loop.
       if (!lastReload || now - parseInt(lastReload, 10) > 15000) {
         sessionStorage.setItem('swiftshare_last_chunk_reload', String(now))
-        window.location.reload()
         return
       } else {
         // Mark as already auto-reloaded in this error cycle so fallback UI knows
@@ -57,18 +56,6 @@ class RouteErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       if (this.state.isChunkError) {
-        if (!this.state.autoReloaded) {
-          const lastReload = sessionStorage.getItem('swiftshare_last_chunk_reload')
-          const now = Date.now()
-          if (!lastReload || now - parseInt(lastReload, 10) > 15000) {
-            return (
-              <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px', padding: '20px', textAlign: 'center' }}>
-                <p style={{ color: 'var(--text)', fontWeight: 600, fontSize: '1.1rem' }}>⚡ Updating SwiftShare...</p>
-                <p style={{ color: 'var(--text-3)', fontSize: '13px' }}>Reloading to fetch the latest version.</p>
-              </div>
-            )
-          }
-        }
         return (
           <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px', padding: '20px', textAlign: 'center' }}>
             <p style={{ color: 'var(--text)', fontWeight: 600, fontSize: '1.1rem' }}>⚡ Update Available</p>

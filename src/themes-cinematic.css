@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════
    SWIFTSHARE CINEMATIC THEMES v4.0 — 12-Theme System (Cinematic & New Light Twins)
    Defines: midnight, sakura, lavender, forest, volcanic,
-            lavender-mist (new), forest-mist (new), ember (new)
+            lilac (new), mint (new), ember (new)
    ═══════════════════════════════════════════════════════════════ */
 
 /* ═══ MIDNIGHT — Deep Space with Blinking Stars (Dark, Sakura Pair) ═══ */
@@ -170,7 +170,7 @@
   --theme-color: #F5F9FC;
 }
 
-/* ═══ LAVENDER — Cosmic Violet Nebula (Dark, Lavender Mist Pair) ═══ */
+/* ═══ LAVENDER — Cosmic Violet Nebula (Dark, Lilac Pair) ═══ */
 [data-theme="lavender"] {
   --bg: #0A0618;
   --bg-raised: #120E24;
@@ -253,7 +253,7 @@
   --theme-color: #0A0618;
 }
 
-/* ═══ FOREST — Bioluminescent Emerald (Dark, Forest Mist Pair) ═══ */
+/* ═══ FOREST — Bioluminescent Emerald (Dark, Mint Pair) ═══ */
 [data-theme="forest"] {
   --bg: #050C08;
   --bg-raised: #0A1610;
@@ -419,8 +419,8 @@
   --theme-color: #0D0505;
 }
 
-/* ═══ LAVENDER MIST — Daylight Violet (Light, Lavender Pair) ═══ */
-[data-theme="lavender-mist"] {
+/* ═══ LILAC — Daylight Violet (Light, Lavender Pair) ═══ */
+[data-theme="lilac"] {
   --bg: #F7F4FF;
   --bg-raised: #FFFFFF;
   --bg-sunken: #F0EBFD;
@@ -502,8 +502,8 @@
   --theme-color: #F7F4FF;
 }
 
-/* ═══ FOREST MIST — Sunlit Canopy (Light, Forest Pair) ═══ */
-[data-theme="forest-mist"] {
+/* ═══ MINT — Sunlit Canopy (Light, Forest Pair) ═══ */
+[data-theme="mint"] {
   --bg: #F1F8F3;
   --bg-raised: #FFFFFF;
   --bg-sunken: #E7F3EA;

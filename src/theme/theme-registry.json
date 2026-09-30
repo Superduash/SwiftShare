@@ -35,7 +35,7 @@
       "id": "lavender",
       "label": "Lavender",
       "mode": "dark",
-      "pair": "lavender-mist",
+      "pair": "lilac",
       "scene": "lavender",
       "boot": { "bg": "#0A0618", "text": "#F0ECFF", "themeColor": "#0A0618" },
       "swatch": ["#0A0618", "#161030", "#A78BFA"]
@@ -44,7 +44,7 @@
       "id": "forest",
       "label": "Forest",
       "mode": "dark",
-      "pair": "forest-mist",
+      "pair": "mint",
       "scene": "forest",
       "boot": { "bg": "#050C08", "text": "#DCF5E8", "themeColor": "#050C08" },
       "swatch": ["#050C08", "#0A1610", "#00D87C"]
@@ -86,8 +86,8 @@
       "swatch": ["#F5F9FC", "#FFFFFF", "#E91E63"]
     },
     {
-      "id": "lavender-mist",
-      "label": "Lavender Mist",
+      "id": "lilac",
+      "label": "Lilac",
       "mode": "light",
       "pair": "lavender",
       "scene": "orbs-soft",
@@ -95,8 +95,8 @@
       "swatch": ["#F7F4FF", "#FFFFFF", "#6A44E0"]
     },
     {
-      "id": "forest-mist",
-      "label": "Forest Mist",
+      "id": "mint",
+      "label": "Mint",
       "mode": "light",
       "pair": "forest",
       "scene": "motes",

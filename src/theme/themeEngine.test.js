@@ -179,4 +179,9 @@ describe('Theme Engine & Registry Unit Tests', () => {
     expect(adopted.mode).toBe('light')
     expect(adopted.random).toBe(true)
   })
+
+  it('migrates the previous light theme ids to their shorter names', () => {
+    expect(repair({ theme: 'lavender-mist', mode: 'light' }, registry).theme).toBe('lilac')
+    expect(repair({ theme: 'forest-mist', mode: 'light' }, registry).theme).toBe('mint')
+  })
 })

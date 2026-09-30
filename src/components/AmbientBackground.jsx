@@ -565,7 +565,7 @@ const SunsetScene = memo(function SunsetScene() {
   )
 })
 
-/* ── ORBS-SOFT — Lavender Mist (Light, soft violet bokeh orbs) ── */
+/* ── ORBS-SOFT — Lilac (Light, soft violet bokeh orbs) ── */
 const OrbsSoftScene = memo(function OrbsSoftScene() {
   const isMobile = useIsMobile()
   const orbs = useMemo(() => {
@@ -610,7 +610,7 @@ const OrbsSoftScene = memo(function OrbsSoftScene() {
   )
 })
 
-/* ── MOTES — Forest Mist (Light, pollen motes & faint sun rays) ── */
+/* ── MOTES — Mint (Light, pollen motes & faint sun rays) ── */
 const MotesScene = memo(function MotesScene() {
   const isMobile = useIsMobile()
   const motes = useMemo(() => {
@@ -697,9 +697,9 @@ const SCENES = {
   dark: DarkScene,
   light: LightScene,
   // 3 New Light Twins (by id and scene name)
-  'lavender-mist': OrbsSoftScene,
+  lilac: OrbsSoftScene,
   'orbs-soft': OrbsSoftScene,
-  'forest-mist': MotesScene,
+  mint: MotesScene,
   motes: MotesScene,
   ember: EmbersDayScene,
   'embers-day': EmbersDayScene,
