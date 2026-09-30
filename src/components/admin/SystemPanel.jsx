@@ -33,8 +33,6 @@ export default function SystemPanel() {
 
   useEffect(() => {
     loadHealth()
-    const timer = setInterval(loadHealth, 15000)
-    return () => clearInterval(timer)
   }, [])
 
   if (loading && !health) {

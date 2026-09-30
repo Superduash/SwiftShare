@@ -125,17 +125,6 @@ export default function AdminDashboard() {
     return () => clearInterval(timer)
   }, [lastUpdated])
 
-  // Auto-refresh every 30s ONLY while tab is visible
-  useEffect(() => {
-    const autoRefreshTimer = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        handleManualRefresh()
-      }
-    }, 30000)
-
-    return () => clearInterval(autoRefreshTimer)
-  }, [])
-
   // Close dropdown menus on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
