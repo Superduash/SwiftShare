@@ -228,7 +228,8 @@ export default function SettingsPanel({ open, onClose }) {
                     const lightTheme = themes.find(t => t.id === darkTheme.pair) || darkTheme
                     return [darkTheme, lightTheme].map(opt => {
                       const isActive = theme === opt.id
-                      const checkmarkColor = opt.mode === 'light' ? '#111827' : '#FFFFFF'
+                      const mainColor = opt.swatch[2] || opt.swatch[0]
+                      const checkColor = (opt.id === 'dark' || mainColor === '#FAFAFA' || mainColor === '#FFFFFF') ? '#000000' : '#FFFFFF'
 
                       return (
                         <button
@@ -247,17 +248,16 @@ export default function SettingsPanel({ open, onClose }) {
                           }}
                           aria-label={`Switch to ${opt.label} theme`}
                         >
-                          {/* 3-color swatch */}
-                          <div className="relative w-7 h-7 rounded-lg overflow-hidden shrink-0 flex items-center justify-center border" style={{ borderColor: 'var(--border)' }}>
-                            <div className="absolute inset-0 flex">
-                              <div className="w-1/3 h-full" style={{ background: opt.swatch[0] }} />
-                              <div className="w-1/3 h-full" style={{ background: opt.swatch[1] }} />
-                              <div className="w-1/3 h-full" style={{ background: opt.swatch[2] }} />
-                            </div>
+                          {/* Main color swatch box */}
+                          <div
+                            className="relative w-7 h-7 rounded-lg shrink-0 flex items-center justify-center border shadow-xs"
+                            style={{
+                              background: mainColor,
+                              borderColor: 'var(--border)',
+                            }}
+                          >
                             {isActive && (
-                              <div className="absolute inset-0 bg-black/25 flex items-center justify-center" style={{ color: checkmarkColor }}>
-                                <Check size={13} strokeWidth={3.5} />
-                              </div>
+                              <Check size={14} strokeWidth={3.5} style={{ color: checkColor }} />
                             )}
                           </div>
 
