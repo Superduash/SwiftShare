@@ -607,6 +607,27 @@ a { color: inherit; text-decoration: none; }
   border-radius: 4px;
 }
 
+/* Universal toggle switch pill geometry protection (iOS/Android/Desktop) */
+.w-10.h-6.rounded-full {
+  width: 40px !important;
+  height: 24px !important;
+  min-width: 40px !important;
+  min-height: 24px !important;
+  max-width: 40px !important;
+  max-height: 24px !important;
+  border-radius: 9999px !important;
+  box-sizing: border-box !important;
+}
+
+.w-10.h-6.rounded-full > .w-4.h-4.rounded-full {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  border-radius: 9999px !important;
+  box-sizing: border-box !important;
+}
+
 /* Logo hover glow effect - Base (overridden by theme-specific styles) */
 .logo-icon {
   /* Premium spring easing for natural feel */

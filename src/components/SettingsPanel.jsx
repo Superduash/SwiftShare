@@ -218,7 +218,12 @@ export default function SettingsPanel({ open, onClose }) {
                     border: `1.5px solid ${random ? 'var(--accent)' : 'var(--border)'}`,
                   }}
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setRandom(!random)}
+                    className="w-full flex items-center justify-between mb-2 text-left cursor-pointer"
+                    aria-label="Toggle random theme"
+                  >
                     <div className="flex items-center gap-2.5">
                       <div
                         className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
@@ -235,13 +240,8 @@ export default function SettingsPanel({ open, onClose }) {
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={random}
-                      aria-label="Toggle random theme"
-                      onClick={() => setRandom(!random)}
-                      className="w-10 h-6 rounded-full relative transition-all shrink-0 cursor-pointer"
+                    <div
+                      className="w-10 h-6 rounded-full relative transition-all shrink-0"
                       style={{
                         background: random ? 'var(--accent)' : 'var(--border-strong)',
                       }}
@@ -253,8 +253,8 @@ export default function SettingsPanel({ open, onClose }) {
                           left: random ? '20px' : '4px',
                         }}
                       />
-                    </button>
-                  </div>
+                    </div>
+                  </button>
                   <p className="text-[11px] mb-2.5 leading-snug" style={{ color: 'var(--text-3)' }}>
                     Picks a new {mode} theme each time you open SwiftShare.
                   </p>
