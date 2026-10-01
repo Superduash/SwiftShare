@@ -79,7 +79,7 @@
   --logo-glow: rgba(58, 136, 255, 0.20);
   --scrim: rgba(0, 0, 0, 0.80);
   --selection: rgba(58, 136, 255, 0.25);
-  --scrollbar-thumb: #142840;
+  --scrollbar-thumb: rgba(58, 136, 255, 0.45);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px #3A88FF;
   --particle-1: rgba(160, 210, 255, 0.95);
   --particle-2: rgba(58, 136, 255, 0.70);
@@ -245,7 +245,7 @@
   --logo-glow: rgba(120, 88, 216, 0.35);
   --scrim: rgba(10, 6, 24, 0.75);
   --selection: rgba(167, 139, 250, 0.25);
-  --scrollbar-thumb: #302860;
+  --scrollbar-thumb: rgba(167, 139, 250, 0.45);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px #A78BFA;
   --particle-1: rgba(167, 139, 250, 0.78);
   --particle-2: rgba(196, 165, 253, 0.68);
@@ -328,7 +328,7 @@
   --logo-glow: rgba(0, 160, 96, 0.30);
   --scrim: rgba(5, 12, 8, 0.75);
   --selection: rgba(0, 216, 124, 0.25);
-  --scrollbar-thumb: #224036;
+  --scrollbar-thumb: rgba(52, 211, 153, 0.45);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px #00D87C;
   --particle-1: rgba(52, 211, 153, 0.95);
   --particle-2: rgba(110, 231, 183, 0.85);
@@ -411,7 +411,7 @@
   --logo-glow: rgba(220, 38, 38, 0.40);
   --scrim: rgba(13, 5, 5, 0.75);
   --selection: rgba(220, 38, 38, 0.25);
-  --scrollbar-thumb: #4A2020;
+  --scrollbar-thumb: rgba(239, 68, 68, 0.45);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px #DC2626;
   --particle-1: rgba(255, 34, 34, 0.85);
   --particle-2: rgba(255, 80, 32, 0.75);

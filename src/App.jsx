@@ -142,7 +142,6 @@ function PageWrapper({ children }) {
       animate="animate"
       exit="exit"
       style={{
-        transform: 'translateZ(0)',
         willChange: 'opacity',
       }}
     >
