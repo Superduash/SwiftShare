@@ -106,6 +106,21 @@ const ChangelogPage = lazy(() => import('./pages/ChangelogPage'))
 
 import { trackPageView } from './utils/analytics'
 
+// ── Scroll To Top On Route Change ────────────
+function ScrollToTop() {
+  const { pathname, search } = useLocation()
+  useLayoutEffect(() => {
+    try {
+      window.scrollTo(0, 0)
+      if (document.documentElement) document.documentElement.scrollTop = 0
+      if (document.body) document.body.scrollTop = 0
+    } catch {
+      window.scrollTo(0, 0)
+    }
+  }, [pathname, search])
+  return null
+}
+
 // ── Route Tracker for Analytics ──────────────
 function RouteTracker() {
   const location = useLocation()
@@ -261,6 +276,7 @@ function AppContent() {
 
   return (
     <>
+      <ScrollToTop />
       <RouteTracker />
       {!isAdmin && <AmbientBackground />}
       <ConnectionBanner />
