@@ -20,7 +20,7 @@
       "pair": "light",
       "scene": "dark",
       "boot": { "bg": "#09090B", "text": "#FAFAFA", "themeColor": "#09090B" },
-      "swatch": ["#09090B", "#161618", "#FAFAFA"]
+      "swatch": ["#09090B", "#161618", "#18181B"]
     },
     {
       "id": "midnight",
@@ -74,7 +74,7 @@
       "pair": "dark",
       "scene": "light",
       "boot": { "bg": "#FAFAFA", "text": "#09090B", "themeColor": "#FAFAFA" },
-      "swatch": ["#FAFAFA", "#FFFFFF", "#18181B"]
+      "swatch": ["#FAFAFA", "#FFFFFF", "#FFFFFF"]
     },
     {
       "id": "sakura",
