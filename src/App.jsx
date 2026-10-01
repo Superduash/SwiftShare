@@ -120,11 +120,7 @@ const pageVariants = {
   initial: { opacity: 0 },
   animate: {
     opacity: 1,
-    transition: { duration: 0.15, ease: 'easeOut' }
-  },
-  exit: {
-    opacity: 0,
-    transition: { duration: 0.08, ease: 'easeIn' }
+    transition: { duration: 0.16, ease: 'easeOut' }
   },
 }
 
@@ -140,7 +136,6 @@ function PageWrapper({ children }) {
       variants={pageVariants}
       initial="initial"
       animate="animate"
-      exit="exit"
       style={{
         willChange: 'opacity',
       }}
@@ -156,48 +151,57 @@ function LegacyShareRedirect() {
   return <Navigate to={`/download/${encodeURIComponent(code || '')}`} replace />
 }
 
+function RouteLoadingFallback() {
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{ background: 'var(--bg)' }}
+    >
+      <div
+        className="w-7 h-7 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin"
+        aria-label="Loading page..."
+      />
+    </div>
+  )
+}
+
 // ── Animated routes ──────────────────────────
 function AnimatedRoutes() {
-  const location = useLocation()
   return (
-    <>
-      <RouteErrorBoundary>
-        <Suspense fallback={<LoadingScreen message="Loading..." />}>
-          <AnimatePresence mode="wait">
-            <Routes key={location.pathname} location={location}>
-              <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
-              <Route path="/sender/:code" element={<PageWrapper><SenderPage /></PageWrapper>} />
-              <Route path="/join" element={<PageWrapper><JoinPage /></PageWrapper>} />
-              <Route path="/g/:code" element={<LegacyShareRedirect />} />
-              <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
-              <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
-              
-              {/* Informational & SEO Content Pages */}
-              <Route path="/how-it-works" element={<PageWrapper><HowItWorksPage /></PageWrapper>} />
-              <Route path="/send-files-without-signup" element={<PageWrapper><NoSignupPage /></PageWrapper>} />
-              <Route path="/share-files-with-qr-code" element={<PageWrapper><QrSharePage /></PageWrapper>} />
-              <Route path="/self-destructing-file-sharing" element={<PageWrapper><SelfDestructPage /></PageWrapper>} />
-              <Route path="/password-protected-file-transfer" element={<PageWrapper><PasswordProtectedPage /></PageWrapper>} />
-              <Route path="/share-text-and-code-snippets" element={<PageWrapper><SnippetSharePage /></PageWrapper>} />
-              <Route path="/airdrop-alternative" element={<PageWrapper><AirDropAlternativePage /></PageWrapper>} />
-              <Route path="/security" element={<PageWrapper><SecurityPage /></PageWrapper>} />
-              <Route path="/faq" element={<PageWrapper><FaqPage /></PageWrapper>} />
-              <Route path="/privacy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
-              <Route path="/terms" element={<PageWrapper><TermsPage /></PageWrapper>} />
-              <Route path="/report-abuse" element={<PageWrapper><ReportAbusePage /></PageWrapper>} />
-              <Route path="/changelog" element={<PageWrapper><ChangelogPage /></PageWrapper>} />
+    <RouteErrorBoundary>
+      <Suspense fallback={<RouteLoadingFallback />}>
+        <Routes>
+          <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
+          <Route path="/sender/:code" element={<PageWrapper><SenderPage /></PageWrapper>} />
+          <Route path="/join" element={<PageWrapper><JoinPage /></PageWrapper>} />
+          <Route path="/g/:code" element={<LegacyShareRedirect />} />
+          <Route path="/download/:code" element={<PageWrapper><DownloadPage /></PageWrapper>} />
+          <Route path="/expired" element={<PageWrapper><ExpiredPage /></PageWrapper>} />
+          
+          {/* Informational & SEO Content Pages */}
+          <Route path="/how-it-works" element={<PageWrapper><HowItWorksPage /></PageWrapper>} />
+          <Route path="/send-files-without-signup" element={<PageWrapper><NoSignupPage /></PageWrapper>} />
+          <Route path="/share-files-with-qr-code" element={<PageWrapper><QrSharePage /></PageWrapper>} />
+          <Route path="/self-destructing-file-sharing" element={<PageWrapper><SelfDestructPage /></PageWrapper>} />
+          <Route path="/password-protected-file-transfer" element={<PageWrapper><PasswordProtectedPage /></PageWrapper>} />
+          <Route path="/share-text-and-code-snippets" element={<PageWrapper><SnippetSharePage /></PageWrapper>} />
+          <Route path="/airdrop-alternative" element={<PageWrapper><AirDropAlternativePage /></PageWrapper>} />
+          <Route path="/security" element={<PageWrapper><SecurityPage /></PageWrapper>} />
+          <Route path="/faq" element={<PageWrapper><FaqPage /></PageWrapper>} />
+          <Route path="/privacy" element={<PageWrapper><PrivacyPage /></PageWrapper>} />
+          <Route path="/terms" element={<PageWrapper><TermsPage /></PageWrapper>} />
+          <Route path="/report-abuse" element={<PageWrapper><ReportAbusePage /></PageWrapper>} />
+          <Route path="/changelog" element={<PageWrapper><ChangelogPage /></PageWrapper>} />
 
-              {/* Admin Panel */}
-              <Route path="/admin" element={<PageWrapper><AdminLogin /></PageWrapper>} />
-              <Route path="/admin/*" element={<PageWrapper><AdminDashboard /></PageWrapper>} />
-              
-              {/* 404 Fallback */}
-              <Route path="*" element={<PageWrapper><NotFoundPage /></PageWrapper>} />
-            </Routes>
-          </AnimatePresence>
-        </Suspense>
-      </RouteErrorBoundary>
-    </>
+          {/* Admin Panel */}
+          <Route path="/admin" element={<PageWrapper><AdminLogin /></PageWrapper>} />
+          <Route path="/admin/*" element={<PageWrapper><AdminDashboard /></PageWrapper>} />
+          
+          {/* 404 Fallback */}
+          <Route path="*" element={<PageWrapper><NotFoundPage /></PageWrapper>} />
+        </Routes>
+      </Suspense>
+    </RouteErrorBoundary>
   )
 }
 

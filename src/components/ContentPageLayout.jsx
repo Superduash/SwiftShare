@@ -37,12 +37,7 @@ export default function ContentPageLayout({
           </div>
 
           {/* Header */}
-          <motion.header
-            className="mb-10 text-left"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-          >
+          <header className="mb-10 text-left">
             {badge && (
               <span
                 className="inline-block text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3"
@@ -57,15 +52,12 @@ export default function ContentPageLayout({
             <p className="text-sm sm:text-base leading-relaxed max-w-2xl" style={{ color: 'var(--text-2)' }}>
               {description}
             </p>
-          </motion.header>
+          </header>
 
           {/* Main Content Body */}
-          <motion.article
+          <article
             className="space-y-8 text-sm sm:text-base leading-relaxed"
             style={{ color: 'var(--text)' }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.05 }}
           >
             {children}
 
@@ -99,7 +91,7 @@ export default function ContentPageLayout({
                 </Link>
               </div>
             </div>
-          </motion.article>
+          </article>
         </div>
       </main>
 
