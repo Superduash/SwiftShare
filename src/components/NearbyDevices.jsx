@@ -177,14 +177,14 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
     if (!mountedRef.current) return
 
     const now = Date.now()
-    if (now - lastPingRef.current < MIN_REFRESH_INTERVAL) return
+    if (!isManual && now - lastPingRef.current < MIN_REFRESH_INTERVAL) return
     lastPingRef.current = now
 
     if (isManual) {
       setRefreshing(true)
     }
 
-    // 1. Emit via socket
+    // 1. Emit via socket with force flag
     if (socket && (socket.connected || isConnected)) {
       try {
         socket.emit('nearby-ping', { code: normalizedTransferCode || undefined, force: isManual })
@@ -198,6 +198,13 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
       const res = await getNearbyDevices(socketId)
       if (res && Array.isArray(res.devices)) {
         applyDevices(res.devices)
+        if (isManual) {
+          if (res.devices.length > 0) {
+            toast.success(`Found ${res.devices.length} local transfer${res.devices.length > 1 ? 's' : ''}!`, { id: 'nearby-sync', duration: 1800 })
+          } else {
+            toast('No active local transfers found', { id: 'nearby-sync', icon: '📡', duration: 1600 })
+          }
+        }
       }
     } catch (err) {
       if (mountedRef.current && devices.length === 0) {
@@ -340,11 +347,11 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
           <div className="flex items-center gap-2">
             <Wifi size={14} style={{ color: 'var(--text-4)' }} />
             <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
-              Transfers on Local Wi-Fi
+              Local Wi-Fi &amp; Hotspot Transfers
             </h3>
           </div>
           <button 
-            className="btn-icon !w-6 !h-6"
+            className="btn-icon !w-6 !h-6 cursor-pointer"
             onClick={handleManualRefresh}
             disabled={refreshing}
             title="Scan for local transfers"
@@ -365,9 +372,9 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
             >
               <Wifi size={18} style={{ color: 'var(--accent)' }} />
             </div>
-            <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>No local Wi-Fi transfers detected</p>
-            <p className="text-[11px] leading-relaxed max-w-[280px]" style={{ color: 'var(--text-4)' }}>
-              When a device on your Wi-Fi network shares a file with nearby discovery enabled, it will appear here instantly.
+            <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>No local transfers detected</p>
+            <p className="text-[11px] leading-relaxed max-w-[300px]" style={{ color: 'var(--text-4)' }}>
+              When a device on your Wi-Fi or mobile hotspot shares a file with nearby discovery enabled, it will appear here. Tap refresh anytime to scan.
             </p>
           </div>
         </div>
@@ -382,7 +389,7 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
         <div className="flex items-center gap-2">
           <Wifi size={14} style={{ color: 'var(--success)' }} />
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
-            Transfers on Local Wi-Fi
+            Local Wi-Fi &amp; Hotspot Transfers
           </h3>
           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
             {devices.length} available
@@ -395,7 +402,7 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
             </span>
           )}
           <button 
-            className="btn-icon !w-6 !h-6"
+            className="btn-icon !w-6 !h-6 cursor-pointer"
             onClick={handleManualRefresh}
             disabled={refreshing}
             title="Refresh nearby transfers"

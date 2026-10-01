@@ -1,5 +1,5 @@
 <p align="center">
- <img src="https://capsule-render.vercel.app/api?type=waving&height=280&color=0:0f172a,40:1e1040,70:4c1d95,100:06b6d4&text=SwiftShare&fontSize=72&fontColor=ffffff&animation=fadeIn&fontAlignY=42&desc=Share%20Files%20Instantly%20Across%20Any%20Device&descAlignY=62&descColor=c4b5fd&descSize=20&stroke=7c3aed&strokeWidth=2"/>
+  <img src="https://capsule-render.vercel.app/api?type=waving&height=280&color=0:0f172a,40:1e1040,70:4c1d95,100:06b6d4&text=SwiftShare&fontSize=72&fontColor=ffffff&animation=fadeIn&fontAlignY=42&desc=Share%20Files%20Instantly%20Across%20Any%20Device&descAlignY=62&descColor=c4b5fd&descSize=20&stroke=7c3aed&strokeWidth=2"/>
 </p>
 
 <p align="center">
@@ -15,7 +15,9 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-v0.8.1-7c3aed?style=flat-square"/>
   <img src="https://img.shields.io/badge/React_18-61DAFB?style=flat-square&logo=react&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Vite_8-646CFF?style=flat-square&logo=vite&logoColor=white"/>
   <img src="https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=nodedotjs&logoColor=white"/>
   <img src="https://img.shields.io/badge/Socket.IO-010101?style=flat-square&logo=socketdotio&logoColor=white"/>
   <img src="https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white"/>
@@ -28,7 +30,7 @@
 
 <p align="center">
   <b>No accounts. No installs. No nonsense.</b><br/>
-  Pick a file → get a 6-character code → done.<br/>
+  Pick a file or paste text → get a 6-character code or QR → done.<br/>
   Your recipient has it in seconds, on any device, anywhere.
 </p>
 
@@ -46,15 +48,15 @@
 
 ## The problem it solves
 
-You need to get a file from your phone to your laptop. Or send a PDF to a client who isn't on Slack. Or hand off a folder of screenshots to someone standing next to you.
+You need to get a file from your phone to your laptop. Or send a PDF to a client who isn't on Slack. Or hand off a folder of screenshots or a text snippet to someone standing next to you.
 
 The existing options make you:
 - Create an account
-- Install an app
-- Pay for storage
-- Trust that your file isn't sitting on a server forever
+- Install a heavy app
+- Pay for persistent storage
+- Trust that your file isn't sitting on an unmonitored server forever
 
-**SwiftShare does none of that.** It's closer to "airdrop for the web" — ephemeral, instant, and gone when you want it gone.
+**SwiftShare does none of that.** It's closer to "airdrop for the web" — ephemeral, instant, peer-aware, and gone when you want it gone.
 
 <br/>
 
@@ -66,37 +68,55 @@ The existing options make you:
 
 | | |
 |---|---|
-| **6-character codes** | Short enough to read over the phone, unique enough to never collide |
-| **QR codes** | Generated instantly — point your camera and you're on the receive page |
-| **Shareable links** | Full URL for anything with a browser — paste and go |
-| **Multi-file uploads** | Drag and drop up to 10 files, delivered as a single ZIP on the other end |
-| **In-browser previews** | Images, video, audio, PDFs, and source code render before anyone downloads |
+| **6-character codes** | Short, unambiguous alphabet (excludes `0`, `O`, `1`, `I`, `L`) — easy to read over the phone |
+| **Inbuilt QR Scanner** | Native camera barcode detection with `jsQR` engine fallback and direct screenshot/photo QR upload |
+| **Shareable links** | Instant full URLs with click-to-copy and native Web Share API support |
+| **Multi-file uploads** | Drag and drop up to 10 files (up to 1 GB), streamed directly to storage |
+| **Text & snippet sharing** | Share formatted notes, passwords, and code snippets with syntax highlighting |
+| **In-browser previews** | Images, videos, audio, PDFs, and code render directly before downloading |
+
+### 📡 Local Wi-Fi & Hotspot discovery
+
+| | |
+|---|---|
+| **Zero-config peer discovery** | Detects active transfers on the same local network automatically |
+| **Wi-Fi & Mobile Hotspot support** | Dual-stack matching supports IPv4 (`/24`) and IPv6 carrier tethering (`/64` prefix) |
+| **Instant manual refresh** | One-tap manual sync polls REST and WebSocket channels simultaneously for instant matching |
+| **Real-time broadcast** | New transfers broadcast instantly to connected peers on the same subnet room |
 
 ### 🛡️ Privacy controls
 
 | | |
 |---|---|
-| **Burn after download** | Files self-destruct the instant they're claimed. One recipient, no exceptions |
-| **Password protection** | bcrypt-hashed, brute-force locked. Only people with the password get through |
-| **Auto-expiry** | 10 minutes, 1 hour, or 5 hours. Nothing sits around indefinitely |
-| **Ownership tokens** | Extend or delete your transfer from the same browser only — no login required |
+| **Burn after download** | Files self-destruct the instant they're claimed. Atomic MongoDB gate prevents race conditions |
+| **Password protection** | bcrypt-hashed, brute-force protected. Only recipients with the password get through |
+| **Auto-expiry** | 10 minutes, 1 hour, or 5 hours. Automatic cron purge removes expired data from storage and database |
+| **Ownership tokens** | UUID token stored in client storage lets senders extend or cancel transfers without login |
 
 ### ⚡ Real-time everything
 
 | | |
 |---|---|
-| **Live upload progress** | Driven from raw XHR byte events, throttled through `requestAnimationFrame` — no fake spinners |
-| **Instant download alerts** | WebSocket push the moment someone downloads. No polling, no page refresh |
-| **Live transfer stats** | Download count and view count update in the sender page as they happen |
-| **Network-aware retries** | Distinguishes a dead connection from a slow one. Backs off and retries automatically |
+| **Live upload progress** | Driven from raw XHR byte events, smoothed via EMA and `requestAnimationFrame` — zero fake progress |
+| **Instant download alerts** | WebSocket push notifications trigger the moment someone downloads |
+| **Live countdown sync** | Synchronized countdown timer with server time reconciliation |
+| **Network-aware retries** | Exponential backoff for network drops, cold starts, and mobile Wi-Fi/cellular handoffs |
 
-### 🌐 Works everywhere
+### 🎨 12-Theme Paired System
+
+| Mode | Theme Options |
+|---|---|
+| **Dark Modes (6)** | **Dark Velocity** (Default Void/Cyan), **Cyberpunk** (Neon Amber), **Sunset** (Warm Glow), **Tokyo Glow** (Neon Magenta), **Midnight** (Deep Indigo), **Forest** (Emerald Night) |
+| **Light Modes (6)** | **Crisp Minimal** (Pure Monochrome), **Solar Glow** (Sunlight Gold), **Sunset Glow** (Peachy Dusk), **Tokyo Day** (Cool Morning), **Clean Slate** (Slate Ice), **Botanical** (Sage Garden) |
+| **Theme Pairing** | Seamless dark/light toggle switches between corresponding pairs while preserving custom styling |
+
+### 🌐 Works everywhere & Admin Dashboard
 
 | | |
 |---|---|
-| **Installable PWA** | Add to home screen on iOS and Android. Full offline shell, native feel |
-| **Responsive design** | The same experience on a 6-inch phone as a 4K monitor |
-| **Ambient themes** | Sakura, Lavender, Midnight, Forest, Volcanic — particle effects, glassmorphism, dark/light |
+| **Installable PWA** | Add to home screen on iOS/Android. Custom splash, status bar integration, and offline caching |
+| **Responsive design** | Tailored UX for everything from a 5.4-inch mobile screen to 4K desktop displays |
+| **Admin Analytics** | Real-time dashboard with granular 24h, 7d, 30d, 90d, and All windows, conversion charts, and live visitor counter |
 
 <br/>
 
@@ -120,17 +140,17 @@ The existing options make you:
                                                                                    │
                                                                       on complete  │
                                                                                    ▼
-                                                                         ┌──────────────────┐
-                                                                         │   MongoDB Atlas  │
-                                                                         │ (transfer meta,  │
-                                                                         │  expiry, stats)  │
-                                                                         └────────┬─────────┘
-                                                                                  │
+                                                                          ┌──────────────────┐
+                                                                          │   MongoDB Atlas  │
+                                                                          │ (transfer meta,  │
+                                                                          │  expiry, stats)  │
+                                                                          └────────┬─────────┘
+                                                                                   │
                                                                   Socket.IO push  │
-                                                                                  ▼
-                                                                         ┌──────────────────┐
+                                                                                   ▼
+                                                                          ┌──────────────────┐
     ┌─────────────┐    enters code    ┌─────────────┐                    │   Sender page    │
-    │  Recipient  │ ────────────────> │  Download   | <───────────────── │  (live stats,    │
+    │  Recipient  │ ────────────────> │  Download   │ <───────────────── │  (live stats,    │
     │             │   or scans QR     │    page     │      download      │   extend/delete) │
     └─────────────┘                   └─────────────┘      complete      └──────────────────┘
 ```
@@ -145,28 +165,29 @@ The existing options make you:
 | Technology | Role |
 |---|---|
 | **React 18** | UI — concurrent rendering, Suspense-based lazy loading |
-| **Vite** | Build tooling — sub-second HMR, tree-shaking, PWA plugin |
+| **Vite 8** | Build tooling — sub-second HMR, tree-shaking, PWA plugin |
 | **Framer Motion** | Animations — spring physics, layout transitions, ambient particle effects |
 | **Socket.IO client** | Real-time — upload progress, download notifications, live stats |
-| **Tailwind CSS** | Utility-first styling with custom CSS variable theme system |
-| **react-qr-code** | Client-side QR rendering — no server round-trip |
+| **Tailwind CSS** | Utility-first styling with custom 12-theme CSS variable engine |
+| **Native Barcode / jsQR** | Inbuilt camera QR scanning with image file fallback |
 
 ### Backend
 | Technology | Role |
 |---|---|
-| **Node.js + Express** | HTTP server — streaming uploads, REST API |
+| **Node.js 22 + Express 5** | HTTP server — streaming uploads, REST API, admin analytics |
 | **Busboy** | Multipart parsing — zero temp-file writes, direct pipe to R2 |
-| **Socket.IO** | WebSocket server — transfer rooms, real-time events |
-| **MongoDB + Mongoose** | Transfer metadata, activity logs, expiry tracking |
-| **Cloudflare R2** | File storage — S3-compatible, no egress fees |
+| **Socket.IO** | WebSocket server — transfer rooms, subnet discovery, real-time events |
+| **MongoDB + Mongoose** | Transfer metadata, time-series analytics, TTL indexing |
+| **Cloudflare R2** | File storage — S3-compatible, zero egress fees |
+| **Upstash Redis** | Distributed rate limiting across server instances |
 | **Sentry** | Error tracking and performance monitoring |
 
 ### Infrastructure
 | | |
 |---|---|
-| **Frontend** | Vercel (edge-cached static assets, global CDN) |
-| **Backend** | Render (containerised Node.js, always-on with keep-alive pings) |
-| **Database** | MongoDB Atlas M0 (free tier, auto-managed) |
+| **Frontend** | Vercel (edge-cached static assets, global CDN, pre-rendered SEO routes) |
+| **Backend** | Render / Railway (containerised Node.js, keep-alive monitoring) |
+| **Database** | MongoDB Atlas (auto-managed replica sets) |
 | **Storage** | Cloudflare R2 (zero egress cost, S3-compatible API) |
 
 <br/>
@@ -175,9 +196,11 @@ The existing options make you:
 
 ## A few things that weren't obvious to build
 
-**Upload progress that's actually real** — most apps fake this with a timer or use `axios` which gives you total-bytes, not transmitted-bytes. SwiftShare hooks into raw `xhr.upload` progress events and smooths them through an exponential moving average before handing them to `requestAnimationFrame`, so the bar moves at exactly the speed your bytes are moving — even on a 2G connection.
+**Upload progress that's actually real** — most apps fake this with a timer or use `axios` which gives you total-bytes, not transmitted-bytes. SwiftShare hooks into raw `xhr.upload` progress events and smooths them through an exponential moving average before handing them to `requestAnimationFrame`, so the bar moves at exactly the speed your bytes are moving — even on a flaky connection.
 
-**Burn-after-download without race conditions** — if two people open the download link simultaneously (which happens), naive implementations let both through. SwiftShare uses MongoDB's `findOneAndUpdate` with a `burnClaimed: false` filter as an atomic gate — exactly one request wins, the other gets a 410 immediately.
+**Dual-stack Hotspot & Wi-Fi Discovery** — local device discovery traditionally fails on mobile hotspots because mobile carriers allocate IPv6 addresses to tethered devices. SwiftShare extracts the `/64` IPv6 prefix (and `/24` IPv4 octets) to reliably pair devices connected over phone hotspots and local networks.
+
+**Burn-after-download without race conditions** — if two people open the download link simultaneously, naive implementations let both through. SwiftShare uses MongoDB's `findOneAndUpdate` with an atomic claim filter — exactly one request wins, the other gets a 410 immediately.
 
 **PWA that doesn't break uploads** — service workers intercept all fetch requests by default, including multipart file uploads to the backend. Large requests intercepted by a service worker can fail silently or hit memory limits. The SwiftShare service worker explicitly bypasses any non-GET request, so uploads always go straight to the network with no interception.
 
@@ -243,11 +266,11 @@ npm start     # starts at http://localhost:3001
 
 ## Roadmap
 
-- [ ] **P2P mode** — WebRTC data channels for same-network transfers that skip the server entirely
+- [ ] **P2P mode** — WebRTC data channels for direct peer-to-peer transfers that skip the server entirely
 - [ ] **Folder uploads** — preserve directory structure, deliver as nested ZIP
 - [ ] **Native desktop build** — Tauri wrapper for drag-and-drop from the OS file manager
 - [ ] **Recipient notifications** — optional webhook/email ping when someone downloads your transfer
-- [ ] **Self-hosting guide** — Docker Compose stack with Nginx, Minio, and MongoDB
+- [ ] **Self-hosting guide** — Docker Compose stack with Nginx, MinIO, and MongoDB
 
 <br/>
 
