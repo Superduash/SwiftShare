@@ -1,6 +1,18 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Camera, AlertCircle, FlipHorizontal, Flashlight, Loader2 } from 'lucide-react'
+import {
+  X,
+  Camera,
+  AlertCircle,
+  FlipHorizontal,
+  Flashlight,
+  Loader2,
+  RefreshCw,
+  Image as ImageIcon,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
 import jsQR from 'jsqr'
 
 function extractCodeFromText(text) {
@@ -33,15 +45,19 @@ export default function QRScannerModal({ open, onClose, onScan }) {
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
   const animFrameRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [errorType, setErrorType] = useState(null) // 'denied' | 'notfound' | 'unsupported' | 'generic'
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false)
   const [facingMode, setFacingMode] = useState('environment') // back camera by default
   const [torchOn, setTorchOn] = useState(false)
   const [torchSupported, setTorchSupported] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [imageScanning, setImageScanning] = useState(false)
 
-  // Stop camera tracks
+  // Stop camera tracks and animations
   const stopCamera = useCallback(() => {
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current)
@@ -58,6 +74,42 @@ export default function QRScannerModal({ open, onClose, onScan }) {
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
+    setTorchOn(false)
+  }, [])
+
+  // Robust multi-tier camera acquisition
+  const acquireStream = useCallback(async (facing) => {
+    const attempts = [
+      // 1. High-res environment camera
+      { video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+      // 2. Standard environment camera
+      { video: { facingMode: { ideal: facing } }, audio: false },
+      // 3. Fallback exact facing mode
+      { video: { facingMode: facing }, audio: false },
+      // 4. Basic video stream (works on any device/webcam)
+      { video: true, audio: false },
+    ]
+
+    let lastError = null
+    for (const constraints of attempts) {
+      try {
+        if (navigator?.mediaDevices?.getUserMedia) {
+          return await navigator.mediaDevices.getUserMedia(constraints)
+        } else if (navigator?.getUserMedia) {
+          return await new Promise((res, rej) => navigator.getUserMedia(constraints, res, rej))
+        } else if (navigator?.webkitGetUserMedia) {
+          return await new Promise((res, rej) => navigator.webkitGetUserMedia(constraints, res, rej))
+        }
+      } catch (err) {
+        lastError = err
+        // If user explicitly denied permission, do not keep spamming constraints
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'SecurityError') {
+          throw err
+        }
+      }
+    }
+
+    throw lastError || new Error('Camera unavailable')
   }, [])
 
   // Start camera stream
@@ -65,38 +117,40 @@ export default function QRScannerModal({ open, onClose, onScan }) {
     stopCamera()
     setLoading(true)
     setError(null)
+    setErrorType(null)
 
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setError('Camera access is not supported on this browser or device.')
+    const hasMediaSupport = Boolean(
+      typeof navigator !== 'undefined' &&
+      (navigator?.mediaDevices?.getUserMedia || navigator?.getUserMedia || navigator?.webkitGetUserMedia)
+    )
+
+    if (!hasMediaSupport) {
+      setError('Camera access is not supported on this browser. You can upload a QR image or enter your code.')
+      setErrorType('unsupported')
       setLoading(false)
       return
     }
 
     try {
-      // Check multiple video devices
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices()
-        const videoDevices = devices.filter((d) => d.kind === 'videoinput')
-        setHasMultipleCameras(videoDevices.length > 1)
-      } catch {}
-
-      const constraints = {
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      const stream = await acquireStream(facingMode)
       streamRef.current = stream
 
+      // Check capabilities (torch)
       const track = stream.getVideoTracks()[0]
       if (track) {
         const caps = track.getCapabilities?.() || {}
         setTorchSupported(Boolean(caps.torch))
       }
+
+      // Check multiple video devices asynchronously without blocking
+      try {
+        if (navigator.mediaDevices?.enumerateDevices) {
+          navigator.mediaDevices.enumerateDevices().then((devices) => {
+            const videoDevices = devices.filter((d) => d.kind === 'videoinput')
+            setHasMultipleCameras(videoDevices.length > 1)
+          }).catch(() => {})
+        }
+      } catch {}
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -108,16 +162,19 @@ export default function QRScannerModal({ open, onClose, onScan }) {
       startScanning()
     } catch (err) {
       console.warn('[QRScanner] Camera access error:', err)
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setError('Camera permission was denied. You can still enter your 6-digit code manually.')
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'SecurityError') {
+        setError('Camera permission was blocked. Please allow camera access in your browser or phone settings.')
+        setErrorType('denied')
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        setError('No camera was found on this device.')
+        setError('No camera was found on this device. You can upload a QR image instead.')
+        setErrorType('notfound')
       } else {
-        setError('Could not access camera. Please check permissions and try again.')
+        setError('Could not access the camera. Tap below to retry or upload a QR image.')
+        setErrorType('generic')
       }
       setLoading(false)
     }
-  }, [facingMode, stopCamera])
+  }, [facingMode, stopCamera, acquireStream])
 
   // Continuous frame scanner
   const startScanning = useCallback(() => {
@@ -185,6 +242,57 @@ export default function QRScannerModal({ open, onClose, onScan }) {
     }
 
     animFrameRef.current = requestAnimationFrame(scanFrame)
+  }, [onScan, stopCamera])
+
+  // Scan QR code from an uploaded image file
+  const handleFileUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImageScanning(true)
+    try {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+        img.src = url
+      })
+
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      canvas.width = img.naturalWidth || img.width
+      canvas.height = img.naturalHeight || img.height
+
+      ctx.drawImage(img, 0, 0)
+      URL.revokeObjectURL(url)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'attemptBoth',
+      })
+
+      if (qrCode && qrCode.data) {
+        const code = extractCodeFromText(qrCode.data)
+        if (code) {
+          try { navigator.vibrate?.(60) } catch {}
+          stopCamera()
+          onScan(code)
+          return
+        }
+      }
+
+      setError('No valid SwiftShare QR code was found in this image. Try another photo or enter code manually.')
+      setErrorType('generic')
+    } catch (err) {
+      console.warn('[QRScanner] Failed to decode image file:', err)
+      setError('Could not read image file. Please try another photo.')
+      setErrorType('generic')
+    } finally {
+      setImageScanning(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }, [onScan, stopCamera])
 
   // Toggle flashlight
@@ -279,27 +387,82 @@ export default function QRScannerModal({ open, onClose, onScan }) {
 
               {/* Loading State */}
               {loading && !error && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60 text-white">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70 text-white p-4 text-center">
                   <Loader2 size={32} className="animate-spin text-[var(--accent)]" />
-                  <p className="text-xs font-medium text-gray-300">Starting camera...</p>
+                  <p className="text-xs font-semibold text-gray-200">Requesting camera access...</p>
+                  <p className="text-[11px] text-gray-400 max-w-xs">If prompted by your browser, tap Allow.</p>
                 </div>
               )}
 
-              {/* Error State */}
+              {/* Image Processing Overlay */}
+              {imageScanning && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-white z-20">
+                  <Loader2 size={32} className="animate-spin text-[var(--accent)]" />
+                  <p className="text-xs font-medium text-gray-300">Decoding QR image...</p>
+                </div>
+              )}
+
+              {/* Error & Permission Blocked State */}
               {error && (
-                <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-black/85 text-white">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 bg-red-500/20 text-red-400 border border-red-500/30">
+                <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center bg-black/90 text-white overflow-y-auto">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
                     <AlertCircle size={24} />
                   </div>
-                  <p className="text-sm font-semibold mb-2">Camera Unavailable</p>
-                  <p className="text-xs text-gray-400 max-w-xs mb-5 leading-relaxed">{error}</p>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="btn-primary text-xs !py-2 !px-4"
-                  >
-                    Enter Code Manually
-                  </button>
+                  <p className="text-sm font-bold mb-1">Camera Permission & Access</p>
+                  <p className="text-xs text-gray-300 max-w-xs mb-4 leading-relaxed">{error}</p>
+
+                  <div className="flex flex-col w-full max-w-xs gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => void startCamera()}
+                      className="btn-primary w-full text-xs !py-2.5 flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw size={14} />
+                      <span>Grant Access & Retry</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: '#fff',
+                      }}
+                    >
+                      <ImageIcon size={14} />
+                      <span>Upload QR Photo / Screenshot</span>
+                    </button>
+                  </div>
+
+                  {/* Collapsible Site Settings Guide for PWA / Mobile */}
+                  <div className="w-full max-w-xs text-left mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowHelp(!showHelp)}
+                      className="text-[11px] text-gray-400 hover:text-gray-200 flex items-center justify-center gap-1 mx-auto transition-colors"
+                    >
+                      <HelpCircle size={12} />
+                      <span>How to enable in Site Settings</span>
+                      {showHelp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+
+                    {showHelp && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="mt-2.5 p-3 rounded-xl bg-white/5 border border-white/10 text-[11px] text-gray-300 space-y-1.5"
+                      >
+                        <p className="font-semibold text-white">To allow camera access:</p>
+                        <ul className="list-disc pl-4 space-y-1 text-gray-300">
+                          <li><strong className="text-white">Android / Chrome / PWA:</strong> Tap the lock/tune icon in the address bar (or Phone Settings &gt; Apps &gt; SwiftShare &gt; Permissions) &gt; Set Camera to <em>Allow</em>.</li>
+                          <li><strong className="text-white">iPhone / Safari / PWA:</strong> Open Phone Settings &gt; Safari (or SwiftShare) &gt; Camera &gt; Select <em>Allow</em>.</li>
+                          <li><strong className="text-white">Desktop:</strong> Click the camera/lock icon beside the URL in your browser &gt; Select <em>Always Allow</em>.</li>
+                        </ul>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -328,11 +491,29 @@ export default function QRScannerModal({ open, onClose, onScan }) {
               )}
             </div>
 
+            {/* Hidden file input for uploading QR photo */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+
             {/* Bottom Controls */}
             <div className="p-3.5 sm:p-4 flex items-center justify-between bg-[var(--surface)] text-xs" style={{ color: 'var(--text-3)' }}>
-              <span>Align QR code inside the box</span>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 text-xs font-semibold hover:text-[var(--accent)] transition-colors"
+                style={{ color: 'var(--text-2)' }}
+              >
+                <ImageIcon size={14} />
+                <span>Upload QR image</span>
+              </button>
+
               <div className="flex items-center gap-2">
-                {torchSupported && (
+                {torchSupported && !error && (
                   <button
                     type="button"
                     onClick={toggleTorch}
@@ -343,7 +524,7 @@ export default function QRScannerModal({ open, onClose, onScan }) {
                     <Flashlight size={15} />
                   </button>
                 )}
-                {hasMultipleCameras && (
+                {hasMultipleCameras && !error && (
                   <button
                     type="button"
                     onClick={flipCamera}

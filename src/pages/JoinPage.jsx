@@ -50,7 +50,12 @@ export default function JoinPage() {
   const submitInFlightRef = useRef(false)
   const mountedRef = useRef(true)
 
-  const hasCameraSupport = typeof navigator !== 'undefined' && Boolean(navigator?.mediaDevices?.getUserMedia)
+  const hasCameraSupport = typeof navigator !== 'undefined' && Boolean(
+    navigator?.mediaDevices?.getUserMedia ||
+    navigator?.getUserMedia ||
+    navigator?.webkitGetUserMedia ||
+    (typeof window !== 'undefined' && window.isSecureContext !== false)
+  )
 
   useEffect(() => {
     mountedRef.current = true

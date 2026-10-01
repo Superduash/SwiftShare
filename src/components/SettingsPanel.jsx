@@ -1,6 +1,24 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Flame, Clock, Trash2, Info, Check, Activity, Volume2, Shuffle, Sun, Moon } from 'lucide-react'
+import {
+  X,
+  Flame,
+  Clock,
+  Trash2,
+  Info,
+  Check,
+  Activity,
+  Volume2,
+  Shuffle,
+  Sun,
+  Moon,
+  Camera,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+  ShieldAlert,
+} from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import { getSettings, saveSettings, clearTransfers } from '../utils/storage'
 import toast from 'react-hot-toast'
@@ -15,6 +33,46 @@ const EXPIRY_OPTIONS = [
 export default function SettingsPanel({ open, onClose }) {
   const { theme, mode, isDark, random, themes, setMode, pickTheme, setRandom, shuffle } = useTheme()
   const [settings, setSettings] = useState(getSettings)
+  const [cameraStatus, setCameraStatus] = useState('checking') // 'granted' | 'denied' | 'prompt' | 'unsupported'
+  const [showPermGuide, setShowPermGuide] = useState(false)
+
+  const checkCameraPerm = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) {
+      setCameraStatus('prompt')
+      return
+    }
+    try {
+      const res = await navigator.permissions.query({ name: 'camera' })
+      setCameraStatus(res.state)
+      res.onchange = () => setCameraStatus(res.state)
+    } catch {
+      setCameraStatus('prompt')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open) void checkCameraPerm()
+  }, [open, checkCameraPerm])
+
+  const requestCameraAccess = async () => {
+    try {
+      if (navigator?.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        stream.getTracks().forEach((t) => t.stop())
+        setCameraStatus('granted')
+        toast.success('Camera permission granted!')
+      } else {
+        toast.error('Camera not supported on this browser')
+      }
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setCameraStatus('denied')
+        toast.error('Camera access was blocked in settings')
+      } else {
+        toast.error('Could not access camera')
+      }
+    }
+  }
 
   useEffect(() => {
     const syncSettings = () => setSettings(getSettings())
@@ -412,6 +470,79 @@ export default function SettingsPanel({ open, onClose }) {
                     />
                   </div>
                 </button>
+              </div>
+
+              {/* Permissions & Camera */}
+              <div className="mb-8">
+                <label className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
+                  <Camera size={13} />
+                  Camera & Permissions
+                </label>
+                <div
+                  className="p-3.5 rounded-xl transition-all"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      {cameraStatus === 'granted' ? (
+                        <ShieldCheck size={16} className="text-emerald-500" />
+                      ) : cameraStatus === 'denied' ? (
+                        <ShieldAlert size={16} className="text-amber-500" />
+                      ) : (
+                        <Camera size={16} style={{ color: 'var(--text-3)' }} />
+                      )}
+                      <div>
+                        <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
+                          Camera Access
+                        </p>
+                        <p className="text-[11px]" style={{ color: 'var(--text-4)' }}>
+                          {cameraStatus === 'granted'
+                            ? 'Allowed for QR scanning'
+                            : cameraStatus === 'denied'
+                            ? 'Blocked in site settings'
+                            : 'Prompt on use'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={requestCameraAccess}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                      style={{
+                        background: cameraStatus === 'granted' ? 'var(--surface-hover)' : 'var(--accent)',
+                        color: cameraStatus === 'granted' ? 'var(--text-2)' : 'var(--on-accent, #fff)',
+                      }}
+                    >
+                      {cameraStatus === 'granted' ? 'Test Camera' : 'Allow Access'}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPermGuide(!showPermGuide)}
+                    className="w-full pt-2 mt-2 border-t text-[11px] font-medium flex items-center justify-between transition-colors"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-3)' }}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <HelpCircle size={12} />
+                      How to manage in PWA / Site Settings
+                    </span>
+                    {showPermGuide ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  </button>
+
+                  {showPermGuide && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-2 text-[11px] leading-relaxed space-y-1"
+                      style={{ color: 'var(--text-3)' }}
+                    >
+                      <p><strong className="text-[var(--text)]">• Mobile / PWA:</strong> Tap the lock icon in the address bar (or Android Phone Settings &gt; Apps &gt; SwiftShare &gt; Permissions) and toggle Camera to Allow.</p>
+                      <p><strong className="text-[var(--text)]">• iPhone / Safari:</strong> Open Settings &gt; Safari &gt; Camera &gt; Allow.</p>
+                      <p><strong className="text-[var(--text)]">• PC / Mac:</strong> Click the lock / tune icon on the left of your browser address bar and enable Camera.</p>
+                    </motion.div>
+                  )}
+                </div>
               </div>
 
               {/* Clear history */}
