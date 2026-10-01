@@ -63,7 +63,8 @@ function Navbar() {
       <nav
         className="fixed left-0 right-0 z-50 backdrop-blur-xl bg-nav-bg"
         style={{
-          top: 'calc(var(--safe-top) + var(--connection-banner-height))',
+          top: 'var(--connection-banner-height, 0px)',
+          paddingTop: 'var(--safe-top)',
           background: 'var(--nav-bg)',
           borderBottom: '1px solid var(--nav-border)',
           transition: 'top 0.25s ease, background 0.3s ease, border-color 0.3s ease',

@@ -183,24 +183,16 @@ export default function SettingsPanel({ open, onClose }) {
                       aria-checked={random}
                       aria-label="Toggle random theme"
                       onClick={() => setRandom(!random)}
-                      className="w-10 h-6 rounded-full relative transition-all cursor-pointer"
+                      className="w-10 h-6 rounded-full relative transition-all shrink-0 cursor-pointer"
                       style={{
-                        minWidth: '40px',
-                        minHeight: '24px',
-                        width: '40px',
-                        height: '24px',
-                        padding: 0,
-                        background: random
-                          ? (isDark ? '#3F3F46' : 'var(--accent)')
-                          : 'var(--border-strong)',
-                        border: `1px solid ${isDark ? '#52525B' : 'transparent'}`,
+                        background: random ? 'var(--accent)' : 'var(--border-strong)',
                       }}
                     >
                       <div
                         className="w-4 h-4 rounded-full absolute top-1 transition-all"
                         style={{
-                          background: isDark ? '#FAFAFA' : '#FFFFFF',
-                          left: random ? '22px' : '4px',
+                          background: '#FFFFFF',
+                          left: random ? '20px' : '4px',
                         }}
                       />
                     </button>
@@ -343,14 +335,14 @@ export default function SettingsPanel({ open, onClose }) {
                       </p>
                     </div>
                     <div
-                      className="w-10 h-6 rounded-full relative transition-all"
+                      className="w-10 h-6 rounded-full relative transition-all shrink-0"
                       style={{ background: settings.reducedMotion ? 'var(--accent)' : 'var(--border-strong)' }}
                     >
                       <div
                         className="w-4 h-4 rounded-full absolute top-1 transition-all"
                         style={{
                           background: '#fff',
-                          left: settings.reducedMotion ? '22px' : '4px',
+                          left: settings.reducedMotion ? '20px' : '4px',
                         }}
                       />
                     </div>
@@ -375,14 +367,14 @@ export default function SettingsPanel({ open, onClose }) {
                       </p>
                     </div>
                     <div
-                      className="w-10 h-6 rounded-full relative transition-all"
+                      className="w-10 h-6 rounded-full relative transition-all shrink-0"
                       style={{ background: settings.soundEnabled ? 'var(--accent)' : 'var(--border-strong)' }}
                     >
                       <div
                         className="w-4 h-4 rounded-full absolute top-1 transition-all"
                         style={{
                           background: '#fff',
-                          left: settings.soundEnabled ? '22px' : '4px',
+                          left: settings.soundEnabled ? '20px' : '4px',
                         }}
                       />
                     </div>
@@ -408,14 +400,14 @@ export default function SettingsPanel({ open, onClose }) {
                     {settings.defaultBurn ? 'Enabled by default' : 'Disabled by default'}
                   </span>
                   <div
-                    className="w-10 h-6 rounded-full relative transition-all"
+                    className="w-10 h-6 rounded-full relative transition-all shrink-0"
                     style={{ background: settings.defaultBurn ? 'var(--accent)' : 'var(--border-strong)' }}
                   >
                     <div
                       className="w-4 h-4 rounded-full absolute top-1 transition-all"
                       style={{
                         background: '#fff',
-                        left: settings.defaultBurn ? '22px' : '4px',
+                        left: settings.defaultBurn ? '20px' : '4px',
                       }}
                     />
                   </div>

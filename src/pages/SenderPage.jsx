@@ -1165,7 +1165,7 @@ export default function SenderPage() {
   if (loading && !meta) {
     return (
       <div className="min-h-screen">
-        <main className="app-main-offset max-w-2xl mx-auto px-4 lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start pt-safe-nav">
+        <main className="app-main-offset max-w-2xl mx-auto px-4 lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start">
           <div className="lg:col-span-3 space-y-4">
             <div className="shimmer-block h-6 w-1/3 rounded-xl" />
             <div className="shimmer-block h-28 w-full rounded-2xl" />
@@ -1520,7 +1520,7 @@ export default function SenderPage() {
                       >
                         <div
                           className="w-4 h-4 rounded-full absolute top-1 transition-all"
-                          style={{ background: '#fff', left: nearbyVisible ? '22px' : '4px' }}
+                          style={{ background: '#fff', left: nearbyVisible ? '20px' : '4px' }}
                         />
                       </div>
                     </button>

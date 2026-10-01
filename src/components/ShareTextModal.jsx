@@ -248,12 +248,12 @@ function ShareTextModal({ open, onClose, onShare }) {
                   <p className="text-xs" style={{ color: 'var(--text-4)' }}>Deletes after first view</p>
                 </div>
                 <div
-                  className="w-10 h-6 rounded-full relative transition-all"
+                  className="w-10 h-6 rounded-full relative transition-all shrink-0"
                   style={{ background: burn ? 'var(--danger)' : 'var(--border-strong)' }}
                 >
                   <div
                     className="w-4 h-4 rounded-full absolute top-1 transition-all"
-                    style={{ background: '#fff', left: burn ? '22px' : '4px' }}
+                    style={{ background: '#fff', left: burn ? '20px' : '4px' }}
                   />
                 </div>
               </button>
@@ -280,12 +280,12 @@ function ShareTextModal({ open, onClose, onShare }) {
                     <p className="text-xs" style={{ color: 'var(--text-4)' }}>Require password to view</p>
                   </div>
                   <div
-                    className="w-10 h-6 rounded-full relative transition-all"
+                    className="w-10 h-6 rounded-full relative transition-all shrink-0"
                     style={{ background: passwordProtected ? 'var(--accent)' : 'var(--border-strong)' }}
                   >
                     <div
                       className="w-4 h-4 rounded-full absolute top-1 transition-all"
-                      style={{ background: '#fff', left: passwordProtected ? '22px' : '4px' }}
+                      style={{ background: '#fff', left: passwordProtected ? '20px' : '4px' }}
                     />
                   </div>
                 </button>
