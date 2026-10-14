@@ -25,8 +25,9 @@ export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, process.cwd(), '')
   
-  const siteUrl = (env.VITE_SITE_URL || process.env.VITE_SITE_URL || 'https://swiftsharegg.vercel.app').replace(/\/+$/, '')
+  const siteUrl = (env.SITE_URL || env.VITE_SITE_URL || process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://swiftsharegg.vercel.app').replace(/\/+$/, '')
   process.env.VITE_SITE_URL = siteUrl
+  process.env.SITE_URL = siteUrl
 
   const backendTarget = (env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')
   const isAnalyze = process.env.ANALYZE === 'true'

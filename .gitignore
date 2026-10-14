@@ -77,10 +77,18 @@ yarn.lock.bak
 *.gz
 *.rar
 *.7z
-
 # AI Agent Context
 .kiro/
 .gemini/
 .ai/
+.agents/
+.antigravity/
+scratch/
 scratchpad_*
 media_*
+
+# SSL / Certificates / Secrets
+*.pem
+*.key
+*.cert
+*.crt

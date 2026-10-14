@@ -7,6 +7,7 @@ import {
 import toast from 'react-hot-toast'
 import { formatBytes } from '../utils/format'
 import { isFilePreviewable } from '../utils/preview'
+import { isImageFile, isTextFile } from '../utils/clipboard'
 
 const ICON_MAP = {
   pdf: { icon: FileText, color: '#DC2626' },
@@ -44,7 +45,7 @@ const itemVariants = {
 }
 
 function FileCardBase({
-  file, index = 0, onPreview, onDownloadSingle, onRemove, onRename,
+  file, index = 0, fileUrl, onPreview, onDownloadSingle, onRemove, onRename,
   showDownload = false, showRemove = false, disableDownload = false,
   onContextMenu,
 }) {
@@ -82,18 +83,32 @@ function FileCardBase({
     setEditing(false)
   }
 
-  const [copiedName, setCopiedName] = useState(false)
-  const handleCopyFileName = (e) => {
+  const [copiedFile, setCopiedFile] = useState(false)
+  const isImg = isImageFile(file)
+  const isTxt = isTextFile(file)
+  const copyLabel = isImg ? 'Copy image' : isTxt ? 'Copy file content' : 'Copy filename'
+
+  const handleCopyFile = (e) => {
     e.stopPropagation()
-    import('../utils/clipboard').then(({ copyToClipboard }) => {
-      copyToClipboard(file?.name || '').then(success => {
-        if (success) {
-          setCopiedName(true)
-          toast.success('Filename copied', { id: 'copy-filename' })
-          setTimeout(() => setCopiedName(false), 2000)
+    import('../utils/clipboard').then(({ copyFileToClipboard }) => {
+      copyFileToClipboard(file, fileUrl).then((result) => {
+        if (result?.success) {
+          setCopiedFile(true)
+          if (result.type === 'image') {
+            toast.success('Image copied to clipboard', { id: 'copy-file' })
+          } else if (result.type === 'text') {
+            toast.success('File content copied to clipboard', { id: 'copy-file' })
+          } else if (result.isFallback) {
+            toast.success('Copied filename (direct copy only supports images & text)', { id: 'copy-file' })
+          } else {
+            toast.success('Filename copied to clipboard', { id: 'copy-file' })
+          }
+          setTimeout(() => setCopiedFile(false), 2000)
         } else {
-          toast.error('Failed to copy', { id: 'copy-filename' })
+          toast.error('Failed to copy', { id: 'copy-file' })
         }
+      }).catch(() => {
+        toast.error('Failed to copy', { id: 'copy-file' })
       })
     })
   }
@@ -159,11 +174,11 @@ function FileCardBase({
       <div className="flex items-center gap-1 shrink-0">
         <button
           className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={handleCopyFileName}
-          aria-label="Copy filename"
-          title="Copy filename"
+          onClick={handleCopyFile}
+          aria-label={copyLabel}
+          title={copyLabel}
         >
-          {copiedName ? <Check size={13} style={{ color: 'var(--success)' }} /> : <Copy size={13} />}
+          {copiedFile ? <Check size={13} style={{ color: 'var(--success)' }} /> : <Copy size={13} />}
         </button>
         {onPreview && isFilePreviewable(file) && (
           <button className="btn-icon transition-opacity" onClick={() => onPreview(index)} aria-label="Preview">

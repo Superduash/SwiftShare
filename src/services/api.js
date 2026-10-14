@@ -492,7 +492,7 @@ export async function uploadClipboard(imageBase64, burnAfterDownload, senderSock
 }
 
 // ── Text Sharing ────────────────────────────
-export async function shareText({ content, title, expiryMinutes, burnAfterDownload, passwordProtected, password, socketId, nearbyVisible }) {
+export async function shareText({ content, title, expiryMinutes, burnAfterDownload, passwordProtected, password, socketId, nearbyVisible, secureMode }) {
   const payload = {
     content,
     title,
@@ -500,6 +500,7 @@ export async function shareText({ content, title, expiryMinutes, burnAfterDownlo
     burnAfterDownload,
     socketId,
     nearbyVisible: passwordProtected ? false : (nearbyVisible !== false),
+    secureMode: Boolean(secureMode),
   }
   if (passwordProtected && password) {
     payload.passwordProtected = true
@@ -620,17 +621,20 @@ export async function getStats() {
 }
 
 // ── Download ────────────────────────────────
-export function getDownloadUrl(code, password, claimantToken, ownershipToken) {
+export function getDownloadUrl(code, password, claimantToken, ownershipToken, downloadSessionId) {
   let url = buildBackendUrl(`/api/download/${normalizeCode(code)}`)
   url = appendPasswordQuery(url, password)
   url = appendClaimantTokenQuery(url, claimantToken)
   if (ownershipToken) {
     url += (url.includes('?') ? '&' : '?') + `ownershipToken=${encodeURIComponent(ownershipToken)}`
   }
+  if (downloadSessionId) {
+    url += (url.includes('?') ? '&' : '?') + `downloadSessionId=${encodeURIComponent(downloadSessionId)}`
+  }
   return url
 }
 
-export function getSingleDownloadUrl(code, index, password, claimantToken, ownershipToken) {
+export function getSingleDownloadUrl(code, index, password, claimantToken, ownershipToken, downloadSessionId) {
   const safeIndex = Number(index)
   let url = buildBackendUrl(`/api/download/${normalizeCode(code)}/single/${Number.isInteger(safeIndex) ? safeIndex : 0}`)
   url = appendPasswordQuery(url, password)
@@ -638,15 +642,18 @@ export function getSingleDownloadUrl(code, index, password, claimantToken, owner
   if (ownershipToken) {
     url += (url.includes('?') ? '&' : '?') + `ownershipToken=${encodeURIComponent(ownershipToken)}`
   }
+  if (downloadSessionId) {
+    url += (url.includes('?') ? '&' : '?') + `downloadSessionId=${encodeURIComponent(downloadSessionId)}`
+  }
   return url
 }
 
-export function downloadFile(code, password, claimantToken, ownershipToken) {
-  window.location.href = getDownloadUrl(code, password, claimantToken, ownershipToken)
+export function downloadFile(code, password, claimantToken, ownershipToken, downloadSessionId) {
+  window.location.href = getDownloadUrl(code, password, claimantToken, ownershipToken, downloadSessionId)
 }
 
-export function downloadSingleFile(code, fileIndex, password, claimantToken, ownershipToken) {
-  window.location.href = getSingleDownloadUrl(code, fileIndex, password, claimantToken, ownershipToken)
+export function downloadSingleFile(code, fileIndex, password, claimantToken, ownershipToken, downloadSessionId) {
+  window.location.href = getSingleDownloadUrl(code, fileIndex, password, claimantToken, ownershipToken, downloadSessionId)
 }
 
 export function previewUrl(code, index, password, claimantToken, ownershipToken) {

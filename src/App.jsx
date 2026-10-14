@@ -200,6 +200,7 @@ function AnimatedRoutes() {
           <Route path="/self-destructing-file-sharing" element={<PageWrapper><SelfDestructPage /></PageWrapper>} />
           <Route path="/password-protected-file-transfer" element={<PageWrapper><PasswordProtectedPage /></PageWrapper>} />
           <Route path="/share-text-and-code-snippets" element={<PageWrapper><SnippetSharePage /></PageWrapper>} />
+          <Route path="/online-clipboard" element={<PageWrapper><SnippetSharePage /></PageWrapper>} />
           <Route path="/airdrop-alternative" element={<PageWrapper><AirDropAlternativePage /></PageWrapper>} />
           <Route path="/security" element={<PageWrapper><SecurityPage /></PageWrapper>} />
           <Route path="/faq" element={<PageWrapper><FaqPage /></PageWrapper>} />

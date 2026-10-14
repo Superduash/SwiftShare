@@ -14,7 +14,8 @@ import LivePanel from '../../components/admin/LivePanel'
 import SystemPanel from '../../components/admin/SystemPanel'
 import AuditPanel from '../../components/admin/AuditPanel'
 import ShareSnapshotModal from '../../components/admin/ShareSnapshotModal'
-import { checkAdminSession, adminLogout, adminLogoutAll, fetchOverview } from '../../services/adminApi'
+import TwoFactorModal from '../../components/admin/TwoFactorModal'
+import { checkAdminSession, adminLogout, adminLogoutAll, fetchOverview, fetch2FAStatus } from '../../services/adminApi'
 import { useTheme } from '../../context/ThemeContext'
 
 const THEME_OPTIONS = [
@@ -41,6 +42,8 @@ export default function AdminDashboard() {
   const [secondsAgo, setSecondsAgo] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [show2FAModal, setShow2FAModal] = useState(false)
+  const [is2FAEnabled, setIs2FAEnabled] = useState(false)
   const [overviewData, setOverviewData] = useState(null)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showThemeMenu, setShowThemeMenu] = useState(false)
@@ -59,6 +62,10 @@ export default function AdminDashboard() {
         toast.error('Session expired. Please sign in.')
         navigate('/admin', { replace: true })
       })
+
+    fetch2FAStatus()
+      .then((d) => setIs2FAEnabled(Boolean(d?.enabled)))
+      .catch(() => {})
 
     const handleUnauthorized = () => {
       toast.error('Admin session ended')
@@ -266,14 +273,29 @@ export default function AdminDashboard() {
           {showUserMenu && (
             <div className="absolute bottom-16 left-0 right-0 p-1.5 rounded-2xl bg-[var(--surface-card)] border border-[var(--border)] shadow-2xl flex flex-col gap-1 z-30">
               <button
+                onClick={() => {
+                  setShowUserMenu(false)
+                  setShow2FAModal(true)
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] font-medium transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Shield className="w-3.5 h-3.5 text-[var(--accent)]" />
+                  <span>2FA Security</span>
+                </div>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${is2FAEnabled ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--warning)]/10 text-[var(--warning)]'}`}>
+                  {is2FAEnabled ? 'ON' : 'OFF'}
+                </span>
+              </button>
+              <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-[var(--danger)] hover:bg-[var(--danger)]/10 font-semibold transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-[var(--danger)] hover:bg-[var(--danger)]/10 font-semibold transition-colors cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" /> Sign Out
               </button>
               <button
                 onClick={handleLogoutAll}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] font-medium transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] font-medium transition-colors cursor-pointer"
               >
                 <ShieldAlert className="w-3.5 h-3.5" /> Terminate All Sessions
               </button>
@@ -326,10 +348,25 @@ export default function AdminDashboard() {
               ))}
             </div>
 
+            {/* 2FA Security Indicator & Setup Button */}
+            <button
+              onClick={() => setShow2FAModal(true)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                is2FAEnabled
+                  ? 'bg-[var(--success)]/10 hover:bg-[var(--success)]/20 text-[var(--success)] border-[var(--success)]/30'
+                  : 'bg-[var(--warning)]/10 hover:bg-[var(--warning)]/20 text-[var(--warning)] border-[var(--warning)]/30'
+              }`}
+              title="Manage Two-Factor Authentication Security"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>{is2FAEnabled ? '2FA Active' : 'Setup 2FA'}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${is2FAEnabled ? 'bg-[var(--success)]' : 'bg-[var(--warning)] animate-ping'}`} />
+            </button>
+
             {/* Promotional Snapshot Button */}
             <button
               onClick={handleOpenShare}
-              className="px-3 py-1.5 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              className="px-3 py-1.5 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5" /> Share Snapshot
             </button>
@@ -437,6 +474,13 @@ export default function AdminDashboard() {
           onClose={() => setShowShareModal(false)}
         />
       )}
+
+      {/* 2FA Authenticator Modal */}
+      <TwoFactorModal
+        isOpen={show2FAModal}
+        onClose={() => setShow2FAModal(false)}
+        onStatusChange={(enabled) => setIs2FAEnabled(enabled)}
+      />
     </div>
   )
 }

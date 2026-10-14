@@ -18,13 +18,13 @@ const CODE_LENGTH = 6
 const JOIN_REQUEST_HARD_TIMEOUT_MS = 60000 // 60s for Render cold starts
 const MAX_JOIN_RETRIES = 3
 const JOIN_RETRY_DELAY_MS = 2000
-// Same alphabet as backend: excludes 0, O, 1, I, L to avoid ambiguity
-const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
+// Accept numeric digits by default, plus letters for legacy or secure mode codes
+const VALID_CODE_CHARS = /[0-9A-Za-z]/
 
 export default function JoinPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const prefill = (params.get('code') || '').toUpperCase().replace(/[^A-HJ-KM-NP-Z2-9]/g, '').slice(0, CODE_LENGTH)
+  const prefill = (params.get('code') || '').toUpperCase().replace(/[^0-9A-Za-z]/g, '').slice(0, CODE_LENGTH)
 
   const [chars, setChars] = useState(() => {
     const arr = Array(CODE_LENGTH).fill('')
@@ -71,8 +71,8 @@ export default function JoinPage() {
   }, [])
 
   const handleSubmit = useCallback(async (rawCode) => {
-    const normalizedCode = String(rawCode || '').trim().toUpperCase()
-    if (normalizedCode.length !== CODE_LENGTH || submitInFlightRef.current) return
+    const normalizedCode = String(rawCode || '').trim().toUpperCase().replace(/\s+/g, '')
+    if (normalizedCode.length < 6 || normalizedCode.length > 10 || submitInFlightRef.current) return
 
     submitInFlightRef.current = true
     setLoading(true)
@@ -192,25 +192,45 @@ export default function JoinPage() {
   const handleScanQr = useCallback((scannedCode) => {
     setQrModalOpen(false)
     if (!scannedCode) return
-    const cleanCode = String(scannedCode).toUpperCase().replace(/[^A-HJ-KM-NP-Z2-9]/g, '').slice(0, CODE_LENGTH)
-    if (cleanCode.length === CODE_LENGTH) {
-      const nextChars = cleanCode.split('')
-      setChars(nextChars)
+    const cleanCode = String(scannedCode).toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 10)
+    if (cleanCode.length >= 6) {
+      if (cleanCode.length === CODE_LENGTH) {
+        const nextChars = cleanCode.split('')
+        setChars(nextChars)
+      }
       void handleSubmit(cleanCode)
     }
   }, [handleSubmit])
 
+  function handlePaste(e) {
+    e.preventDefault()
+    const text = (e.clipboardData || window.clipboardData)?.getData('text') || ''
+    const clean = text.toUpperCase().replace(/[^0-9A-Z]/g, '')
+    if (!clean) return
+    if (clean.length > CODE_LENGTH) {
+      void handleSubmit(clean)
+      return
+    }
+    const next = [...chars]
+    clean.split('').slice(0, CODE_LENGTH).forEach((c, i) => {
+      next[i] = c
+    })
+    setChars(next)
+    const focusIdx = Math.min(clean.length, CODE_LENGTH - 1)
+    inputRefs.current[focusIdx]?.focus()
+  }
+
   function handleChange(idx, value) {
-    const ch = value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+    const ch = value.toUpperCase().replace(/[^0-9A-Z]/g, '')
     if (!ch) return
 
-    // Filter to valid code characters (excludes 0, O, 1, I, L)
-    const filtered = ch.split('').filter(c => VALID_CODE_CHARS.test(c)).join('')
-    if (!filtered) return
-
-    // Handle paste
-    if (filtered.length > 1) {
-      const pasted = filtered.slice(0, CODE_LENGTH).split('')
+    // Handle paste inside input change
+    if (ch.length > 1) {
+      if (ch.length > CODE_LENGTH) {
+        void handleSubmit(ch)
+        return
+      }
+      const pasted = ch.slice(0, CODE_LENGTH).split('')
       const next = [...chars]
       pasted.forEach((c, i) => {
         if (idx + i < CODE_LENGTH) next[idx + i] = c
@@ -222,7 +242,7 @@ export default function JoinPage() {
     }
 
     const next = [...chars]
-    next[idx] = filtered[0]
+    next[idx] = ch[0]
     setChars(next)
     if (idx < CODE_LENGTH - 1) inputRefs.current[idx + 1]?.focus()
   }
@@ -267,7 +287,7 @@ export default function JoinPage() {
               Receive a file
             </h1>
             <p className="text-sm sm:text-base" style={{ color: 'var(--text-3)' }}>
-              Enter the 6-character code or select an active transfer on your local network
+              Enter the 6-digit code or select an active transfer on your local network
             </p>
           </motion.div>
 
@@ -295,11 +315,14 @@ export default function JoinPage() {
                   key={i}
                   ref={(el) => { inputRefs.current[i] = el }}
                   type="text"
-                  inputMode="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="one-time-code"
                   maxLength={6}
                   value={ch}
                   onChange={(e) => handleChange(i, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(i, e)}
+                  onPaste={handlePaste}
                   onFocus={(e) => e.target.select()}
                   className="w-11 sm:w-14 h-14 sm:h-16 flex-1 max-w-[56px] text-center font-mono font-extrabold text-2xl sm:text-3xl rounded-xl sm:rounded-2xl outline-none transition-all duration-150 cursor-text uppercase"
                   style={{
@@ -312,15 +335,14 @@ export default function JoinPage() {
                     MozAppearance: 'none',
                     appearance: 'none',
                   }}
-                  autoComplete="off"
                   aria-label={`Code digit ${i + 1}`}
                 />
               ))}
             </div>
 
-            {/* Alphabet hint */}
+            {/* Code hint */}
             <p className="text-center text-xs mb-6" style={{ color: 'var(--text-4)' }}>
-              Letters A–Z (except O, I, L) and numbers 2–9
+              Enter the 6-digit number, or paste any share code
             </p>
 
             {/* Error */}

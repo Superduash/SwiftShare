@@ -2,15 +2,23 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://swiftsharegg.vercel.app/</loc>
-    <lastmod>2026-09-30</lastmod>
+    <lastmod>2026-10-14</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/online-clipboard</loc>
+    <lastmod>2026-10-14</lastmod>
+  </url>
+  <url>
+    <loc>https://swiftsharegg.vercel.app/join</loc>
+    <lastmod>2026-10-14</lastmod>
   </url>
   <url>
     <loc>https://swiftsharegg.vercel.app/how-it-works</loc>
-    <lastmod>2026-09-30</lastmod>
+    <lastmod>2026-10-14</lastmod>
   </url>
   <url>
     <loc>https://swiftsharegg.vercel.app/send-files-without-signup</loc>
-    <lastmod>2026-09-30</lastmod>
+    <lastmod>2026-10-14</lastmod>
   </url>
   <url>
     <loc>https://swiftsharegg.vercel.app/share-files-with-qr-code</loc>
@@ -26,11 +34,11 @@
   </url>
   <url>
     <loc>https://swiftsharegg.vercel.app/share-text-and-code-snippets</loc>
-    <lastmod>2026-09-30</lastmod>
+    <lastmod>2026-10-14</lastmod>
   </url>
   <url>
     <loc>https://swiftsharegg.vercel.app/airdrop-alternative</loc>
-    <lastmod>2026-09-30</lastmod>
+    <lastmod>2026-10-14</lastmod>
   </url>
   <url>
     <loc>https://swiftsharegg.vercel.app/security</loc>

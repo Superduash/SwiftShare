@@ -19,7 +19,7 @@ export default function ChangelogPage() {
         />
 
         <div className="space-y-12">
-          {/* Release: v0.8.2 */}
+          {/* Release: v0.8.3 */}
           <section className="relative pl-7 sm:pl-9">
             {/* Timeline node */}
             <div
@@ -32,13 +32,69 @@ export default function ChangelogPage() {
             <div className="mb-4">
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
                 <span className="font-mono font-bold text-lg sm:text-xl" style={{ color: 'var(--text)' }}>
-                  v0.8.2
+                  v0.8.3
                 </span>
                 <span
                   className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
                   Latest Release
+                </span>
+                <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+                  October 14, 2026
+                </span>
+              </div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-2)' }}>
+                6-Digit Share Codes, Anti-Brute-Force Lockout, and Full Technical SEO Engine
+              </p>
+            </div>
+
+            <div className="space-y-4 text-xs sm:text-sm">
+              <div className="p-4 sm:p-5 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <ul className="space-y-2 list-disc list-inside" style={{ color: 'var(--text-2)' }}>
+                  <li>
+                    <strong>6-Digit Numeric Codes by Default:</strong> Share codes now generate as 6 zero-padded digits (<code className="font-mono text-xs">000000-999999</code>) using cryptographically secure RNG (<code className="font-mono text-xs">crypto.randomInt</code>) with active-collision checks and automatic retries.
+                  </li>
+                  <li>
+                    <strong>Mobile-Optimized Receiver UX:</strong> Receiver code input triggers the numeric keypad on iOS and Android (<code className="font-mono text-xs">inputMode="numeric"</code>, <code className="font-mono text-xs">pattern="[0-9]*"</code>, <code className="font-mono text-xs">autoComplete="one-time-code"</code>) with auto-advance, backspace support, and multi-digit paste parsing.
+                  </li>
+                  <li>
+                    <strong>Sender Spaced Display:</strong> Sender page displays codes in high-legibility spaced format (e.g. <code className="font-mono text-xs">482 910</code>) while the copy button automatically strips all whitespace.
+                  </li>
+                  <li>
+                    <strong>Secure Mode (8-Char Alphanumeric):</strong> Optional sender toggle for high-entropy alphanumeric codes that omit easily confused characters (<code className="font-mono text-xs">O, 0, I, 1, l</code>).
+                  </li>
+                  <li>
+                    <strong>Full Backward Compatibility:</strong> Active transfer lookup accepts both 6-digit numeric codes and legacy alphanumeric codes without breaking in-flight sessions.
+                  </li>
+                  <li>
+                    <strong>Anti-Brute-Force Rate Limiting &amp; Lockout:</strong> Code lookup and download endpoints enforce IP-based rate limiting with automatic 5-minute lockout after 5 consecutive failed attempts, returning generic error responses to prevent enumeration.
+                  </li>
+                  <li>
+                    <strong>Technical SEO &amp; Prerender Engine:</strong> Centralized <code className="font-mono text-xs">SITE_URL</code> configuration, per-route metadata titles &amp; descriptions, dedicated <code className="font-mono text-xs">/online-clipboard</code> landing page, single H1 hierarchy, crawlable below-the-fold explainer section with FAQ accordion, and structured JSON-LD schemas (<code className="font-mono text-xs">WebSite</code>, <code className="font-mono text-xs">WebApplication</code>, <code className="font-mono text-xs">FAQPage</code>).
+                  </li>
+                  <li>
+                    <strong>Crawl Safety &amp; Disallows:</strong> Dynamic and private paths (<code className="font-mono text-xs">/download/:code</code>, <code className="font-mono text-xs">/sender/:code</code>, <code className="font-mono text-xs">/expired</code>, <code className="font-mono text-xs">/admin</code>) are excluded in <code className="font-mono text-xs">robots.txt</code> and tagged with <code className="font-mono text-xs">noindex, nofollow</code>.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Release: v0.8.2 */}
+          <section className="relative pl-7 sm:pl-9">
+            {/* Timeline node */}
+            <div
+              className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shadow-sm"
+              style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
+            >
+              <div className="w-2 h-2 rounded-full" style={{ background: 'var(--text-3)' }} />
+            </div>
+
+            <div className="mb-4">
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <span className="font-mono font-bold text-lg sm:text-xl" style={{ color: 'var(--text)' }}>
+                  v0.8.2
                 </span>
                 <span className="text-xs" style={{ color: 'var(--text-3)' }}>
                   October 1, 2026

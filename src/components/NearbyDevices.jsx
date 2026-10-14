@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Wifi, Download, Clock, Send, RefreshCw, WifiOff, AlertCircle } from 'lucide-react'
-import { formatBytes, formatRelativeExpiry } from '../utils/format'
+import { formatBytes, formatRelativeAdded } from '../utils/format'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
@@ -116,7 +116,7 @@ const DeviceItem = memo(({ device, index, isSenderMode, onDeviceClick }) => {
       </div>
       <div className="flex items-center gap-1 text-[10px] shrink-0" style={{ color: 'var(--text-4)' }}>
         <Clock size={10} />
-        {formatRelativeExpiry(device.expiresAt)}
+        {formatRelativeAdded(device.createdAt || device.timestamp)}
       </div>
     </motion.button>
   )
@@ -139,6 +139,12 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(() => globalNearbyCache.timestamp || null)
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 30000)
+    return () => clearInterval(timer)
+  }, [])
 
   const navigate = useNavigate()
   const { socket, socketId, isConnected } = useSocket()
@@ -385,36 +391,34 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   // Show devices list
   return (
     <motion.div initial={{ y: 6 }} animate={{ y: 0 }} transition={{ delay: 0.2 }}>
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="flex items-center gap-2">
-          <Wifi size={14} style={{ color: 'var(--success)' }} />
-          <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>
-            Local Wi-Fi &amp; Hotspot Transfers
-          </h3>
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Wifi size={14} style={{ color: 'var(--success)' }} className="shrink-0" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--text-3)' }}>
+              Local Wi-Fi &amp; Hotspot Transfers
+            </h3>
+          </div>
+          <span
+            className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 inline-flex items-center"
+            style={{ background: 'var(--success-soft)', color: 'var(--success)' }}
+          >
             {devices.length} available
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          {lastUpdated && (
-            <span className="text-[10px]" style={{ color: 'var(--text-5)' }}>
-              {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-          )}
-          <button 
-            className="btn-icon !w-6 !h-6 cursor-pointer"
-            onClick={handleManualRefresh}
-            disabled={refreshing}
-            title="Refresh nearby transfers"
-            aria-label="Refresh nearby transfers"
-          >
-            <RefreshCw 
-              size={12} 
-              className={refreshing ? 'animate-spin' : ''}
-              style={{ color: refreshing ? 'var(--accent)' : 'var(--text-4)' }}
-            />
-          </button>
-        </div>
+        <button 
+          className="btn-icon !w-7 !h-7 shrink-0 cursor-pointer"
+          onClick={handleManualRefresh}
+          disabled={refreshing}
+          title="Refresh nearby transfers"
+          aria-label="Refresh nearby transfers"
+        >
+          <RefreshCw 
+            size={13} 
+            className={refreshing ? 'animate-spin' : ''}
+            style={{ color: refreshing ? 'var(--accent)' : 'var(--text-4)' }}
+          />
+        </button>
       </div>
 
       <div className="space-y-2">

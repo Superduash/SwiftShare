@@ -29,11 +29,35 @@ adminClient.interceptors.response.use(
   }
 )
 
-export async function adminLogin(username, password) {
-  const res = await adminClient.post('/login', { username, password })
+export async function adminLogin(username, password, totpCode = '') {
+  const payload = { username, password }
+  if (totpCode) {
+    payload.totpCode = String(totpCode).trim()
+  }
+  const res = await adminClient.post('/login', payload)
   if (res.data?.token) {
     sessionStorage.setItem('swiftshare_admin_token', res.data.token)
   }
+  return res.data
+}
+
+export async function fetch2FAStatus() {
+  const res = await adminClient.get('/2fa/status')
+  return res.data
+}
+
+export async function setup2FA() {
+  const res = await adminClient.post('/2fa/setup')
+  return res.data
+}
+
+export async function verify2FA(token) {
+  const res = await adminClient.post('/2fa/verify', { token: String(token).trim() })
+  return res.data
+}
+
+export async function disable2FA(payload = {}) {
+  const res = await adminClient.post('/2fa/disable', payload)
   return res.data
 }
 

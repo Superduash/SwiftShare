@@ -25,7 +25,8 @@ import Navbar from '../components/Navbar'
 import CountdownRing from '../components/CountdownRing'
 import FileCard from '../components/FileCard'
 import TransferReceipt from '../components/TransferReceipt'
-import { copyToClipboard, shareOrCopy } from '../utils/clipboard'
+import DownloadChoiceModal from '../components/DownloadChoiceModal'
+import { copyToClipboard, shareOrCopy, copyFileToClipboard, isImageFile, isTextFile } from '../utils/clipboard'
 import ErrorState from '../components/ErrorState'
 import StatusBanner from '../components/StatusBanner'
 import SharedTextDisplay from '../components/SharedTextDisplay'
@@ -113,6 +114,12 @@ export default function DownloadPage() {
   const [needsPassword, setNeedsPassword] = useState(Boolean(initialCachedTransfer?.passwordProtected))
   const [passwordVerified, setPasswordVerified] = useState(false)
   const [password, setPassword] = useState('')
+  const [showDownloadChoiceModal, setShowDownloadChoiceModal] = useState(false)
+  const sessionIdRef = useRef(
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36)
+  )
   const [showPassword, setShowPassword] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [verifying, setVerifying] = useState(false)
@@ -723,7 +730,8 @@ export default function DownloadPage() {
       await smartDownload(normalizedCode, {
         originalName: meta?.files?.[0]?.name,
         password: verifiedPasswordRef.current || undefined,
-        claimantToken
+        claimantToken,
+        downloadSessionId: sessionIdRef.current,
       })
 
       downloadSucceeded = true
@@ -775,6 +783,59 @@ export default function DownloadPage() {
     }
   }, [downloading, meta, normalizedCode, claimantToken])
 
+  // Download all separate files
+  const handleDownloadSeparate = useCallback(async () => {
+    if (downloading) return
+    setDownloaded(false)
+    setDownloading(true)
+    const toastId = toast.loading(`Preparing to download ${meta?.files?.length || 0} files...`)
+
+    try {
+      if (meta?.burnAfterDownload) {
+        isBurnClaimedRef.current = true
+        sessionStorage.setItem(`swiftshare:claimed:${normalizedCode}`, 'true')
+        const channel = new BroadcastChannel(`swiftshare:burn:${normalizedCode}`)
+        channel.postMessage('claimed')
+        channel.close()
+      }
+
+      const pw = verifiedPasswordRef.current || undefined
+      const total = meta?.files?.length || 0
+      for (let i = 0; i < total; i++) {
+        const file = meta.files[i]
+        toast.loading(`Downloading ${i + 1} of ${total}: ${file.name || 'file'}`, { id: toastId })
+        const url = getSingleDownloadUrl(normalizedCode, i, pw, claimantToken, undefined, sessionIdRef.current)
+
+        const a = document.createElement('a')
+        a.href = url
+        a.download = file.name || `file_${i + 1}`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+
+        if (i < total - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 600))
+        }
+      }
+
+      toast.success('All files downloaded!', { id: toastId })
+      downloadedAnyRef.current = true
+      setDownloaded(true)
+    } catch {
+      toast.error('Download failed. Please try again.', { id: toastId })
+    } finally {
+      setDownloading(false)
+    }
+  }, [downloading, meta?.files, meta?.burnAfterDownload, normalizedCode, claimantToken])
+
+  const handleDownloadClick = useCallback(() => {
+    if ((meta?.files?.length ?? 0) > 1) {
+      setShowDownloadChoiceModal(true)
+    } else {
+      handleDownload()
+    }
+  }, [meta?.files?.length, handleDownload])
+
   // Space/Enter shortcut for download
   useEffect(() => {
     const onKey = (e) => {
@@ -784,13 +845,13 @@ export default function DownloadPage() {
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault()
         if (canDownload && !downloading && !downloaded) {
-          handleDownload()
+          handleDownloadClick()
         }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [canDownload, downloading, downloaded, handleDownload])
+  }, [canDownload, downloading, downloaded, handleDownloadClick])
 
   // Per-file operations
   function handlePreview(index) {
@@ -811,17 +872,35 @@ export default function DownloadPage() {
       channel.close()
     }
     
-    downloadSingleFile(normalizedCode, index, pw, claimantToken)
-  }, [normalizedCode, claimantToken])
+    downloadSingleFile(normalizedCode, index, pw, claimantToken, undefined, sessionIdRef.current)
+  }, [normalizedCode, claimantToken, meta?.burnAfterDownload])
 
   const receiverMenuItems = () => {
     if (contextMenu.index === null) return []
     const file = meta?.files?.[contextMenu.index]
     if (!file) return []
+    const isImg = isImageFile(file)
+    const isTxt = isTextFile(file)
+    const copyLabel = isImg ? 'Copy image' : isTxt ? 'Copy file content' : 'Copy filename'
+    const fileUrl = previewUrl(normalizedCode, contextMenu.index, verifiedPasswordRef.current, claimantToken)
     return [
       { icon: Eye, label: 'Preview', action: () => handlePreview(contextMenu.index) },
       { icon: Download, label: 'Download this file', action: () => handleDownloadSingle(contextMenu.index) },
-      { icon: Copy, label: 'Copy filename', action: () => copyToClipboard(file.name) },
+      {
+        icon: Copy,
+        label: copyLabel,
+        action: async () => {
+          const res = await copyFileToClipboard(file, fileUrl)
+          if (res?.success) {
+            if (res.type === 'image') toast.success('Image copied to clipboard')
+            else if (res.type === 'text') toast.success('File content copied to clipboard')
+            else if (res.isFallback) toast.success('Copied filename (direct copy only supports images & text)')
+            else toast.success('Filename copied')
+          } else {
+            toast.error('Failed to copy')
+          }
+        }
+      },
     ]
   }
 
@@ -885,6 +964,7 @@ export default function DownloadPage() {
         key={i}
         file={f}
         index={i}
+        fileUrl={previewUrl(normalizedCode, i, verifiedPasswordRef.current, claimantToken)}
         showDownload={canDownload && (meta?.files?.length ?? 0) > 1}
         onPreview={(!needsPassword || passwordVerified) ? () => handlePreview(i) : undefined}
         onDownloadSingle={canDownload ? () => handleDownloadSingle(i) : undefined}
@@ -895,7 +975,7 @@ export default function DownloadPage() {
         }}
       />
     ))
-  }, [meta?.files, canDownload, needsPassword, passwordVerified, setContextMenu])
+  }, [meta?.files, canDownload, needsPassword, passwordVerified, setContextMenu, normalizedCode, claimantToken])
 
   const isInitialLoading = requestState === REQUEST_STATE.LOADING && (!meta || meta.burnAfterDownload)
   const isRetrying = requestState === REQUEST_STATE.RETRYING
@@ -982,6 +1062,16 @@ export default function DownloadPage() {
           claimantToken={claimantToken}
         />
       </Suspense>
+
+      <DownloadChoiceModal
+        open={showDownloadChoiceModal}
+        onClose={() => setShowDownloadChoiceModal(false)}
+        filesCount={meta?.files?.length || 0}
+        totalSize={meta?.totalSize || 0}
+        isBurnMode={meta?.burnAfterDownload}
+        onDownloadZip={handleDownload}
+        onDownloadSeparate={handleDownloadSeparate}
+      />
 
       <main className="app-main-offset">
         <div className="page-shell-narrow py-8 sm:py-12">
@@ -1275,7 +1365,7 @@ export default function DownloadPage() {
 
                     {/* Download Button (with sticky mobile wrapper) */}
                     <div className="sticky-action-bar">
-                      <button className="btn-primary w-full text-base mb-2 shadow-lg" onClick={handleDownload} disabled={downloading}>
+                      <button className="btn-primary w-full text-base mb-2 shadow-lg" onClick={handleDownloadClick} disabled={downloading}>
                         <Download size={18} />
                         {meta?.files?.length > 1
                           ? `Download All (${meta.files.length} files · ${formatBytes(meta.totalSize || 0)})`
@@ -1334,7 +1424,7 @@ export default function DownloadPage() {
                   burnAfterDownload={meta?.burnAfterDownload}
                   receipt={receipt}
                   onDownloadSingle={canDownload ? handleDownloadSingle : undefined}
-                  onDownloadAll={canDownload ? handleDownload : undefined}
+                  onDownloadAll={canDownload ? handleDownloadClick : undefined}
                 />
               </motion.div>
             )}

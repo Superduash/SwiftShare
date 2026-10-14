@@ -6,23 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
   <meta name="theme-color" content="#09090B" />
   <meta name="color-scheme" content="dark light" />
-  <title>SwiftShare — Send Files Without Sign-Up (Free, Self-Destructing Links)</title>
-  <meta name="description" content="Send files or text to any device with a 6-character code or QR scan. No account needed. Links expire automatically, with optional password and burn-after-download." />
+  <title>SwiftShare - Free Online Clipboard &amp; File Transfer (No Sign-up)</title>
+  <meta name="description" content="Free online clipboard and fast cross-device file transfer without sign-up. Share text, files and photos between phone and PC with a 6-digit code or instant QR." />
+  <meta name="keywords" content="online clipboard, web clipboard, cross device clipboard, copy paste between phone and pc, text share online, temporary pastebin, send files without sign up, instant file transfer, free online clipboard" />
   <link rel="canonical" href="%VITE_SITE_URL%/" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
 
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="SwiftShare" />
-  <meta property="og:title" content="SwiftShare — Send Files Without Sign-Up" />
-  <meta property="og:description" content="Share files with a code or QR. No account. Auto-expiring links, optional password, burn-after-download." />
+  <meta property="og:title" content="SwiftShare - Free Online Clipboard &amp; File Transfer (No Sign-up)" />
+  <meta property="og:description" content="Free online clipboard and cross-device file transfer. Share text, files and photos between phone and PC with 6-digit codes or instant QR. No accounts needed." />
   <meta property="og:url" content="%VITE_SITE_URL%/" />
-  <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="SwiftShare — Send Files Without Sign-Up" />
-  <meta name="twitter:description" content="Share files with a code or QR. No account. Auto-expiring links." />
-  <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="SwiftShare - Free Online Clipboard &amp; File Transfer (No Sign-up)" />
+  <meta name="twitter:description" content="Free online clipboard and cross-device file transfer. Share text and files with 6-digit codes or QR scans. No sign-up required." />
 
   <link rel="icon" href="/favicon.ico" sizes="48x48" />
   <link rel="icon" href="/icon.svg" type="image/svg+xml" />
@@ -42,7 +39,7 @@
         "@id": "%VITE_SITE_URL%/#website",
         "url": "%VITE_SITE_URL%/",
         "name": "SwiftShare",
-        "alternateName": ["Swift Share"]
+        "alternateName": ["Swift Share", "SwiftShare Online Clipboard"]
       },
       {
         "@type": "WebApplication",
@@ -50,13 +47,59 @@
         "name": "SwiftShare",
         "url": "%VITE_SITE_URL%/",
         "applicationCategory": "UtilitiesApplication",
-        "operatingSystem": "Any (web browser)",
-        "description": "Send files or text to any device with a short code or QR scan. No account required.",
+        "operatingSystem": "Any",
+        "description": "Send files or text to any device with a short 6-digit code or QR scan. No account required.",
         "offers": {
           "@type": "Offer",
           "price": 0,
           "priceCurrency": "USD"
         }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "%VITE_SITE_URL%/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is SwiftShare?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "SwiftShare is a free online clipboard and instant file transfer service that allows you to copy-paste text and share files between your phone, PC, Mac, and any device without sign-up or accounts."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I share files or text between phone and PC?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Upload a file or paste text on your device, get a 6-digit code or QR code, then type the code or scan the QR on the receiving device to download instantly."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need to create an account or sign up?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. SwiftShare requires zero sign-up, zero logins, and zero software installation. Everything runs directly in your standard web browser."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are my files and clipboard notes private and secure?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Transfers are encrypted with TLS 1.3 in transit and automatically deleted when their timer expires (or immediately after download in Burn mode). You can also add password protection."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What are the file size and transfer limits?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "You can transfer up to 10 files simultaneously with a total combined size of 100 MB per transfer session, completely free."
+            }
+          }
+        ]
       }
     ]
   }
@@ -338,9 +381,39 @@
   </div>
   <noscript>
     <div style="padding: 32px; max-width: 800px; margin: 0 auto; font-family: 'DM Sans', sans-serif; color: #FAFAFA; background: #09090B;">
-      <h1>SwiftShare — Share Files Instantly Across Any Device</h1>
-      <p>SwiftShare is a free, no-signup, browser-based ephemeral file and text sharing tool. Transfer files and text across Android, iOS, Windows, macOS, and Linux using 6-character transfer codes, camera QR codes, password protection, and burn-after-download privacy.</p>
+      <h1>SwiftShare - Free Online Clipboard &amp; Instant File Transfer</h1>
+      <p>SwiftShare is a free, no-signup online clipboard and browser-based ephemeral file sharing tool. Sync text, copy-paste across Android, iOS, Windows, macOS, and Linux, and transfer files using 6-digit transfer codes, camera QR codes, password protection, and burn-after-download privacy.</p>
+      <h2>How It Works in 3 Steps</h2>
+      <ol>
+        <li><strong>Drop or Paste:</strong> Drop files up to 100 MB or paste text into the online clipboard.</li>
+        <li><strong>Share 6-Digit Code:</strong> Share the generated 6-digit code or display the QR code.</li>
+        <li><strong>Grab &amp; Auto-Delete:</strong> The receiver downloads the file and data self-destructs upon expiry or in Burn mode.</li>
+      </ol>
+      <h2>Frequently Asked Questions</h2>
+      <details>
+        <summary><strong>How does the online clipboard work between phone and PC?</strong></summary>
+        <p>Click "Share Text", paste your note, command, or link, and click Share. You will get a 6-digit code or QR code. On your other device, visit SwiftShare, type the 6 digits or scan the QR, and click "Copy to Clipboard".</p>
+      </details>
+      <details>
+        <summary><strong>Do I or the receiver need an account?</strong></summary>
+        <p>No. SwiftShare never asks for an account, email, or phone number. Anyone can send or receive immediately without registration.</p>
+      </details>
+      <details>
+        <summary><strong>How long do transfers stay available?</strong></summary>
+        <p>By default, files and snippets expire in 60 minutes, but you can select 10 minutes, 1 hour, or up to 24 hours. Once expired, files are permanently deleted.</p>
+      </details>
+      <details>
+        <summary><strong>What is Burn after download mode?</strong></summary>
+        <p>When Burn mode is enabled, the transfer is permanently deleted from storage as soon as the recipient finishes downloading it.</p>
+      </details>
+      <details>
+        <summary><strong>What are the transfer file size limits?</strong></summary>
+        <p>You can transfer up to 10 files at a time with a total combined size of up to 100 MB per transfer session, completely free.</p>
+      </details>
+      <h2>Explore SwiftShare</h2>
       <ul>
+        <li><a href="/online-clipboard" style="color: #38bdf8;">Online Clipboard &amp; Cross-Device Sync</a></li>
+        <li><a href="/join" style="color: #38bdf8;">Receive a File (Enter 6-Digit Code)</a></li>
         <li><a href="/how-it-works" style="color: #38bdf8;">How It Works</a></li>
         <li><a href="/send-files-without-signup" style="color: #38bdf8;">Send Files Without Sign-Up</a></li>
         <li><a href="/share-files-with-qr-code" style="color: #38bdf8;">Share Files with QR Code</a></li>

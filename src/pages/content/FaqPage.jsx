@@ -22,8 +22,12 @@ export default function FaqPage() {
       a: 'When two or more devices are connected to the same local Wi-Fi or office network subnet, active transfers with nearby sharing enabled are visible on the Receive page for one-click downloading.'
     },
     {
+      q: 'Can I use SwiftShare as an online clipboard to copy and paste between phone and PC?',
+      a: 'Yes! SwiftShare is one of the fastest online clipboards available. Select the "Share Text" tab on your computer, paste your text, links, code, or notes, and scan the QR code or type the 6-digit code on your phone to copy it directly to your mobile clipboard. It works across any browser without installing apps or signing up.'
+    },
+    {
       q: 'Is SwiftShare completely free?',
-      a: 'Yes, SwiftShare is 100% free to use for temporary file sharing within the stated 100 MB limit.'
+      a: 'Yes, SwiftShare is 100% free to use for temporary file sharing and clipboard sync within the stated limits.'
     },
     {
       q: 'What happens if I enter the wrong password too many times?',

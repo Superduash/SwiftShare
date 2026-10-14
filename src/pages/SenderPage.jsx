@@ -24,7 +24,7 @@ import {
   saveTransfer,
   updateTransferStatus,
 } from '../utils/storage'
-import { copyToClipboard, shareOrCopy, canWebShare } from '../utils/clipboard'
+import { copyToClipboard, shareOrCopy, canWebShare, copyFileToClipboard, isImageFile, isTextFile } from '../utils/clipboard'
 import { useSeo } from '../hooks/useSeo'
 
 import StatusBanner from '../components/StatusBanner'
@@ -781,9 +781,9 @@ export default function SenderPage() {
     return () => clearInterval(pollInterval)
   }, [normalizedCode, meta, loading, cancelled, burnRemoved, requestActivityRefresh, patchCachedTransfer])
 
-  // Copy helpers
   const handleCopyCode = useCallback(() => {
-    copyToClipboard(normalizedCode).then((success) => {
+    const cleanCode = String(normalizedCode || '').replace(/\s+/g, '')
+    copyToClipboard(cleanCode).then((success) => {
       if (success) {
         setCopiedCode(true)
         toast.success('Code copied to clipboard', { id: 'copy-code' })
@@ -950,14 +950,31 @@ export default function SenderPage() {
     downloadSingleFile(normalizedCode, index, undefined, undefined, ownershipToken)
   }, [normalizedCode, ownershipToken])
 
-  // Context menu items for files
   function senderMenuItems() {
     if (contextMenu.index === null) return []
     const file = meta?.files?.[contextMenu.index]
     if (!file) return []
+    const isImg = isImageFile(file)
+    const isTxt = isTextFile(file)
+    const copyLabel = isImg ? 'Copy image' : isTxt ? 'Copy file content' : 'Copy filename'
+    const fileUrl = previewUrl(normalizedCode, contextMenu.index, undefined, undefined, ownershipToken)
     return [
-      { icon: Eye,      label: 'Preview',       action: () => handlePreview(contextMenu.index) },
-      { icon: Copy,     label: 'Copy filename', action: () => copyToClipboard(file.name) },
+      { icon: Eye,  label: 'Preview', action: () => handlePreview(contextMenu.index) },
+      {
+        icon: Copy,
+        label: copyLabel,
+        action: async () => {
+          const res = await copyFileToClipboard(file, fileUrl)
+          if (res?.success) {
+            if (res.type === 'image') toast.success('Image copied to clipboard')
+            else if (res.type === 'text') toast.success('File content copied to clipboard')
+            else if (res.isFallback) toast.success('Copied filename (direct copy only supports images & text)')
+            else toast.success('Filename copied')
+          } else {
+            toast.error('Failed to copy')
+          }
+        }
+      },
     ]
   }
 
@@ -1151,6 +1168,7 @@ export default function SenderPage() {
         key={i}
         file={f}
         index={i}
+        fileUrl={previewUrl(normalizedCode, i, undefined, undefined, ownershipToken)}
         showDownload={!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)}
         onPreview={(!isExpired && !cancelled) ? () => handlePreview(i) : undefined}
         onDownloadSingle={(!isExpired && !cancelled && (!meta?.passwordProtected || passwordVerified)) ? () => handleDownloadSingle(i) : undefined}
@@ -1160,7 +1178,7 @@ export default function SenderPage() {
         }}
       />
     ))
-  }, [meta?.files, isExpired, cancelled, meta?.passwordProtected, passwordVerified, handlePreview, handleDownloadSingle])
+  }, [meta?.files, isExpired, cancelled, meta?.passwordProtected, passwordVerified, handlePreview, handleDownloadSingle, normalizedCode, ownershipToken])
 
   if (loading && !meta) {
     return (
@@ -1360,24 +1378,28 @@ export default function SenderPage() {
                   {/* Code characters */}
                   <div className="flex justify-center items-center gap-1.5 sm:gap-2 mb-4">
                     {(normalizedCode || '').split('').map((ch, i) => (
-                      <motion.button
-                        key={i}
-                        className="w-11 sm:w-13 h-12 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl cursor-pointer transition-all shadow-xs"
-                        style={{
-                          background: 'var(--code-char-bg)',
-                          border: '1.5px solid var(--code-char-border)',
-                          color: 'var(--accent)',
-                        }}
-                        whileHover={{ scale: 1.06 }}
-                        whileTap={{ scale: 0.94 }}
-                        initial={{ y: 6, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.1 + i * 0.04, type: 'spring', damping: 15 }}
-                        onClick={handleCopyCode}
-                        title="Click to copy code"
-                      >
-                        {ch}
-                      </motion.button>
+                      <React.Fragment key={i}>
+                        <motion.button
+                          className="w-11 sm:w-13 h-12 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center font-mono font-extrabold text-xl sm:text-2xl cursor-pointer transition-all shadow-xs"
+                          style={{
+                            background: 'var(--code-char-bg)',
+                            border: '1.5px solid var(--code-char-border)',
+                            color: 'var(--accent)',
+                          }}
+                          whileHover={{ scale: 1.06 }}
+                          whileTap={{ scale: 0.94 }}
+                          initial={{ y: 6, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          transition={{ delay: 0.1 + i * 0.04, type: 'spring', damping: 15 }}
+                          onClick={handleCopyCode}
+                          title="Click to copy code"
+                        >
+                          {ch}
+                        </motion.button>
+                        {normalizedCode.length === 6 && i === 2 && (
+                          <span className="w-2 sm:w-3.5 inline-block" aria-hidden="true" />
+                        )}
+                      </React.Fragment>
                     ))}
                   </div>
 

@@ -33,7 +33,7 @@ export default function Footer() {
               </Link>
             </div>
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
-              Zero-login file and text transfer platform. Share securely across devices with 6-digit codes or QR scans.
+              Zero-login file sharing and online clipboard platform. Share text and transfer files securely across devices with 6-digit codes or QR scans.
             </p>
             <div className="flex items-center gap-2.5 pt-1">
               {SOCIAL_LINKS.map(({ icon: SocialIcon, href, label, external }) => (
@@ -57,6 +57,12 @@ export default function Footer() {
               Core Features
             </h3>
             <ul className="space-y-2.5 text-xs">
+              <li>
+                <Link to="/online-clipboard" className="hover:underline flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
+                  <FileText size={13} style={{ color: 'var(--accent)' }} />
+                  <span>Online Clipboard &amp; Text</span>
+                </Link>
+              </li>
               <li>
                 <Link to="/how-it-works" className="hover:underline flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
                   <Zap size={13} style={{ color: 'var(--accent)' }} />
@@ -84,12 +90,6 @@ export default function Footer() {
                 <Link to="/password-protected-file-transfer" className="hover:underline flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
                   <Lock size={13} style={{ color: 'var(--text-2)' }} />
                   <span>Password Protection</span>
-                </Link>
-              </li>
-              <li>
-                <Link to="/share-text-and-code-snippets" className="hover:underline flex items-center gap-1.5" style={{ color: 'var(--text-3)' }}>
-                  <FileText size={13} style={{ color: 'var(--text-2)' }} />
-                  <span>Text &amp; Code Snippets</span>
                 </Link>
               </li>
             </ul>

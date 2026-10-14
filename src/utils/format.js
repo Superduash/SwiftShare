@@ -43,6 +43,20 @@ export function formatRelativeExpiry(expiresAt) {
   return `${formatTimeWords(diff)} left`
 }
 
+export function formatRelativeAdded(createdAt) {
+  if (!createdAt) return 'just now'
+  const time = new Date(createdAt).getTime()
+  if (isNaN(time)) return 'just now'
+  const diff = Math.max(0, (Date.now() - time) / 1000)
+  if (diff < 45) return 'just now'
+  const mins = Math.floor(diff / 60)
+  if (mins < 60) return `added ${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `added ${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `added ${days}d ago`
+}
+
 export function formatSpeed(bytesPerSecond) {
   const bps = Number(bytesPerSecond)
   if (!bps || !Number.isFinite(bps) || bps <= 0) return ''

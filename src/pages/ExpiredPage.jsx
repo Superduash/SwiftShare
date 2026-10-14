@@ -5,7 +5,7 @@ import { Clock, Flame, FileQuestion, Home, ArrowRight, Search } from 'lucide-rea
 import { Helmet } from 'react-helmet-async'
 
 const CODE_LENGTH = 6
-const VALID_CODE_CHARS = /[A-HJ-KM-NP-Z2-9]/
+const VALID_CODE_CHARS = /[0-9A-Z]/
 
 const STATES = {
   expired: {
@@ -57,14 +57,14 @@ export default function ExpiredPage() {
 
   function handleCodeSubmit(e) {
     e?.preventDefault()
-    const clean = codeInput.toUpperCase().replace(/[^A-HJ-KM-NP-Z2-9]/g, '').slice(0, CODE_LENGTH)
+    const clean = codeInput.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, CODE_LENGTH)
     if (clean.length === CODE_LENGTH) {
       navigate(`/download/${clean}`)
     }
   }
 
   function handleCodeChange(e) {
-    const raw = e.target.value.toUpperCase().replace(/[^A-HJ-KM-NP-Z2-9]/g, '').slice(0, CODE_LENGTH)
+    const raw = e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, CODE_LENGTH)
     setCodeInput(raw)
   }
 

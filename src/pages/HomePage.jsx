@@ -24,7 +24,7 @@ import ProgressBar from '../components/ProgressBar'
 import FinalizingIndicator from '../components/FinalizingIndicator'
 import RecentTransfers from '../components/RecentTransfers'
 import ContextMenu from '../components/ContextMenu'
-import { copyToClipboard } from '../utils/clipboard'
+import { copyToClipboard, copyFileToClipboard, isImageFile, isTextFile } from '../utils/clipboard'
 import { useSeo } from '../hooks/useSeo'
 import Footer from '../components/Footer'
 
@@ -52,6 +52,7 @@ export default function HomePage() {
   const [expiry, setExpiry] = useState(initialSettings.defaultExpiry || 60)
   const [burn, setBurn] = useState(initialSettings.defaultBurn || false)
   const [nearbyVisible, setNearbyVisible] = useState(true)
+  const [secureMode, setSecureMode] = useState(false)
   // Track whether the user has manually overridden the picker in this session.
   // If they have, we don't stomp their choice when settings change. If they
   // haven't, the picker should mirror whatever default is currently saved.
@@ -314,8 +315,25 @@ export default function HomePage() {
     if (contextMenu.index === null) return []
     const file = files[contextMenu.index]
     if (!file) return []
+    const isImg = isImageFile(file)
+    const isTxt = isTextFile(file)
+    const copyLabel = isImg ? 'Copy image' : isTxt ? 'Copy file content' : 'Copy filename'
     return [
-      { icon: Clipboard, label: 'Copy filename', action: () => copyToClipboard(file.name) },
+      {
+        icon: Clipboard,
+        label: copyLabel,
+        action: async () => {
+          const res = await copyFileToClipboard(file)
+          if (res?.success) {
+            if (res.type === 'image') toast.success('Image copied to clipboard')
+            else if (res.type === 'text') toast.success('File content copied to clipboard')
+            else if (res.isFallback) toast.success('Copied filename (direct copy only supports images & text)')
+            else toast.success('Filename copied')
+          } else {
+            toast.error('Failed to copy')
+          }
+        }
+      },
       { divider: true },
       { icon: X, label: 'Remove file', action: () => removeFile(contextMenu.index), danger: true },
     ]
@@ -325,6 +343,7 @@ export default function HomePage() {
     try {
       const response = await shareText({
         ...textData,
+        secureMode: typeof textData.secureMode !== 'undefined' ? textData.secureMode : secureMode,
         nearbyVisible: textData.passwordProtected ? false : (typeof textData.nearbyVisible !== 'undefined' ? textData.nearbyVisible : nearbyVisible),
         socketId: socketId || undefined,
       })
@@ -492,6 +511,7 @@ export default function HomePage() {
       formData.append('expiryMinutes', expiry)
       formData.append('burnAfterDownload', burn)
       formData.append('nearbyVisible', passwordProtected ? 'false' : String(nearbyVisible))
+      formData.append('secureMode', String(secureMode))
       if (passwordProtected && password.trim()) {
         formData.append('passwordProtected', 'true')
         formData.append('password', password)
@@ -630,8 +650,8 @@ export default function HomePage() {
   const hasFiles = files.length > 0
 
   useSeo({
-    title: 'SwiftShare — Send Files Without Sign-Up (Free, Self-Destructing Links)',
-    description: 'Send files or text to any device with a 6-character code or QR scan. No account needed. Links expire automatically, with optional password and burn-after-download.',
+    title: 'SwiftShare - Free Online Clipboard & File Transfer (No Sign-up)',
+    description: 'Free online clipboard and cross-device file transfer without sign-up. Share text, files and photos between phone and PC with a 6-digit code or instant QR.',
   })
 
   return (
@@ -652,11 +672,11 @@ export default function HomePage() {
                 transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
                 <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl leading-tight mb-2" style={{ color: 'var(--text)' }}>
-                  Simple,<br />
-                  <span style={{ color: 'var(--accent)' }}>yet too effective.</span>
+                  Online Clipboard &amp;<br />
+                  <span style={{ color: 'var(--accent)' }}>Instant File Transfer</span>
                 </h1>
                 <p className="text-base sm:text-lg" style={{ color: 'var(--text-3)' }}>
-                  Send files instantly like a message.
+                  Copy-paste text and send files across any phone, PC, or tablet with a 6-digit code or QR scan. No accounts needed.
                 </p>
               </motion.div>
 
@@ -673,15 +693,27 @@ export default function HomePage() {
                       <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Share this text?</p>
                       <button className="btn-icon" onClick={() => setShowPasteConfirm(false)} aria-label="Cancel paste"><X size={14} /></button>
                     </div>
-                    <pre className="text-xs p-2 rounded-xl max-h-24 overflow-auto whitespace-pre-wrap font-mono"
-                      style={{ background: 'var(--bg-sunken)', color: 'var(--text-3)' }}>
-                      {pastedText.slice(0, 300)}{pastedText.length > 300 ? '...' : ''}
-                    </pre>
+                    <textarea
+                      value={pastedText}
+                      onChange={(e) => setPastedText(e.target.value)}
+                      placeholder="Enter or edit text snippet..."
+                      rows={Math.min(6, Math.max(2, (pastedText.match(/\n/g) || []).length + 1))}
+                      className="w-full text-xs p-2.5 rounded-xl max-h-36 overflow-auto font-mono resize-y focus:outline-none transition-all"
+                      style={{
+                        background: 'var(--bg-sunken)',
+                        color: 'var(--text)',
+                        border: '1px solid var(--border)',
+                      }}
+                    />
                     <div className="flex gap-2">
-                      <button className="btn-primary flex-1 text-sm" onClick={() => handleShareText({ content: pastedText, title: 'Text Snippet' })}>
+                      <button
+                        className="btn-primary flex-1 text-sm cursor-pointer"
+                        disabled={!pastedText.trim()}
+                        onClick={() => handleShareText({ content: pastedText.trim(), title: 'Text Snippet' })}
+                      >
                         Share as Snippet
                       </button>
-                      <button className="btn-ghost text-sm" onClick={() => setShowPasteConfirm(false)}>
+                      <button className="btn-ghost text-sm cursor-pointer" onClick={() => setShowPasteConfirm(false)}>
                         Cancel
                       </button>
                     </div>
@@ -1010,6 +1042,34 @@ export default function HomePage() {
                       </button>
                     )}
 
+                    {/* Secure code mode toggle */}
+                    <button
+                      type="button"
+                      className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer"
+                      style={{
+                        background: secureMode ? 'var(--accent-soft)' : 'transparent',
+                        border: `1.5px solid ${secureMode ? 'var(--accent)' : 'var(--border)'}`,
+                      }}
+                      onClick={() => setSecureMode(!secureMode)}
+                    >
+                      <ShieldCheck size={18} style={{ color: secureMode ? 'var(--accent)' : 'var(--text-4)' }} />
+                      <div className="flex-1 text-left">
+                        <p className="text-sm font-semibold" style={{ color: secureMode ? 'var(--accent)' : 'var(--text-2)' }}>
+                          Secure code mode
+                        </p>
+                        <p className="text-xs" style={{ color: 'var(--text-4)' }}>Generate an 8-character code instead of 6 digits</p>
+                      </div>
+                      <div
+                        className="w-10 h-6 rounded-full relative transition-all shrink-0"
+                        style={{ background: secureMode ? 'var(--accent)' : 'var(--border-strong)' }}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full absolute top-1 transition-all"
+                          style={{ background: '#fff', left: secureMode ? '20px' : '4px' }}
+                        />
+                      </div>
+                    </button>
+
                     {/* Upload button */}
                     <motion.button
                       className="btn-primary w-full text-base group"
@@ -1221,6 +1281,116 @@ export default function HomePage() {
               </motion.div>
             </div>
           </div>
+
+          {/* ═══ BELOW THE FOLD: Crawlable Explainer & FAQ ═══ */}
+          <section className="mt-16 pt-12 border-t" style={{ borderColor: 'var(--border)' }}>
+            <div className="max-w-4xl mx-auto space-y-12">
+              
+              {/* What it is */}
+              <div className="text-center space-y-3">
+                <span className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full inline-block" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  Free Universal Clipboard &amp; File Transfer
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold" style={{ color: 'var(--text)' }}>
+                  What is SwiftShare?
+                </h2>
+                <p className="text-sm sm:text-base leading-relaxed max-w-2xl mx-auto" style={{ color: 'var(--text-2)' }}>
+                  SwiftShare is a browser-based, zero-friction online clipboard and ephemeral file sharing tool. It enables seamless copy-paste syncing and transfer of text snippets, photos, videos, and documents between phones, laptops, and workstations with zero sign-up, zero logins, and zero software installs.
+                </p>
+              </div>
+
+              {/* How it works in 3 steps */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="surface-card p-5 text-center">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-3 font-display font-bold text-sm" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
+                    1
+                  </div>
+                  <h3 className="font-bold text-sm mb-1.5" style={{ color: 'var(--text)' }}>1. Drop or Paste</h3>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
+                    Drop files up to 100 MB or paste text snippets into the online clipboard directly from your browser.
+                  </p>
+                </div>
+                <div className="surface-card p-5 text-center">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-3 font-display font-bold text-sm" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
+                    2
+                  </div>
+                  <h3 className="font-bold text-sm mb-1.5" style={{ color: 'var(--text)' }}>2. Share 6-Digit Code</h3>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
+                    Share your simple 6-digit numeric code or let nearby devices scan your instant QR code.
+                  </p>
+                </div>
+                <div className="surface-card p-5 text-center">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-3 font-display font-bold text-sm" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
+                    3
+                  </div>
+                  <h3 className="font-bold text-sm mb-1.5" style={{ color: 'var(--text)' }}>3. Grab &amp; Self-Destruct</h3>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
+                    The receiver downloads the files or copies the snippet, and data is automatically purged when the timer expires.
+                  </p>
+                </div>
+              </div>
+
+              {/* Privacy & Auto-Delete */}
+              <div className="surface-card-flat p-6 rounded-2xl flex flex-col sm:flex-row items-center gap-5 border" style={{ borderColor: 'var(--border)' }}>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  <ShieldCheck size={24} />
+                </div>
+                <div className="flex-1 text-center sm:text-left">
+                  <h3 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>
+                    Private, Encrypted &amp; Auto-Purged
+                  </h3>
+                  <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-3)' }}>
+                    All transfers travel over TLS 1.3 encryption. Files and clipboard history self-destruct once their session timer ends. For maximum privacy, enable Burn Mode to delete files immediately upon download.
+                  </p>
+                </div>
+              </div>
+
+              {/* FAQ of 4-5 questions */}
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold text-center mb-6" style={{ color: 'var(--text)' }}>
+                  Frequently Asked Questions
+                </h3>
+                <div className="space-y-3">
+                  {[
+                    {
+                      q: 'How does the online clipboard work between phone and PC?',
+                      a: 'Click "Share Text", paste your note, command, or link, and click Share. You will get a 6-digit code or QR code. On your other device, visit SwiftShare, type the 6 digits or scan the QR, and click "Copy to Clipboard".',
+                    },
+                    {
+                      q: 'Do I or the receiver need an account?',
+                      a: 'No. SwiftShare never asks for an account, email, or phone number. Anyone can send or receive immediately without registration.',
+                    },
+                    {
+                      q: 'How long do transfers stay available?',
+                      a: 'By default, files and snippets expire in 60 minutes, but you can select 10 minutes, 1 hour, or up to 24 hours. Once expired, files are permanently deleted.',
+                    },
+                    {
+                      q: 'What is Burn after download mode?',
+                      a: 'When Burn mode is enabled, the transfer is permanently deleted from storage as soon as the recipient finishes downloading it.',
+                    },
+                    {
+                      q: 'What are the transfer file size limits?',
+                      a: 'You can transfer up to 10 files at a time with a total combined size of up to 100 MB per transfer session, completely free.',
+                    },
+                  ].map((faq, idx) => (
+                    <details
+                      key={idx}
+                      className="surface-card p-4 rounded-xl cursor-pointer group transition-colors"
+                    >
+                      <summary className="font-semibold text-sm list-none flex items-center justify-between" style={{ color: 'var(--text)' }}>
+                        <span>{faq.q}</span>
+                        <span className="text-xs transition-transform group-open:rotate-180" style={{ color: 'var(--accent)' }}>▼</span>
+                      </summary>
+                      <p className="mt-3 text-xs sm:text-sm leading-relaxed pt-2 border-t" style={{ borderColor: 'var(--border)', color: 'var(--text-3)' }}>
+                        {faq.a}
+                      </p>
+                    </details>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </section>
         </div>
       </main>
       <Footer />

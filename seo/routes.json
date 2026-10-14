@@ -2,23 +2,37 @@
   {
     "path": "/",
     "file": "index",
-    "title": "SwiftShare — Send Files Without Sign-Up (Free, Self-Destructing Links)",
-    "description": "Send files or text to any device with a 6-character code or QR scan. No account needed. Links expire automatically, with optional password and burn-after-download.",
-    "lastmod": "2026-09-30"
+    "title": "SwiftShare - Free Online Clipboard & File Transfer (No Sign-up)",
+    "description": "Free online clipboard and fast cross-device file transfer without sign-up. Copy-paste text and share files with a 6-digit code or QR. No accounts needed.",
+    "lastmod": "2026-10-14"
+  },
+  {
+    "path": "/online-clipboard",
+    "file": "online-clipboard",
+    "title": "Online Clipboard — Copy & Paste Across Phone, PC & Mac",
+    "description": "Free online clipboard to copy and paste text, code, notes, and links across phone and computer without accounts, apps, or sign-up.",
+    "lastmod": "2026-10-14"
+  },
+  {
+    "path": "/join",
+    "file": "join",
+    "title": "Receive a File — Enter 6-Digit Code | SwiftShare",
+    "description": "Enter a 6-digit code or scan a QR code to download files or text shared with you on SwiftShare. Fast, free, and no registration required.",
+    "lastmod": "2026-10-14"
   },
   {
     "path": "/how-it-works",
     "file": "how-it-works",
-    "title": "How SwiftShare Works — Step-by-Step File & Text Sharing",
-    "description": "Learn how SwiftShare transfers files and text securely across devices using short 6-digit codes, instant QR scans, and auto-expiring links without accounts.",
-    "lastmod": "2026-09-30"
+    "title": "How SwiftShare Works — Easy Cross-Device Sharing",
+    "description": "Learn how SwiftShare transfers files and text securely across devices using short 6-digit codes, instant QR scans, and auto-expiring links.",
+    "lastmod": "2026-10-14"
   },
   {
     "path": "/send-files-without-signup",
     "file": "send-files-without-signup",
-    "title": "Send Files Without Sign-Up — Free, No Account File Transfer",
-    "description": "Transfer files directly between browsers without registration, email, or app downloads. Drop files, get a code, and share instantly.",
-    "lastmod": "2026-09-30"
+    "title": "Send Files Without Sign-Up — Free File Transfer",
+    "description": "Transfer files directly between browsers without registration, email, or apps. Drop files, get a 6-digit code, and share instantly.",
+    "lastmod": "2026-10-14"
   },
   {
     "path": "/share-files-with-qr-code",
@@ -44,16 +58,16 @@
   {
     "path": "/share-text-and-code-snippets",
     "file": "share-text-and-code-snippets",
-    "title": "Share Text & Code Snippets — Fast Temporary Pastebin",
-    "description": "Share formatted text, code blocks, logs, and passwords up to 256 KB across devices with syntax-ready display and auto-destruction.",
-    "lastmod": "2026-09-30"
+    "title": "Online Clipboard & Snippet Share — Sync Text Across Devices (No Sign-Up)",
+    "description": "Free online clipboard to copy and paste text between phone, PC, and Mac instantly. Temporary pastebin with auto-expiration and zero registration required.",
+    "lastmod": "2026-10-14"
   },
   {
     "path": "/airdrop-alternative",
     "file": "airdrop-alternative",
-    "title": "Cross-Platform AirDrop Alternative for Windows, Android & Linux",
-    "description": "Fast wireless file sharing between Android, Windows, macOS, Linux, and iOS over standard web browsers without installing special software.",
-    "lastmod": "2026-09-30"
+    "title": "AirDrop Alternative for Windows, Android & Linux",
+    "description": "Fast cross-platform AirDrop alternative for Android, Windows, macOS, and Linux over standard browsers without installing software.",
+    "lastmod": "2026-10-14"
   },
   {
     "path": "/security",

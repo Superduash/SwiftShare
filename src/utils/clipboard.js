@@ -100,3 +100,106 @@ export async function shareOrCopy(options = {}) {
   const copied = await copyToClipboard(copyText);
   return copied ? 'copied' : 'failed';
 }
+
+export function isImageFile(file) {
+  const type = file?.type || file?.mimeType || '';
+  const name = file?.name || file?.originalName || '';
+  return Boolean(type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(name));
+}
+
+export function isTextFile(file) {
+  const type = file?.type || file?.mimeType || '';
+  const name = file?.name || file?.originalName || '';
+  return Boolean(
+    type.startsWith('text/') ||
+    /json|javascript|typescript|xml|yaml|html|csv|plain/i.test(type) ||
+    /\.(txt|md|json|js|jsx|ts|tsx|html|css|scss|xml|csv|yaml|yml|py|sh|c|cpp|h|java|rs|go|sql|env|log|ini|toml|conf)$/i.test(name)
+  );
+}
+
+async function convertBlobToPng(blob) {
+  if (blob.type === 'image/png') return blob;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width || 300;
+      canvas.height = img.naturalHeight || img.height || 300;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((pngBlob) => {
+        if (pngBlob) resolve(pngBlob);
+        else reject(new Error('Canvas toBlob failed'));
+      }, 'image/png');
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(e);
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * Copy file content to clipboard (applies to images & text files).
+ * Fallback to filename if file type is unsupported or operation fails.
+ */
+export async function copyFileToClipboard(file, fileUrl) {
+  const fileName = file?.name || file?.originalName || '';
+
+  // 1. Image files -> copy image binary to clipboard
+  if (isImageFile(file)) {
+    try {
+      let blob = null;
+      if (file instanceof Blob) {
+        blob = file;
+      } else if (fileUrl) {
+        const resp = await fetch(fileUrl);
+        if (resp.ok) blob = await resp.blob();
+      }
+
+      if (blob && navigator.clipboard && typeof navigator.clipboard.write === 'function') {
+        const pngBlob = await convertBlobToPng(blob);
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': pngBlob }),
+        ]);
+        return { success: true, type: 'image' };
+      }
+    } catch (err) {
+      console.warn('Image clipboard copy failed, falling back:', err);
+    }
+  }
+
+  // 2. Text / code files -> copy text content to clipboard
+  if (isTextFile(file)) {
+    try {
+      let text = null;
+      if (typeof file?.text === 'function') {
+        text = await file.text();
+      } else if (typeof file?.text === 'string') {
+        text = file.text;
+      } else if (typeof file?.content === 'string') {
+        text = file.content;
+      } else if (fileUrl) {
+        const resp = await fetch(fileUrl);
+        if (resp.ok) text = await resp.text();
+      }
+
+      if (typeof text === 'string') {
+        const copied = await copyToClipboard(text);
+        if (copied) {
+          return { success: true, type: 'text' };
+        }
+      }
+    } catch (err) {
+      console.warn('Text clipboard copy failed, falling back:', err);
+    }
+  }
+
+  // 3. Fallback for binary files (zip, pdf, video) or when direct copy is not supported
+  const copied = await copyToClipboard(fileName);
+  return { success: copied, type: 'name', isFallback: isImageFile(file) || isTextFile(file) };
+}

@@ -13,17 +13,17 @@ function buildPasswordHeaders(password) {
   return { 'x-transfer-password': password }
 }
 
-export async function smartDownload(code, { index, originalName, password, claimantToken, ownershipToken } = {}) {
+export async function smartDownload(code, { index, originalName, password, claimantToken, ownershipToken, downloadSessionId } = {}) {
   // For simple full-transfer downloads, use direct navigation (streaming, no memory pressure)
   if (typeof index !== 'number') {
-    downloadFile(code, password, claimantToken, ownershipToken)
+    downloadFile(code, password, claimantToken, ownershipToken, downloadSessionId)
     return true
   }
 
   const headers = buildPasswordHeaders(password)
   const url = typeof index === 'number'
-    ? getSingleDownloadUrl(code, index, password, claimantToken, ownershipToken)
-    : getDownloadUrl(code, password, claimantToken, ownershipToken)
+    ? getSingleDownloadUrl(code, index, password, claimantToken, ownershipToken, downloadSessionId)
+    : getDownloadUrl(code, password, claimantToken, ownershipToken, downloadSessionId)
 
   try {
     const resp = await fetch(url, headers ? { headers } : undefined)
@@ -33,8 +33,8 @@ export async function smartDownload(code, { index, originalName, password, claim
     const contentLength = Number(resp.headers.get('content-length') || 0)
     if (contentLength > 50 * 1024 * 1024) {
       resp.body?.cancel()
-      if (typeof index === 'number') downloadSingleFile(code, index, password, claimantToken, ownershipToken)
-      else downloadFile(code, password, claimantToken, ownershipToken)
+      if (typeof index === 'number') downloadSingleFile(code, index, password, claimantToken, ownershipToken, downloadSessionId)
+      else downloadFile(code, password, claimantToken, ownershipToken, downloadSessionId)
       return true
     }
 
@@ -43,8 +43,8 @@ export async function smartDownload(code, { index, originalName, password, claim
     triggerBlobDownload(blob, filename)
     return true
   } catch {
-    if (typeof index === 'number') downloadSingleFile(code, index, password, claimantToken, ownershipToken)
-    else downloadFile(code, password, claimantToken, ownershipToken)
+    if (typeof index === 'number') downloadSingleFile(code, index, password, claimantToken, ownershipToken, downloadSessionId)
+    else downloadFile(code, password, claimantToken, ownershipToken, downloadSessionId)
     return true
   }
 }

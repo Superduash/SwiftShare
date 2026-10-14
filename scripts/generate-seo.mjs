@@ -15,7 +15,7 @@ const routes = JSON.parse(fs.readFileSync(routesPath, 'utf-8'));
 
 // Determine site URL (no trailing slash)
 function getSiteUrl() {
-  const envUrl = process.env.VITE_SITE_URL;
+  const envUrl = process.env.SITE_URL || process.env.VITE_SITE_URL;
   if (envUrl && envUrl.trim() && !envUrl.includes('localhost')) {
     return envUrl.trim().replace(/\/+$/, '');
   }
@@ -38,11 +38,16 @@ function runPrebuild() {
   // 1. Generate robots.txt
   const robotsTxt = `User-agent: *
 Allow: /
+Disallow: /download/
+Disallow: /sender/
+Disallow: /expired
+Disallow: /admin
+Disallow: /api/
 
 Sitemap: ${siteUrl}/sitemap.xml
 `;
   fs.writeFileSync(path.join(publicDir, 'robots.txt'), robotsTxt, 'utf-8');
-  console.log('[SEO:Prebuild] ✓ Generated public/robots.txt');
+  console.log('[SEO:Prebuild] ✓ Generated public/robots.txt (with disallow for private routes)');
 
   // 2. Generate sitemap.xml
   const sitemapEntries = routes.map(r => {
