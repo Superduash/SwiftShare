@@ -21,17 +21,8 @@ export default function SecurityPage() {
         </p>
       </section>
 
-      <motion.div 
-        className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-40px" }}
-        variants={{
-          hidden: {},
-          visible: { transition: { staggerChildren: 0.1 } }
-        }}
-      >
-        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }} className="p-5 rounded-xl border surface-card-flat" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+        <div className="p-5 rounded-xl border surface-card-flat transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-0.5" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--success)' }}>
             <ShieldCheck size={18} />
           </div>
@@ -39,9 +30,9 @@ export default function SecurityPage() {
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
             All transfers are transmitted exclusively over HTTPS using TLS 1.3, protecting data from eavesdropping and man-in-the-middle inspection during transit.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }} className="p-5 rounded-xl border surface-card-flat" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+        <div className="p-5 rounded-xl border surface-card-flat transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-0.5" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
             <Lock size={18} />
           </div>
@@ -49,9 +40,9 @@ export default function SecurityPage() {
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
             When a transfer is password-protected, the password is securely hashed with bcrypt using salted rounds on our backend. Passwords are never logged or stored in plaintext.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }} className="p-5 rounded-xl border surface-card-flat" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+        <div className="p-5 rounded-xl border surface-card-flat transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-0.5" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
             <Key size={18} />
           </div>
@@ -59,9 +50,9 @@ export default function SecurityPage() {
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
             File downloads require short-lived HMAC-signed tokens to ensure only authorized clients can trigger object streaming from Cloudflare R2.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.4 }} className="p-5 rounded-xl border surface-card-flat" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+        <div className="p-5 rounded-xl border surface-card-flat transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-0.5" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ background: 'var(--accent-soft)', color: 'var(--danger)' }}>
             <Ban size={18} />
           </div>
@@ -69,8 +60,8 @@ export default function SecurityPage() {
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
             Uploads of executable formats (.exe, .bat, .cmd, .scr, .vbs, .pif) are blocked by default to prevent distribution of malware and phishing payloads.
           </p>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       <section className="space-y-4 pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
         <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text)' }}>

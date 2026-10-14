@@ -52,23 +52,12 @@ export default function FaqPage() {
       description="Find clear, honest answers regarding file limits, expiration, privacy, device compatibility, and download mechanics on SwiftShare."
       badge="FAQ & Help"
     >
-      <motion.div 
-        className="space-y-3"
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-20px" }}
-        variants={{
-          hidden: {},
-          visible: { transition: { staggerChildren: 0.05 } }
-        }}
-      >
+      <div className="space-y-3">
         {faqs.map((faq, idx) => {
           const isOpen = openFaq === idx
           return (
-            <motion.div
+            <div
               key={idx}
-              variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
-              transition={{ duration: 0.25 }}
               className="rounded-2xl border transition-all duration-200 overflow-hidden"
               style={{
                 background: isOpen ? 'var(--bg-elevated)' : 'var(--surface)',
@@ -119,10 +108,10 @@ export default function FaqPage() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
           )
         })}
-      </motion.div>
+      </div>
     </ContentPageLayout>
   )
 }

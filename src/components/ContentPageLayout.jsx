@@ -25,12 +25,7 @@ export default function ContentPageLayout({
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
           
           {/* Breadcrumb / Back Link */}
-          <motion.div
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.25 }}
-            className="mb-6"
-          >
+          <div className="mb-6">
             <Link
               to="/"
               className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:border-[var(--accent)] hover:text-[var(--text)] active:scale-[0.98]"
@@ -39,15 +34,10 @@ export default function ContentPageLayout({
               <ArrowLeft size={13} />
               <span>Back to SwiftShare</span>
             </Link>
-          </motion.div>
+          </div>
 
           {/* Header */}
-          <motion.header
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
-            className="mb-10 text-left"
-          >
+          <header className="mb-10 text-left">
             {badge && (
               <span
                 className="inline-block text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3 shadow-sm"
@@ -62,7 +52,7 @@ export default function ContentPageLayout({
             <p className="text-sm sm:text-base leading-relaxed max-w-2xl" style={{ color: 'var(--text-2)' }}>
               {description}
             </p>
-          </motion.header>
+          </header>
 
           {/* Main Content Body */}
           <article
@@ -72,12 +62,8 @@ export default function ContentPageLayout({
             {children}
 
             {/* Quick Action CTA Banner */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4 }}
-              className="mt-12 p-6 sm:p-8 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-6 transition-all hover:border-[var(--accent)] shadow-sm"
+            <div
+              className="mt-12 p-6 sm:p-8 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-6 transition-all duration-200 hover:border-[var(--accent)] shadow-sm"
               style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
             >
               <div className="text-center sm:text-left">
@@ -104,7 +90,7 @@ export default function ContentPageLayout({
                   <span>Receive</span>
                 </Link>
               </div>
-            </motion.div>
+            </div>
           </article>
         </div>
       </main>

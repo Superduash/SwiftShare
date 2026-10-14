@@ -56,7 +56,7 @@ export default function ChangelogPage() {
                     <strong>Universal 6-Digit Numeric Codes:</strong> All new file and text transfers now strictly generate cryptographically secure 6-digit numeric codes (<code className="font-mono text-xs">000000-999999</code>) by default without alternative code modes.
                   </li>
                   <li>
-                    <strong>Flicker-Free Card Animations:</strong> Eliminated multi-frame animation flashing on page load/reload across Homepage explainer cards, FAQ accordions, and Online Clipboard with rock-solid, instant-rendering CSS transitions.
+                    <strong>Flicker-Free Card &amp; CTA Banner Animations:</strong> Eliminated multi-frame animation flashing on initial page load and fast PWA launches across the universal quick-action CTA banner ("Ready to send files instantly?"), Homepage feature cards, content page grids, and FAQ accordions with rock-solid, instant-rendering CSS transitions.
                   </li>
                   <li>
                     <strong>Dedicated Online Clipboard Page:</strong> Added a dedicated landing page for <code className="font-mono text-xs">/online-clipboard</code> targeting cross-device copy-paste search intent, cleanly distinguishing it from developer code snippet sharing.
