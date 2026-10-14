@@ -1269,13 +1269,7 @@ export default function HomePage() {
             <div className="max-w-4xl mx-auto space-y-12">
               
               {/* What it is */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-40px' }}
-                transition={{ duration: 0.4 }}
-                className="text-center space-y-3"
-              >
+              <div className="text-center space-y-3">
                 <span className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full inline-block" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                   Free Universal Clipboard &amp; File Transfer
                 </span>
@@ -1285,7 +1279,7 @@ export default function HomePage() {
                 <p className="text-sm sm:text-base leading-relaxed max-w-2xl mx-auto" style={{ color: 'var(--text-2)' }}>
                   SwiftShare is a browser-based, zero-friction online clipboard and ephemeral file sharing tool. It enables seamless copy-paste syncing and transfer of text snippets, photos, videos, and documents between phones, laptops, and workstations with zero sign-up, zero logins, and zero software installs.
                 </p>
-              </motion.div>
+              </div>
 
               {/* How it works in 3 steps */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1306,14 +1300,9 @@ export default function HomePage() {
                     desc: 'The receiver downloads the files or copies the snippet, and data is automatically purged when the timer expires.'
                   }
                 ].map((item, idx) => (
-                  <motion.div
+                  <div
                     key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-20px' }}
-                    transition={{ duration: 0.35, delay: idx * 0.1 }}
-                    whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                    className="surface-card p-5 text-center transition-all duration-200 hover:border-[var(--accent)]"
+                    className="surface-card p-5 text-center transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-1"
                   >
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3 font-display font-bold text-sm shadow-sm"
@@ -1325,18 +1314,13 @@ export default function HomePage() {
                     <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
                       {item.desc}
                     </p>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
 
               {/* Privacy & Auto-Delete */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4 }}
-                whileHover={{ y: -2, transition: { duration: 0.2 } }}
-                className="surface-card-flat p-6 rounded-2xl flex flex-col sm:flex-row items-center gap-5 border transition-all hover:border-[var(--accent)]"
+              <div
+                className="surface-card-flat p-6 rounded-2xl flex flex-col sm:flex-row items-center gap-5 border transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-0.5"
                 style={{ borderColor: 'var(--border)' }}
               >
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
@@ -1350,19 +1334,16 @@ export default function HomePage() {
                     All transfers travel over TLS 1.3 encryption. Files and clipboard history self-destruct once their session timer ends. For maximum privacy, enable Burn Mode to delete files immediately upon download.
                   </p>
                 </div>
-              </motion.div>
+              </div>
 
               {/* FAQ of 5 questions */}
               <div className="space-y-4">
-                <motion.h3
-                  initial={{ opacity: 0, y: 15 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
+                <h3
                   className="text-xl font-bold text-center mb-6"
                   style={{ color: 'var(--text)' }}
                 >
                   Frequently Asked Questions
-                </motion.h3>
+                </h3>
                 <div className="space-y-3">
                   {[
                     {
@@ -1388,12 +1369,8 @@ export default function HomePage() {
                   ].map((faq, idx) => {
                     const isOpen = openFaqIndex === idx
                     return (
-                      <motion.div
+                      <div
                         key={idx}
-                        initial={{ opacity: 0, y: 12 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: idx * 0.05 }}
                         className="rounded-2xl border transition-all duration-200 overflow-hidden"
                         style={{
                           background: isOpen ? 'var(--bg-elevated)' : 'var(--surface)',
@@ -1444,7 +1421,7 @@ export default function HomePage() {
                             </motion.div>
                           )}
                         </AnimatePresence>
-                      </motion.div>
+                      </div>
                     )
                   })}
                 </div>

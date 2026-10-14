@@ -45,7 +45,7 @@ export default function ChangelogPage() {
                 </span>
               </div>
               <p className="text-sm font-semibold" style={{ color: 'var(--text-2)' }}>
-                Standardized 6-Digit Numeric Codes, Secure Mode Removal, and Dedicated Online Clipboard Experience
+                Standardized 6-Digit Transfer Experience, Flicker-Free Box Animations, and Dedicated Online Clipboard
               </p>
             </div>
 
@@ -53,16 +53,16 @@ export default function ChangelogPage() {
               <div className="p-4 sm:p-5 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
                 <ul className="space-y-2 list-disc list-inside" style={{ color: 'var(--text-2)' }}>
                   <li>
-                    <strong>Standardized 6-Digit Numeric Codes:</strong> All new file and text transfers now strictly generate cryptographically secure 6-digit numeric codes (<code className="font-mono text-xs">000000-999999</code>) by default.
+                    <strong>Universal 6-Digit Numeric Codes:</strong> All new file and text transfers now strictly generate cryptographically secure 6-digit numeric codes (<code className="font-mono text-xs">000000-999999</code>) by default without alternative code modes.
                   </li>
                   <li>
-                    <strong>Complete Removal of Secure Mode:</strong> Removed the 8-character toggle, flags, options, and UI elements across both file and text modals for a simpler, zero-friction transfer creation workflow.
-                  </li>
-                  <li>
-                    <strong>Active Transfer Compatibility:</strong> Retained backward-compatible lookup regex and paste handling so in-flight transfers with legacy or 8-character codes remain fully retrievable until expiration.
+                    <strong>Flicker-Free Card Animations:</strong> Eliminated multi-frame animation flashing on page load/reload across Homepage explainer cards, FAQ accordions, and Online Clipboard with rock-solid, instant-rendering CSS transitions.
                   </li>
                   <li>
                     <strong>Dedicated Online Clipboard Page:</strong> Added a dedicated landing page for <code className="font-mono text-xs">/online-clipboard</code> targeting cross-device copy-paste search intent, cleanly distinguishing it from developer code snippet sharing.
+                  </li>
+                  <li>
+                    <strong>Active Transfer Compatibility:</strong> Retained backward-compatible lookup regex and paste handling so in-flight transfers with legacy or 8-character codes remain fully retrievable until expiration.
                   </li>
                 </ul>
               </div>
@@ -104,9 +104,6 @@ export default function ChangelogPage() {
                   </li>
                   <li>
                     <strong>Sender Spaced Display:</strong> Sender page displays codes in high-legibility spaced format (e.g. <code className="font-mono text-xs">482 910</code>) while the copy button automatically strips all whitespace.
-                  </li>
-                  <li>
-                    <strong>Secure Mode (8-Char Alphanumeric):</strong> Optional sender toggle for high-entropy alphanumeric codes that omit easily confused characters (<code className="font-mono text-xs">O, 0, I, 1, l</code>).
                   </li>
                   <li>
                     <strong>Full Backward Compatibility:</strong> Active transfer lookup accepts both 6-digit numeric codes and legacy alphanumeric codes without breaking in-flight sessions.

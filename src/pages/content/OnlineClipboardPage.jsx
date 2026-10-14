@@ -1,6 +1,5 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import ContentPageLayout from '../../components/ContentPageLayout'
 import {
   ClipboardCopy,
@@ -25,12 +24,7 @@ export default function OnlineClipboardPage() {
       description="Free online clipboard to copy and paste text, links, notes, and credentials across devices without sign-up, apps, or accounts. Instant 6-digit sync."
       badge="Universal Web Clipboard"
     >
-      <motion.section
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="space-y-4"
-      >
+      <section className="space-y-4">
         <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text)' }}>
           Copy &amp; Paste Text Between Any Phone, PC, or Mac Instantly
         </h2>
@@ -40,15 +34,11 @@ export default function OnlineClipboardPage() {
         <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
           Simply paste your text, receive a standard <strong>6-digit code</strong> or QR code, open SwiftShare on the other device, and your clipboard text is copied with a single tap.
         </p>
-      </motion.section>
+      </section>
 
       {/* Interactive Quick Launch CTA */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.35, delay: 0.1 }}
-        className="p-5 sm:p-6 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 transition-all"
+      <div
+        className="p-5 sm:p-6 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-200 hover:border-[var(--accent)]"
         style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent)' }}
       >
         <div className="text-center sm:text-left">
@@ -67,16 +57,10 @@ export default function OnlineClipboardPage() {
           <span>Open Online Clipboard</span>
           <ArrowRight size={14} />
         </Link>
-      </motion.div>
+      </div>
 
       {/* 3 Step Walkthrough */}
-      <motion.section
-        initial={{ opacity: 0, y: 15 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.35, delay: 0.15 }}
-        className="space-y-4 pt-2"
-      >
+      <section className="space-y-4 pt-2">
         <h3 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
           How to Use the Online Clipboard in 3 Simple Steps
         </h3>
@@ -100,12 +84,12 @@ export default function OnlineClipboardPage() {
           ].map((item, idx) => (
             <div
               key={idx}
-              className="p-5 rounded-2xl border relative flex flex-col justify-between"
+              className="p-5 rounded-2xl border relative flex flex-col justify-between transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-1"
               style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
             >
               <div>
                 <span
-                  className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-xs font-bold mb-3"
+                  className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-xs font-bold mb-3 shadow-sm"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
                   {item.step}
@@ -116,7 +100,7 @@ export default function OnlineClipboardPage() {
             </div>
           ))}
         </div>
-      </motion.section>
+      </section>
 
       {/* Feature Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
@@ -140,13 +124,9 @@ export default function OnlineClipboardPage() {
             desc: 'Enable Burn Mode for passwords, tokens, or private secrets so the transfer is erased forever as soon as the recipient copies it.'
           }
         ].map((item, idx) => (
-          <motion.div
+          <div
             key={idx}
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.35, delay: idx * 0.08 }}
-            className="p-5 rounded-2xl border transition-all duration-200 hover:border-[var(--accent)]"
+            className="p-5 rounded-2xl border transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-1"
             style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
           >
             <div
@@ -159,16 +139,12 @@ export default function OnlineClipboardPage() {
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
               {item.desc}
             </p>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       {/* Use Cases Section */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.4 }}
+      <section
         className="space-y-4 pt-4 border-t"
         style={{ borderColor: 'var(--border)' }}
       >
@@ -198,11 +174,9 @@ export default function OnlineClipboardPage() {
               desc: 'No account registration, no background telemetry, and zero extensions to keep your browser fast and private.'
             }
           ].map((card, idx) => (
-            <motion.div
+            <div
               key={idx}
-              whileHover={{ y: -2, borderColor: 'var(--accent)' }}
-              transition={{ duration: 0.2 }}
-              className="p-4 rounded-xl border flex items-start gap-3 transition-all"
+              className="p-4 rounded-xl border flex items-start gap-3 transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-0.5"
               style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
             >
               <card.icon className="w-5 h-5 flex-shrink-0 mt-0.5 text-[var(--accent)]" />
@@ -210,10 +184,10 @@ export default function OnlineClipboardPage() {
                 <strong className="text-[var(--text)] block mb-0.5">{card.title}</strong>
                 <span className="text-[var(--text-2)] leading-relaxed">{card.desc}</span>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
-      </motion.section>
+      </section>
 
       {/* Internal Navigation Links */}
       <section className="pt-4 border-t text-xs space-y-2" style={{ borderColor: 'var(--border)' }}>

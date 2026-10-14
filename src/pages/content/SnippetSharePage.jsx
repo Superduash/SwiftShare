@@ -1,6 +1,5 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import ContentPageLayout from '../../components/ContentPageLayout'
 import { FileCode, Terminal, Shield, Zap, Sparkles, Smartphone, Monitor, Globe, CheckCircle2, ArrowRight, Code2 } from 'lucide-react'
 
@@ -12,12 +11,7 @@ export default function SnippetSharePage() {
       description="Share code snippets, terminal commands, config files, and JSON with developers instantly. Syntax-friendly display, auto-expiry, and no registration required."
       badge="Developer Pastebin"
     >
-      <motion.section
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="space-y-4"
-      >
+      <section className="space-y-4">
         <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text)' }}>
           Lightweight, No-Signup Pastebin for Developers &amp; Teams
         </h2>
@@ -27,15 +21,11 @@ export default function SnippetSharePage() {
         <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
           Simply paste your code into the <strong>Share Text</strong> panel, choose an expiration timer (from 10 minutes to 24 hours), and share the generated 6-digit code or QR. Recipients can view the formatted snippet with monospace rendering and copy it in one click.
         </p>
-      </motion.section>
+      </section>
 
       {/* Interactive Quick Launch CTA */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.35, delay: 0.1 }}
-        className="p-5 sm:p-6 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 transition-all"
+      <div
+        className="p-5 sm:p-6 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-200 hover:border-[var(--accent)]"
         style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent)' }}
       >
         <div className="text-center sm:text-left">
@@ -54,7 +44,7 @@ export default function SnippetSharePage() {
           <span>Share Code Snippet</span>
           <ArrowRight size={14} />
         </Link>
-      </motion.div>
+      </div>
 
       {/* Feature Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
@@ -78,14 +68,9 @@ export default function SnippetSharePage() {
             desc: 'Sharing API keys, staging tokens, or environment variables? Enable Burn Mode to permanently delete the snippet upon viewing.'
           }
         ].map((item, idx) => (
-          <motion.div
+          <div
             key={idx}
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.35, delay: idx * 0.08 }}
-            whileHover={{ y: -4, transition: { duration: 0.2 } }}
-            className="p-5 rounded-2xl border transition-all duration-200 hover:border-[var(--accent)]"
+            className="p-5 rounded-2xl border transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-1"
             style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
           >
             <div
@@ -98,16 +83,12 @@ export default function SnippetSharePage() {
             <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
               {item.desc}
             </p>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       {/* Developer Scenarios */}
-      <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.4 }}
+      <section
         className="space-y-4 pt-4 border-t"
         style={{ borderColor: 'var(--border)' }}
       >
@@ -137,11 +118,9 @@ export default function SnippetSharePage() {
               desc: 'Adjust or redact sensitive strings directly in the browser editor before creating the transfer code.'
             }
           ].map((card, idx) => (
-            <motion.div
+            <div
               key={idx}
-              whileHover={{ y: -2, borderColor: 'var(--accent)' }}
-              transition={{ duration: 0.2 }}
-              className="p-4 rounded-xl border flex items-start gap-3 transition-all"
+              className="p-4 rounded-xl border flex items-start gap-3 transition-all duration-200 hover:border-[var(--accent)] hover:-translate-y-0.5"
               style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
             >
               <card.icon className="w-5 h-5 flex-shrink-0 mt-0.5 text-[var(--accent)]" />
@@ -149,10 +128,10 @@ export default function SnippetSharePage() {
                 <strong className="text-[var(--text)] block mb-0.5">{card.title}</strong>
                 <span className="text-[var(--text-2)] leading-relaxed">{card.desc}</span>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
-      </motion.section>
+      </section>
 
       {/* Related Tools */}
       <section className="pt-4 border-t text-xs space-y-2" style={{ borderColor: 'var(--border)' }}>
