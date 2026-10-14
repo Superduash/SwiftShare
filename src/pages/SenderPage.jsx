@@ -15,7 +15,8 @@ import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
 import {
   extendTransfer, deleteTransfer, downloadSingleFile, verifyPassword, getTextContent,
-  verifyOwnership, getFileMetadata, getTransferActivity, getTransferStatus, updateTransferNearby
+  verifyOwnership, getFileMetadata, getTransferActivity, getTransferStatus, updateTransferNearby,
+  previewUrl
 } from '../services/api'
 import {
   getCachedTransfer,
