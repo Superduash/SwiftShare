@@ -142,7 +142,11 @@ export default function TwoFactorModal({ isOpen, onClose, onStatusChange }) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-lg bg-[var(--surface-card)] border border-[var(--border)] rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg border rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{
+          background: 'var(--bg-raised)',
+          borderColor: 'var(--border)',
+        }}
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[var(--border)] mb-5">

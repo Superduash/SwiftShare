@@ -43,6 +43,10 @@ button, a, input, select, textarea, [role="button"], [tabindex] {
   --app-vh: 1vh;
   --app-header-offset: calc(var(--safe-top) + var(--navbar-height) + var(--connection-banner-height));
   
+  /* Theme variable aliases */
+  --surface-card: var(--surface);
+  --bg-elevated: var(--surface);
+
   /* Mobile-specific spacing to prevent squishing */
   --mobile-section-gap: 24px;
   --mobile-card-padding: 16px;
