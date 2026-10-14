@@ -96,6 +96,7 @@ const QrSharePage = lazy(() => import('./pages/content/QrSharePage'))
 const SelfDestructPage = lazy(() => import('./pages/content/SelfDestructPage'))
 const PasswordProtectedPage = lazy(() => import('./pages/content/PasswordProtectedPage'))
 const SnippetSharePage = lazy(() => import('./pages/content/SnippetSharePage'))
+const OnlineClipboardPage = lazy(() => import('./pages/content/OnlineClipboardPage'))
 const AirDropAlternativePage = lazy(() => import('./pages/content/AirDropAlternativePage'))
 const SecurityPage = lazy(() => import('./pages/content/SecurityPage'))
 const FaqPage = lazy(() => import('./pages/content/FaqPage'))
@@ -200,7 +201,7 @@ function AnimatedRoutes() {
           <Route path="/self-destructing-file-sharing" element={<PageWrapper><SelfDestructPage /></PageWrapper>} />
           <Route path="/password-protected-file-transfer" element={<PageWrapper><PasswordProtectedPage /></PageWrapper>} />
           <Route path="/share-text-and-code-snippets" element={<PageWrapper><SnippetSharePage /></PageWrapper>} />
-          <Route path="/online-clipboard" element={<PageWrapper><SnippetSharePage /></PageWrapper>} />
+          <Route path="/online-clipboard" element={<PageWrapper><OnlineClipboardPage /></PageWrapper>} />
           <Route path="/airdrop-alternative" element={<PageWrapper><AirDropAlternativePage /></PageWrapper>} />
           <Route path="/security" element={<PageWrapper><SecurityPage /></PageWrapper>} />
           <Route path="/faq" element={<PageWrapper><FaqPage /></PageWrapper>} />

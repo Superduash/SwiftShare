@@ -19,7 +19,7 @@ export default function ChangelogPage() {
         />
 
         <div className="space-y-12">
-          {/* Release: v0.8.3 */}
+          {/* Release: v0.8.4 */}
           <section className="relative pl-7 sm:pl-9">
             {/* Timeline node */}
             <div
@@ -32,13 +32,57 @@ export default function ChangelogPage() {
             <div className="mb-4">
               <div className="flex flex-wrap items-center gap-2 mb-1.5">
                 <span className="font-mono font-bold text-lg sm:text-xl" style={{ color: 'var(--text)' }}>
-                  v0.8.3
+                  v0.8.4
                 </span>
                 <span
                   className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
                 >
                   Latest Release
+                </span>
+                <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+                  October 14, 2026
+                </span>
+              </div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-2)' }}>
+                Standardized 6-Digit Numeric Codes, Secure Mode Removal, and Dedicated Online Clipboard Experience
+              </p>
+            </div>
+
+            <div className="space-y-4 text-xs sm:text-sm">
+              <div className="p-4 sm:p-5 rounded-2xl border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <ul className="space-y-2 list-disc list-inside" style={{ color: 'var(--text-2)' }}>
+                  <li>
+                    <strong>Standardized 6-Digit Numeric Codes:</strong> All new file and text transfers now strictly generate cryptographically secure 6-digit numeric codes (<code className="font-mono text-xs">000000-999999</code>) by default.
+                  </li>
+                  <li>
+                    <strong>Complete Removal of Secure Mode:</strong> Removed the 8-character toggle, flags, options, and UI elements across both file and text modals for a simpler, zero-friction transfer creation workflow.
+                  </li>
+                  <li>
+                    <strong>Active Transfer Compatibility:</strong> Retained backward-compatible lookup regex and paste handling so in-flight transfers with legacy or 8-character codes remain fully retrievable until expiration.
+                  </li>
+                  <li>
+                    <strong>Dedicated Online Clipboard Page:</strong> Added a dedicated landing page for <code className="font-mono text-xs">/online-clipboard</code> targeting cross-device copy-paste search intent, cleanly distinguishing it from developer code snippet sharing.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Release: v0.8.3 */}
+          <section className="relative pl-7 sm:pl-9">
+            {/* Timeline node */}
+            <div
+              className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shadow-sm"
+              style={{ background: 'var(--bg)', borderColor: 'var(--border-strong)' }}
+            >
+              <div className="w-2 h-2 rounded-full" style={{ background: 'var(--text-4)' }} />
+            </div>
+
+            <div className="mb-4">
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <span className="font-mono font-bold text-lg sm:text-xl" style={{ color: 'var(--text)' }}>
+                  v0.8.3
                 </span>
                 <span className="text-xs" style={{ color: 'var(--text-3)' }}>
                   October 14, 2026

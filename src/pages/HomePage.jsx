@@ -52,7 +52,6 @@ export default function HomePage() {
   const [expiry, setExpiry] = useState(initialSettings.defaultExpiry || 60)
   const [burn, setBurn] = useState(initialSettings.defaultBurn || false)
   const [nearbyVisible, setNearbyVisible] = useState(true)
-  const [secureMode, setSecureMode] = useState(false)
   // Track whether the user has manually overridden the picker in this session.
   // If they have, we don't stomp their choice when settings change. If they
   // haven't, the picker should mirror whatever default is currently saved.
@@ -356,7 +355,6 @@ export default function HomePage() {
     try {
       const response = await shareText({
         ...textData,
-        secureMode: typeof textData.secureMode !== 'undefined' ? textData.secureMode : secureMode,
         nearbyVisible: textData.passwordProtected ? false : (typeof textData.nearbyVisible !== 'undefined' ? textData.nearbyVisible : nearbyVisible),
         socketId: socketId || undefined,
       })
@@ -524,7 +522,6 @@ export default function HomePage() {
       formData.append('expiryMinutes', expiry)
       formData.append('burnAfterDownload', burn)
       formData.append('nearbyVisible', passwordProtected ? 'false' : String(nearbyVisible))
-      formData.append('secureMode', String(secureMode))
       if (passwordProtected && password.trim()) {
         formData.append('passwordProtected', 'true')
         formData.append('password', password)
@@ -1054,34 +1051,6 @@ export default function HomePage() {
                         </div>
                       </button>
                     )}
-
-                    {/* Secure code mode toggle */}
-                    <button
-                      type="button"
-                      className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer"
-                      style={{
-                        background: secureMode ? 'var(--accent-soft)' : 'transparent',
-                        border: `1.5px solid ${secureMode ? 'var(--accent)' : 'var(--border)'}`,
-                      }}
-                      onClick={() => setSecureMode(!secureMode)}
-                    >
-                      <ShieldCheck size={18} style={{ color: secureMode ? 'var(--accent)' : 'var(--text-4)' }} />
-                      <div className="flex-1 text-left">
-                        <p className="text-sm font-semibold" style={{ color: secureMode ? 'var(--accent)' : 'var(--text-2)' }}>
-                          Secure code mode
-                        </p>
-                        <p className="text-xs" style={{ color: 'var(--text-4)' }}>Generate an 8-character code instead of 6 digits</p>
-                      </div>
-                      <div
-                        className="w-10 h-6 rounded-full relative transition-all shrink-0"
-                        style={{ background: secureMode ? 'var(--accent)' : 'var(--border-strong)' }}
-                      >
-                        <div
-                          className="w-4 h-4 rounded-full absolute top-1 transition-all"
-                          style={{ background: '#fff', left: secureMode ? '20px' : '4px' }}
-                        />
-                      </div>
-                    </button>
 
                     {/* Upload button */}
                     <motion.button

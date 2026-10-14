@@ -18,7 +18,7 @@ const CODE_LENGTH = 6
 const JOIN_REQUEST_HARD_TIMEOUT_MS = 60000 // 60s for Render cold starts
 const MAX_JOIN_RETRIES = 3
 const JOIN_RETRY_DELAY_MS = 2000
-// Accept numeric digits by default, plus letters for legacy or secure mode codes
+// Accept numeric digits by default, plus letters for backward-compatible legacy transfers
 const VALID_CODE_CHARS = /[0-9A-Za-z]/
 
 export default function JoinPage() {

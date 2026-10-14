@@ -14,7 +14,7 @@
 
 <p align="center">
   <b>No account. No installation. Just share.</b><br/>
-  Pick a file or paste text → get a 6-character code or QR → share it.<br/>
+  Pick a file or paste text → get a 6-digit code or QR → share it.<br/>
   Try it instantly in your browser.
 </p>
 

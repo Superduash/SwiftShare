@@ -2,15 +2,15 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import ContentPageLayout from '../../components/ContentPageLayout'
-import { FileCode, Copy, Terminal, Shield, Zap, Sparkles, Smartphone, Monitor, Globe, CheckCircle2, ArrowRight } from 'lucide-react'
+import { FileCode, Terminal, Shield, Zap, Sparkles, Smartphone, Monitor, Globe, CheckCircle2, ArrowRight, Code2 } from 'lucide-react'
 
 export default function SnippetSharePage() {
   return (
     <ContentPageLayout
-      title="Free Online Clipboard & Text Sharing"
-      seoTitle="Online Clipboard & Snippet Share — Sync Text Across Devices (No Sign-Up)"
-      description="The fastest free online clipboard to copy and paste text, code, notes, and links between your phone, PC, and Mac instantly. No accounts, zero app installs, and auto-expiring privacy."
-      badge="Free Online Clipboard"
+      title="Share Code Snippets & Text Online"
+      seoTitle="Share Code Snippets & Text Online — Free Temporary Pastebin | SwiftShare"
+      description="Share code snippets, terminal commands, config files, and JSON with developers instantly. Syntax-friendly display, auto-expiry, and no registration required."
+      badge="Developer Pastebin"
     >
       <motion.section
         initial={{ opacity: 0, y: 15 }}
@@ -19,13 +19,13 @@ export default function SnippetSharePage() {
         className="space-y-4"
       >
         <h2 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--text)' }}>
-          The Fastest Online Clipboard for Phone, PC &amp; Mac
+          Lightweight, No-Signup Pastebin for Developers &amp; Teams
         </h2>
         <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
-          Need to copy a 2FA authentication code, long URL, Wi-Fi password, SSH public key, or terminal snippet from your laptop to your smartphone without emailing yourself or pasting it into noisy chat channels? SwiftShare functions as a private, cross-device <strong>online clipboard</strong> that connects your devices instantly.
+          Need to quickly send a terminal output log, a Docker configuration snippet, a SQL migration script, or a JSON payload to a colleague or another workstation? SwiftShare provides a distraction-free, ephemeral <strong>developer pastebin</strong> that requires no accounts, no logins, and leaves no permanent digital footprint.
         </p>
         <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
-          Simply paste or type your text into the <strong>Share Text</strong> tab, grab the generated 6-digit code or scan the QR code with your phone camera, and click <strong>Copy to Clipboard</strong> on the other device.
+          Simply paste your code into the <strong>Share Text</strong> panel, choose an expiration timer (from 10 minutes to 24 hours), and share the generated 6-digit code or QR. Recipients can view the formatted snippet with monospace rendering and copy it in one click.
         </p>
       </motion.section>
 
@@ -40,18 +40,18 @@ export default function SnippetSharePage() {
       >
         <div className="text-center sm:text-left">
           <h3 className="font-bold text-sm sm:text-base" style={{ color: 'var(--text)' }}>
-            Ready to copy-paste between devices?
+            Share a code snippet now
           </h3>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-2)' }}>
-            Paste text or code snippet now and get an instant 6-digit code.
+            Supports JSON, YAML, Shell scripts, Python, SQL, and logs up to 256 KB.
           </p>
         </div>
         <Link
           to="/?action=text"
           className="btn-primary w-full sm:w-auto py-2.5 px-5 text-sm font-semibold inline-flex items-center justify-center gap-2 whitespace-nowrap shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
         >
-          <Zap size={16} />
-          <span>Open Online Clipboard</span>
+          <Code2 size={16} />
+          <span>Share Code Snippet</span>
           <ArrowRight size={14} />
         </Link>
       </motion.div>
@@ -60,22 +60,22 @@ export default function SnippetSharePage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
         {[
           {
-            icon: Copy,
-            color: 'var(--accent)',
-            title: 'Seamless Online Clipboard',
-            desc: 'True universal clipboard functionality across Android, iOS, Windows, macOS, and Linux right in your web browser.'
-          },
-          {
             icon: Terminal,
             color: 'var(--accent)',
-            title: 'Up to 256 KB Capacity',
-            desc: 'Generous capacity for extensive logs, JSON configs, Markdown documents, and source code files with monospace display.'
+            title: 'Monospace Code Viewer',
+            desc: 'Receiver views your snippet with clear monospace typography, line wrapping, character counts, and quick copy actions.'
+          },
+          {
+            icon: FileCode,
+            color: 'var(--accent)',
+            title: 'Generous 256 KB Limit',
+            desc: 'Ample capacity for extensive log files, stack traces, schema dumps, Markdown notes, and multi-file configs.'
           },
           {
             icon: Shield,
             color: 'var(--danger)',
-            title: 'Self-Destructing Snippets',
-            desc: 'Enable Burn Mode so sensitive credentials, passwords, or tokens vanish from the servers forever once copied.'
+            title: 'Burn Mode for Secrets',
+            desc: 'Sharing API keys, staging tokens, or environment variables? Enable Burn Mode to permanently delete the snippet upon viewing.'
           }
         ].map((item, idx) => (
           <motion.div
@@ -102,7 +102,7 @@ export default function SnippetSharePage() {
         ))}
       </div>
 
-      {/* Common Use Cases Section */}
+      {/* Developer Scenarios */}
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -112,29 +112,29 @@ export default function SnippetSharePage() {
         style={{ borderColor: 'var(--border)' }}
       >
         <h3 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
-          Why Use an Online Clipboard?
+          Common Developer Workflows
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
           {[
             {
-              icon: Smartphone,
-              title: 'Phone to PC Copy & Paste',
-              desc: 'Copy SMS verification codes, links, or address details from your mobile browser and instantly paste them on your workstation.'
+              icon: Terminal,
+              title: 'Terminal & CLI Logs',
+              desc: 'Share build failures, stack traces, and console outputs with teammates without messing up Slack or Discord markdown.'
             },
             {
               icon: Monitor,
-              title: 'PC to Phone Code Transfer',
-              desc: 'Send complex commands, passwords, or authentication keys to your phone without typing them manually on a touch keyboard.'
+              title: 'Server Configuration Sync',
+              desc: 'Move NGINX configs, SSH public keys, or environment files to remote servers or dev machines in one step.'
             },
             {
               icon: Globe,
-              title: 'Zero Registration Required',
-              desc: 'No need to create an account, verify an email, or install browser extensions. It works on any device with a browser.'
+              title: 'Zero Account Overhead',
+              desc: 'No GitHub or GitLab authentication needed. Ideal for quick pair debugging and guest contributors.'
             },
             {
               icon: Zap,
-              title: 'Editable Snippets',
-              desc: 'Directly edit, modify, or format your text snippet before generating your transfer code.'
+              title: 'Direct Text Editing',
+              desc: 'Adjust or redact sensitive strings directly in the browser editor before creating the transfer code.'
             }
           ].map((card, idx) => (
             <motion.div
@@ -153,7 +153,25 @@ export default function SnippetSharePage() {
           ))}
         </div>
       </motion.section>
+
+      {/* Related Tools */}
+      <section className="pt-4 border-t text-xs space-y-2" style={{ borderColor: 'var(--border)' }}>
+        <p className="font-semibold" style={{ color: 'var(--text)' }}>Related Tools &amp; Guides:</p>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/online-clipboard" className="px-3 py-1.5 rounded-lg border text-[var(--accent)] hover:border-[var(--accent)] transition-colors" style={{ borderColor: 'var(--border)' }}>
+            Universal Online Clipboard →
+          </Link>
+          <Link to="/how-it-works" className="px-3 py-1.5 rounded-lg border text-[var(--text-2)] hover:text-[var(--text)] transition-colors" style={{ borderColor: 'var(--border)' }}>
+            How SwiftShare Works
+          </Link>
+          <Link to="/security" className="px-3 py-1.5 rounded-lg border text-[var(--text-2)] hover:text-[var(--text)] transition-colors" style={{ borderColor: 'var(--border)' }}>
+            Security &amp; Encryption
+          </Link>
+          <Link to="/send-files-without-signup" className="px-3 py-1.5 rounded-lg border text-[var(--text-2)] hover:text-[var(--text)] transition-colors" style={{ borderColor: 'var(--border)' }}>
+            Send Files Without Sign-Up
+          </Link>
+        </div>
+      </section>
     </ContentPageLayout>
   )
 }
-

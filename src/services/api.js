@@ -492,7 +492,7 @@ export async function uploadClipboard(imageBase64, burnAfterDownload, senderSock
 }
 
 // ── Text Sharing ────────────────────────────
-export async function shareText({ content, title, expiryMinutes, burnAfterDownload, passwordProtected, password, socketId, nearbyVisible, secureMode }) {
+export async function shareText({ content, title, expiryMinutes, burnAfterDownload, passwordProtected, password, socketId, nearbyVisible }) {
   const payload = {
     content,
     title,
@@ -500,7 +500,6 @@ export async function shareText({ content, title, expiryMinutes, burnAfterDownlo
     burnAfterDownload,
     socketId,
     nearbyVisible: passwordProtected ? false : (nearbyVisible !== false),
-    secureMode: Boolean(secureMode),
   }
   if (passwordProtected && password) {
     payload.passwordProtected = true

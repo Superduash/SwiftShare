@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, FileText, Lock, Eye, EyeOff, Flame, Clock, Copy, Check, ShieldCheck } from 'lucide-react'
+import { X, FileText, Lock, Eye, EyeOff, Flame, Clock, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Spinner from './Spinner'
 import { getSettings } from '../utils/storage'
@@ -10,7 +10,6 @@ function ShareTextModal({ open, onClose, onShare }) {
   const [title, setTitle] = useState('')
   const [expiry, setExpiry] = useState(() => getSettings().defaultExpiry)
   const [burn, setBurn] = useState(() => getSettings().defaultBurn)
-  const [secureMode, setSecureMode] = useState(false)
   const [passwordProtected, setPasswordProtected] = useState(false)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -86,7 +85,6 @@ function ShareTextModal({ open, onClose, onShare }) {
         title: title.trim() || 'Text Snippet',
         expiryMinutes: expiry,
         burnAfterDownload: burn,
-        secureMode,
         passwordProtected,
         password: passwordProtected ? password : undefined,
       })
@@ -96,7 +94,7 @@ function ShareTextModal({ open, onClose, onShare }) {
     } finally {
       setSharing(false)
     }
-  }, [content, title, expiry, burn, secureMode, passwordProtected, password, isOverLimit, onShare, onClose])
+  }, [content, title, expiry, burn, passwordProtected, password, isOverLimit, onShare, onClose])
 
   function formatBytes(bytes) {
     if (bytes < 1024) return `${bytes} B`
@@ -336,33 +334,6 @@ function ShareTextModal({ open, onClose, onShare }) {
                 </AnimatePresence>
               </div>
 
-              {/* Secure code mode toggle */}
-              <button
-                type="button"
-                className="w-full flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer"
-                style={{
-                  background: secureMode ? 'var(--accent-soft)' : 'transparent',
-                  border: `1.5px solid ${secureMode ? 'var(--accent)' : 'var(--border)'}`,
-                }}
-                onClick={() => setSecureMode(!secureMode)}
-              >
-                <ShieldCheck size={16} style={{ color: secureMode ? 'var(--accent)' : 'var(--text-4)' }} />
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold" style={{ color: secureMode ? 'var(--accent)' : 'var(--text-2)' }}>
-                    Secure code mode
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-4)' }}>Generate an 8-character code instead of 6 digits</p>
-                </div>
-                <div
-                  className="w-10 h-6 rounded-full relative transition-all shrink-0"
-                  style={{ background: secureMode ? 'var(--accent)' : 'var(--border-strong)' }}
-                >
-                  <div
-                    className="w-4 h-4 rounded-full absolute top-1 transition-all"
-                    style={{ background: '#fff', left: secureMode ? '20px' : '4px' }}
-                  />
-                </div>
-              </button>
             </div>
 
             {/* Footer */}
