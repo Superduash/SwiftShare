@@ -140,7 +140,7 @@ Each dark theme has a corresponding light theme for a 1-to-1 mode switch.
                                                                                    │
                                                                    Socket.IO push  │
                                                                                    ▼
-                                                                          ┌──────────────────┐
+                                                                         ┌──────────────────┐
     ┌─────────────┐    enters code    ┌─────────────┐                    │   Sender page    │
     │  Recipient  │ ────────────────> │  Download   │ <───────────────── │  (live stats,    │
     │             │   or scans QR     │    page     │      download      │   extend/delete) │
