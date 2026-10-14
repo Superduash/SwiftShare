@@ -48,7 +48,7 @@ export default function HowItWorksPage() {
             </div>
             <h3 className="font-bold text-base mb-1.5" style={{ color: 'var(--text)' }}>2. Share Code or QR</h3>
             <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
-              SwiftShare generates a unique 6-character transfer code and scannable QR code. Share the code or display the QR code for nearby camera scans.
+              SwiftShare generates a unique 6-digit transfer code and scannable QR code. Share the code or display the QR code for nearby camera scans.
             </p>
           </motion.div>
 
@@ -61,7 +61,7 @@ export default function HowItWorksPage() {
             </div>
             <h3 className="font-bold text-base mb-1.5" style={{ color: 'var(--text)' }}>3. Download the File</h3>
             <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
-              The recipient opens SwiftShare on any browser, enters the 6-character code, and downloads the file directly at the available transfer speed.
+              The recipient opens SwiftShare on any browser, enters the 6-digit code, and downloads the file directly at the available transfer speed.
             </p>
           </motion.div>
         </motion.div>

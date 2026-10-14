@@ -1,9 +1,11 @@
-import React from 'react'
-import { motion } from 'framer-motion'
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import ContentPageLayout from '../../components/ContentPageLayout'
-import { HelpCircle, ChevronRight } from 'lucide-react'
+import { HelpCircle, ChevronDown } from 'lucide-react'
 
 export default function FaqPage() {
+  const [openFaq, setOpenFaq] = useState(null)
+
   const faqs = [
     {
       q: 'What are the file size and transfer limits?',
@@ -51,35 +53,75 @@ export default function FaqPage() {
       badge="FAQ & Help"
     >
       <motion.div 
-        className="space-y-4"
+        className="space-y-3"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-20px" }}
         variants={{
           hidden: {},
-          visible: { transition: { staggerChildren: 0.08 } }
+          visible: { transition: { staggerChildren: 0.05 } }
         }}
       >
-        {faqs.map((faq, idx) => (
-          <motion.div
-            key={idx}
-            variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
-            transition={{ duration: 0.3 }}
-          >
-            <details
-              className="group p-4 sm:p-5 rounded-xl border transition-colors open:bg-opacity-50"
-              style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
+        {faqs.map((faq, idx) => {
+          const isOpen = openFaq === idx
+          return (
+            <motion.div
+              key={idx}
+              variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
+              transition={{ duration: 0.25 }}
+              className="rounded-2xl border transition-all duration-200 overflow-hidden"
+              style={{
+                background: isOpen ? 'var(--bg-elevated)' : 'var(--surface)',
+                borderColor: isOpen ? 'var(--accent)' : 'var(--border)',
+                boxShadow: isOpen ? '0 4px 20px -2px var(--accent-soft)' : 'none',
+              }}
             >
-              <summary className="font-bold text-sm sm:text-base cursor-pointer flex items-center justify-between list-none" style={{ color: 'var(--text)' }}>
-                <span>{faq.q}</span>
-                <span className="text-xs ml-2 text-gray-400 group-open:rotate-90 transition-transform">▸</span>
-              </summary>
-              <p className="mt-3 text-xs sm:text-sm leading-relaxed border-t pt-3" style={{ borderColor: 'var(--border)', color: 'var(--text-2)' }}>
-                {faq.a}
-              </p>
-            </details>
-          </motion.div>
-        ))}
+              <button
+                type="button"
+                onClick={() => setOpenFaq(isOpen ? null : idx)}
+                className="w-full p-4 sm:p-5 flex items-center justify-between gap-4 text-left cursor-pointer transition-colors"
+                style={{ touchAction: 'manipulation' }}
+                aria-expanded={isOpen}
+              >
+                <span className="font-bold text-sm sm:text-base leading-snug" style={{ color: 'var(--text)' }}>
+                  {faq.q}
+                </span>
+                <motion.span
+                  animate={{ rotate: isOpen ? 180 : 0 }}
+                  transition={{ duration: 0.25, ease: 'easeInOut' }}
+                  className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                  style={{
+                    background: isOpen ? 'var(--accent-soft)' : 'var(--bg-sunken)',
+                    color: isOpen ? 'var(--accent)' : 'var(--text-3)',
+                  }}
+                >
+                  <ChevronDown size={18} />
+                </motion.span>
+              </button>
+
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: [0.04, 0.62, 0.23, 0.98] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0">
+                      <p
+                        className="text-xs sm:text-sm leading-relaxed pt-3 border-t"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-2)' }}
+                      >
+                        {faq.a}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          )
+        })}
       </motion.div>
     </ContentPageLayout>
   )

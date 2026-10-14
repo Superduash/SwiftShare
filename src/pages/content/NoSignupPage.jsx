@@ -16,7 +16,7 @@ export default function NoSignupPage() {
           Why Zero-Login File Sharing Matters
         </h2>
         <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-2)' }}>
-          Most cloud storage providers require creating an account, verifying an email address, or installing proprietary desktop clients just to send a single document or photo. SwiftShare removes all onboarding friction: you open the website, choose your file, and immediately get a temporary transfer link and 6-character code.
+          Most cloud storage providers require creating an account, verifying an email address, or installing proprietary desktop clients just to send a single document or photo. SwiftShare removes all onboarding friction: you open the website, choose your file, and immediately get a temporary transfer link and 6-digit code.
         </p>
       </section>
 

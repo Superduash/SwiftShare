@@ -25,22 +25,32 @@ export default function ContentPageLayout({
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
           
           {/* Breadcrumb / Back Link */}
-          <div className="mb-6">
+          <motion.div
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.25 }}
+            className="mb-6"
+          >
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:border-[var(--accent)] hover:text-[var(--text)] active:scale-[0.98]"
               style={{ background: 'var(--bg-elevated)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
             >
               <ArrowLeft size={13} />
               <span>Back to SwiftShare</span>
             </Link>
-          </div>
+          </motion.div>
 
           {/* Header */}
-          <header className="mb-10 text-left">
+          <motion.header
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="mb-10 text-left"
+          >
             {badge && (
               <span
-                className="inline-block text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3"
+                className="inline-block text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3 shadow-sm"
                 style={{ background: 'var(--accent-soft)', color: badgeColor }}
               >
                 {badge}
@@ -52,7 +62,7 @@ export default function ContentPageLayout({
             <p className="text-sm sm:text-base leading-relaxed max-w-2xl" style={{ color: 'var(--text-2)' }}>
               {description}
             </p>
-          </header>
+          </motion.header>
 
           {/* Main Content Body */}
           <article
@@ -62,11 +72,15 @@ export default function ContentPageLayout({
             {children}
 
             {/* Quick Action CTA Banner */}
-            <div
-              className="mt-12 p-6 sm:p-8 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-6"
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4 }}
+              className="mt-12 p-6 sm:p-8 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-6 transition-all hover:border-[var(--accent)] shadow-sm"
               style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
             >
-              <div>
+              <div className="text-center sm:text-left">
                 <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--text)' }}>
                   Ready to send files instantly?
                 </h3>
@@ -77,20 +91,20 @@ export default function ContentPageLayout({
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <Link
                   to="/"
-                  className="btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold whitespace-nowrap"
+                  className="btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-5 text-sm font-semibold whitespace-nowrap shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                   <Zap size={16} />
                   <span>Send Files</span>
                 </Link>
                 <Link
                   to="/join"
-                  className="btn-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold whitespace-nowrap"
+                  className="btn-secondary w-full sm:w-auto inline-flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold whitespace-nowrap hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                   <Download size={16} />
                   <span>Receive</span>
                 </Link>
               </div>
-            </div>
+            </motion.div>
           </article>
         </div>
       </main>

@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone'
 import {
   Upload, Plus, X, Flame, Shield, Zap, Clock, QrCode,
   ArrowRight, Clipboard, AlertTriangle, FileText, Lock, Eye, EyeOff,
-  GripVertical, ShieldCheck, Wifi
+  GripVertical, ShieldCheck, Wifi, ChevronDown
 } from 'lucide-react'
 import { Helmet } from 'react-helmet-async'
 import toast from 'react-hot-toast'
@@ -103,9 +103,22 @@ export default function HomePage() {
   const [pastedText, setPastedText] = useState('')
   const [showPasteConfirm, setShowPasteConfirm] = useState(false)
   const [contextMenu, setContextMenu] = useState({ open: false, x: 0, y: 0, index: null })
+  const [openFaqIndex, setOpenFaqIndex] = useState(null)
   const fileInputRef = useRef(null)
   const uploadHandledRef = useRef(false)
   const uploadAbortRef = useRef(null)
+
+  // Listen for ?action=text or ?text=true to auto-open Share Text modal
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('action') === 'text' || params.get('text') === 'true') {
+        setShareTextModalOpen(true)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
 
   // Password strength calculation
   function getPasswordStrength(pwd) {
@@ -1287,7 +1300,13 @@ export default function HomePage() {
             <div className="max-w-4xl mx-auto space-y-12">
               
               {/* What it is */}
-              <div className="text-center space-y-3">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{ duration: 0.4 }}
+                className="text-center space-y-3"
+              >
                 <span className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full inline-block" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                   Free Universal Clipboard &amp; File Transfer
                 </span>
@@ -1297,43 +1316,62 @@ export default function HomePage() {
                 <p className="text-sm sm:text-base leading-relaxed max-w-2xl mx-auto" style={{ color: 'var(--text-2)' }}>
                   SwiftShare is a browser-based, zero-friction online clipboard and ephemeral file sharing tool. It enables seamless copy-paste syncing and transfer of text snippets, photos, videos, and documents between phones, laptops, and workstations with zero sign-up, zero logins, and zero software installs.
                 </p>
-              </div>
+              </motion.div>
 
               {/* How it works in 3 steps */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="surface-card p-5 text-center">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-3 font-display font-bold text-sm" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
-                    1
-                  </div>
-                  <h3 className="font-bold text-sm mb-1.5" style={{ color: 'var(--text)' }}>1. Drop or Paste</h3>
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
-                    Drop files up to 100 MB or paste text snippets into the online clipboard directly from your browser.
-                  </p>
-                </div>
-                <div className="surface-card p-5 text-center">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-3 font-display font-bold text-sm" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
-                    2
-                  </div>
-                  <h3 className="font-bold text-sm mb-1.5" style={{ color: 'var(--text)' }}>2. Share 6-Digit Code</h3>
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
-                    Share your simple 6-digit numeric code or let nearby devices scan your instant QR code.
-                  </p>
-                </div>
-                <div className="surface-card p-5 text-center">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-3 font-display font-bold text-sm" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
-                    3
-                  </div>
-                  <h3 className="font-bold text-sm mb-1.5" style={{ color: 'var(--text)' }}>3. Grab &amp; Self-Destruct</h3>
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
-                    The receiver downloads the files or copies the snippet, and data is automatically purged when the timer expires.
-                  </p>
-                </div>
+                {[
+                  {
+                    step: '1',
+                    title: '1. Drop or Paste',
+                    desc: 'Drop files up to 100 MB or paste text snippets into the online clipboard directly from your browser.'
+                  },
+                  {
+                    step: '2',
+                    title: '2. Share 6-Digit Code',
+                    desc: 'Share your simple 6-digit numeric code or let nearby devices scan your instant QR code.'
+                  },
+                  {
+                    step: '3',
+                    title: '3. Grab & Self-Destruct',
+                    desc: 'The receiver downloads the files or copies the snippet, and data is automatically purged when the timer expires.'
+                  }
+                ].map((item, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-20px' }}
+                    transition={{ duration: 0.35, delay: idx * 0.1 }}
+                    whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                    className="surface-card p-5 text-center transition-all duration-200 hover:border-[var(--accent)]"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3 font-display font-bold text-sm shadow-sm"
+                      style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+                    >
+                      {item.step}
+                    </div>
+                    <h3 className="font-bold text-sm mb-1.5" style={{ color: 'var(--text)' }}>{item.title}</h3>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-3)' }}>
+                      {item.desc}
+                    </p>
+                  </motion.div>
+                ))}
               </div>
 
               {/* Privacy & Auto-Delete */}
-              <div className="surface-card-flat p-6 rounded-2xl flex flex-col sm:flex-row items-center gap-5 border" style={{ borderColor: 'var(--border)' }}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-                  <ShieldCheck size={24} />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4 }}
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                className="surface-card-flat p-6 rounded-2xl flex flex-col sm:flex-row items-center gap-5 border transition-all hover:border-[var(--accent)]"
+                style={{ borderColor: 'var(--border)' }}
+              >
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                  <ShieldCheck size={26} />
                 </div>
                 <div className="flex-1 text-center sm:text-left">
                   <h3 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>
@@ -1343,13 +1381,19 @@ export default function HomePage() {
                     All transfers travel over TLS 1.3 encryption. Files and clipboard history self-destruct once their session timer ends. For maximum privacy, enable Burn Mode to delete files immediately upon download.
                   </p>
                 </div>
-              </div>
+              </motion.div>
 
-              {/* FAQ of 4-5 questions */}
+              {/* FAQ of 5 questions */}
               <div className="space-y-4">
-                <h3 className="text-xl font-bold text-center mb-6" style={{ color: 'var(--text)' }}>
+                <motion.h3
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="text-xl font-bold text-center mb-6"
+                  style={{ color: 'var(--text)' }}
+                >
                   Frequently Asked Questions
-                </h3>
+                </motion.h3>
                 <div className="space-y-3">
                   {[
                     {
@@ -1372,20 +1416,68 @@ export default function HomePage() {
                       q: 'What are the transfer file size limits?',
                       a: 'You can transfer up to 10 files at a time with a total combined size of up to 100 MB per transfer session, completely free.',
                     },
-                  ].map((faq, idx) => (
-                    <details
-                      key={idx}
-                      className="surface-card p-4 rounded-xl cursor-pointer group transition-colors"
-                    >
-                      <summary className="font-semibold text-sm list-none flex items-center justify-between" style={{ color: 'var(--text)' }}>
-                        <span>{faq.q}</span>
-                        <span className="text-xs transition-transform group-open:rotate-180" style={{ color: 'var(--accent)' }}>▼</span>
-                      </summary>
-                      <p className="mt-3 text-xs sm:text-sm leading-relaxed pt-2 border-t" style={{ borderColor: 'var(--border)', color: 'var(--text-3)' }}>
-                        {faq.a}
-                      </p>
-                    </details>
-                  ))}
+                  ].map((faq, idx) => {
+                    const isOpen = openFaqIndex === idx
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 12 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="rounded-2xl border transition-all duration-200 overflow-hidden"
+                        style={{
+                          background: isOpen ? 'var(--bg-elevated)' : 'var(--surface)',
+                          borderColor: isOpen ? 'var(--accent)' : 'var(--border)',
+                          boxShadow: isOpen ? '0 4px 20px -2px var(--accent-soft)' : 'none',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                          className="w-full p-4 sm:p-5 flex items-center justify-between gap-4 text-left cursor-pointer transition-colors"
+                          style={{ touchAction: 'manipulation' }}
+                          aria-expanded={isOpen}
+                        >
+                          <span className="font-bold text-sm sm:text-base leading-snug" style={{ color: 'var(--text)' }}>
+                            {faq.q}
+                          </span>
+                          <motion.span
+                            animate={{ rotate: isOpen ? 180 : 0 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
+                            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                            style={{
+                              background: isOpen ? 'var(--accent-soft)' : 'var(--bg-sunken)',
+                              color: isOpen ? 'var(--accent)' : 'var(--text-3)',
+                            }}
+                          >
+                            <ChevronDown size={18} />
+                          </motion.span>
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.25, ease: [0.04, 0.62, 0.23, 0.98] }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0">
+                                <p
+                                  className="text-xs sm:text-sm leading-relaxed pt-3 border-t"
+                                  style={{ borderColor: 'var(--border)', color: 'var(--text-2)' }}
+                                >
+                                  {faq.a}
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    )
+                  })}
                 </div>
               </div>
 
