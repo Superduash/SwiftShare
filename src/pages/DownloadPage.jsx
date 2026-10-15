@@ -680,11 +680,17 @@ export default function DownloadPage() {
     e?.preventDefault()
     if (!password.trim() || verifying) return
 
+    if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+      setPasswordError('You appear to be offline. Please reconnect and try again.')
+      toast.error('You appear to be offline. Reconnect to verify password.', { id: 'verify-offline' })
+      return
+    }
+
     setVerifying(true)
     setPasswordError('')
 
     try {
-      const result = await verifyPassword(normalizedCode, password)
+      const result = await verifyPassword(normalizedCode, password, { timeout: 4500 })
       if (result?.verified) {
         setPasswordVerified(true)
         verifiedPasswordRef.current = password
@@ -699,12 +705,13 @@ export default function DownloadPage() {
       const errCode = err?.response?.data?.error?.code
       if (errCode === 'INVALID_PASSWORD') {
         setPasswordError('The password entered is incorrect.')
-        toast.error('The password entered is incorrect.')
+        toast.error('The password entered is incorrect.', { id: 'invalid-password' })
       } else if (err?.response?.status === 429) {
         setPasswordError('Please wait before trying again.')
-        toast.error('Please wait before trying again.')
+        toast.error('Please wait before trying again.', { id: 'rate-limited' })
       } else {
-        setPasswordError('Verification failed. Please try again.')
+        setPasswordError('Verification failed. Please check your connection.')
+        toast.error('Verification failed. Please try again.', { id: 'verify-failed' })
       }
     } finally {
       setVerifying(false)

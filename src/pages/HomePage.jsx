@@ -420,6 +420,11 @@ export default function HomePage() {
       return err.message
     }
 
+    // === OFFLINE DETECTION ===
+    if (transportCode === 'ERR_OFFLINE') {
+      return 'You are currently offline. Please check your internet connection and try again.'
+    }
+
     if (!err?.response) {
       if (transportCode === 'ECONNABORTED' || /timeout/i.test(transportMessage)) {
         return 'Upload is taking longer than expected. Check your connection and retry.'
@@ -471,7 +476,12 @@ export default function HomePage() {
 
 
   async function handleUpload() {
-    if (!files.length) return toast.error('Select at least one file')
+    if (!files.length) return toast.error('Select at least one file', { id: 'select-file' })
+
+    if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+      toast.error('You are currently offline. Please reconnect to upload files.', { id: 'offline-upload' })
+      return
+    }
 
     uploadAbortRef.current?.abort()
     uploadAbortRef.current = new AbortController()

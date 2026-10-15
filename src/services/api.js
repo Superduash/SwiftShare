@@ -443,7 +443,8 @@ export async function uploadFiles(formData, opts = {}) {
         onProgress({ retrying: true, attempt, maxAttempts: RETRY_LIMIT, delay })
       }
       
-      // If the device is offline, wait for it to come back before burning the delay
+      // If the device is offline, don't freeze the app:
+      // Give a brief grace window (max 3.5s) for quick network blips. If still offline, fail fast to unblock UI.
       if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
         await new Promise((resolve) => {
           if (navigator.onLine) return resolve()
@@ -454,10 +455,17 @@ export async function uploadFiles(formData, opts = {}) {
           }
           
           window.addEventListener('online', onOnline, { once: true })
-          
-          // Wait up to 90s for connectivity to return, then proceed anyway
-          setTimeout(() => resolve(), 90_000)
+          setTimeout(() => {
+            window.removeEventListener('online', onOnline)
+            resolve()
+          }, 3500)
         })
+
+        if (!navigator.onLine) {
+          const offlineErr = new Error('No internet connection. Upload failed.')
+          offlineErr.code = 'ERR_OFFLINE'
+          throw offlineErr
+        }
       }
       
       await new Promise((r) => setTimeout(r, delay))
@@ -559,16 +567,22 @@ export async function getTransferActivity(code) {
 }
 
 // ── Password ───────────────────────────────
-export async function verifyPassword(code, password) {
-  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/verify-password`, { password })
+export async function verifyPassword(code, password, opts = {}) {
+  const config = {
+    timeout: opts?.timeout || 5000,
+    ...(opts?.signal ? { signal: opts.signal } : {}),
+  }
+  const { data } = await API.post(`/api/transfer/${normalizeCode(code)}/verify-password`, { password }, config)
   return unwrapResponse(data)
 }
 
 // ── Actions ─────────────────────────────────
-export async function verifyOwnership(code, ownershipToken) {
-  const config = ownershipToken
-    ? { headers: { 'X-Ownership-Token': String(ownershipToken) } }
-    : {}
+export async function verifyOwnership(code, ownershipToken, opts = {}) {
+  const config = {
+    ...(ownershipToken ? { headers: { 'X-Ownership-Token': String(ownershipToken) } } : {}),
+    ...(opts?.signal ? { signal: opts.signal } : {}),
+    timeout: opts?.timeout || 3500,
+  }
   const { data } = await API.get(`/api/transfer/${normalizeCode(code)}/verify-ownership`, config)
   return unwrapResponse(data)
 }

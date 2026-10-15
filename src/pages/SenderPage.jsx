@@ -80,7 +80,8 @@ export default function SenderPage() {
   const navState = location.state?.transfer || location.state?.transferData || null
   const { socket, registerSender, rejoinRoom, leaveRoom } = useSocket()
 
-  const initialCachedTransfer = getCachedTransfer(normalizedCode)
+  // Use router transfer state immediately when available so sender page renders with 0ms delay
+  const initialCachedTransfer = navState || getCachedTransfer(normalizedCode)
   
   // Extract ownership token from navigation state or cached transfer
   const initialOwnershipToken = 
@@ -151,48 +152,62 @@ export default function SenderPage() {
     }
   }, [meta?.nearbyVisible])
   
-  const [authorized, setAuthorized] = useState(false)
-  const [verifyingAuth, setVerifyingAuth] = useState(true)
+  // Instant local authorization: if we have navState, cached token, or cached sender record,
+  // we are ALREADY authorized locally. Never block the UI or show a blocking spinner!
+  const hasLocalAuth = Boolean(
+    navState ||
+    initialOwnershipToken ||
+    (initialCachedTransfer && initialCachedTransfer.isSender)
+  )
 
-  // Verify ownership before allowing access to the page
+  const [authorized, setAuthorized] = useState(hasLocalAuth)
+  const [verifyingAuth, setVerifyingAuth] = useState(() => {
+    if (hasLocalAuth) return false
+    return Boolean(normalizedCode)
+  })
+
+  // Verify ownership in background without blocking when local credentials exist
   useEffect(() => {
     if (!normalizedCode) return
     
     // First, check if we even have a token
     const token = ownershipToken || meta?.transfer?.ownershipToken || meta?.ownershipToken
     
-
-    if (!token) {
-      // FIX: If we just navigated from upload (navState exists), trust it temporarily
-      // The backend async DB write might not have completed yet
-      if (navState) {
+    // Offline resilience: if offline, trust local auth with zero blocking
+    if (typeof navigator !== 'undefined' && 'onLine' in navigator && !navigator.onLine) {
+      if (hasLocalAuth || token) {
         setAuthorized(true)
         setVerifyingAuth(false)
         return
       }
-      
+    }
+
+    if (!token && !hasLocalAuth) {
       setAuthorized(false)
       setVerifyingAuth(false)
       return
     }
 
-    // Verify token with backend
+    // Verify token with backend in background with fast timeout (3.5s)
     let isSubscribed = true
-    verifyOwnership(normalizedCode, token)
+    const abortController = new AbortController()
+    const timer = setTimeout(() => abortController.abort(), 3500)
+
+    verifyOwnership(normalizedCode, token, { signal: abortController.signal, timeout: 3500 })
       .then(res => {
         if (isSubscribed) {
-          if (res?.authorized) {
+          if (res?.authorized !== false) {
             setAuthorized(true)
           } else {
+            // Server explicitly declared unauthorized
             setAuthorized(false)
           }
         }
       })
-      .catch(err => {
-        // FIX: If verification fails but we have navState (just uploaded), trust it
-        // Backend might be saving to DB asynchronously
+      .catch(() => {
+        // Network failure, offline, or timeout: keep user authorized locally
         if (isSubscribed) {
-          if (navState) {
+          if (hasLocalAuth || token || !navigator.onLine) {
             setAuthorized(true)
           } else {
             setAuthorized(false)
@@ -200,11 +215,16 @@ export default function SenderPage() {
         }
       })
       .finally(() => {
+        clearTimeout(timer)
         if (isSubscribed) setVerifyingAuth(false)
       })
 
-    return () => { isSubscribed = false }
-  }, [normalizedCode, ownershipToken, meta?.transfer?.ownershipToken, meta?.ownershipToken, navState])
+    return () => { 
+      isSubscribed = false
+      clearTimeout(timer)
+      abortController.abort()
+    }
+  }, [normalizedCode, ownershipToken, meta?.transfer?.ownershipToken, meta?.ownershipToken, navState, hasLocalAuth])
 
   // Redirect non-owners to download page
   useEffect(() => {
@@ -1214,7 +1234,7 @@ export default function SenderPage() {
     )
   }
 
-  if (verifyingAuth) {
+  if (verifyingAuth && !authorized) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center" style={{ background: 'var(--bg)' }}>
         <Spinner size={32} />
@@ -1434,26 +1454,30 @@ export default function SenderPage() {
                         href={`https://wa.me/?text=${encodeURIComponent(_shareText)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn-ghost justify-center"
+                        className="btn-ghost flex items-center justify-center gap-2"
                       >
-                        <MessageCircle size={14} />WhatsApp
+                        <MessageCircle size={15} />
+                        <span>WhatsApp</span>
                       </a>
                       <a
                         href={`mailto:?subject=${encodeURIComponent(_shareTitle)}&body=${encodeURIComponent(_shareText)}`}
-                        className="btn-ghost justify-center"
+                        className="btn-ghost flex items-center justify-center gap-2"
                       >
-                        <Mail size={14} />Email
+                        <Mail size={15} />
+                        <span>Email</span>
                       </a>
                       <a
                         href={`https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(_shareText)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn-ghost justify-center"
+                        className="btn-ghost flex items-center justify-center gap-2"
                       >
-                        <Send size={14} />Telegram
+                        <Send size={15} />
+                        <span>Telegram</span>
                       </a>
-                      <button className="btn-ghost justify-center" onClick={handleDownloadQR}>
-                        <QrCode size={14} />Save QR
+                      <button className="btn-ghost flex items-center justify-center gap-2" onClick={handleDownloadQR}>
+                        <QrCode size={15} />
+                        <span>Save QR</span>
                       </button>
                     </div>
                   )}

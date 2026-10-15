@@ -289,10 +289,54 @@ function AppContent() {
   )
 }
 
+// Global toast deduplicator & optimizer
+// Ensures duplicate messages are never stacked and always update seamlessly
+if (typeof window !== 'undefined' && !window.__swiftshare_toast_deduped) {
+  window.__swiftshare_toast_deduped = true
+  const origSuccess = toast.success
+  const origError = toast.error
+  const origLoading = toast.loading
+
+  const getDedupeId = (msg, opts) => {
+    if (opts?.id) return opts.id
+    if (typeof msg === 'string' && msg.trim()) return msg.trim().toLowerCase()
+    return undefined
+  }
+
+  toast.success = (message, opts = {}) => {
+    const id = getDedupeId(message, opts)
+    return origSuccess(message, id ? { id, ...opts } : opts)
+  }
+
+  toast.error = (message, opts = {}) => {
+    const id = getDedupeId(message, opts)
+    return origError(message, id ? { id, ...opts } : opts)
+  }
+
+  toast.loading = (message, opts = {}) => {
+    const id = getDedupeId(message, opts)
+    return origLoading(message, id ? { id, ...opts } : opts)
+  }
+}
+
 function ToastLimiter({ limit = 2 }) {
   const { toasts } = useToasterStore()
 
   useEffect(() => {
+    // 1. Immediately dismiss any duplicate visible toasts by message or id
+    const seen = new Set()
+    toasts
+      .filter((t) => t.visible)
+      .forEach((t) => {
+        const key = typeof t.message === 'function' ? String(t.id) : String(t.message || t.id)
+        if (seen.has(key)) {
+          toast.dismiss(t.id)
+        } else {
+          seen.add(key)
+        }
+      })
+
+    // 2. Limit maximum visible toasts to `limit`
     toasts
       .filter((t) => t.visible)
       .filter((_, i) => i >= limit)
@@ -302,8 +346,19 @@ function ToastLimiter({ limit = 2 }) {
   return null
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640)
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handleResize, { passive: true })
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+  return isMobile
+}
+
 // ── Root ─────────────────────────────────────
 export default function App() {
+  const isMobile = useIsMobile()
   const [reducedMotion, setReducedMotion] = useState(() => {
     const settings = getSettings()
     // Strictly respect user setting; don't auto-disable particles unless they explicitly want it
@@ -371,35 +426,40 @@ export default function App() {
             </BrowserRouter>
             <ToastLimiter limit={2} />
             <Toaster
-              position="bottom-center"
-              gutter={8}
+              position={isMobile ? 'top-center' : 'top-right'}
+              gutter={10}
               containerStyle={{
-                bottom: 'env(safe-area-inset-bottom, 24px)',
-                zIndex: 9999,
+                top: 'calc(env(safe-area-inset-top, 0px) + 72px)',
+                right: isMobile ? undefined : 'max(env(safe-area-inset-right, 0px), 24px)',
+                left: isMobile ? 'max(env(safe-area-inset-left, 0px), 16px)' : undefined,
+                zIndex: 99999,
+                pointerEvents: 'none',
               }}
               toastOptions={{
-                duration: 2500,
+                duration: 3000,
                 style: {
+                  pointerEvents: 'auto',
                   background: 'var(--toast-bg)',
                   color: 'var(--toast-text)',
                   border: '1px solid var(--toast-border)',
-                  borderRadius: '12px',
+                  borderRadius: '14px',
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: '13px',
                   fontWeight: '600',
-                  maxWidth: '90vw',
-                  boxShadow: '0 10px 30px -5px rgba(0,0,0,0.25)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
+                  maxWidth: isMobile ? 'calc(100vw - 32px)' : '380px',
+                  boxShadow: '0 12px 32px -4px rgba(0,0,0,0.36), 0 0 0 1px var(--toast-border)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  padding: '10px 14px',
                   cursor: 'pointer',
                   userSelect: 'none',
                 },
                 success: {
-                  duration: 2200,
+                  duration: 2500,
                   iconTheme: { primary: '#16A34A', secondary: 'var(--toast-bg)' },
                 },
                 error: {
-                  duration: 3500,
+                  duration: 4000,
                   iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' },
                 },
               }}
@@ -408,9 +468,28 @@ export default function App() {
                 <div
                   onClick={() => toast.dismiss(t.id)}
                   title="Click to dismiss"
+                  className="group flex items-center justify-between gap-2.5 w-full"
                   style={{ cursor: 'pointer' }}
                 >
-                  <ToastBar toast={t} />
+                  <ToastBar toast={t} style={{ margin: 0, padding: 0, background: 'transparent', boxShadow: 'none' }}>
+                    {({ icon, message }) => (
+                      <div className="flex items-center gap-2.5 w-full">
+                        {icon}
+                        <div className="text-[13px] font-medium leading-snug flex-1">{message}</div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toast.dismiss(t.id)
+                          }}
+                          aria-label="Dismiss notification"
+                          className="ml-1 p-1 rounded-md opacity-40 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity flex-shrink-0 text-[11px] font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </ToastBar>
                 </div>
               )}
             </Toaster>

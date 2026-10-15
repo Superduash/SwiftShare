@@ -42,10 +42,10 @@ export default function Footer() {
                   href={href}
                   aria-label={label}
                   {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                  className="p-1.5 rounded-lg transition-all hover:scale-110"
+                  className="w-9 h-9 inline-flex items-center justify-center rounded-xl transition-all hover:scale-110 active:scale-95 border border-[var(--border)]/40 hover:border-[var(--accent)]/40 hover:text-[var(--text)] flex-shrink-0"
                   style={{ color: 'var(--text-3)', background: 'var(--bg-sunken)' }}
                 >
-                  <SocialIcon size={14} />
+                  <SocialIcon size={16} />
                 </a>
               ))}
             </div>

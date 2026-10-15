@@ -1394,9 +1394,19 @@ h1, h2, h3, h4, h5, h6, .font-bold, .font-semibold {
 
 /* Accessibility: Minimum Touch Target Size & Touch Utilities */
 @media (pointer: coarse) {
-  button, [role="button"], a {
+  button:not(.no-touch-target),
+  [role="button"]:not(.no-touch-target),
+  a:not(.no-touch-target) {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  /* Keep icon containers and flex elements centered on mobile */
+  a.inline-flex,
+  button.inline-flex {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   
   .hide-on-touch {
