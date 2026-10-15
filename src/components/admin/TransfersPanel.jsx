@@ -305,7 +305,7 @@ export default function TransfersPanel({ range = '7d' }) {
                     </td>
                     <td className="py-3 px-3 text-[var(--text-3)]">
                       {t.createdAt
-                        ? new Date(t.createdAt).toLocaleDateString(undefined, {
+                        ? new Date(t.createdAt).toLocaleString(undefined, {
                             month: 'short',
                             day: 'numeric',
                             hour: '2-digit',

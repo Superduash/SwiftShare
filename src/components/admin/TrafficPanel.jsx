@@ -265,7 +265,7 @@ export default function TrafficPanel({ range = '7d' }) {
                   <div className="text-[10px] text-[var(--text-3)] mt-0.5">
                     Last seen:{' '}
                     {cr.lastSeen
-                      ? new Date(cr.lastSeen).toLocaleDateString(undefined, {
+                      ? new Date(cr.lastSeen).toLocaleString(undefined, {
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',

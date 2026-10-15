@@ -184,7 +184,16 @@ export default function TwoFactorModal({ isOpen, onClose, onStatusChange }) {
                 </p>
                 {status.confirmedAt && (
                   <p className="text-[11px] text-[var(--text-3)] mt-2">
-                    Active since: {new Date(status.confirmedAt).toLocaleDateString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                    Active since: {(() => {
+                      try {
+                        const d = new Date(status.confirmedAt)
+                        return isNaN(d.getTime())
+                          ? String(status.confirmedAt)
+                          : d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                      } catch {
+                        return String(status.confirmedAt)
+                      }
+                    })()}
                   </p>
                 )}
               </div>
