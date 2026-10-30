@@ -18,16 +18,25 @@ let globalNearbyCache = {
 }
 
 function getStoredCache() {
-  if (globalNearbyCache.devices.length > 0 && Date.now() - globalNearbyCache.timestamp < 120000) {
-    return globalNearbyCache.devices
+  const now = Date.now()
+  const filterValid = (list) => {
+    return (Array.isArray(list) ? list : []).filter((d) => {
+      if (!d) return false
+      if (d.expiresAt && new Date(d.expiresAt).getTime() <= now) return false
+      return true
+    })
+  }
+
+  if (globalNearbyCache.devices.length > 0 && now - globalNearbyCache.timestamp < 30000) {
+    return filterValid(globalNearbyCache.devices)
   }
   try {
     const raw = sessionStorage.getItem('swiftshare:nearby-cache')
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed.devices) && Date.now() - parsed.timestamp < 120000) {
+      if (Array.isArray(parsed.devices) && now - parsed.timestamp < 30000) {
         globalNearbyCache = parsed
-        return parsed.devices
+        return filterValid(parsed.devices)
       }
     }
   } catch {
@@ -53,10 +62,14 @@ function dedupeDevices(list, selfSocketId, currentTransferCode) {
   const seenCodes = new Set()
   const seenSockets = new Set()
   const selfCode = normalizeCode(currentTransferCode)
+  const now = Date.now()
 
   return (Array.isArray(list) ? list : [])
     .filter(Boolean)
     .filter((device) => {
+      // Filter out expired transfers
+      if (device.expiresAt && new Date(device.expiresAt).getTime() <= now) return false
+
       const code = normalizeCode(device.code)
       // Hide current transfer if viewing on that transfer's page
       if (selfCode && code === selfCode) return false
@@ -128,10 +141,22 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   const normalizedTransferCode = normalizeCode(currentTransferCode)
   const isSenderShareMode = Boolean(normalizedTransferCode)
 
+  const navigate = useNavigate()
+  const { socket, socketId, isConnected } = useSocket()
+  const socketIdRef = useRef(socketId)
+  useEffect(() => {
+    socketIdRef.current = socketId
+  }, [socketId])
+
   const [devices, setDevices] = useState(() => {
     const cached = getStoredCache()
-    return dedupeDevices(cached, '', normalizedTransferCode)
+    return dedupeDevices(cached, socketId || '', normalizedTransferCode)
   })
+  const devicesLengthRef = useRef(devices.length)
+  useEffect(() => {
+    devicesLengthRef.current = devices.length
+  }, [devices.length])
+
   const [loading, setLoading] = useState(() => {
     const cached = getStoredCache()
     return cached.length === 0
@@ -146,8 +171,20 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
     return () => clearInterval(timer)
   }, [])
 
-  const navigate = useNavigate()
-  const { socket, socketId, isConnected } = useSocket()
+  // If socketId updates, ensure our own transfer is filtered out seamlessly without flashing
+  useEffect(() => {
+    if (socketId) {
+      setDevices((prev) => {
+        const next = dedupeDevices(prev, socketId, normalizedTransferCode)
+        if (next.length !== prev.length) {
+          saveCache(next)
+          return next
+        }
+        return prev
+      })
+    }
+  }, [socketId, normalizedTransferCode])
+
   const lastPingRef = useRef(0)
   const mountedRef = useRef(true)
 
@@ -167,16 +204,23 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
     navigate(`/download/${normalizedCode}`)
   }, [isSenderShareMode, navigate])
 
-  const applyDevices = useCallback((rawDevices) => {
+  const applyDevices = useCallback((rawDevices, isReplace = false) => {
     if (!mountedRef.current) return
-    const deduped = dedupeDevices(rawDevices, socketId, normalizedTransferCode)
-    setDevices(deduped)
-    saveCache(deduped)
+    const candidateList = Array.isArray(rawDevices) ? rawDevices : []
+    const currentSelfSocket = socketIdRef.current || ''
+
+    setDevices((prev) => {
+      const candidate = isReplace
+        ? dedupeDevices(candidateList, currentSelfSocket, normalizedTransferCode)
+        : dedupeDevices([...candidateList, ...prev], currentSelfSocket, normalizedTransferCode)
+      saveCache(candidate)
+      return candidate
+    })
     setLoading(false)
     setRefreshing(false)
     setError(null)
     setLastUpdated(Date.now())
-  }, [socketId, normalizedTransferCode])
+  }, [normalizedTransferCode])
 
   // Dual fetch: Request via Socket AND fallback REST API
   const fetchNearby = useCallback(async (isManual = false) => {
@@ -190,6 +234,8 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
       setRefreshing(true)
     }
 
+    const currentSocketId = socketIdRef.current
+
     // 1. Emit via socket with force flag
     if (socket && (socket.connected || isConnected)) {
       try {
@@ -201,9 +247,9 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
 
     // 2. Fallback REST API call to ensure we never miss responses
     try {
-      const res = await getNearbyDevices(socketId)
+      const res = await getNearbyDevices(currentSocketId)
       if (res && Array.isArray(res.devices)) {
-        applyDevices(res.devices)
+        applyDevices(res.devices, isManual)
         if (isManual) {
           if (res.devices.length > 0) {
             toast.success(`Found ${res.devices.length} local transfer${res.devices.length > 1 ? 's' : ''}!`, { id: 'nearby-sync', duration: 1800 })
@@ -213,7 +259,7 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
         }
       }
     } catch (err) {
-      if (mountedRef.current && devices.length === 0) {
+      if (mountedRef.current && devicesLengthRef.current === 0) {
         setError('Could not reach network discovery')
       }
     } finally {
@@ -222,7 +268,7 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
         setRefreshing(false)
       }
     }
-  }, [socket, isConnected, socketId, normalizedTransferCode, applyDevices, devices.length])
+  }, [socket, isConnected, normalizedTransferCode, applyDevices])
 
   const handleManualRefresh = useCallback(() => {
     fetchNearby(true)
@@ -232,15 +278,16 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
   useEffect(() => {
     const onNearbyDevices = (payload = {}) => {
       if (!mountedRef.current) return
-      applyDevices(payload.devices || [])
+      applyDevices(payload.devices || [], false)
     }
 
     const onNearbyDeviceAdded = (payload = {}) => {
       if (!mountedRef.current) return
       const { device } = payload
       if (!device) return
+      const currentSelfSocket = socketIdRef.current || ''
       setDevices((prev) => {
-        const next = dedupeDevices([...prev, device], socketId, normalizedTransferCode)
+        const next = dedupeDevices([...prev, device], currentSelfSocket, normalizedTransferCode)
         saveCache(next)
         return next
       })
@@ -297,7 +344,7 @@ function NearbyDevices({ currentTransferCode = '', currentFilename = '' }) {
         socket.off('nearby-pong', onNearbyPong)
       }
     }
-  }, [socket, socketId, applyDevices, fetchNearby, normalizedTransferCode])
+  }, [socket, applyDevices, fetchNearby, normalizedTransferCode])
 
   // Show loading state
   if (loading && devices.length === 0) {

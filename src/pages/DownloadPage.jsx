@@ -6,7 +6,7 @@ import { Helmet } from 'react-helmet-async'
 import Spinner from '../components/Spinner'
 import toast from 'react-hot-toast'
 import { useSocket } from '../context/SocketContext'
-import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile, finalizeBurnTransfer, getTextContent } from '../services/api'
+import { getFileMetadataOutcome, previewUrl, verifyPassword, downloadSingleFile, finalizeBurnTransfer, getTextContent, getSingleDownloadUrl, getDownloadUrl } from '../services/api'
 import { smartDownload } from '../utils/download'
 import {
   saveTransfer,
@@ -572,36 +572,11 @@ export default function DownloadPage() {
         setSecondsRemaining(Math.max(0, Math.ceil(Number(syncedSeconds))))
       }
     }
-    // Throttle and coalesce progress renders.
-    let downProgRaf = 0
-    let pendingDownPct = -1
-    let pendingDownSpeed = 0
-    const onDownProg = ({ percent, speed, loaded, total }) => {
-      if (!downloadingRef.current) return
-      const pct = Number(percent) || 0
-      const spd = Number(speed) || 0
-      pendingDownPct = pct
-      pendingDownSpeed = spd
-      if (downProgRaf) return
-      downProgRaf = requestAnimationFrame(() => {
-        downProgRaf = 0
-        if (pendingDownPct >= 0) {
-          setDownloadPercent(pendingDownPct)
-          pendingDownPct = -1
-        }
-        if (pendingDownSpeed >= 0) {
-          setDownloadSpeed(pendingDownSpeed)
-          pendingDownSpeed = 0
-        }
-      })
-    }
     const onDownComplete = () => {
-      clearDownloadGate()
       if (metaRef.current?.burnAfterDownload) {
         downloadedAnyRef.current = true
       }
       if (!downloadingRef.current) return
-      setDownloadPercent(100)
       setDownloading(false)
       setDownloaded(true)
     }
@@ -648,7 +623,6 @@ export default function DownloadPage() {
     socket.on('connect', connectRoom)
     socket.on('transfer-expired', onExpired)
     socket.on('countdown-tick', onCountdownTick)
-    socket.on('download-progress', onDownProg)
     socket.on('download-complete', onDownComplete)
     socket.on('transfer-cancelled', onCancelled)
     socket.on('transfer-deleted', onDeleted)
@@ -660,17 +634,12 @@ export default function DownloadPage() {
       socket.off('connect', connectRoom)
       socket.off('transfer-expired', onExpired)
       socket.off('countdown-tick', onCountdownTick)
-      socket.off('download-progress', onDownProg)
       socket.off('download-complete', onDownComplete)
       socket.off('transfer-cancelled', onCancelled)
       socket.off('transfer-deleted', onDeleted)
       socket.off('transfer-claimed', onClaimed)
       socket.off('transfer-receipt', onReceipt)
       window.removeEventListener('swiftshare:socket-reconnected', onSocketReconnected)
-      if (downProgRaf) {
-        cancelAnimationFrame(downProgRaf)
-        downProgRaf = 0
-      }
       leaveRoom(normalizedCode)
     }
   }, [socket, normalizedCode, joinRoom, rejoinRoom, leaveRoom, navigate, patchCachedTransfer])
@@ -808,27 +777,50 @@ export default function DownloadPage() {
 
       const pw = verifiedPasswordRef.current || undefined
       const total = meta?.files?.length || 0
+      
+      const triggerFileDownload = (url, filename) => {
+        const isIos = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent || '')
+        if (isIos) {
+          const a = document.createElement('a')
+          a.href = url
+          a.download = filename || 'download'
+          a.target = '_blank'
+          document.body.appendChild(a)
+          a.click()
+          setTimeout(() => { try { document.body.removeChild(a) } catch {} }, 1500)
+        } else {
+          const iframe = document.createElement('iframe')
+          iframe.style.display = 'none'
+          iframe.src = url
+          document.body.appendChild(iframe)
+          setTimeout(() => {
+            try { document.body.removeChild(iframe) } catch {}
+          }, 60000)
+        }
+      }
+
       for (let i = 0; i < total; i++) {
         const file = meta.files[i]
         toast.loading(`Downloading ${i + 1} of ${total}: ${file.name || 'file'}`, { id: toastId })
         const url = getSingleDownloadUrl(normalizedCode, i, pw, claimantToken, undefined, sessionIdRef.current)
 
-        const a = document.createElement('a')
-        a.href = url
-        a.download = file.name || `file_${i + 1}`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
+        triggerFileDownload(url, file.name || `file_${i + 1}`)
 
         if (i < total - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 600))
+          await new Promise((resolve) => setTimeout(resolve, 700))
         }
       }
 
       toast.success('All files downloaded!', { id: toastId })
       downloadedAnyRef.current = true
       setDownloaded(true)
-    } catch {
+
+      const currentSettings = getSettings()
+      if (currentSettings.soundEnabled) {
+        playDownloadSuccess()
+      }
+    } catch (err) {
+      console.error('Multi-file download error:', err)
       toast.error('Download failed. Please try again.', { id: toastId })
     } finally {
       setDownloading(false)

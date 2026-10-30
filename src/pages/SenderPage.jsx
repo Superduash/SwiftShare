@@ -491,8 +491,10 @@ export default function SenderPage() {
 
     const connectRoom = () => {
       const currentTransfer = metaRef.current
-      const ownershipToken = currentTransfer?.transfer?.ownershipToken || currentTransfer?.ownershipToken
-      registerSender(normalizedCode, ownershipToken)
+      const token = ownershipToken || initialOwnershipToken || currentTransfer?.transfer?.ownershipToken || currentTransfer?.ownershipToken
+      if (token) {
+        registerSender(normalizedCode, token)
+      }
       rejoinRoom(normalizedCode)
     }
 
@@ -673,11 +675,15 @@ export default function SenderPage() {
     socket.on('stats-updated', onStatsUpdated)
     socket.on('transfer-claimed', onClaimed)
 
-    // Reconcile stats on socket reconnection.
+    // Reconcile stats and re-register sender socket on socket reconnection.
     const onSocketReconnected = () => {
       if (!mountedRef.current || !normalizedCode) return
       const currentTransfer = metaRef.current
-      const token = currentTransfer?.transfer?.ownershipToken || currentTransfer?.ownershipToken
+      const token = ownershipToken || initialOwnershipToken || currentTransfer?.transfer?.ownershipToken || currentTransfer?.ownershipToken
+      if (token) {
+        registerSender(normalizedCode, token)
+      }
+      rejoinRoom(normalizedCode)
       const requestConfig = { timeout: 10000, noRetry: true }
       if (token) {
         requestConfig.headers = { 'X-Ownership-Token': token }

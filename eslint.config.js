@@ -32,7 +32,19 @@ export default [
         CustomEvent: 'readonly',
         requestIdleCallback: 'readonly',
         process: 'readonly',
-        Buffer: 'readonly'
+        Buffer: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        AbortController: 'readonly',
+        getComputedStyle: 'readonly',
+        MutationObserver: 'readonly',
+        XMLSerializer: 'readonly',
+        Image: 'readonly',
+        btoa: 'readonly',
+        atob: 'readonly',
+        BroadcastChannel: 'readonly',
+        FormData: 'readonly',
+        ClipboardItem: 'readonly'
       },
       parserOptions: {
         ecmaFeatures: {

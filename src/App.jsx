@@ -427,11 +427,11 @@ export default function App() {
             <ToastLimiter limit={2} />
             <Toaster
               position={isMobile ? 'top-center' : 'top-right'}
-              gutter={10}
+              gutter={8}
               containerStyle={{
-                top: 'calc(env(safe-area-inset-top, 0px) + 72px)',
-                right: isMobile ? undefined : 'max(env(safe-area-inset-right, 0px), 24px)',
-                left: isMobile ? 'max(env(safe-area-inset-left, 0px), 16px)' : undefined,
+                top: 'calc(env(safe-area-inset-top, 0px) + 64px)',
+                left: isMobile ? 0 : 'auto',
+                right: isMobile ? 0 : 'max(env(safe-area-inset-right, 0px), 24px)',
                 zIndex: 99999,
                 pointerEvents: 'none',
               }}
@@ -465,17 +465,24 @@ export default function App() {
               }}
             >
               {(t) => (
-                <div
-                  onClick={() => toast.dismiss(t.id)}
-                  title="Click to dismiss"
-                  className="group flex items-center justify-between gap-2.5 w-full"
-                  style={{ cursor: 'pointer' }}
+                <ToastBar
+                  toast={t}
+                  style={{
+                    ...t.style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                  }}
                 >
-                  <ToastBar toast={t} style={{ margin: 0, padding: 0, background: 'transparent', boxShadow: 'none' }}>
-                    {({ icon, message }) => (
-                      <div className="flex items-center gap-2.5 w-full">
-                        {icon}
-                        <div className="text-[13px] font-medium leading-snug flex-1">{message}</div>
+                  {({ icon, message }) => (
+                    <div
+                      className="flex items-center gap-2.5 w-full"
+                      onClick={() => toast.dismiss(t.id)}
+                      title="Click to dismiss"
+                    >
+                      {icon}
+                      <div className="text-[13px] font-medium leading-snug flex-1">{message}</div>
+                      {t.type !== 'loading' && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -483,14 +490,14 @@ export default function App() {
                             toast.dismiss(t.id)
                           }}
                           aria-label="Dismiss notification"
-                          className="ml-1 p-1 rounded-md opacity-40 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity flex-shrink-0 text-[11px] font-bold"
+                          className="ml-1 p-1 rounded-md opacity-40 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity flex-shrink-0 text-[11px] font-bold"
                         >
                           ✕
                         </button>
-                      </div>
-                    )}
-                  </ToastBar>
-                </div>
+                      )}
+                    </div>
+                  )}
+                </ToastBar>
               )}
             </Toaster>
           </TransferProvider>

@@ -27,7 +27,7 @@ function useParticleAnimation(ref, keyframes, options) {
     if (!el) return
     const anim = el.animate(keyframes, options)
     return () => anim.cancel()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 }
 
 /* ── Single Petal (Web Animations API) ── */
