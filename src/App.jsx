@@ -5,7 +5,7 @@ import {
 } from 'react-router-dom'
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 import { HelmetProvider, Helmet } from 'react-helmet-async'
-import toast, { Toaster, ToastBar, useToasterStore } from 'react-hot-toast'
+import toast, { Toaster, ToastBar, useToasterStore, resolveValue } from 'react-hot-toast'
 
 import { SocketProvider, useSocket } from './context/SocketContext'
 import { TransferProvider } from './context/TransferContext'
@@ -60,7 +60,7 @@ class RouteErrorBoundary extends Component {
           <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px', padding: '20px', textAlign: 'center' }}>
             <p style={{ color: 'var(--text)', fontWeight: 600, fontSize: '1.1rem' }}>⚡ Update Available</p>
             <p style={{ color: 'var(--text-3)', fontSize: '13px' }}>SwiftShare has been updated. Please reload to get the latest version.</p>
-            <button style={{ padding: '10px 24px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }} onClick={() => window.location.reload()}>Reload Now</button>
+            <button style={{ padding: '10px 24px', background: 'var(--accent)', color: 'var(--accent-contrast, #fff)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }} onClick={() => window.location.reload()}>Reload Now</button>
           </div>
         )
       }
@@ -68,7 +68,7 @@ class RouteErrorBoundary extends Component {
         <div style={{ minHeight: 'calc(var(--app-vh) * 100)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', gap: '16px' }}>
           <p style={{ color: 'var(--text)', fontWeight: 600 }}>Something went wrong loading this page.</p>
           <p style={{ color: 'var(--text-3)', fontSize: '13px', fontFamily: 'monospace' }}>{this.state.error?.message}</p>
-          <button style={{ padding: '10px 20px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Go Home</button>
+          <button style={{ padding: '10px 20px', background: 'var(--accent)', color: 'var(--accent-contrast, #fff)', border: 'none', borderRadius: '8px', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Go Home</button>
         </div>
       )
     }
@@ -351,7 +351,11 @@ function useIsMobile() {
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 640)
     window.addEventListener('resize', handleResize, { passive: true })
-    return () => window.removeEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', handleResize, { passive: true })
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('orientationchange', handleResize)
+    }
   }, [])
   return isMobile
 }
@@ -427,11 +431,12 @@ export default function App() {
             <ToastLimiter limit={2} />
             <Toaster
               position={isMobile ? 'top-center' : 'top-right'}
-              gutter={8}
+              gutter={10}
               containerStyle={{
                 top: 'calc(env(safe-area-inset-top, 0px) + 64px)',
-                left: isMobile ? 0 : 'auto',
-                right: isMobile ? 0 : 'max(env(safe-area-inset-right, 0px), 24px)',
+                left: 'max(env(safe-area-inset-left, 0px), 16px)',
+                right: 'max(env(safe-area-inset-right, 0px), 16px)',
+                bottom: 'max(env(safe-area-inset-bottom, 0px), 16px)',
                 zIndex: 99999,
                 pointerEvents: 'none',
               }}
@@ -446,7 +451,9 @@ export default function App() {
                   fontFamily: "'DM Sans', sans-serif",
                   fontSize: '13px',
                   fontWeight: '600',
-                  maxWidth: isMobile ? 'calc(100vw - 32px)' : '380px',
+                  width: 'fit-content',
+                  minWidth: isMobile ? 'min(260px, calc(100vw - 32px))' : '260px',
+                  maxWidth: isMobile ? 'calc(100vw - 32px)' : '420px',
                   boxShadow: '0 12px 32px -4px rgba(0,0,0,0.36), 0 0 0 1px var(--toast-border)',
                   backdropFilter: 'blur(16px)',
                   WebkitBackdropFilter: 'blur(16px)',
@@ -472,16 +479,21 @@ export default function App() {
                     display: 'flex',
                     alignItems: 'center',
                     cursor: 'pointer',
+                    width: 'fit-content',
+                    minWidth: isMobile ? 'min(260px, calc(100vw - 32px))' : '260px',
+                    maxWidth: isMobile ? 'calc(100vw - 32px)' : '420px',
                   }}
                 >
-                  {({ icon, message }) => (
+                  {({ icon }) => (
                     <div
-                      className="flex items-center gap-2.5 w-full"
+                      className="flex items-center gap-2.5 w-full min-w-0"
                       onClick={() => toast.dismiss(t.id)}
                       title="Click to dismiss"
                     >
-                      {icon}
-                      <div className="text-[13px] font-medium leading-snug flex-1">{message}</div>
+                      {icon && <div className="flex-shrink-0 flex items-center">{icon}</div>}
+                      <div className="text-[13px] font-medium leading-snug flex-auto min-w-0 break-words text-left">
+                        {resolveValue(t.message, t)}
+                      </div>
                       {t.type !== 'loading' && (
                         <button
                           type="button"
@@ -490,7 +502,7 @@ export default function App() {
                             toast.dismiss(t.id)
                           }}
                           aria-label="Dismiss notification"
-                          className="ml-1 p-1 rounded-md opacity-40 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity flex-shrink-0 text-[11px] font-bold"
+                          className="ml-auto p-1 -mr-0.5 rounded-md opacity-45 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity flex-shrink-0 text-[11px] font-bold"
                         >
                           ✕
                         </button>

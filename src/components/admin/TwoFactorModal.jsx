@@ -312,7 +312,7 @@ export default function TwoFactorModal({ isOpen, onClose, onStatusChange }) {
             <button
               type="button"
               onClick={handleStartSetup}
-              className="w-full mt-2 py-3 px-4 rounded-xl bg-[var(--accent)] hover:opacity-90 active:scale-[0.98] text-white font-semibold text-xs transition-all shadow-lg shadow-[var(--accent)]/20 cursor-pointer"
+              className="w-full mt-2 py-3 px-4 rounded-xl bg-[var(--accent)] hover:opacity-90 active:scale-[0.98] text-[var(--accent-contrast)] font-semibold text-xs transition-all shadow-lg shadow-[var(--accent)]/20 cursor-pointer"
             >
               Set Up Authenticator App Now
             </button>
@@ -411,7 +411,7 @@ export default function TwoFactorModal({ isOpen, onClose, onStatusChange }) {
                 <button
                   type="submit"
                   disabled={verifying || verificationCode.trim().length !== 6}
-                  className="px-5 py-2.5 rounded-xl bg-[var(--accent)] hover:opacity-90 active:scale-[0.98] text-white text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-md shadow-[var(--accent)]/20"
+                  className="px-5 py-2.5 rounded-xl bg-[var(--accent)] hover:opacity-90 active:scale-[0.98] text-[var(--accent-contrast)] text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer shadow-md shadow-[var(--accent)]/20"
                 >
                   {verifying ? 'Activating...' : 'Activate 2FA'}
                 </button>

@@ -308,7 +308,7 @@ export default function OverviewPanel({ range = '7d' }) {
                 onClick={() => setActiveMetric(m.id)}
                 className={`px-3 py-1 text-xs rounded-lg font-medium transition-all ${
                   activeMetric === m.id
-                    ? 'bg-[var(--accent)] text-white font-semibold shadow-sm'
+                    ? 'bg-[var(--accent)] text-[var(--accent-contrast)] font-semibold shadow-sm'
                     : 'text-[var(--text-3)] hover:text-[var(--text)]'
                 }`}
               >

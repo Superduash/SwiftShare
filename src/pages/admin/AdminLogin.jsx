@@ -237,7 +237,7 @@ export default function AdminLogin() {
               <button
                 type="submit"
                 disabled={loading || retryAfter > 0}
-                className="w-full mt-2 py-2.5 bg-[var(--accent)] hover:opacity-90 active:scale-[0.98] text-white font-semibold text-sm rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-[var(--accent)]/20 cursor-pointer"
+                className="w-full mt-2 py-2.5 bg-[var(--accent)] hover:opacity-90 active:scale-[0.98] text-[var(--accent-contrast)] font-semibold text-sm rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-[var(--accent)]/20 cursor-pointer"
               >
                 {loading ? 'Authenticating...' : retryAfter > 0 ? `Locked (${retryAfter}s)` : 'Sign In'}
               </button>
@@ -288,7 +288,7 @@ export default function AdminLogin() {
               <button
                 type="submit"
                 disabled={loading || retryAfter > 0 || !totpCode.trim()}
-                className="w-full mt-2 py-2.5 bg-[var(--accent)] hover:opacity-90 active:scale-[0.98] text-white font-semibold text-sm rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-[var(--accent)]/20 cursor-pointer"
+                className="w-full mt-2 py-2.5 bg-[var(--accent)] hover:opacity-90 active:scale-[0.98] text-[var(--accent-contrast)] font-semibold text-sm rounded-xl transition-all disabled:opacity-50 shadow-lg shadow-[var(--accent)]/20 cursor-pointer"
               >
                 {loading ? 'Verifying 2FA...' : 'Verify & Continue'}
               </button>

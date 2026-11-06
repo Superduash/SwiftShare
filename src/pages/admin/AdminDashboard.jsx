@@ -237,7 +237,7 @@ export default function AdminDashboard() {
                   onClick={() => setActiveTab(item.id)}
                   className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                     isActive
-                      ? 'bg-[var(--accent)] text-white shadow-md shadow-[var(--accent)]/20'
+                      ? 'bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md shadow-[var(--accent)]/20'
                       : 'text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
                   }`}
                 >
@@ -339,7 +339,7 @@ export default function AdminDashboard() {
                   onClick={() => setRange(r.id)}
                   className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
                     range === r.id
-                      ? 'bg-[var(--accent)] text-white font-semibold shadow-sm'
+                      ? 'bg-[var(--accent)] text-[var(--accent-contrast)] font-semibold shadow-sm'
                       : 'text-[var(--text-3)] hover:text-[var(--text)]'
                   }`}
                 >

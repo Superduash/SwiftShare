@@ -181,7 +181,7 @@ export default function ShareSnapshotModal({ overviewData, range = '7d', onClose
 
           <button
             onClick={handleDownloadPng}
-            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[var(--accent)] text-white text-xs font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[var(--accent)]/20"
+            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[var(--accent)] text-[var(--accent-contrast)] text-xs font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-[var(--accent)]/20"
           >
             <Download className="w-4 h-4" /> Download PNG Snapshot
           </button>

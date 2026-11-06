@@ -20,7 +20,7 @@ export default function Footer() {
             <div className="flex items-center gap-2">
               <Link to="/" className="inline-flex items-center gap-2 text-lg font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)' }}>
-                  <Zap size={16} style={{ color: '#000000' }} />
+                  <Zap size={16} color="var(--logo-icon, var(--accent-contrast, #fff))" strokeWidth={2.5} />
                 </div>
                 <span>SwiftShare</span>
               </Link>
