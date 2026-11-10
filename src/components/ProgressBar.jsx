@@ -17,7 +17,8 @@ export default function ProgressBar({
   const lastPercent = useRef(0);
 
   useEffect(() => {
-    const newPercent = Math.max(0, Math.min(100, percent));
+    const raw = Number.isFinite(percent) ? percent : 0;
+    const newPercent = Math.max(0, Math.min(100, raw));
     if (newPercent >= lastPercent.current) {
       setClampedPercent(newPercent);
       lastPercent.current = newPercent;
@@ -25,7 +26,8 @@ export default function ProgressBar({
   }, [percent]);
   
   const etaText = formatETA(eta);
-  const scaleX = clampedPercent / 100;
+  const safePercent = Number.isFinite(clampedPercent) ? clampedPercent : 0;
+  const scaleX = Math.max(0, Math.min(1, safePercent / 100));
   const [liveText, setLiveText] = useState('');
   const announced = useRef(new Set());
 

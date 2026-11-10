@@ -553,8 +553,10 @@ export default function HomePage() {
         setUploadPercent((prev) => {
           // Never let the bar go backward — clamp to max of previous value.
           // This prevents rubber-banding when a retry resets XHR bytesLoaded.
-          const clamped = Math.max(prev, next.percent)
-          return Math.abs(prev - clamped) >= 0.5 ? clamped : prev
+          const rawNext = Number.isFinite(next.percent) ? next.percent : 0
+          const safePrev = Number.isFinite(prev) ? prev : 0
+          const clamped = Math.max(safePrev, rawNext)
+          return Math.abs(safePrev - clamped) >= 0.5 ? clamped : safePrev
         })
         if (Number.isFinite(next.speed)) {
           setUploadSpeed((prev) => (Math.abs(prev - next.speed) >= 1024 ? next.speed : prev))
@@ -585,18 +587,23 @@ export default function HomePage() {
             scheduleFlush()
             return
           }
-          const total = Number(info?.total) || 0
-          const loaded = Number(info?.loaded) || 0
+          const rawTotal = Number(info?.total)
+          const total = Number.isFinite(rawTotal) && rawTotal > 0 ? rawTotal : 0
+          const rawLoaded = Number(info?.loaded)
+          const loaded = Number.isFinite(rawLoaded) && rawLoaded >= 0 ? rawLoaded : 0
           if (!total) return
 
           // Exact 0-100% network transfer representation
-          const visiblePct = Math.min(100, (loaded / total) * 100)
+          const rawPct = (loaded / total) * 100
+          const visiblePct = Number.isFinite(rawPct) ? Math.max(0, Math.min(100, rawPct)) : 0
 
-          const smoothedSpeed = speedCalc.update(loaded)
+          const rawSpeed = speedCalc.update(loaded)
+          const smoothedSpeed = Number.isFinite(rawSpeed) ? rawSpeed : 0
 
           const phase = loaded >= total ? 'finalizing' : 'uploading'
 
-          const etaSeconds = phase === 'uploading' ? speedCalc.getETA(loaded, total) : 0
+          const rawEta = phase === 'uploading' ? speedCalc.getETA(loaded, total) : 0
+          const etaSeconds = Number.isFinite(rawEta) ? Math.max(0, rawEta) : 0
 
           // Coalesce: only the latest values matter — older pending values are
           // safely overwritten before the next frame paint.

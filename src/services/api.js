@@ -406,7 +406,178 @@ function isTransientUploadError(err) {
   return status >= 500 && status < 600
 }
 
+// Direct browser -> Cloudflare R2 presigned PUT upload
+// Completely bypasses Render's edge WAF: file bytes never pass through Render.
+async function directR2Upload(files, options = {}) {
+  const {
+    onProgress,
+    signal,
+    burnAfterDownload,
+    passwordProtected,
+    password,
+    expiryMinutes,
+    nearbyVisible,
+    socketId,
+  } = options
+
+  // 1. Call /api/upload/init with retry for Render cold starts
+  let initData = null
+  let initAttempts = 0
+  const maxInitAttempts = 3
+
+  while (initAttempts < maxInitAttempts) {
+    try {
+      if (initAttempts > 0 && typeof onProgress === 'function') {
+        onProgress({ retrying: true, message: 'Server waking up, please wait...' })
+      }
+      const initPayload = {
+        files: files.map((f) => ({
+          filename: f.name || 'file',
+          size: f.size || 0,
+          contentType: f.type || 'application/octet-stream',
+        })),
+      }
+      const res = await API.post('/api/upload/init', initPayload, { signal })
+      initData = res.data
+      break
+    } catch (err) {
+      if (signal?.aborted) throw err
+      initAttempts++
+      if (initAttempts >= maxInitAttempts) throw err
+      await new Promise((r) => setTimeout(r, 1500 * initAttempts))
+    }
+  }
+
+  if (!initData?.success || !Array.isArray(initData.files)) {
+    throw new Error(initData?.error?.message || 'Failed to initialize upload')
+  }
+
+  // 2. Upload each file directly to its presigned R2 PUT URL
+  const totalBytes = files.reduce((sum, f) => sum + (f.size || 0), 0)
+  const loadedPerFile = new Array(files.length).fill(0)
+
+  const uploadSingleFileToR2 = (file, presigned) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('PUT', presigned.uploadUrl, true)
+      // R2 signed URLs require the EXACT same Content-Type specified during init
+      xhr.setRequestHeader('Content-Type', presigned.contentType || 'application/octet-stream')
+      xhr.timeout = 600000
+
+      if (signal) {
+        if (signal.aborted) {
+          try { xhr.abort() } catch {}
+          return reject(new Error('Upload aborted'))
+        }
+        signal.addEventListener('abort', () => {
+          try { xhr.abort() } catch {}
+          reject(new Error('Upload aborted'))
+        }, { once: true })
+      }
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (!e.lengthComputable) return
+        const fileIdx = files.indexOf(file)
+        if (fileIdx !== -1) {
+          loadedPerFile[fileIdx] = Number.isFinite(e.loaded) ? e.loaded : 0
+          const overallLoaded = loadedPerFile.reduce((a, b) => a + b, 0)
+          if (typeof onProgress === 'function') {
+            onProgress({
+              loaded: overallLoaded,
+              total: Number.isFinite(totalBytes) && totalBytes > 0 ? totalBytes : overallLoaded,
+            })
+          }
+        }
+      })
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve()
+        } else {
+          const err = new Error(`Storage rejected upload (${xhr.status})`)
+          err.status = xhr.status
+          reject(err)
+        }
+      })
+
+      xhr.addEventListener('error', () => {
+        const err = new Error('Network error uploading file to storage')
+        err.code = 'ERR_STORAGE_NETWORK'
+        reject(err)
+      })
+
+      xhr.addEventListener('timeout', () => {
+        const err = new Error('Storage upload timed out')
+        err.code = 'ECONNABORTED'
+        reject(err)
+      })
+
+      xhr.send(file)
+    })
+  }
+
+  // Upload files concurrently
+  for (let i = 0; i < files.length; i++) {
+    await uploadSingleFileToR2(files[i], initData.files[i])
+  }
+
+  // 3. Call /api/upload/complete
+  let completeAttempts = 0
+  const maxCompleteAttempts = 3
+  while (completeAttempts < maxCompleteAttempts) {
+    try {
+      const completePayload = {
+        code: initData.code,
+        files: initData.files.map((f, i) => ({
+          key: f.key,
+          filename: files[i].name || f.filename,
+          size: files[i].size || f.size,
+          contentType: f.contentType,
+        })),
+        burnAfterDownload,
+        passwordProtected,
+        password,
+        expiryMinutes,
+        nearbyVisible,
+        socketId,
+      }
+      const res = await API.post('/api/upload/complete', completePayload, { signal })
+      return unwrapResponse(res.data)
+    } catch (err) {
+      if (signal?.aborted) throw err
+      completeAttempts++
+      if (completeAttempts >= maxCompleteAttempts) throw err
+      await new Promise((r) => setTimeout(r, 1500 * completeAttempts))
+    }
+  }
+}
+
 export async function uploadFiles(formData, opts = {}) {
+  // If formData contains File objects, attempt direct R2 presigned upload first
+  if (formData && typeof formData.getAll === 'function') {
+    const rawFiles = formData.getAll('files')
+    const actualFiles = rawFiles.filter((f) => f instanceof Blob || (f && typeof f.size === 'number' && f.name))
+
+    if (actualFiles.length > 0) {
+      try {
+        const options = {
+          ...opts,
+          burnAfterDownload: formData.get('burnAfterDownload') === 'true',
+          passwordProtected: formData.get('passwordProtected') === 'true',
+          password: formData.get('password') || '',
+          expiryMinutes: Number(formData.get('expiryMinutes')) || 10,
+          nearbyVisible: formData.get('nearbyVisible') !== 'false',
+          socketId: formData.get('socketId') || formData.get('senderSocketId') || '',
+        }
+        return await directR2Upload(actualFiles, options)
+      } catch (directErr) {
+        // If aborted by user, don't fall back
+        if (opts?.signal?.aborted) throw directErr
+        console.warn('[Upload] Direct R2 upload failed, falling back to streaming endpoint:', directErr.message)
+      }
+    }
+  }
+
   if (formData?.get && !formData.get('senderSocketId') && formData.get('socketId')) {
     formData.append('senderSocketId', formData.get('socketId'))
   }
