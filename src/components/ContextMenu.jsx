@@ -26,10 +26,15 @@ export default function ContextMenu({ open, x, y, items, onClose }) {
   }
 
   // Clamp to viewport
+  const safeX = Number.isFinite(x) ? x : 0
+  const safeY = Number.isFinite(y) ? y : 0
+  const winW = typeof window !== 'undefined' && Number.isFinite(window.innerWidth) ? window.innerWidth : 1000
+  const winH = typeof window !== 'undefined' && Number.isFinite(window.innerHeight) ? window.innerHeight : 800
+
   const style = {
     position: 'fixed',
-    top: Math.min(y, window.innerHeight - 200),
-    left: Math.min(x, window.innerWidth - 200),
+    top: Math.min(safeY, winH - 200),
+    left: Math.min(safeX, winW - 200),
     zIndex: 9990,
   }
 

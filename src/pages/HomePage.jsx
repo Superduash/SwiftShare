@@ -1147,7 +1147,7 @@ export default function HomePage() {
                         eta={uploadPhase === 'uploading' ? uploadETA : 0}
                         label={
                           uploadPhase === 'retrying'
-                            ? 'Connection hiccup, retrying...'
+                            ? 'Server waking up, retrying...'
                             : 'Uploading...'
                         }
                         indeterminate={uploadPhase === 'retrying'}
