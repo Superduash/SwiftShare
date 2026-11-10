@@ -429,71 +429,79 @@ export default function App() {
               <AppContent />
             </BrowserRouter>
             <ToastLimiter limit={2} />
-            <Toaster
-              position={isMobile ? 'top-center' : 'top-right'}
-              gutter={10}
-              containerStyle={{
-                top: 'calc(env(safe-area-inset-top, 0px) + 64px)',
-                left: 'max(env(safe-area-inset-left, 0px), 16px)',
-                right: 'max(env(safe-area-inset-right, 0px), 16px)',
-                bottom: 'max(env(safe-area-inset-bottom, 0px), 16px)',
-                zIndex: 99999,
-                pointerEvents: 'none',
-              }}
-              toastOptions={{
-                duration: 3000,
-                style: {
-                  pointerEvents: 'auto',
-                  background: 'var(--toast-bg)',
-                  color: 'var(--toast-text)',
-                  border: '1px solid var(--toast-border)',
-                  borderRadius: '14px',
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  width: 'fit-content',
-                  minWidth: isMobile ? 'min(260px, calc(100vw - 32px))' : '260px',
-                  maxWidth: isMobile ? 'calc(100vw - 32px)' : '420px',
-                  boxShadow: '0 12px 32px -4px rgba(0,0,0,0.36), 0 0 0 1px var(--toast-border)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  padding: '10px 14px',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                },
-                success: {
-                  duration: 2500,
-                  iconTheme: { primary: '#16A34A', secondary: 'var(--toast-bg)' },
-                },
-                error: {
-                  duration: 4000,
-                  iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' },
-                },
-              }}
-            >
-              {(t) => (
-                <ToastBar
-                  toast={t}
-                  style={{
-                    ...t.style,
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    width: 'fit-content',
-                    minWidth: isMobile ? 'min(260px, calc(100vw - 32px))' : '260px',
-                    maxWidth: isMobile ? 'calc(100vw - 32px)' : '420px',
-                  }}
-                >
-                  {({ icon }) => (
-                    <div
-                      className="flex items-center gap-2.5 w-full min-w-0"
-                      onClick={() => toast.dismiss(t.id)}
-                      title="Click to dismiss"
-                    >
-                      {icon && <div className="flex-shrink-0 flex items-center">{icon}</div>}
-                      <div className="text-[13px] font-medium leading-snug flex-auto min-w-0 break-words text-left">
-                        {resolveValue(t.message, t)}
-                      </div>
+          </TransferProvider>
+          </ConnectionHealthProvider>
+        </SocketProvider>
+      </MotionConfig>
+      {/* Toaster is outside MotionConfig intentionally — Framer Motion intercepts
+          transform styles on all descendants and rewrites them, which corrupts
+          react-hot-toast's internal translate(calc(Xpx - 50%), Ypx) positioning
+          and produces "NaNpx" console warnings when toast heights are unmeasured. */}
+      <Toaster
+        position={isMobile ? 'top-center' : 'top-right'}
+        gutter={10}
+        containerStyle={{
+          top: 'calc(env(safe-area-inset-top, 0px) + 64px)',
+          left: 'max(env(safe-area-inset-left, 0px), 16px)',
+          right: 'max(env(safe-area-inset-right, 0px), 16px)',
+          bottom: 'max(env(safe-area-inset-bottom, 0px), 16px)',
+          zIndex: 99999,
+          pointerEvents: 'none',
+        }}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            pointerEvents: 'auto',
+            background: 'var(--toast-bg)',
+            color: 'var(--toast-text)',
+            border: '1px solid var(--toast-border)',
+            borderRadius: '14px',
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: '13px',
+            fontWeight: '600',
+            width: 'fit-content',
+            minWidth: isMobile ? 'min(260px, calc(100vw - 32px))' : '260px',
+            maxWidth: isMobile ? 'calc(100vw - 32px)' : '420px',
+            boxShadow: '0 12px 32px -4px rgba(0,0,0,0.36), 0 0 0 1px var(--toast-border)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            padding: '10px 14px',
+            cursor: 'pointer',
+            userSelect: 'none',
+          },
+          success: {
+            duration: 2500,
+            iconTheme: { primary: '#16A34A', secondary: 'var(--toast-bg)' },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: { primary: '#DC2626', secondary: 'var(--toast-bg)' },
+          },
+        }}
+      >
+        {(t) => (
+          <ToastBar
+            toast={t}
+            style={{
+              ...t.style,
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              width: 'fit-content',
+              minWidth: isMobile ? 'min(260px, calc(100vw - 32px))' : '260px',
+              maxWidth: isMobile ? 'calc(100vw - 32px)' : '420px',
+            }}
+          >
+            {({ icon }) => (
+              <div
+                className="flex items-center gap-2.5 w-full min-w-0"
+                onClick={() => toast.dismiss(t.id)}
+                title="Click to dismiss"
+              >
+                {icon && <div className="flex-shrink-0 flex items-center">{icon}</div>}
+                <div className="text-[13px] font-medium leading-snug flex-auto min-w-0 break-words text-left">
+                  {resolveValue(t.message, t)}
+                </div>
                       {t.type !== 'loading' && (
                         <button
                           type="button"
@@ -512,10 +520,6 @@ export default function App() {
                 </ToastBar>
               )}
             </Toaster>
-          </TransferProvider>
-        </ConnectionHealthProvider>
-      </SocketProvider>
-    </MotionConfig>
     </HelmetProvider>
   )
 }

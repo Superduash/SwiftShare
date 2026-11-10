@@ -415,6 +415,13 @@ export default function HomePage() {
       return 'File became unavailable after selection. Please re-select the file and try again.'
     }
 
+    // === WAF / PROXY BLOCK ===
+    // The file content (e.g. code, scripts, SQL) was blocked by Render's WAF before
+    // it reached the server. Retrying is pointless — the user needs to zip/rename the file.
+    if (transportCode === 'ERR_WAF_BLOCKED') {
+      return 'Upload blocked: this file contains content (code, scripts, or commands) that was flagged by the security firewall. Please zip the file or rename it and try again.'
+    }
+
     // === FILE READ ERRORS (caught during pre-read) ===
     if (transportMessage.includes('became unavailable')) {
       return err.message

@@ -326,8 +326,14 @@ function attemptUpload(formData, { onProgress, signal, attemptNumber = 1, totalS
         return
       }
 
+      // Detect WAF / proxy 403: response body is HTML (no CORS header means browser
+      // can't read it, but status is still visible). Mark with a special code so the
+      // UI can show a targeted message and the retry logic does NOT loop on it.
+      const contentType = xhr.getResponseHeader?.('content-type') || ''
+      const isHtmlError = contentType.includes('text/html') || (parsed === null && xhr.responseText?.includes('<!DOCTYPE'))
       const err = new Error(parsed?.error?.message || `Upload failed (${status})`)
       err.response = { status, data: parsed }
+      if (status === 403 && isHtmlError) err.code = 'ERR_WAF_BLOCKED'
       reject(err)
     })
 
@@ -387,6 +393,10 @@ function isTransientUploadError(err) {
   
   // NEVER retry file access errors - file is gone/changed, retrying won't help
   if (code === 'ERR_UPLOAD_FILE_CHANGED') return false
+
+  // NEVER retry WAF/proxy blocks - the file content itself triggered the block,
+  // retrying will always produce the same 403 and loop forever.
+  if (code === 'ERR_WAF_BLOCKED') return false
   
   // Retry network issues and stalls
   if (code === 'ERR_NETWORK' || code === 'ERR_STALLED') return true
